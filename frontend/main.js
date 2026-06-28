@@ -29,6 +29,8 @@ var cart               = JSON.parse(localStorage.getItem('cart') || '[]');
 var cachedCategories   = [];
 var _qaProduct = null, _qaColor = null, _qaSize = null;
 var _pendingCart = null;
+var currentPreorder    = null;
+var _preorderPollTimer = null;
 
 // ─── API Product Mapper ───────────────────────────────────────────────────────
 function mapApiProduct(p) {
@@ -47,7 +49,7 @@ function mapApiProduct(p) {
     name:        { fa: p.name_fa, en: p.name_en || p.name_fa, tr: p.name_tr || p.name_fa },
     description: { fa: p.desc_fa || '', en: p.desc_en || '', tr: p.desc_tr || '' },
     colors: (p.product_colors || []).map(function(pc) {
-      return { key: pc.colors.key, hex: pc.colors.hex,
+      return { id: pc.colors.id, key: pc.colors.key, hex: pc.colors.hex,
                name: { fa: pc.colors.name_fa, en: pc.colors.name_en, tr: pc.colors.name_tr },
                is_available: pc.is_available };
     }),
@@ -151,6 +153,110 @@ function renderCart() {
   if (!itemsEl || !footerEl) return;
   if (titleEl) titleEl.textContent = t.cart_title;
 
+  var user = getCurrentUser();
+
+  // ── Active preorder: show status card instead of items ──────────────────────
+  if (currentPreorder && currentPreorder.status !== 'cancelled' && currentPreorder.status !== 'delivered') {
+    var order = currentPreorder;
+    var st    = order.status;
+    var canCancel = (st === 'preorder' || st === 'payment_needed');
+
+    // Status badge HTML
+    var statusColors = {
+      preorder:        '#3b82f6',
+      payment_needed:  '#f59e0b',
+      approval_needed: '#eab308',
+      preparing:       '#22c55e',
+      delivery:        '#8b5cf6',
+      delivered:       '#16a34a',
+    };
+    var statusLabels = {
+      preorder:        t.preorder_registered   || 'پیش‌سفارش ثبت شد',
+      payment_needed:  t.payment_info_title    || 'اطلاعات پرداخت',
+      approval_needed: t.receipt_uploaded      || 'رسید ارسال شد، در انتظار تأیید',
+      preparing:       t.preparing_msg         || 'در حال آماده‌سازی',
+      delivery:        'در مسیر ارسال',
+      delivered:       t.order_delivered       || 'تحویل داده شد ✓',
+    };
+
+    var badgeColor = statusColors[st] || '#6b7280';
+    var statusHtml = '<div class="preorder-status-card">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">' +
+      '<span class="order-status-badge" style="background:' + badgeColor + '20;color:' + badgeColor + ';border:1px solid ' + badgeColor + '40;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700">' + (statusLabels[st] || st) + '</span>' +
+      '<span style="font-size:12px;color:#888">' + (t.order_id_label || '#') + order.id + '</span>' +
+      '</div>';
+
+    // preorder status
+    if (st === 'preorder') {
+      statusHtml += '<p style="font-size:14px;color:#555;margin-bottom:12px">' + (t.preorder_wait_payment || 'منتظر اطلاعات پرداخت باشید') + '</p>';
+    }
+
+    // payment_needed: show bank info + upload form + rejection reason
+    if (st === 'payment_needed') {
+      if (order.payment_rejection_reason) {
+        statusHtml += '<div class="rejection-reason" style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:12px;color:#dc2626;font-size:13px">' +
+          '<strong>' + (t.payment_rejected || 'پرداخت رد شد') + ':</strong> ' + order.payment_rejection_reason + '</div>';
+      }
+      statusHtml += '<div class="payment-info-box" style="border-left:4px solid #FF5C00;background:#fff5f0;border-radius:8px;padding:12px 16px;margin-bottom:14px">' +
+        '<div style="font-weight:700;font-size:14px;margin-bottom:8px">' + (t.payment_info_title || 'اطلاعات پرداخت') + '</div>' +
+        (order.iban ? '<div style="font-size:13px;margin-bottom:4px"><span style="color:#888">' + (t.payment_iban || 'شبا') + ': </span><strong style="direction:ltr;display:inline-block">' + order.iban + '</strong></div>' : '') +
+        (order.bank_name ? '<div style="font-size:13px;margin-bottom:4px"><span style="color:#888">' + (t.payment_bank || 'بانک') + ': </span>' + order.bank_name + '</div>' : '') +
+        (order.account_holder ? '<div style="font-size:13px"><span style="color:#888">' + (t.payment_holder || 'صاحب حساب') + ': </span>' + order.account_holder + '</div>' : '') +
+        '</div>' +
+        '<div class="receipt-upload-form" style="margin-bottom:12px">' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:8px">' + (t.upload_receipt || 'آپلود رسید') + '</div>' +
+        '<input type="file" id="receipt-file-input" accept="image/*" style="display:none" onchange="handleReceiptFileChange(this)">' +
+        '<button class="cart-order-btn" style="background:#FF5C00;color:#fff;width:100%;margin-bottom:0" onclick="document.getElementById(\'receipt-file-input\').click()">' +
+        (t.upload_receipt_btn || 'انتخاب و ارسال رسید') + '</button>' +
+        '</div>';
+    }
+
+    // approval_needed
+    if (st === 'approval_needed') {
+      statusHtml += '<p style="font-size:14px;color:#555;margin-bottom:12px">' + (t.receipt_uploaded || 'رسید ارسال شد، در انتظار تأیید...') + '</p>';
+      if (order.payment_receipt_url) {
+        statusHtml += '<a href="' + SERVER_BASE + order.payment_receipt_url + '" target="_blank" style="font-size:13px;color:#3b82f6;text-decoration:underline;display:block;margin-bottom:10px">مشاهده رسید ارسالی</a>';
+      }
+    }
+
+    // preparing
+    if (st === 'preparing') {
+      var maxDays = 0;
+      (order.order_items || []).forEach(function(oi) {
+        var d = oi.products && oi.products.delivery_days ? Number(oi.products.delivery_days) : 5;
+        if (d > maxDays) maxDays = d;
+      });
+      statusHtml += '<p style="font-size:14px;color:#555;margin-bottom:8px">' + (t.payment_approved || 'پرداخت تأیید شد') + '! ' + (t.preparing_msg || 'سفارش در حال آماده‌سازی') + '.</p>' +
+        (maxDays ? '<p style="font-size:13px;color:#888">' + (t.delivery_days_msg || 'زمان تحویل تخمینی') + ': ' + localizeNumber(String(maxDays)) + ' ' + (t.delivery_unit || 'روز کاری') + '</p>' : '');
+    }
+
+    // delivery: show carrier/tracking
+    if (st === 'delivery') {
+      statusHtml += '<div class="tracking-box" style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:8px;padding:12px 16px;margin-bottom:12px">' +
+        '<div style="font-weight:700;font-size:14px;margin-bottom:8px">سفارش ارسال شد</div>' +
+        (order.carrier_name ? '<div style="font-size:13px;margin-bottom:4px"><span style="color:#888">' + (t.carrier_label || 'شرکت پست') + ': </span>' + order.carrier_name + '</div>' : '') +
+        (order.tracking_number ? '<div style="font-size:13px"><span style="color:#888">' + (t.tracking_label || 'کد پیگیری') + ': </span><strong style="direction:ltr;display:inline-block">' + order.tracking_number + '</strong></div>' : '') +
+        '</div>';
+    }
+
+    // delivered
+    if (st === 'delivered') {
+      statusHtml += '<p style="font-size:15px;color:#16a34a;font-weight:700;margin-bottom:12px">' + (t.order_delivered || 'سفارش تحویل داده شد ✓') + '</p>';
+    }
+
+    // cancel button
+    if (canCancel) {
+      statusHtml += '<button onclick="cancelPreorder()" style="width:100%;padding:10px;border:1.5px solid #ef4444;background:transparent;color:#ef4444;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px">' +
+        (t.cancel_preorder || 'لغو پیش‌سفارش') + '</button>';
+    }
+
+    statusHtml += '</div>';
+    itemsEl.innerHTML = statusHtml;
+    footerEl.innerHTML = '<div style="font-size:12px;color:#888;text-align:center;padding:8px">' + (t.preorder_locked || 'سبد خرید قفل شده است') + '</div>';
+    return;
+  }
+
+  // ── Empty cart ───────────────────────────────────────────────────────────────
   if (cart.length === 0) {
     itemsEl.innerHTML = emptyView(SVG_CART,
       t.cart_empty      || 'سبد خرید خالی است',
@@ -160,6 +266,7 @@ function renderCart() {
     return;
   }
 
+  // ── Cart items ───────────────────────────────────────────────────────────────
   itemsEl.innerHTML = cart.map(function(item, i) {
     var p = products.find(function(pr) { return pr.id === item.id; });
     if (!p) return '';
@@ -194,16 +301,28 @@ function renderCart() {
   }).join('');
 
   var totalQty = cart.reduce(function(s, item) { return s + item.qty; }, 0);
-  footerEl.innerHTML =
-    '<div class="cart-total">' + localizeNumber(String(totalQty)) + ' ' + t.cart_item_unit + '</div>' +
-    '<div class="cart-order-btns">' +
-    '<button class="cart-order-btn cart-order-wa" onclick="sendCartOrder()">' +
-    WA_SVG_SMALL + ' ' + t.cart_order_btn +
-    '</button>' +
-    '<button class="cart-order-btn cart-order-tg" onclick="sendCartOrderTelegram()">' +
-    TG_SVG_SMALL + ' ' + t.cart_order_tg_btn +
-    '</button>' +
-    '</div>';
+
+  // ── Footer: preorder button (if logged in) or WA/TG buttons ─────────────────
+  if (user) {
+    footerEl.innerHTML =
+      '<div class="cart-total">' + localizeNumber(String(totalQty)) + ' ' + t.cart_item_unit + '</div>' +
+      '<div class="cart-order-btns">' +
+      '<button class="cart-order-btn" style="background:#FF5C00;color:#fff;width:100%" onclick="registerPreorder()">' +
+      (t.preorder_btn || 'ثبت پیش‌سفارش') +
+      '</button>' +
+      '</div>';
+  } else {
+    footerEl.innerHTML =
+      '<div style="font-size:13px;color:#888;text-align:center;margin-bottom:10px">' + (t.login_to_order || 'برای ثبت پیش‌سفارش وارد شوید') + '</div>' +
+      '<div class="cart-order-btns">' +
+      '<button class="cart-order-btn cart-order-wa" onclick="sendCartOrder()">' +
+      WA_SVG_SMALL + ' ' + t.cart_order_btn +
+      '</button>' +
+      '<button class="cart-order-btn cart-order-tg" onclick="sendCartOrderTelegram()">' +
+      TG_SVG_SMALL + ' ' + t.cart_order_tg_btn +
+      '</button>' +
+      '</div>';
+  }
 }
 
 function buildOrderLines() {
@@ -231,6 +350,142 @@ function sendCartOrderTelegram() {
   saveOrderToHistory();
   var msg = 'سلام، میخوام این محصولات رو سفارش بدم:\n' + buildOrderLines().join('\n');
   window.open('https://t.me/' + CONTACT.telegram + '?text=' + encodeURIComponent(msg), '_blank');
+}
+
+// ─── Preorder Functions ───────────────────────────────────────────────────────
+function registerPreorder() {
+  var user = getCurrentUser();
+  if (!user) { openAuthModal('login'); return; }
+  if (!cart.length) return;
+
+  var token = getSession();
+  var items = cart.map(function(item) {
+    var p = products.find(function(pr) { return pr.id === item.id; });
+    var colorObj = p && item.colorKey ? p.colors.find(function(c) { return c.key === item.colorKey; }) : null;
+    return {
+      product_id:  item.id,
+      color_id:    colorObj ? colorObj.id : null,
+      size_label:  item.size || null,
+      qty:         item.qty,
+      unit_price:  p ? p.price : 0,
+    };
+  });
+
+  fetch(API_BASE + '/orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-session-token': token },
+    body: JSON.stringify({ items: items }),
+  }).then(function(res) { return res.json(); }).then(function(data) {
+    if (data.success) {
+      currentPreorder = data.data;
+      localStorage.setItem('mf_preorder_id', String(data.data.id));
+      showToast(TRANSLATIONS[currentLang].preorder_registered || 'پیش‌سفارش ثبت شد');
+      renderCart();
+    } else {
+      showToast(data.message || 'خطا در ثبت پیش‌سفارش');
+    }
+  }).catch(function() {
+    showToast('خطا در اتصال به سرور');
+  });
+}
+
+function loadActivePreorder() {
+  var storedId = localStorage.getItem('mf_preorder_id');
+  if (!storedId) return;
+  var token = getSession();
+  if (!token) return;
+
+  fetch(API_BASE + '/orders/' + storedId, {
+    headers: { 'x-session-token': token },
+  }).then(function(res) { return res.json(); }).then(function(data) {
+    if (data.success && data.data) {
+      var st = data.data.status;
+      if (st !== 'delivered' && st !== 'cancelled') {
+        currentPreorder = data.data;
+        renderCart();
+      } else {
+        localStorage.removeItem('mf_preorder_id');
+        currentPreorder = null;
+      }
+    } else {
+      localStorage.removeItem('mf_preorder_id');
+      currentPreorder = null;
+    }
+  }).catch(function() {});
+}
+
+function cancelPreorder() {
+  var t = TRANSLATIONS[currentLang];
+  if (!confirm(t.cancel_confirm || 'آیا مطمئنید؟')) return;
+  if (!currentPreorder) return;
+  var token = getSession();
+
+  fetch(API_BASE + '/orders/' + currentPreorder.id, {
+    method: 'DELETE',
+    headers: { 'x-session-token': token },
+  }).then(function(res) { return res.json(); }).then(function(data) {
+    if (data.success) {
+      currentPreorder = null;
+      localStorage.removeItem('mf_preorder_id');
+      cart = [];
+      saveCart();
+      renderCart();
+      showToast('پیش‌سفارش لغو شد');
+    } else {
+      showToast(data.message || 'خطا در لغو سفارش');
+    }
+  }).catch(function() { showToast('خطا در اتصال به سرور'); });
+}
+
+function handleReceiptFileChange(input) {
+  var file = input.files && input.files[0];
+  if (!file || !currentPreorder) return;
+  uploadReceipt(file);
+  input.value = '';
+}
+
+function uploadReceipt(file) {
+  var token = getSession();
+  var formData = new FormData();
+  formData.append('receipt', file);
+  var btn = document.querySelector('.receipt-upload-form button');
+  if (btn) { btn.disabled = true; btn.textContent = 'در حال ارسال...'; }
+
+  fetch(API_BASE + '/orders/' + currentPreorder.id + '/receipt', {
+    method: 'POST',
+    headers: { 'x-session-token': token },
+    body: formData,
+  }).then(function(res) { return res.json(); }).then(function(data) {
+    if (data.success) {
+      currentPreorder = data.data;
+      showToast(TRANSLATIONS[currentLang].receipt_uploaded || 'رسید ارسال شد');
+      renderCart();
+    } else {
+      showToast(data.message || 'خطا در ارسال رسید');
+      if (btn) { btn.disabled = false; btn.textContent = TRANSLATIONS[currentLang].upload_receipt_btn || 'انتخاب و ارسال رسید'; }
+    }
+  }).catch(function() {
+    showToast('خطا در اتصال به سرور');
+    if (btn) { btn.disabled = false; }
+  });
+}
+
+function pollPreorderStatus() {
+  if (!currentPreorder) return;
+  var token = getSession();
+  if (!token) return;
+
+  fetch(API_BASE + '/orders/my', {
+    headers: { 'x-session-token': token },
+  }).then(function(res) { return res.json(); }).then(function(data) {
+    if (!data.success || !data.data) return;
+    var found = data.data.find(function(o) { return o.id === currentPreorder.id; });
+    if (!found) return;
+    if (found.status !== currentPreorder.status) {
+      currentPreorder = found;
+      renderCart();
+    }
+  }).catch(function() {});
 }
 
 // ─── Quick Add Popup ──────────────────────────────────────────────────────────
@@ -2080,8 +2335,117 @@ function renderOrders() {
   var t   = TRANSLATIONS[currentLang];
   var user = getCurrentUser(); if (!user) return;
   var container = document.getElementById('profile-tab-orders');
-  var orders = user.orders || [];
-  if (!orders.length) {
+  if (!container) return;
+
+  // Show loading state then fetch API preorders
+  var token = getSession();
+  if (token) {
+    container.innerHTML = '<div style="text-align:center;padding:24px;color:#888">' + (t.preorder_status || 'در حال بارگذاری...') + '</div>';
+    fetch(API_BASE + '/orders/my', {
+      headers: { 'x-session-token': token },
+    }).then(function(res) { return res.json(); }).then(function(data) {
+      _renderOrdersList(data.success ? data.data : []);
+    }).catch(function() { _renderOrdersList([]); });
+  } else {
+    _renderOrdersList([]);
+  }
+}
+
+function _renderOrdersList(apiOrders) {
+  var t   = TRANSLATIONS[currentLang];
+  var user = getCurrentUser();
+  var container = document.getElementById('profile-tab-orders');
+  if (!container) return;
+  var localOrders = user ? (user.orders || []) : [];
+  var dateLocale = currentLang === 'fa' ? 'fa-IR' : currentLang === 'tr' ? 'tr-TR' : 'en-US';
+
+  var preorderColors = {
+    preorder:        '#3b82f6',
+    payment_needed:  '#f59e0b',
+    approval_needed: '#eab308',
+    preparing:       '#22c55e',
+    delivery:        '#8b5cf6',
+    delivered:       '#16a34a',
+    cancelled:       '#9ca3af',
+  };
+  var preorderLabels = {
+    preorder:        t.preorder_registered   || 'پیش‌سفارش',
+    payment_needed:  t.payment_info_title    || 'در انتظار پرداخت',
+    approval_needed: t.receipt_uploaded      || 'در انتظار تأیید',
+    preparing:       t.preparing_msg         || 'در حال آماده‌سازی',
+    delivery:        t.carrier_label         || 'ارسال شده',
+    delivered:       t.order_delivered       || 'تحویل شده',
+    cancelled:       t.cancel_preorder       || 'لغو شده',
+  };
+
+  var apiHtml = apiOrders.map(function(order) {
+    var st    = order.status;
+    var badgeColor = preorderColors[st] || '#6b7280';
+    var badgeLabel = preorderLabels[st] || st;
+    var dateStr = new Date(order.created_at).toLocaleDateString(dateLocale);
+    var nameKey = currentLang === 'fa' ? 'name_fa' : currentLang === 'tr' ? 'name_tr' : 'name_en';
+
+    var itemsHtml = (order.order_items || []).map(function(oi) {
+      var pname = oi.products ? (oi.products[nameKey] || oi.products.name_fa || '') : '';
+      return '<div class="order-item-row">' +
+        '<span>• ' + pname + '</span>' +
+        (oi.size_label ? '<span>' + oi.size_label + '</span>' : '') +
+        '<span>× ' + oi.qty + '</span>' +
+        '</div>';
+    }).join('');
+
+    var extraHtml = '';
+    if (st === 'payment_needed' && order.iban) {
+      extraHtml += '<div style="margin-top:8px;padding:8px 12px;background:#fff5f0;border-right:3px solid #FF5C00;border-radius:6px;font-size:12px">' +
+        (t.payment_iban || 'شبا') + ': <strong style="direction:ltr;display:inline-block">' + order.iban + '</strong>' +
+        (order.bank_name ? ' &nbsp;|&nbsp; ' + order.bank_name : '') +
+        '</div>';
+    }
+    if ((st === 'delivery' || st === 'delivered') && order.carrier_name) {
+      extraHtml += '<div style="margin-top:8px;padding:8px 12px;background:#f5f3ff;border-right:3px solid #8b5cf6;border-radius:6px;font-size:12px">' +
+        (t.carrier_label || 'پست') + ': ' + order.carrier_name +
+        (order.tracking_number ? ' &nbsp;|&nbsp; ' + (t.tracking_label || 'کد پیگیری') + ': <strong style="direction:ltr;display:inline-block">' + order.tracking_number + '</strong>' : '') +
+        '</div>';
+    }
+
+    return '<div class="order-card">' +
+      '<div class="order-header">' +
+      '<span class="order-id"># ' + order.id + '</span>' +
+      '<span style="background:' + badgeColor + '20;color:' + badgeColor + ';border:1px solid ' + badgeColor + '40;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700">' + badgeLabel + '</span>' +
+      '<span class="order-date">' + dateStr + '</span>' +
+      '</div>' +
+      itemsHtml + extraHtml +
+      '</div>';
+  }).join('');
+
+  var localHtml = localOrders.map(function(order) {
+    var dateStr = order.date;
+    try {
+      var d = new Date(order.date);
+      if (!isNaN(d.getTime())) dateStr = d.toLocaleDateString(dateLocale);
+    } catch(e) {}
+    return '<div class="order-card">' +
+      '<div class="order-header">' +
+      '<span class="order-id"># ' + order.id.slice(-6).toUpperCase() + '</span>' +
+      '<span style="background:#e5e7eb;color:#6b7280;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700">WA/TG</span>' +
+      '<span class="order-date">' + dateStr + '</span>' +
+      '</div>' +
+      order.items.map(function(item) {
+        var prod      = item.productId ? products.find(function(pr) { return pr.id === item.productId; }) : null;
+        var name      = prod ? prod.name[currentLang] : (item.name || '');
+        var colorName = item.colorKey && COLORS[item.colorKey] ? COLORS[item.colorKey].name[currentLang] : '';
+        return '<div class="order-item-row">' +
+          '<span>• ' + name + '</span>' +
+          (colorName ? '<span>' + colorName + '</span>' : '') +
+          (item.size  ? '<span>' + (t.order_size_lbl || '') + item.size + '</span>' : '') +
+          '<span>× ' + item.qty + '</span>' +
+          '</div>';
+      }).join('') +
+      '</div>';
+  }).join('');
+
+  var combined = apiHtml + localHtml;
+  if (!combined) {
     container.innerHTML =
       '<div class="empty-banner empty-banner--orders">' +
       '<div class="empty-banner-bg"></div>' +
@@ -2092,35 +2456,7 @@ function renderOrders() {
       '</div></div>';
     return;
   }
-  var dateLocale = currentLang === 'fa' ? 'fa-IR' : currentLang === 'tr' ? 'tr-TR' : 'en-US';
-  container.innerHTML = orders.map(function(order) {
-    var dateStr = order.date;
-    try {
-      var d = new Date(order.date);
-      if (!isNaN(d.getTime())) dateStr = d.toLocaleDateString(dateLocale);
-    } catch(e) {}
-    return (
-      '<div class="order-card">' +
-      '<div class="order-header">' +
-      '<span class="order-id"># ' + order.id.slice(-6).toUpperCase() + '</span>' +
-      '<span class="order-date">' + dateStr + '</span>' +
-      '</div>' +
-      order.items.map(function(item) {
-        var prod      = item.productId ? products.find(function(pr) { return pr.id === item.productId; }) : null;
-        var name      = prod ? prod.name[currentLang] : (item.name || '');
-        var colorName = item.colorKey && COLORS[item.colorKey] ? COLORS[item.colorKey].name[currentLang] : '';
-        return (
-          '<div class="order-item-row">' +
-          '<span>• ' + name + '</span>' +
-          (colorName ? '<span>' + colorName + '</span>' : '') +
-          (item.size  ? '<span>' + t.order_size_lbl + item.size + '</span>' : '') +
-          '<span>× ' + item.qty + '</span>' +
-          '</div>'
-        );
-      }).join('') +
-      '</div>'
-    );
-  }).join('');
+  container.innerHTML = combined;
 }
 
 // ─── Favorites ────────────────────────────────────────────────────────────────
@@ -2250,9 +2586,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Re-fetch products when tab becomes visible (e.g. after editing in admin)
   document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'visible') reloadProducts();
+    if (document.visibilityState === 'visible') {
+      reloadProducts();
+      pollPreorderStatus();
+    }
   });
 
   // Also poll every 60 seconds in the background
   setInterval(reloadProducts, 60000);
+
+  // Poll preorder status every 30 seconds
+  setInterval(pollPreorderStatus, 30000);
+
+  // Load active preorder if user is logged in
+  if (getCurrentUser() && getSession()) {
+    loadActivePreorder();
+  }
 });

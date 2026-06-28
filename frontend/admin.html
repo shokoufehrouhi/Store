@@ -443,6 +443,11 @@
       <button class="nav-item" onclick="showTab('customers')" id="nav-customers">
         <span class="nav-icon">👥</span><span data-i18n="navCustomers">مشتریان</span>
       </button>
+
+      <div class="nav-section-label">سفارشات</div>
+      <button class="nav-item" onclick="showTab('orders')" id="nav-orders">
+        <span class="nav-icon">🛒</span><span>سفارشات</span>
+      </button>
     </nav>
     <div class="sidebar-footer">
       <button class="btn-logout" onclick="doLogout()">
@@ -538,6 +543,54 @@
             </tbody>
           </table>
         </div></div>
+      </div>
+    </div>
+
+    <!-- Orders -->
+    <div id="tab-orders" class="hidden">
+      <div class="page-header">
+        <h2>🛒 <span data-i18n="ordersTitle">سفارشات</span></h2>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="orders-status-filter" onchange="filterOrders()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
+            <option value="" data-i18n="ordersFilterAll">همه وضعیت‌ها</option>
+            <option value="preorder"        data-i18n="statusPreorder">پیش‌سفارش</option>
+            <option value="payment_needed"  data-i18n="statusPaymentNeeded">در انتظار پرداخت</option>
+            <option value="approval_needed" data-i18n="statusApprovalNeeded">در انتظار تأیید</option>
+            <option value="preparing"       data-i18n="statusPreparing">در حال آماده‌سازی</option>
+            <option value="delivery"        data-i18n="statusDelivery">ارسال شده</option>
+            <option value="delivered"       data-i18n="statusDelivered">تحویل شده</option>
+            <option value="cancelled"       data-i18n="statusCancelled">لغو شده</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="loadAdminOrders()" data-i18n="ordersRefresh">🔄 بروزرسانی</button>
+        </div>
+      </div>
+      <div class="page-body">
+        <div class="card"><div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th data-i18n="ordersColId">#</th>
+              <th data-i18n="ordersColCustomer">مشتری</th>
+              <th data-i18n="ordersColStatus">وضعیت</th>
+              <th data-i18n="ordersColTotal">مبلغ کل</th>
+              <th data-i18n="ordersColDate">تاریخ</th>
+              <th data-i18n="ordersColActions">عملیات</th>
+            </tr></thead>
+            <tbody id="orders-tbody">
+              <tr><td colspan="6" style="text-align:center;padding:40px;color:#999" data-i18n="ordersLoading">در حال بارگذاری...</td></tr>
+            </tbody>
+          </table>
+        </div></div>
+      </div>
+
+      <!-- Order Detail Panel -->
+      <div id="order-detail-panel" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto">
+        <div style="background:#fff;border-radius:14px;width:100%;max-width:640px;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border)">
+            <h3 id="order-detail-title" style="font-size:17px;font-weight:700"></h3>
+            <button onclick="closeOrderDetail()" style="width:32px;height:32px;border-radius:8px;border:none;background:var(--bg);cursor:pointer;font-size:18px" data-i18n="orderClose">✕</button>
+          </div>
+          <div id="order-detail-body" style="padding:24px"></div>
+        </div>
       </div>
     </div>
 
@@ -678,6 +731,34 @@ const LANGS = {
     confirmDeleteColor:'این رنگ حذف شود؟',
     bestseller:'پرفروش', newTag:'جدید',
     colorKeyPlh:'مثال: navy', colorFaPlh:'سرمه‌ای', colorEnPlh:'Navy', colorTrPlh:'Lacivert',
+    // Orders
+    ordersTitle:'سفارشات', ordersFilterAll:'همه وضعیت‌ها', ordersRefresh:'🔄 بروزرسانی',
+    ordersColId:'#', ordersColCustomer:'مشتری', ordersColStatus:'وضعیت',
+    ordersColTotal:'مبلغ کل', ordersColDate:'تاریخ', ordersColActions:'عملیات',
+    ordersEmpty:'سفارشی یافت نشد', ordersLoading:'در حال بارگذاری...', ordersLoadError:'خطا در بارگذاری',
+    orderDetails:'جزئیات', orderClose:'✕', orderDetailTitle:'جزئیات سفارش',
+    orderCustomerLbl:'مشتری', orderMobileLbl:'موبایل', orderItemsLbl:'اقلام سفارش',
+    orderActionPayment:'ثبت اطلاعات پرداخت',
+    orderIbanLbl:'شماره شبا', orderBankLbl:'نام بانک', orderHolderLbl:'نام صاحب حساب',
+    orderBankPlh:'بانک ملی', orderHolderPlh:'نام و نام خانوادگی', orderIbanPlh:'IR...',
+    orderSavePayment:'ثبت اطلاعات پرداخت', orderReviewReceipt:'بررسی رسید پرداخت',
+    orderViewReceipt:'مشاهده در تب جدید', orderApprove:'تأیید پرداخت', orderReject:'رد پرداخت',
+    orderRejectReasonLbl:'دلیل رد', orderRejectReasonPlh:'دلیل رد پرداخت را بنویسید...',
+    orderConfirmReject:'تأیید رد', orderShippingTitle:'ثبت اطلاعات ارسال',
+    orderCarrierLbl:'شرکت پست / باربری', orderCarrierPlh:'پست پیشتاز',
+    orderTrackingLbl:'کد پیگیری', orderSaveShipping:'ثبت و ارسال',
+    orderCarrierInfo:'باربری', orderTrackingInfo:'کد پیگیری',
+    orderMarkDelivered:'تحویل داده شد', orderDeliveredMsg:'سفارش تحویل داده شد ✓',
+    orderPaymentSaved:'اطلاعات پرداخت ثبت شد ✅', orderPaymentApproved:'پرداخت تأیید شد ✅',
+    orderPaymentRejected:'پرداخت رد شد', orderShippingSaved:'اطلاعات ارسال ثبت شد ✅',
+    orderMarkedDelivered:'سفارش تحویل داده شد ✅', orderIbanInfo:'شبا',
+    orderValidIban:'شبا را وارد کنید', orderValidShipping:'باربری و کد پیگیری را وارد کنید',
+    orderSaveError:'خطا', orderFilterOpt:'وضعیت',
+    statusPreorder:'پیش‌سفارش', statusPaymentNeeded:'در انتظار پرداخت',
+    statusApprovalNeeded:'در انتظار تأیید', statusPreparing:'در حال آماده‌سازی',
+    statusDelivery:'ارسال شده', statusDelivered:'تحویل شده', statusCancelled:'لغو شده',
+    statusPending:'معلق', statusConfirmed:'تأیید شده', statusProcessing:'در حال پردازش',
+    statusShipped:'ارسال شده', statusReturned:'برگشت خورده',
   },
   en: {
     dir: 'ltr', lang: 'en',
@@ -757,6 +838,34 @@ const LANGS = {
     confirmDeleteColor:'Delete this color?',
     bestseller:'Bestseller', newTag:'New',
     colorKeyPlh:'e.g. navy', colorFaPlh:'Farsi name', colorEnPlh:'Navy', colorTrPlh:'Lacivert',
+    // Orders
+    ordersTitle:'Orders', ordersFilterAll:'All Statuses', ordersRefresh:'🔄 Refresh',
+    ordersColId:'#', ordersColCustomer:'Customer', ordersColStatus:'Status',
+    ordersColTotal:'Total', ordersColDate:'Date', ordersColActions:'Actions',
+    ordersEmpty:'No orders found', ordersLoading:'Loading...', ordersLoadError:'Load error',
+    orderDetails:'Details', orderClose:'✕', orderDetailTitle:'Order Details',
+    orderCustomerLbl:'Customer', orderMobileLbl:'Mobile', orderItemsLbl:'Order Items',
+    orderActionPayment:'Set Payment Info',
+    orderIbanLbl:'IBAN', orderBankLbl:'Bank Name', orderHolderLbl:'Account Holder',
+    orderBankPlh:'e.g. Mellat Bank', orderHolderPlh:'Full Name', orderIbanPlh:'IR...',
+    orderSavePayment:'Save Payment Info', orderReviewReceipt:'Review Payment Receipt',
+    orderViewReceipt:'View in New Tab', orderApprove:'Approve Payment', orderReject:'Reject Payment',
+    orderRejectReasonLbl:'Reject Reason', orderRejectReasonPlh:'Enter reason for rejection...',
+    orderConfirmReject:'Confirm Rejection', orderShippingTitle:'Set Shipping Info',
+    orderCarrierLbl:'Carrier / Shipping Co.', orderCarrierPlh:'e.g. DHL',
+    orderTrackingLbl:'Tracking Number', orderSaveShipping:'Save & Ship',
+    orderCarrierInfo:'Carrier', orderTrackingInfo:'Tracking',
+    orderMarkDelivered:'Mark as Delivered', orderDeliveredMsg:'Order Delivered ✓',
+    orderPaymentSaved:'Payment info saved ✅', orderPaymentApproved:'Payment approved ✅',
+    orderPaymentRejected:'Payment rejected', orderShippingSaved:'Shipping info saved ✅',
+    orderMarkedDelivered:'Order marked as delivered ✅', orderIbanInfo:'IBAN',
+    orderValidIban:'IBAN is required', orderValidShipping:'Carrier and tracking number are required',
+    orderSaveError:'Error', orderFilterOpt:'Status',
+    statusPreorder:'Pre-order', statusPaymentNeeded:'Payment Needed',
+    statusApprovalNeeded:'Awaiting Approval', statusPreparing:'Preparing',
+    statusDelivery:'Shipped', statusDelivered:'Delivered', statusCancelled:'Cancelled',
+    statusPending:'Pending', statusConfirmed:'Confirmed', statusProcessing:'Processing',
+    statusShipped:'Shipped', statusReturned:'Returned',
   },
   tr: {
     dir: 'ltr', lang: 'tr',
@@ -836,6 +945,34 @@ const LANGS = {
     confirmDeleteColor:'Bu renk silinsin mi?',
     bestseller:'Çok Satan', newTag:'Yeni',
     colorKeyPlh:'örn. navy', colorFaPlh:'Farsça ad', colorEnPlh:'Navy', colorTrPlh:'Lacivert',
+    // Orders
+    ordersTitle:'Siparişler', ordersFilterAll:'Tüm Durumlar', ordersRefresh:'🔄 Yenile',
+    ordersColId:'#', ordersColCustomer:'Müşteri', ordersColStatus:'Durum',
+    ordersColTotal:'Toplam', ordersColDate:'Tarih', ordersColActions:'İşlemler',
+    ordersEmpty:'Sipariş bulunamadı', ordersLoading:'Yükleniyor...', ordersLoadError:'Yükleme hatası',
+    orderDetails:'Detaylar', orderClose:'✕', orderDetailTitle:'Sipariş Detayları',
+    orderCustomerLbl:'Müşteri', orderMobileLbl:'Telefon', orderItemsLbl:'Sipariş Kalemleri',
+    orderActionPayment:'Ödeme Bilgisi Ekle',
+    orderIbanLbl:'IBAN', orderBankLbl:'Banka Adı', orderHolderLbl:'Hesap Sahibi',
+    orderBankPlh:'örn. Ziraat Bankası', orderHolderPlh:'Ad ve Soyad', orderIbanPlh:'TR...',
+    orderSavePayment:'Ödeme Bilgisini Kaydet', orderReviewReceipt:'Ödeme Makbuzunu İncele',
+    orderViewReceipt:'Yeni Sekmede Görüntüle', orderApprove:'Ödemeyi Onayla', orderReject:'Ödemeyi Reddet',
+    orderRejectReasonLbl:'Red Nedeni', orderRejectReasonPlh:'Red nedenini yazın...',
+    orderConfirmReject:'Reddi Onayla', orderShippingTitle:'Kargo Bilgisi Ekle',
+    orderCarrierLbl:'Kargo / Taşıyıcı Şirketi', orderCarrierPlh:'örn. Aras Kargo',
+    orderTrackingLbl:'Takip Numarası', orderSaveShipping:'Kaydet ve Gönder',
+    orderCarrierInfo:'Kargo', orderTrackingInfo:'Takip No',
+    orderMarkDelivered:'Teslim Edildi Olarak İşaretle', orderDeliveredMsg:'Sipariş Teslim Edildi ✓',
+    orderPaymentSaved:'Ödeme bilgisi kaydedildi ✅', orderPaymentApproved:'Ödeme onaylandı ✅',
+    orderPaymentRejected:'Ödeme reddedildi', orderShippingSaved:'Kargo bilgisi kaydedildi ✅',
+    orderMarkedDelivered:'Sipariş teslim edildi olarak işaretlendi ✅', orderIbanInfo:'IBAN',
+    orderValidIban:'IBAN gereklidir', orderValidShipping:'Kargo şirketi ve takip numarası gereklidir',
+    orderSaveError:'Hata', orderFilterOpt:'Durum',
+    statusPreorder:'Ön Sipariş', statusPaymentNeeded:'Ödeme Bekleniyor',
+    statusApprovalNeeded:'Onay Bekleniyor', statusPreparing:'Hazırlanıyor',
+    statusDelivery:'Kargoda', statusDelivered:'Teslim Edildi', statusCancelled:'İptal Edildi',
+    statusPending:'Beklemede', statusConfirmed:'Onaylandı', statusProcessing:'İşleniyor',
+    statusShipped:'Kargoya Verildi', statusReturned:'İade Edildi',
   },
 };
 
@@ -893,6 +1030,7 @@ function refreshCurrentTab() {
   if (currentTab === 'products')   loadProducts();
   if (currentTab === 'categories') loadCategories();
   if (currentTab === 'colors')     loadColors();
+  if (currentTab === 'orders')     { renderOrdersTable(); if (_selectedOrder) renderOrderDetail(); }
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -938,9 +1076,11 @@ function showAdmin() {
 // ─── Navigation ───────────────────────────────────────────────────────────────
 function showTab(tab) {
   currentTab = tab;
-  ['products','categories','colors','sizes','customers'].forEach(t2 => {
-    document.getElementById(`tab-${t2}`).classList.add('hidden');
-    document.getElementById(`nav-${t2}`).classList.remove('active');
+  ['products','categories','colors','sizes','customers','orders'].forEach(t2 => {
+    const el = document.getElementById(`tab-${t2}`);
+    const nav = document.getElementById(`nav-${t2}`);
+    if (el)  el.classList.add('hidden');
+    if (nav) nav.classList.remove('active');
   });
   document.getElementById(`tab-${tab}`).classList.remove('hidden');
   document.getElementById(`nav-${tab}`).classList.add('active');
@@ -949,6 +1089,7 @@ function showTab(tab) {
   if (tab === 'colors')     loadColors();
   if (tab === 'sizes')      loadSizes();
   if (tab === 'customers')  loadCustomers();
+  if (tab === 'orders')     loadAdminOrders();
 }
 
 // ─── API helper ───────────────────────────────────────────────────────────────
@@ -1778,6 +1919,293 @@ async function confirmDeleteSize(id, label) {
     if (res?.success) { showToast(t('deletedSize')); loadSizes(); }
     else showToast(t('deleteError'), 'error');
   });
+}
+
+// ─── Admin Orders ─────────────────────────────────────────────────────────────
+let _allAdminOrders = [];
+let _selectedOrder  = null;
+let _ordersPolling  = null;
+
+const ORDER_STATUS_KEYS = {
+  preorder:        'statusPreorder',
+  payment_needed:  'statusPaymentNeeded',
+  approval_needed: 'statusApprovalNeeded',
+  preparing:       'statusPreparing',
+  delivery:        'statusDelivery',
+  delivered:       'statusDelivered',
+  cancelled:       'statusCancelled',
+  pending:         'statusPending',
+  confirmed:       'statusConfirmed',
+  processing:      'statusProcessing',
+  shipped:         'statusShipped',
+  returned:        'statusReturned',
+};
+function orderStatusLabel(st) { return t(ORDER_STATUS_KEYS[st] || st) || st; }
+
+const ORDER_STATUS_COLORS = {
+  preorder:        '#3b82f6',
+  payment_needed:  '#f59e0b',
+  approval_needed: '#eab308',
+  preparing:       '#22c55e',
+  delivery:        '#8b5cf6',
+  delivered:       '#16a34a',
+  cancelled:       '#9ca3af',
+};
+
+async function loadAdminOrders() {
+  const tbody = document.getElementById('orders-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#999">${t('ordersLoading')}</td></tr>`;
+  const res = await api('/admin/orders');
+  if (!res?.success) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#f00">${t('ordersLoadError')}</td></tr>`; return; }
+  _allAdminOrders = res.data;
+  renderOrdersTable();
+
+  // polling
+  clearInterval(_ordersPolling);
+  _ordersPolling = setInterval(async () => {
+    const r = await api('/admin/orders');
+    if (!r?.success) return;
+    _allAdminOrders = r.data;
+    renderOrdersTable();
+    if (_selectedOrder) {
+      const updated = _allAdminOrders.find(o => o.id === _selectedOrder.id);
+      if (updated && updated.status !== _selectedOrder.status) {
+        _selectedOrder = updated;
+        renderOrderDetail();
+      }
+    }
+  }, 30000);
+}
+
+function filterOrders() {
+  renderOrdersTable();
+}
+
+function renderOrdersTable() {
+  const tbody  = document.getElementById('orders-tbody');
+  const filter = document.getElementById('orders-status-filter')?.value || '';
+  if (!tbody) return;
+
+  let orders = _allAdminOrders;
+  if (filter) orders = orders.filter(o => o.status === filter);
+
+  if (!orders.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#999">${t('ordersEmpty')}</td></tr>`;
+    return;
+  }
+
+  const dateLocale = currentLang === 'fa' ? 'fa-IR' : currentLang === 'tr' ? 'tr-TR' : 'en-US';
+  tbody.innerHTML = orders.map(order => {
+    const color  = ORDER_STATUS_COLORS[order.status] || '#6b7280';
+    const label  = orderStatusLabel(order.status);
+    const cust   = order.customers ? order.customers.full_name : '-';
+    const total  = Number(order.total_amount).toLocaleString(dateLocale);
+    const date   = new Date(order.created_at).toLocaleDateString(dateLocale);
+    return `<tr>
+      <td style="font-family:monospace;font-weight:700">#${order.id}</td>
+      <td>${cust}<br><span style="font-size:12px;color:#888">${order.customers?.mobile||''}</span></td>
+      <td><span style="background:${color}20;color:${color};border:1px solid ${color}40;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700">${label}</span></td>
+      <td style="direction:ltr;text-align:left">${total}</td>
+      <td style="font-size:13px;color:#888">${date}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick="openOrderDetail(${order.id})">${t('orderDetails')}</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function openOrderDetail(orderId) {
+  _selectedOrder = _allAdminOrders.find(o => o.id === orderId);
+  if (!_selectedOrder) return;
+  document.getElementById('order-detail-panel').classList.remove('hidden');
+  document.getElementById('order-detail-panel').style.display = 'flex';
+  renderOrderDetail();
+}
+
+function closeOrderDetail() {
+  document.getElementById('order-detail-panel').classList.add('hidden');
+  document.getElementById('order-detail-panel').style.display = '';
+  _selectedOrder = null;
+}
+
+function renderOrderDetail() {
+  const order = _selectedOrder;
+  if (!order) return;
+  const titleEl = document.getElementById('order-detail-title');
+  const bodyEl  = document.getElementById('order-detail-body');
+  if (!titleEl || !bodyEl) return;
+  titleEl.textContent = t('orderDetailTitle') + ' #' + order.id;
+
+  const st    = order.status;
+  const color = ORDER_STATUS_COLORS[st] || '#6b7280';
+  const label = orderStatusLabel(st);
+  const cust  = order.customers || {};
+  const dateLocale = currentLang === 'fa' ? 'fa-IR' : currentLang === 'tr' ? 'tr-TR' : 'en-US';
+  const nameKey = currentLang === 'fa' ? 'name_fa' : currentLang === 'tr' ? 'name_tr' : 'name_en';
+
+  let html = `<div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+    <span style="background:${color}20;color:${color};border:1px solid ${color}40;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:700">${label}</span>
+    <span style="font-size:13px;color:#888">${new Date(order.created_at).toLocaleString(dateLocale)}</span>
+  </div>`;
+
+  // Customer info
+  html += `<div style="background:#f9fafb;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:14px">
+    <strong>${t('orderCustomerLbl')}:</strong> ${cust.full_name||'-'} &nbsp;|&nbsp; ${t('orderMobileLbl')}: ${cust.mobile||'-'}
+  </div>`;
+
+  // Order items
+  if (order.order_items && order.order_items.length) {
+    html += `<div style="margin-bottom:16px"><strong style="font-size:13px;color:#888;display:block;margin-bottom:8px">${t('orderItemsLbl')}</strong>`;
+    order.order_items.forEach(item => {
+      const p = item.products;
+      const pname = p ? (p[nameKey] || p.name_fa || '-') : '-';
+      html += `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px">
+        <span style="flex:1">${pname}</span>
+        ${item.colors ? `<span style="background:${item.colors.hex||'#eee'};width:16px;height:16px;border-radius:50%;border:1px solid #ddd;flex-shrink:0;align-self:center"></span>` : ''}
+        ${item.size_label ? `<span>${item.size_label}</span>` : ''}
+        <span>×${item.qty}</span>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  // Action area based on status
+  html += '<div id="order-action-area">';
+
+  if (st === 'preorder') {
+    html += `<div style="font-weight:700;font-size:14px;margin-bottom:10px">${t('orderActionPayment')}</div>
+    <div class="form-row">
+      <div class="form-field"><label>${t('orderIbanLbl')}</label><input id="act-iban" placeholder="${t('orderIbanPlh')}" style="direction:ltr"></div>
+      <div class="form-field"><label>${t('orderBankLbl')}</label><input id="act-bank" placeholder="${t('orderBankPlh')}"></div>
+    </div>
+    <div class="form-row cols-1">
+      <div class="form-field"><label>${t('orderHolderLbl')}</label><input id="act-holder" placeholder="${t('orderHolderPlh')}"></div>
+    </div>
+    <button class="btn btn-primary" onclick="adminSetPaymentInfo(${order.id})">${t('orderSavePayment')}</button>`;
+  }
+
+  if (st === 'approval_needed') {
+    const receiptUrl = order.payment_receipt_url ? 'http://localhost:3001' + order.payment_receipt_url : null;
+    html += `<div style="font-weight:700;font-size:14px;margin-bottom:10px">${t('orderReviewReceipt')}</div>`;
+    if (receiptUrl) {
+      html += `<div style="margin-bottom:14px">
+        <img src="${receiptUrl}" alt="receipt" style="max-width:100%;max-height:300px;border-radius:8px;border:1px solid #e0e0e0;display:block;margin-bottom:8px" onerror="this.style.display='none'">
+        <a href="${receiptUrl}" target="_blank" style="font-size:13px;color:#3b82f6">${t('orderViewReceipt')}</a>
+      </div>`;
+    }
+    html += `<div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="adminApprovePayment(${order.id})">${t('orderApprove')}</button>
+      <button class="btn btn-danger" onclick="adminShowRejectForm(${order.id})">${t('orderReject')}</button>
+    </div>
+    <div id="reject-form" style="display:none;margin-top:14px">
+      <div class="form-field" style="margin-bottom:10px"><label>${t('orderRejectReasonLbl')}</label><textarea id="reject-reason" rows="3" placeholder="${t('orderRejectReasonPlh')}"></textarea></div>
+      <button class="btn btn-danger" onclick="adminRejectPayment(${order.id})">${t('orderConfirmReject')}</button>
+    </div>`;
+  }
+
+  if (st === 'preparing') {
+    html += `<div style="font-weight:700;font-size:14px;margin-bottom:10px">${t('orderShippingTitle')}</div>
+    <div class="form-row">
+      <div class="form-field"><label>${t('orderCarrierLbl')}</label><input id="act-carrier" placeholder="${t('orderCarrierPlh')}"></div>
+      <div class="form-field"><label>${t('orderTrackingLbl')}</label><input id="act-tracking" placeholder="..." style="direction:ltr"></div>
+    </div>
+    <button class="btn btn-primary" onclick="adminSetShipping(${order.id})">${t('orderSaveShipping')}</button>`;
+  }
+
+  if (st === 'delivery') {
+    html += `<div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:13px">
+      <strong>${t('orderCarrierInfo')}:</strong> ${order.carrier_name||'-'}<br>
+      <strong>${t('orderTrackingInfo')}:</strong> <span style="direction:ltr;display:inline-block">${order.tracking_number||'-'}</span>
+    </div>
+    <button class="btn btn-primary" onclick="adminMarkDelivered(${order.id})">${t('orderMarkDelivered')}</button>`;
+  }
+
+  if (st === 'delivered') {
+    html += `<div style="color:#16a34a;font-size:15px;font-weight:700">${t('orderDeliveredMsg')}</div>`;
+  }
+
+  // Show bank/IBAN info if available (for status >= payment_needed)
+  if (['payment_needed','approval_needed','preparing','delivery','delivered'].includes(st) && order.iban) {
+    html += `<div style="background:#fff5f0;border-right:4px solid var(--primary);border-radius:8px;padding:12px 16px;margin-top:14px;font-size:13px">
+      <strong>${t('orderIbanInfo')}:</strong> <span style="direction:ltr;display:inline-block">${order.iban}</span><br>
+      ${order.bank_name ? `<strong>${t('orderBankLbl')}:</strong> ${order.bank_name}<br>` : ''}
+      ${order.account_holder ? `<strong>${t('orderHolderLbl')}:</strong> ${order.account_holder}` : ''}
+    </div>`;
+  }
+
+  html += '</div>';
+  bodyEl.innerHTML = html;
+}
+
+function adminShowRejectForm(id) {
+  const f = document.getElementById('reject-form');
+  if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+async function adminSetPaymentInfo(orderId) {
+  const iban           = document.getElementById('act-iban')?.value?.trim();
+  const bank_name      = document.getElementById('act-bank')?.value?.trim();
+  const account_holder = document.getElementById('act-holder')?.value?.trim();
+  if (!iban) { showToast(t('orderValidIban'), 'error'); return; }
+  const res = await api(`/admin/orders/${orderId}/payment-info`, {
+    method: 'PATCH',
+    body:   JSON.stringify({ iban, bank_name, account_holder }),
+  });
+  if (res?.success) {
+    showToast(t('orderPaymentSaved'));
+    _selectedOrder = res.data;
+    renderOrderDetail();
+    loadAdminOrders();
+  } else showToast(res?.message || t('orderSaveError'), 'error');
+}
+
+async function adminApprovePayment(orderId) {
+  const res = await api(`/admin/orders/${orderId}/approve`, { method: 'PATCH' });
+  if (res?.success) {
+    showToast(t('orderPaymentApproved'));
+    _selectedOrder = res.data;
+    renderOrderDetail();
+    loadAdminOrders();
+  } else showToast(res?.message || t('orderSaveError'), 'error');
+}
+
+async function adminRejectPayment(orderId) {
+  const reason = document.getElementById('reject-reason')?.value?.trim();
+  const res = await api(`/admin/orders/${orderId}/reject`, {
+    method: 'PATCH',
+    body:   JSON.stringify({ reason }),
+  });
+  if (res?.success) {
+    showToast(t('orderPaymentRejected'));
+    _selectedOrder = res.data;
+    renderOrderDetail();
+    loadAdminOrders();
+  } else showToast(res?.message || t('orderSaveError'), 'error');
+}
+
+async function adminSetShipping(orderId) {
+  const carrier_name    = document.getElementById('act-carrier')?.value?.trim();
+  const tracking_number = document.getElementById('act-tracking')?.value?.trim();
+  if (!carrier_name || !tracking_number) { showToast(t('orderValidShipping'), 'error'); return; }
+  const res = await api(`/admin/orders/${orderId}/shipping`, {
+    method: 'PATCH',
+    body:   JSON.stringify({ carrier_name, tracking_number }),
+  });
+  if (res?.success) {
+    showToast(t('orderShippingSaved'));
+    _selectedOrder = res.data;
+    renderOrderDetail();
+    loadAdminOrders();
+  } else showToast(res?.message || t('orderSaveError'), 'error');
+}
+
+async function adminMarkDelivered(orderId) {
+  const res = await api(`/admin/orders/${orderId}/delivered`, { method: 'PATCH' });
+  if (res?.success) {
+    showToast(t('orderMarkedDelivered'));
+    _selectedOrder = res.data;
+    renderOrderDetail();
+    loadAdminOrders();
+  } else showToast(res?.message || t('orderSaveError'), 'error');
 }
 </script>
 </body>

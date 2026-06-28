@@ -82,20 +82,27 @@ model order_items {
 }
 
 model orders {
-  id            Int           @id @default(autoincrement())
-  customer_id   Int
-  address_id    Int?
-  status        order_status  @default(pending)
-  channel       String        @default("whatsapp") @db.VarChar(20)
-  note          String?
-  total_amount  Decimal       @default(0) @db.Decimal(14, 0)
-  tracking_code String?       @unique @db.VarChar(40)
-  created_at    DateTime      @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime      @default(now()) @db.Timestamptz(6)
-  order_items   order_items[]
-  addresses     addresses?    @relation(fields: [address_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  customers     customers     @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  payments      payments[]
+  id                       Int           @id @default(autoincrement())
+  customer_id              Int
+  address_id               Int?
+  status                   order_status  @default(pending)
+  channel                  String        @default("whatsapp") @db.VarChar(20)
+  note                     String?
+  total_amount             Decimal       @default(0) @db.Decimal(14, 0)
+  tracking_code            String?       @unique @db.VarChar(40)
+  iban                     String?       @db.VarChar(40)
+  bank_name                String?       @db.VarChar(60)
+  account_holder           String?       @db.VarChar(120)
+  payment_receipt_url      String?       @db.VarChar(300)
+  payment_rejection_reason String?
+  carrier_name             String?       @db.VarChar(60)
+  tracking_number          String?       @db.VarChar(60)
+  created_at               DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime      @default(now()) @db.Timestamptz(6)
+  order_items              order_items[]
+  addresses                addresses?    @relation(fields: [address_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customers                customers     @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payments                 payments[]
 
   @@index([customer_id], map: "idx_orders_customer")
   @@index([status], map: "idx_orders_status")
@@ -226,6 +233,11 @@ enum order_status {
   delivered
   cancelled
   returned
+  preorder
+  payment_needed
+  approval_needed
+  preparing
+  delivery
 }
 
 enum payment_method {

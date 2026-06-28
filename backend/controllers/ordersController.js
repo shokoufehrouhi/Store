@@ -1,85 +1,169 @@
 const prisma = require('../prisma/client');
 
-async function getAll(req, res, next) {
-  try {
-    const orders = await prisma.orders.findMany({
-      include: {
-        customers:   { select: { id: true, full_name: true, mobile: true, email: true } },
-        addresses:   true,
-        order_items: { include: { products: true, colors: true } },
-        payments:    true,
-      },
-      orderBy: { created_at: 'desc' },
-    });
-    res.json({ success: true, data: orders });
-  } catch (err) {
-    next(err);
+// ─── Shared include for order queries ─────────────────────────────────────────
+const ORDER_INCLUDE = {
+  order_items: {
+    include: {
+      products: { select: { id: true, name_fa: true, name_en: true, name_tr: true, delivery_days: true } },
+      colors: true,
+    },
+  },
+};
+
+// ─── Session auth helper ──────────────────────────────────────────────────────
+async function getCustomerFromSession(req, res) {
+  const token = req.headers['x-session-token'];
+  if (!token) {
+    res.status(401).json({ success: false, message: 'No session token' });
+    return null;
   }
+  const session = await prisma.sessions.findFirst({
+    where: { id: token, is_active: true, expires_at: { gt: new Date() } },
+  });
+  if (!session) {
+    res.status(401).json({ success: false, message: 'Session expired' });
+    return null;
+  }
+  return session.customer_id;
 }
 
-async function getOne(req, res, next) {
+// ─── createPreorder: POST /api/orders ────────────────────────────────────────
+async function createPreorder(req, res, next) {
   try {
-    const order = await prisma.orders.findUnique({
-      where: { id: Number(req.params.id) },
-      include: {
-        customers:   { select: { id: true, full_name: true, mobile: true, email: true } },
-        addresses:   true,
-        order_items: { include: { products: true, colors: true } },
-        payments:    true,
-      },
-    });
-    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
-    res.json({ success: true, data: order });
-  } catch (err) {
-    next(err);
-  }
-}
+    const customerId = await getCustomerFromSession(req, res);
+    if (!customerId) return;
 
-async function create(req, res, next) {
-  try {
-    const { customer_id, address_id, channel, note, items } = req.body;
-    if (!customer_id || !items || !items.length) {
-      return res.status(400).json({ success: false, message: 'customer_id and items are required' });
+    const { items, note } = req.body;
+    if (!items || !items.length) {
+      return res.status(400).json({ success: false, message: 'items are required' });
     }
 
-    const total = items.reduce((sum, i) => sum + (i.unit_price * i.qty), 0);
+    const total = items.reduce(function(sum, i) { return sum + (Number(i.unit_price) * Number(i.qty)); }, 0);
 
     const order = await prisma.orders.create({
       data: {
-        customer_id,
-        address_id: address_id || null,
-        channel:    channel || 'whatsapp',
-        note:       note || null,
+        customer_id:  customerId,
+        status:       'preorder',
+        channel:      'online',
+        note:         note || null,
         total_amount: total,
         order_items: {
-          create: items.map(i => ({
-            product_id: i.product_id,
-            color_id:   i.color_id   || null,
-            size_label: i.size_label || null,
-            qty:        i.qty,
-            unit_price: i.unit_price,
-          })),
+          create: items.map(function(i) {
+            return {
+              product_id: i.product_id,
+              color_id:   i.color_id   || null,
+              size_label: i.size_label || null,
+              qty:        i.qty,
+              unit_price: i.unit_price,
+            };
+          }),
         },
       },
-      include: { order_items: true },
+      include: ORDER_INCLUDE,
     });
+
     res.status(201).json({ success: true, data: order });
   } catch (err) {
     next(err);
   }
 }
 
-async function updateStatus(req, res, next) {
+// ─── getMyOrders: GET /api/orders/my ─────────────────────────────────────────
+async function getMyOrders(req, res, next) {
   try {
-    const { status } = req.body;
-    const order = await prisma.orders.update({
-      where: { id: Number(req.params.id) },
-      data:  { status },
+    const customerId = await getCustomerFromSession(req, res);
+    if (!customerId) return;
+
+    const orders = await prisma.orders.findMany({
+      where:   { customer_id: customerId },
+      include: ORDER_INCLUDE,
+      orderBy: { created_at: 'desc' },
     });
+
+    res.json({ success: true, data: orders });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── getMyOrder: GET /api/orders/:id ─────────────────────────────────────────
+async function getMyOrder(req, res, next) {
+  try {
+    const customerId = await getCustomerFromSession(req, res);
+    if (!customerId) return;
+
+    const order = await prisma.orders.findUnique({
+      where:   { id: Number(req.params.id) },
+      include: ORDER_INCLUDE,
+    });
+
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.customer_id !== customerId) return res.status(403).json({ success: false, message: 'Forbidden' });
+
     res.json({ success: true, data: order });
   } catch (err) {
     next(err);
   }
 }
 
-module.exports = { getAll, getOne, create, updateStatus };
+// ─── cancelOrder: DELETE /api/orders/:id ─────────────────────────────────────
+async function cancelOrder(req, res, next) {
+  try {
+    const customerId = await getCustomerFromSession(req, res);
+    if (!customerId) return;
+
+    const order = await prisma.orders.findUnique({ where: { id: Number(req.params.id) } });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.customer_id !== customerId) return res.status(403).json({ success: false, message: 'Forbidden' });
+
+    if (order.status !== 'preorder' && order.status !== 'payment_needed') {
+      return res.status(400).json({ success: false, message: 'Cannot cancel order in current status' });
+    }
+
+    const updated = await prisma.orders.update({
+      where: { id: order.id },
+      data:  { status: 'cancelled', updated_at: new Date() },
+    });
+
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── uploadReceipt: POST /api/orders/:id/receipt ─────────────────────────────
+async function uploadReceipt(req, res, next) {
+  try {
+    const customerId = await getCustomerFromSession(req, res);
+    if (!customerId) return;
+
+    const order = await prisma.orders.findUnique({ where: { id: Number(req.params.id) } });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.customer_id !== customerId) return res.status(403).json({ success: false, message: 'Forbidden' });
+
+    if (order.status !== 'payment_needed') {
+      return res.status(400).json({ success: false, message: 'Receipt can only be uploaded when status is payment_needed' });
+    }
+
+    if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
+
+    const receiptUrl = '/uploads/' + req.file.filename;
+
+    const updated = await prisma.orders.update({
+      where: { id: order.id },
+      data: {
+        payment_receipt_url:       receiptUrl,
+        status:                    'approval_needed',
+        payment_rejection_reason:  null,
+        updated_at:                new Date(),
+      },
+      include: ORDER_INCLUDE,
+    });
+
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { createPreorder, getMyOrders, getMyOrder, cancelOrder, uploadReceipt };

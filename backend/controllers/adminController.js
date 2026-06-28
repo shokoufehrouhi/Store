@@ -380,6 +380,121 @@ async function updateAdminCustomer(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// ─── Admin Orders ──────────────────────────────────────────────────────────────
+
+const ADMIN_ORDER_INCLUDE = {
+  customers:   { select: { id: true, full_name: true, mobile: true } },
+  order_items: {
+    include: {
+      products: { select: { id: true, name_fa: true, name_en: true, name_tr: true, delivery_days: true } },
+      colors:   true,
+    },
+  },
+};
+
+async function getAdminOrders(req, res, next) {
+  try {
+    const orders = await prisma.orders.findMany({
+      include: ADMIN_ORDER_INCLUDE,
+      orderBy: { created_at: 'desc' },
+    });
+    res.json({ success: true, data: orders });
+  } catch (err) { next(err); }
+}
+
+async function setPaymentInfo(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const order = await prisma.orders.findUnique({ where: { id } });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.status !== 'preorder') {
+      return res.status(400).json({ success: false, message: 'Order must be in preorder status' });
+    }
+    const { iban, bank_name, account_holder } = req.body;
+    const updated = await prisma.orders.update({
+      where: { id },
+      data:  { iban, bank_name, account_holder, status: 'payment_needed', updated_at: new Date() },
+      include: ADMIN_ORDER_INCLUDE,
+    });
+    res.json({ success: true, data: updated });
+  } catch (err) { next(err); }
+}
+
+async function approvePayment(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const order = await prisma.orders.findUnique({ where: { id } });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.status !== 'approval_needed') {
+      return res.status(400).json({ success: false, message: 'Order must be in approval_needed status' });
+    }
+    const updated = await prisma.orders.update({
+      where: { id },
+      data:  { status: 'preparing', updated_at: new Date() },
+      include: ADMIN_ORDER_INCLUDE,
+    });
+    res.json({ success: true, data: updated });
+  } catch (err) { next(err); }
+}
+
+async function rejectPayment(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const order = await prisma.orders.findUnique({ where: { id } });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.status !== 'approval_needed') {
+      return res.status(400).json({ success: false, message: 'Order must be in approval_needed status' });
+    }
+    const { reason } = req.body;
+    const updated = await prisma.orders.update({
+      where: { id },
+      data:  {
+        status:                   'payment_needed',
+        payment_rejection_reason: reason || null,
+        payment_receipt_url:      null,
+        updated_at:               new Date(),
+      },
+      include: ADMIN_ORDER_INCLUDE,
+    });
+    res.json({ success: true, data: updated });
+  } catch (err) { next(err); }
+}
+
+async function setShipping(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const order = await prisma.orders.findUnique({ where: { id } });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.status !== 'preparing') {
+      return res.status(400).json({ success: false, message: 'Order must be in preparing status' });
+    }
+    const { carrier_name, tracking_number } = req.body;
+    const updated = await prisma.orders.update({
+      where: { id },
+      data:  { carrier_name, tracking_number, status: 'delivery', updated_at: new Date() },
+      include: ADMIN_ORDER_INCLUDE,
+    });
+    res.json({ success: true, data: updated });
+  } catch (err) { next(err); }
+}
+
+async function markDelivered(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const order = await prisma.orders.findUnique({ where: { id } });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.status !== 'delivery') {
+      return res.status(400).json({ success: false, message: 'Order must be in delivery status' });
+    }
+    const updated = await prisma.orders.update({
+      where: { id },
+      data:  { status: 'delivered', updated_at: new Date() },
+      include: ADMIN_ORDER_INCLUDE,
+    });
+    res.json({ success: true, data: updated });
+  } catch (err) { next(err); }
+}
+
 module.exports = {
   login, uploadMedia, deleteMedia,
   getCategories, createCategory, updateCategory, deleteCategory,
@@ -388,4 +503,5 @@ module.exports = {
   getSizes, createSize, updateSize, deleteSize,
   getAdminCustomers, updateAdminCustomer,
   getProducts, createProduct, updateProduct, deleteProduct,
+  getAdminOrders, setPaymentInfo, approvePayment, rejectPayment, setShipping, markDelivered,
 };

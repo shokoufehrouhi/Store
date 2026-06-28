@@ -46,4 +46,11 @@ router.post('/products',      c.createProduct);
 router.put('/products/:id',   c.updateProduct);
 router.delete('/products/:id', c.deleteProduct);
 
+router.get('/orders',                    c.getAdminOrders);
+router.patch('/orders/:id/payment-info', c.setPaymentInfo);
+router.patch('/orders/:id/approve',      c.approvePayment);
+router.patch('/orders/:id/reject',       c.rejectPayment);
+router.patch('/orders/:id/shipping',     c.setShipping);
+router.patch('/orders/:id/delivered',    c.markDelivered);
+
 module.exports = router;
