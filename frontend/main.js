@@ -175,7 +175,7 @@ function renderCart() {
       payment_needed:  t.payment_info_title    || 'اطلاعات پرداخت',
       approval_needed: t.receipt_uploaded      || 'رسید ارسال شد، در انتظار تأیید',
       preparing:       t.preparing_msg         || 'در حال آماده‌سازی',
-      delivery:        'در مسیر ارسال',
+      delivery:        t.status_delivery        || 'در مسیر ارسال',
       delivered:       t.order_delivered       || 'تحویل داده شد ✓',
     };
 
@@ -2375,9 +2375,9 @@ function _renderOrdersList(apiOrders) {
     payment_needed:  t.payment_info_title  || 'در انتظار پرداخت',
     approval_needed: t.receipt_uploaded    || 'در انتظار تأیید',
     preparing:       t.preparing_msg       || 'در حال آماده‌سازی',
-    delivery:        'ارسال شده',
+    delivery:        t.status_delivery      || 'ارسال شده',
     delivered:       t.order_delivered     || 'تحویل شده',
-    cancelled:       'لغو شده',
+    cancelled:       t.status_cancelled    || 'لغو شده',
   };
 
   var apiHtml = apiOrders.map(function(order) {
@@ -2458,7 +2458,7 @@ function _renderOrdersList(apiOrders) {
       }
 
       if (st === 'cancelled') {
-        detailHtml += '<p class="order-detail-hint" style="color:#9ca3af">❌ ' + (ORDER_LABELS.cancelled) + '</p>';
+        detailHtml += '<p class="order-detail-hint" style="color:#9ca3af">❌ ' + (t.status_cancelled || 'لغو شده') + '</p>';
       }
 
       detailHtml += '</div>';
