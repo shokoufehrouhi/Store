@@ -148,6 +148,7 @@ model products {
   desc_tr        String?
   emoji          String?          @db.VarChar(10)
   gradient       String?          @db.VarChar(200)
+  delivery_days  Int              @default(5)
   tag            product_tag?
   price          Decimal          @default(0) @db.Decimal(12, 0)
   stock          Int              @default(0)

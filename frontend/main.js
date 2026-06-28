@@ -12,6 +12,8 @@ function closeToast() {
   if (wrap) wrap.classList.remove('show');
 }
 
+var PLACEHOLDER_SVG = '<svg class="img-placeholder" viewBox="0 0 22 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 1L2 15h8.5L6 27L20 13h-8.5L14 1z" fill="white" opacity="0.18"/></svg>';
+
 // ─── State ────────────────────────────────────────────────────────────────────
 var API_BASE           = 'http://localhost:3001/api';
 var SERVER_BASE        = 'http://localhost:3001';
@@ -40,8 +42,8 @@ function mapApiProduct(p) {
     subcategory: p.subcategories ? p.subcategories.key : null,
     gender:      p.gender  || 'unisex',
     tag:         p.tag     || null,
-    emoji:       p.emoji   || '📦',
-    gradient:    p.gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    gradient:     p.gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    delivery_days: p.delivery_days != null ? Number(p.delivery_days) : 5,
     name:        { fa: p.name_fa, en: p.name_en || p.name_fa, tr: p.name_tr || p.name_fa },
     description: { fa: p.desc_fa || '', en: p.desc_en || '', tr: p.desc_tr || '' },
     colors: (p.product_colors || []).map(function(pc) {
@@ -169,7 +171,7 @@ function renderCart() {
     var firstImg   = p.images && p.images.length ? p.images[0] : null;
     var thumbInner = firstImg
       ? '<img src="' + SERVER_BASE + firstImg.url + '" onerror="this.style.display=\'none\'">'
-      : '<span>' + p.emoji + '</span>';
+      : PLACEHOLDER_SVG;
     var thumbStyle = firstImg ? '' : 'style="background:' + p.gradient + '"';
     return (
       '<div class="cart-item">' +
@@ -284,7 +286,7 @@ function quickAdd(event, productId) {
 
   document.getElementById('quick-add-popup').innerHTML =
     '<div class="qa-header">' +
-    '<div class="qa-product-thumb" style="background:' + p.gradient + '"><span>' + p.emoji + '</span></div>' +
+    '<div class="qa-product-thumb" style="background:' + p.gradient + '">' + PLACEHOLDER_SVG + '</div>' +
     '<span class="qa-product-name">' + p.name[currentLang] + '</span>' +
     '<button class="qa-close" onclick="closeQuickAdd()">✕</button>' +
     '</div>' +
@@ -564,7 +566,7 @@ function renderProduct(p) {
   var firstImg = p.images && p.images.length ? p.images[0] : null;
   var imgInner = firstImg
     ? '<img src="' + SERVER_BASE + firstImg.url + '" alt="' + name + '" class="product-real-img" onerror="this.style.display=\'none\'">'
-    : '<span class="product-emoji">' + p.emoji + '</span>';
+    : PLACEHOLDER_SVG;
   var imgStyle = firstImg ? '' : 'style="background:' + p.gradient + '"';
 
   return (
@@ -582,6 +584,7 @@ function renderProduct(p) {
     '    <h3 class="product-name">' + name + '</h3>' +
     '    <p class="product-desc">' + desc + '</p>' +
     renderCardSizesColors(p) +
+    '    <div class="product-delivery">⏱ ' + localizeNumber(p.delivery_days) + ' ' + t.delivery_unit + '</div>' +
     '    <div class="product-actions">' +
     '      <button class="buy-btn cart-add-btn" onclick="quickAdd(event,' + p.id + ')">' +
     '        🛒 ' + t.add_to_cart +
@@ -1055,7 +1058,7 @@ function openModal(productId) {
         return '<div class="modal-thumb' + (i === 0 ? ' active' : '') + '"'
           + ' style="background:' + g + '"'
           + ' onclick="switchThumb(this)">'
-          + '<span>' + p.emoji + '</span></div>';
+          + PLACEHOLDER_SVG + '</div>';
       }).join('');
 
   // color swatches
@@ -1115,7 +1118,7 @@ function openModal(productId) {
     ? (firstMedia.type === 'video'
         ? '<video src="' + SERVER_BASE + firstMedia.url + '" controls></video>'
         : '<img src="' + SERVER_BASE + firstMedia.url + '" onerror="this.style.display=\'none\'">')
-    : '<span class="modal-big-emoji">' + p.emoji + '</span>';
+    : PLACEHOLDER_SVG;
   var mainImgStyle = firstMedia ? '' : 'style="background:' + variants[0] + '"';
 
   var WA_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>';
@@ -1254,7 +1257,7 @@ function switchThumb(thumb) {
   } else {
     mainImg.style.background = thumb.style.background;
     var p = window._modalProduct;
-    if (p) mainImg.innerHTML = '<span class="modal-big-emoji">' + p.emoji + '</span>';
+    if (p) mainImg.innerHTML = PLACEHOLDER_SVG;
   }
 }
 
@@ -1517,7 +1520,7 @@ function renderFavPanel() {
       var name = p.name[currentLang];
       return (
         '<div class="fav-panel-item">' +
-        '<div class="fav-panel-thumb" style="background:' + p.gradient + '" onclick="closeFavPanel();openModal(' + p.id + ')"><span>' + p.emoji + '</span></div>' +
+        '<div class="fav-panel-thumb" style="background:' + p.gradient + '" onclick="closeFavPanel();openModal(' + p.id + ')">' + PLACEHOLDER_SVG + '</div>' +
         '<div class="fav-panel-info" onclick="closeFavPanel();openModal(' + p.id + ')">' +
         '<span class="fav-panel-name">' + name + '</span>' +
         '<span class="fav-panel-cat">' + (t['cat_' + p.category] || p.category) + '</span>' +
@@ -2157,7 +2160,7 @@ function renderFavoritesTab() {
     favProds.map(function(p) {
       return (
         '<div class="fav-card" onclick="closeProfileModal();openModal(' + p.id + ')">' +
-        '<div class="fav-thumb" style="background:' + p.gradient + '"><span>' + p.emoji + '</span></div>' +
+        '<div class="fav-thumb" style="background:' + p.gradient + '">' + PLACEHOLDER_SVG + '</div>' +
         '<span class="fav-name">' + p.name[currentLang] + '</span>' +
         '</div>'
       );

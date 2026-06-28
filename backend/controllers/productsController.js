@@ -50,10 +50,11 @@ async function getOne(req, res, next) {
 async function create(req, res, next) {
   try {
     const { category_id, subcategory_id, gender, name_fa, name_en, name_tr,
-            desc_fa, desc_en, desc_tr, emoji, gradient, tag, price, stock } = req.body;
+            desc_fa, desc_en, desc_tr, gradient, tag, price, stock, delivery_days } = req.body;
     const product = await prisma.products.create({
       data: { category_id, subcategory_id, gender, name_fa, name_en, name_tr,
-              desc_fa, desc_en, desc_tr, emoji, gradient, tag, price, stock },
+              desc_fa, desc_en, desc_tr, gradient, tag, price, stock,
+              delivery_days: delivery_days != null ? Number(delivery_days) : 5 },
     });
     res.status(201).json({ success: true, data: product });
   } catch (err) {

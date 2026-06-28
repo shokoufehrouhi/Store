@@ -620,7 +620,7 @@ const LANGS = {
     videoUrlLbl:'لینک ویدیو (اختیاری)', videoUrlPlh:'https://youtu.be/... یا لینک مستقیم mp4',
     uploading:'در حال آپلود...', uploadErr:'خطا در آپلود',
     descriptions:'توضیحات', statusSection:'وضعیت',
-    nameFa:'نام فارسی *', nameEn:'نام انگلیسی', nameTr:'نام ترکی', emojiLbl:'ایموجی',
+    nameFa:'نام فارسی *', nameEn:'نام انگلیسی', nameTr:'نام ترکی', deliveryDaysLbl:'زمان تحویل (روز کاری)',
     categoryField:'دسته‌بندی *', subcategoryField:'زیردسته',
     genderField:'جنسیت', tagField:'برچسب',
     priceField:'قیمت (تومان)', stockField:'موجودی (تعداد)',
@@ -699,7 +699,7 @@ const LANGS = {
     videoUrlLbl:'Video URL (optional)', videoUrlPlh:'https://youtu.be/... or direct mp4 link',
     uploading:'Uploading...', uploadErr:'Upload error',
     descriptions:'Descriptions', statusSection:'Status',
-    nameFa:'Farsi Name *', nameEn:'English Name', nameTr:'Turkish Name', emojiLbl:'Emoji',
+    nameFa:'Farsi Name *', nameEn:'English Name', nameTr:'Turkish Name', deliveryDaysLbl:'Delivery Time (working days)',
     categoryField:'Category *', subcategoryField:'Subcategory',
     genderField:'Gender', tagField:'Tag',
     priceField:'Price', stockField:'Stock (qty)',
@@ -778,7 +778,7 @@ const LANGS = {
     videoUrlLbl:'Video Bağlantısı (isteğe bağlı)', videoUrlPlh:'https://youtu.be/... veya doğrudan mp4',
     uploading:'Yükleniyor...', uploadErr:'Yükleme hatası',
     descriptions:'Açıklamalar', statusSection:'Durum',
-    nameFa:'Farsça Ad *', nameEn:'İngilizce Ad', nameTr:'Türkçe Ad', emojiLbl:'Emoji',
+    nameFa:'Farsça Ad *', nameEn:'İngilizce Ad', nameTr:'Türkçe Ad', deliveryDaysLbl:'Teslimat Süresi (iş günü)',
     categoryField:'Kategori *', subcategoryField:'Alt Kategori',
     genderField:'Cinsiyet', tagField:'Etiket',
     priceField:'Fiyat', stockField:'Stok (adet)',
@@ -1030,7 +1030,7 @@ function renderProductsTable(products) {
       ? `<img src="${mediaSrc}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" onerror="this.style.display='none'">`
       : firstVid
         ? `<div style="width:48px;height:48px;border-radius:6px;background:#111;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff">▶</div>`
-        : `<div style="width:48px;height:48px;border-radius:6px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:20px">${p.emoji||'📦'}</div>`;
+        : `<div style="width:48px;height:48px;border-radius:6px;background:${p.gradient||'#f0f0f0'};display:flex;align-items:center;justify-content:center"></div>`;
     const mediaCount = (p.product_media||[]).length;
     return `<tr>
       <td style="color:#999;font-size:12px">${p.id}</td>
@@ -1042,7 +1042,6 @@ function renderProductsTable(products) {
       </td>
       <td>
         <div style="display:flex;align-items:center;gap:8px">
-          ${p.emoji ? `<span style="font-size:20px">${p.emoji}</span>` : ''}
           <div><div style="font-weight:600">${p.name_fa}</div><div style="font-size:11px;color:#999">${p.name_en||''}</div>${tagHtml}</div>
         </div>
       </td>
@@ -1111,8 +1110,8 @@ async function openProductModal(id = null) {
         <input type="text" id="f-name-tr" value="${product?.name_tr||''}" placeholder="${t('nameTrPlh')}" style="direction:ltr">
       </div>
       <div class="form-field">
-        <label>${t('emojiLbl')}</label>
-        <input type="text" id="f-emoji" value="${product?.emoji||''}" placeholder="👕">
+        <label>${t('deliveryDaysLbl')}</label>
+        <input type="number" id="f-delivery-days" value="${product?.delivery_days ?? 5}" min="1" max="60" style="direction:ltr">
       </div>
     </div>
 
@@ -1264,7 +1263,7 @@ async function saveProduct(id) {
     desc_fa: document.getElementById('f-desc-fa')?.value?.trim() || '',
     desc_en: document.getElementById('f-desc-en')?.value?.trim() || '',
     desc_tr: document.getElementById('f-desc-tr')?.value?.trim() || '',
-    emoji:    document.getElementById('f-emoji')?.value?.trim() || '',
+    delivery_days: Number(document.getElementById('f-delivery-days')?.value) || 5,
     tag:   document.getElementById('f-tag')?.value || null,
     price: Number(document.getElementById('f-price')?.value) || 0,
     stock: Number(document.getElementById('f-stock')?.value) || 0,
