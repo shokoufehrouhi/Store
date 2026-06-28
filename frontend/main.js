@@ -432,7 +432,7 @@ function cancelPreorder() {
       cart = [];
       saveCart();
       renderCart();
-      showToast('پیش‌سفارش لغو شد');
+      showToast(TRANSLATIONS[currentLang].preorder_cancelled || 'پیش‌سفارش لغو شد');
     } else {
       showToast(data.message || 'خطا در لغو سفارش');
     }
@@ -2536,7 +2536,7 @@ function profileCancelOrder(orderId) {
         localStorage.removeItem('mf_preorder_id');
         renderCart();
       }
-      showToast(t.cancel_preorder || 'لغو شد');
+      showToast(t.preorder_cancelled || 'پیش‌سفارش لغو شد');
       _profileExpandedId = null;
       renderOrders();
     } else {
