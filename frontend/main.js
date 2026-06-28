@@ -155,107 +155,6 @@ function renderCart() {
 
   var user = getCurrentUser();
 
-  // ── Active preorder: show status card instead of items ──────────────────────
-  if (currentPreorder && currentPreorder.status !== 'cancelled' && currentPreorder.status !== 'delivered') {
-    var order = currentPreorder;
-    var st    = order.status;
-    var canCancel = (st === 'preorder' || st === 'payment_needed');
-
-    // Status badge HTML
-    var statusColors = {
-      preorder:        '#3b82f6',
-      payment_needed:  '#f59e0b',
-      approval_needed: '#eab308',
-      preparing:       '#22c55e',
-      delivery:        '#8b5cf6',
-      delivered:       '#16a34a',
-    };
-    var statusLabels = {
-      preorder:        t.preorder_registered   || 'پیش‌سفارش ثبت شد',
-      payment_needed:  t.payment_info_title    || 'اطلاعات پرداخت',
-      approval_needed: t.receipt_uploaded      || 'رسید ارسال شد، در انتظار تأیید',
-      preparing:       t.preparing_msg         || 'در حال آماده‌سازی',
-      delivery:        t.status_delivery        || 'در مسیر ارسال',
-      delivered:       t.order_delivered       || 'تحویل داده شد ✓',
-    };
-
-    var badgeColor = statusColors[st] || '#6b7280';
-    var statusHtml = '<div class="preorder-status-card">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">' +
-      '<span class="order-status-badge" style="background:' + badgeColor + '20;color:' + badgeColor + ';border:1px solid ' + badgeColor + '40;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700">' + (statusLabels[st] || st) + '</span>' +
-      '<span style="font-size:12px;color:#888">' + (t.order_id_label || '#') + order.id + '</span>' +
-      '</div>';
-
-    // preorder status
-    if (st === 'preorder') {
-      statusHtml += '<p style="font-size:14px;color:#555;margin-bottom:12px">' + (t.preorder_wait_payment || 'منتظر اطلاعات پرداخت باشید') + '</p>';
-    }
-
-    // payment_needed: show bank info + upload form + rejection reason
-    if (st === 'payment_needed') {
-      if (order.payment_rejection_reason) {
-        statusHtml += '<div class="rejection-reason" style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:12px;color:#dc2626;font-size:13px">' +
-          '<strong>' + (t.payment_rejected || 'پرداخت رد شد') + ':</strong> ' + order.payment_rejection_reason + '</div>';
-      }
-      statusHtml += '<div class="payment-info-box" style="border-left:4px solid #FF5C00;background:#fff5f0;border-radius:8px;padding:12px 16px;margin-bottom:14px">' +
-        '<div style="font-weight:700;font-size:14px;margin-bottom:8px">' + (t.payment_info_title || 'اطلاعات پرداخت') + '</div>' +
-        (order.iban ? '<div style="font-size:13px;margin-bottom:4px"><span style="color:#888">' + (t.payment_iban || 'شبا') + ': </span><strong style="direction:ltr;display:inline-block">' + order.iban + '</strong></div>' : '') +
-        (order.bank_name ? '<div style="font-size:13px;margin-bottom:4px"><span style="color:#888">' + (t.payment_bank || 'بانک') + ': </span>' + order.bank_name + '</div>' : '') +
-        (order.account_holder ? '<div style="font-size:13px"><span style="color:#888">' + (t.payment_holder || 'صاحب حساب') + ': </span>' + order.account_holder + '</div>' : '') +
-        '</div>' +
-        '<div class="receipt-upload-form" style="margin-bottom:12px">' +
-        '<div style="font-size:13px;font-weight:600;margin-bottom:8px">' + (t.upload_receipt || 'آپلود رسید') + '</div>' +
-        '<input type="file" id="receipt-file-input" accept="image/*" style="display:none" onchange="handleReceiptFileChange(this)">' +
-        '<button class="cart-order-btn" style="background:#FF5C00;color:#fff;width:100%;margin-bottom:0" onclick="document.getElementById(\'receipt-file-input\').click()">' +
-        (t.upload_receipt_btn || 'انتخاب و ارسال رسید') + '</button>' +
-        '</div>';
-    }
-
-    // approval_needed
-    if (st === 'approval_needed') {
-      statusHtml += '<p style="font-size:14px;color:#555;margin-bottom:12px">' + (t.receipt_uploaded || 'رسید ارسال شد، در انتظار تأیید...') + '</p>';
-      if (order.payment_receipt_url) {
-        statusHtml += '<a href="' + SERVER_BASE + order.payment_receipt_url + '" target="_blank" style="font-size:13px;color:#3b82f6;text-decoration:underline;display:block;margin-bottom:10px">مشاهده رسید ارسالی</a>';
-      }
-    }
-
-    // preparing
-    if (st === 'preparing') {
-      var maxDays = 0;
-      (order.order_items || []).forEach(function(oi) {
-        var d = oi.products && oi.products.delivery_days ? Number(oi.products.delivery_days) : 5;
-        if (d > maxDays) maxDays = d;
-      });
-      statusHtml += '<p style="font-size:14px;color:#555;margin-bottom:8px">' + (t.payment_approved || 'پرداخت تأیید شد') + '! ' + (t.preparing_msg || 'سفارش در حال آماده‌سازی') + '.</p>' +
-        (maxDays ? '<p style="font-size:13px;color:#888">' + (t.delivery_days_msg || 'زمان تحویل تخمینی') + ': ' + localizeNumber(String(maxDays)) + ' ' + (t.delivery_unit || 'روز کاری') + '</p>' : '');
-    }
-
-    // delivery: show carrier/tracking
-    if (st === 'delivery') {
-      statusHtml += '<div class="tracking-box" style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:8px;padding:12px 16px;margin-bottom:12px">' +
-        '<div style="font-weight:700;font-size:14px;margin-bottom:8px">سفارش ارسال شد</div>' +
-        (order.carrier_name ? '<div style="font-size:13px;margin-bottom:4px"><span style="color:#888">' + (t.carrier_label || 'شرکت پست') + ': </span>' + order.carrier_name + '</div>' : '') +
-        (order.tracking_number ? '<div style="font-size:13px"><span style="color:#888">' + (t.tracking_label || 'کد پیگیری') + ': </span><strong style="direction:ltr;display:inline-block">' + order.tracking_number + '</strong></div>' : '') +
-        '</div>';
-    }
-
-    // delivered
-    if (st === 'delivered') {
-      statusHtml += '<p style="font-size:15px;color:#16a34a;font-weight:700;margin-bottom:12px">' + (t.order_delivered || 'سفارش تحویل داده شد ✓') + '</p>';
-    }
-
-    // cancel button
-    if (canCancel) {
-      statusHtml += '<button onclick="cancelPreorder()" style="width:100%;padding:10px;border:1.5px solid #ef4444;background:transparent;color:#ef4444;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px">' +
-        (t.cancel_preorder || 'لغو پیش‌سفارش') + '</button>';
-    }
-
-    statusHtml += '</div>';
-    itemsEl.innerHTML = statusHtml;
-    footerEl.innerHTML = '<div style="font-size:12px;color:#888;text-align:center;padding:8px">' + (t.preorder_locked || 'سبد خرید قفل شده است') + '</div>';
-    return;
-  }
-
   // ── Empty cart ───────────────────────────────────────────────────────────────
   if (cart.length === 0) {
     itemsEl.innerHTML = emptyView(SVG_CART,
@@ -381,8 +280,11 @@ function registerPreorder() {
       localStorage.setItem('mf_preorder_id', String(data.data.id));
       cart = [];
       saveCart();
-      showToast(TRANSLATIONS[currentLang].preorder_registered || 'پیش‌سفارش ثبت شد');
       renderCart();
+      closeCart();
+      showToast(TRANSLATIONS[currentLang].preorder_registered || 'پیش‌سفارش ثبت شد');
+      openProfileModal();
+      showProfileTab('orders');
     } else {
       showToast(data.message || 'خطا در ثبت پیش‌سفارش');
     }
@@ -485,7 +387,10 @@ function pollPreorderStatus() {
     if (!found) return;
     if (found.status !== currentPreorder.status) {
       currentPreorder = found;
-      renderCart();
+      var ordersTab = document.getElementById('profile-tab-orders');
+      if (ordersTab && ordersTab.style.display !== 'none') {
+        _renderOrdersList(data.data);
+      }
     }
   }).catch(function() {});
 }
