@@ -1,0 +1,1785 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin | ShilFit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #FF5C00;
+      --primary-dark: #cc4900;
+      --dark: #111111;
+      --sidebar-bg: #1a1a1a;
+      --bg: #f4f5f7;
+      --white: #ffffff;
+      --border: #e2e4e8;
+      --text: #1a1a2e;
+      --text-muted: #6b7280;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --info: #3b82f6;
+      --radius: 10px;
+      --shadow: 0 2px 8px rgba(0,0,0,.08);
+      --sidebar-w: 230px;
+    }
+
+    body { font-family: 'Vazirmatn', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    .hidden { display: none !important; }
+
+    /* ── Login ──────────────────────────────────── */
+    #login-overlay {
+      position: fixed; inset: 0;
+      background: linear-gradient(135deg, #111 0%, #1a1a2e 100%);
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .login-card {
+      background: var(--white); border-radius: 16px; padding: 48px 40px;
+      width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,.4);
+    }
+    .login-logo { text-align: center; margin-bottom: 32px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .login-logo .logo-badge {
+      width: 56px; height: 56px; border-radius: 15px; background: #FF6200;
+      box-shadow: 0 6px 20px rgba(255,98,0,.35);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .login-logo .logo-wordmark { display: flex; align-items: baseline; gap: 0; line-height: 1; }
+    .login-logo .logo-wordmark .w-shil { font-size: 26px; font-weight: 900; color: #111; text-transform: uppercase; letter-spacing: -.5px; }
+    .login-logo .logo-wordmark .w-fit  { font-size: 26px; font-weight: 900; color: #FF6200; text-transform: uppercase; letter-spacing: -.5px; }
+    .login-logo p { color: var(--text-muted); font-size: 13px; margin: 0; }
+    .login-card label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+    .login-card input {
+      width: 100%; padding: 12px 14px; border: 1.5px solid var(--border);
+      border-radius: var(--radius); font-family: inherit; font-size: 15px;
+      outline: none; transition: border-color .2s; direction: ltr; text-align: left;
+    }
+    .login-card input:focus { border-color: var(--primary); }
+    .form-group { margin-bottom: 20px; }
+    #login-error { color: var(--danger); font-size: 13px; text-align: center; min-height: 20px; margin-bottom: 8px; }
+    .btn-login {
+      width: 100%; padding: 14px; background: var(--primary); color: #fff;
+      border: none; border-radius: var(--radius); font-family: inherit;
+      font-size: 16px; font-weight: 700; cursor: pointer; transition: background .2s;
+    }
+    .btn-login:hover { background: var(--primary-dark); }
+    .btn-login:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* Login lang switcher */
+    .login-lang {
+      display: flex; justify-content: center; gap: 8px; margin-bottom: 24px;
+    }
+    .login-lang .lang-btn {
+      padding: 5px 14px; border-radius: 20px; border: 1.5px solid var(--border);
+      background: none; font-family: inherit; font-size: 12px; font-weight: 700;
+      cursor: pointer; color: var(--text-muted); transition: all .15s;
+    }
+    .login-lang .lang-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    /* ── Admin Layout ───────────────────────────── */
+    #admin-layout { display: flex; min-height: 100vh; }
+
+    #sidebar {
+      width: var(--sidebar-w); min-height: 100vh; background: var(--sidebar-bg);
+      display: flex; flex-direction: column;
+      position: fixed; inset-block: 0; inset-inline-start: 0; z-index: 100;
+    }
+    .sidebar-logo {
+      padding: 20px 16px 18px; border-bottom: 1px solid #2a2a2a;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .sidebar-logo .brand { display: flex; align-items: center; gap: 10px; }
+    .sidebar-logo .brand .sb-icon {
+      width: 36px; height: 36px; border-radius: 9px; background: #FF6200;
+      box-shadow: 0 2px 8px rgba(255,98,0,.35);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .sidebar-logo .brand .sb-text { display: flex; flex-direction: column; gap: 2px; line-height: 1; }
+    .sidebar-logo .brand .sb-wordmark { display: flex; align-items: baseline; gap: 0; }
+    .sidebar-logo .brand .sb-shil { font-size: 17px; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: -.3px; }
+    .sidebar-logo .brand .sb-fit  { font-size: 17px; font-weight: 900; color: var(--primary); text-transform: uppercase; letter-spacing: -.3px; }
+    .sidebar-logo .sub { font-size: 10px; color: #555; margin-top: 0; }
+
+    /* Language globe button */
+    .lang-globe-wrap { position: relative; flex-shrink: 0; }
+    .lang-globe-btn {
+      width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer;
+      font-size: 12px; font-weight: 800; font-family: inherit; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .lang-globe-btn:hover { transform: scale(1.1); box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+    .lang-globe-btn[data-active="fa"] { background: var(--primary); }
+    .lang-globe-btn[data-active="en"] { background: #2563eb; }
+    .lang-globe-btn[data-active="tr"] { background: #dc2626; }
+    .lang-globe-menu {
+      position: absolute; top: 42px; left: 0;
+      display: flex; flex-direction: column; gap: 6px;
+      background: #222; border-radius: 10px; padding: 8px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.5); z-index: 200;
+      min-width: 46px; align-items: center;
+    }
+    .lang-globe-menu.hidden { display: none; }
+    .lang-opt {
+      width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent;
+      font-size: 11px; font-weight: 800; font-family: inherit; color: #fff;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: transform .15s, border-color .15s;
+    }
+    .lang-opt[data-lang="fa"] { background: var(--primary); }
+    .lang-opt[data-lang="en"] { background: #2563eb; }
+    .lang-opt[data-lang="tr"] { background: #dc2626; }
+    .lang-opt:hover { transform: scale(1.12); }
+    .lang-opt.active { border-color: #fff; }
+
+    .sidebar-nav { flex: 1; padding: 16px 12px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+      border-radius: 8px; color: #999; font-size: 14px; font-weight: 500;
+      cursor: pointer; transition: all .2s; margin-bottom: 4px;
+      border: none; background: none; width: 100%;
+      text-align: inherit;
+    }
+    .nav-item:hover { background: #2a2a2a; color: #fff; }
+    .nav-item.active { background: var(--primary); color: #fff; }
+    .nav-icon { font-size: 18px; width: 22px; text-align: center; flex-shrink: 0; }
+    .nav-section-label {
+      font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+      color: #555; padding: 14px 14px 4px; user-select: none;
+    }
+    .nav-section-label:first-child { padding-top: 2px; }
+
+    .sidebar-footer { padding: 12px; }
+    .btn-logout {
+      display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 14px;
+      border-radius: 8px; color: #666; font-size: 14px; background: none;
+      border: none; cursor: pointer; font-family: inherit; transition: all .2s;
+    }
+    .btn-logout:hover { background: #2a2a2a; color: var(--danger); }
+
+    #main-content { margin-inline-start: var(--sidebar-w); flex: 1; min-height: 100vh; }
+
+    .page-header {
+      background: var(--white); border-bottom: 1px solid var(--border);
+      padding: 20px 28px; display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .page-header h2 { font-size: 18px; font-weight: 700; }
+    .page-body { padding: 24px 28px; }
+
+    /* ── Buttons ────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px;
+      border-radius: 8px; font-family: inherit; font-size: 14px; font-weight: 600;
+      border: none; cursor: pointer; transition: all .2s; white-space: nowrap;
+    }
+    .btn-primary  { background: var(--primary); color: #fff; }
+    .btn-primary:hover  { background: var(--primary-dark); }
+    .btn-secondary { background: var(--bg); color: var(--text); border: 1.5px solid var(--border); }
+    .btn-secondary:hover { background: var(--border); }
+    .btn-danger  { background: #fee2e2; color: var(--danger); }
+    .btn-danger:hover  { background: var(--danger); color: #fff; }
+    .btn-sm { padding: 6px 12px; font-size: 13px; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── Card / Table ───────────────────────────── */
+    .card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      background: var(--bg); padding: 12px 16px; font-size: 12px;
+      font-weight: 700; color: var(--text-muted); white-space: nowrap;
+      text-align: inherit;
+    }
+    tbody td { padding: 13px 16px; font-size: 14px; border-top: 1px solid var(--border); vertical-align: middle; }
+    tbody tr:hover { background: #fafbfc; }
+    .actions { display: flex; gap: 6px; }
+
+    /* ── Badges ─────────────────────────────────── */
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .badge-active      { background: #d1fae5; color: var(--success); }
+    .badge-inactive    { background: #fee2e2; color: var(--danger); }
+    .badge-clothing    { background: #ede9fe; color: #7c3aed; }
+    .badge-shoes       { background: #dbeafe; color: #1d4ed8; }
+    .badge-accessories { background: #d1fae5; color: #047857; }
+    .badge-new         { background: #fef3c7; color: #d97706; }
+    .badge-bestseller  { background: #fee2e2; color: var(--danger); }
+
+    /* ── Forms ──────────────────────────────────── */
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .form-row.cols-1 { grid-template-columns: 1fr; }
+    .form-field { display: flex; flex-direction: column; gap: 6px; }
+    .form-field label { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+    .form-field input, .form-field select, .form-field textarea {
+      padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+      font-family: inherit; font-size: 14px; outline: none; transition: border-color .2s;
+      background: var(--white); color: var(--text);
+    }
+    .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: var(--primary); }
+    .form-field textarea { resize: vertical; min-height: 80px; }
+    .form-section-title {
+      font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: .5px; padding: 16px 0 8px; border-top: 1px solid var(--border); margin-top: 4px;
+    }
+    .form-section-title:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+
+    /* Color checkboxes */
+    .color-grid { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 0; }
+    .color-chip {
+      display: flex; align-items: center; gap: 6px; padding: 6px 12px;
+      border: 1.5px solid var(--border); border-radius: 20px; cursor: pointer;
+      font-size: 13px; font-weight: 500; transition: all .15s; user-select: none;
+    }
+    .color-chip input { display: none; }
+    .color-chip:has(input:checked) { border-color: var(--primary); background: #fff5f0; }
+    .color-dot { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); flex-shrink: 0; }
+
+    /* Sizes tag input */
+    .sizes-input-wrap {
+      border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 10px;
+      display: flex; flex-wrap: wrap; gap: 6px; min-height: 44px; cursor: text;
+    }
+    .sizes-input-wrap:focus-within { border-color: var(--primary); }
+    .size-tag {
+      display: inline-flex; align-items: center; gap: 4px; background: #ede9fe;
+      color: #7c3aed; padding: 3px 10px; border-radius: 20px; font-size: 13px; font-weight: 600;
+    }
+    .size-tag .rm { cursor: pointer; font-size: 15px; line-height: 1; color: #9ca3af; }
+    .size-tag .rm:hover { color: var(--danger); }
+    .size-raw-input {
+      border: none; outline: none; font-family: inherit; font-size: 14px;
+      min-width: 80px; flex: 1; background: transparent; direction: ltr;
+    }
+
+    /* Gradient preview */
+    .gradient-preview { height: 36px; border-radius: 6px; border: 1px solid var(--border); margin-top: 6px; background: #eee; }
+
+    /* Color picker */
+    .color-picker-row { display: flex; gap: 8px; align-items: center; }
+    .color-picker-row input[type="color"] { width: 44px; height: 44px; padding: 2px; border-radius: 8px; cursor: pointer; }
+    .color-picker-row input[type="text"] { flex: 1; direction: ltr; }
+
+    /* ── Media grid ─────────────────────────────── */
+    .media-grid { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px 0; }
+    .media-thumb {
+      position: relative; width: 90px; height: 90px; border-radius: 8px;
+      overflow: hidden; border: 1.5px solid var(--border); background: #f0f0f0;
+      flex-shrink: 0;
+    }
+    .media-thumb img, .media-thumb video {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    .media-thumb .rm-media {
+      position: absolute; top: 3px; inset-inline-end: 3px;
+      width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,.6);
+      color: #fff; border: none; cursor: pointer; font-size: 12px;
+      display: flex; align-items: center; justify-content: center; line-height: 1;
+    }
+    .media-thumb .type-badge {
+      position: absolute; bottom: 3px; inset-inline-start: 3px;
+      background: rgba(0,0,0,.55); color: #fff; font-size: 10px; font-weight: 700;
+      padding: 1px 5px; border-radius: 4px;
+    }
+    .media-upload-btn {
+      width: 90px; height: 90px; border-radius: 8px; border: 2px dashed var(--border);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 11px; color: var(--text-muted); gap: 4px;
+      background: none; font-family: inherit; transition: border-color .2s;
+    }
+    .media-upload-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .media-upload-btn .upload-icon { font-size: 22px; }
+    .video-preview { margin-top: 8px; border-radius: 8px; overflow: hidden; max-height: 180px; }
+    .video-preview iframe, .video-preview video { width: 100%; max-height: 180px; display: block; }
+
+    /* ── Modal ──────────────────────────────────── */
+    #modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      display: flex; align-items: flex-start; justify-content: center;
+      z-index: 500; padding: 24px 16px; overflow-y: auto;
+    }
+    .modal-card {
+      background: var(--white); border-radius: 14px; width: 100%; max-width: 700px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.2); margin: auto;
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 24px; border-bottom: 1px solid var(--border);
+    }
+    .modal-header h3 { font-size: 17px; font-weight: 700; }
+    .modal-close {
+      width: 32px; height: 32px; border-radius: 8px; border: none; background: var(--bg);
+      cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); flex-shrink: 0;
+    }
+    .modal-close:hover { background: var(--border); }
+    .modal-body { padding: 24px; }
+    .modal-footer { display: flex; gap: 10px; padding: 16px 24px; border-top: 1px solid var(--border); }
+    .modal-footer .btn { flex: 1; justify-content: center; }
+
+    /* ── Toast ──────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600;
+      z-index: 9999; transition: opacity .3s; opacity: 0; pointer-events: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,.15);
+    }
+    #toast.show { opacity: 1; }
+    #toast.success { background: var(--success); color: #fff; }
+    #toast.error   { background: var(--danger);  color: #fff; }
+
+    /* ── Confirm ────────────────────────────────── */
+    #confirm-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      display: flex; align-items: center; justify-content: center; z-index: 600;
+    }
+    .confirm-card {
+      background: var(--white); border-radius: 14px; padding: 28px 32px;
+      width: 340px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    }
+    .confirm-icon { font-size: 40px; margin-bottom: 12px; }
+    .confirm-card h4 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .confirm-card p  { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
+    .confirm-actions { display: flex; gap: 10px; justify-content: center; }
+
+    /* ── Empty ──────────────────────────────────── */
+    .empty-state { text-align: center; padding: 50px 20px; color: var(--text-muted); }
+    .empty-state .icon { font-size: 44px; margin-bottom: 10px; }
+
+    /* ── Category sections ──────────────────────── */
+    .cat-section { margin-bottom: 24px; }
+    .cat-section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; background: var(--bg); border-radius: 8px; margin-bottom: 10px;
+    }
+    .cat-section-header .cat-info { display: flex; align-items: center; gap: 10px; }
+    .cat-section-header .cat-title { font-size: 15px; font-weight: 700; }
+    code {
+      font-size: 12px; background: #f0f0f0; padding: 2px 7px;
+      border-radius: 4px; font-family: monospace; color: #555;
+    }
+    [dir="rtl"] code { direction: ltr; display: inline-block; }
+  </style>
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-badge">
+        <svg width="26" height="33" viewBox="0 0 22 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 1L2 15h8.5L6 27L20 13h-8.5L14 1z" fill="white"/>
+        </svg>
+      </div>
+      <div class="logo-wordmark"><span class="w-shil">SHIL</span><span class="w-fit">FIT</span></div>
+      <p data-i18n="storeAdmin">پنل مدیریت فروشگاه</p>
+    </div>
+    <div class="login-lang">
+      <button class="lang-btn active" data-lang="fa" onclick="applyLang('fa')">FA</button>
+      <button class="lang-btn" data-lang="en" onclick="applyLang('en')">EN</button>
+      <button class="lang-btn" data-lang="tr" onclick="applyLang('tr')">TR</button>
+    </div>
+    <div class="form-group">
+      <label data-i18n="username">نام کاربری</label>
+      <input type="text" id="inp-username" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label data-i18n="password">رمز عبور</label>
+      <input type="password" id="inp-password" autocomplete="current-password">
+    </div>
+    <div id="login-error"></div>
+    <button class="btn-login" onclick="doLogin()" id="btn-login-submit" data-i18n="loginBtn">ورود به پنل</button>
+  </div>
+</div>
+
+<!-- ═══ ADMIN LAYOUT ═══ -->
+<div id="admin-layout" class="hidden">
+
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <div class="brand">
+        <div class="sb-icon">
+          <svg width="18" height="23" viewBox="0 0 22 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M14 1L2 15h8.5L6 27L20 13h-8.5L14 1z" fill="white"/>
+          </svg>
+        </div>
+        <div class="sb-text">
+          <div class="sb-wordmark"><span class="sb-shil">SHIL</span><span class="sb-fit">FIT</span></div>
+          <div class="sub" data-i18n="adminPanel">پنل مدیریت</div>
+        </div>
+      </div>
+      <div class="lang-globe-wrap">
+        <button class="lang-globe-btn" id="lang-globe-btn" data-active="fa" onclick="toggleLangMenu(event)">FA</button>
+        <div class="lang-globe-menu hidden" id="lang-globe-menu">
+          <button class="lang-opt active" data-lang="fa" onclick="pickLang('fa')">FA</button>
+          <button class="lang-opt" data-lang="en" onclick="pickLang('en')">EN</button>
+          <button class="lang-opt" data-lang="tr" onclick="pickLang('tr')">TR</button>
+        </div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label" data-i18n="navGroupCatalog">فروشگاه</div>
+      <button class="nav-item active" onclick="showTab('products')" id="nav-products">
+        <span class="nav-icon">📦</span><span data-i18n="navProducts">محصولات</span>
+      </button>
+      <button class="nav-item" onclick="showTab('categories')" id="nav-categories">
+        <span class="nav-icon">🏷️</span><span data-i18n="navCategories">دسته‌بندی‌ها</span>
+      </button>
+
+      <div class="nav-section-label" data-i18n="navGroupConfig">تنظیمات پایه</div>
+      <button class="nav-item" onclick="showTab('colors')" id="nav-colors">
+        <span class="nav-icon">🎨</span><span data-i18n="navColors">رنگ‌ها</span>
+      </button>
+      <button class="nav-item" onclick="showTab('sizes')" id="nav-sizes">
+        <span class="nav-icon">📏</span><span data-i18n="navSizes">سایزها</span>
+      </button>
+
+      <div class="nav-section-label" data-i18n="navGroupUsers">کاربران</div>
+      <button class="nav-item" onclick="showTab('customers')" id="nav-customers">
+        <span class="nav-icon">👥</span><span data-i18n="navCustomers">مشتریان</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="doLogout()">
+        <span>🚪</span><span data-i18n="logout">خروج</span>
+      </button>
+    </div>
+  </aside>
+
+  <div id="main-content">
+
+    <!-- Products -->
+    <div id="tab-products">
+      <div class="page-header">
+        <h2>📦 <span data-i18n="navProducts">محصولات</span></h2>
+        <button class="btn btn-primary" onclick="openProductModal()" data-i18n="addProduct">+ افزودن محصول</button>
+      </div>
+      <div class="page-body">
+        <div class="card"><div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th data-i18n="colId">#</th>
+              <th data-i18n="colMedia">رسانه</th>
+              <th data-i18n="colName">نام محصول</th>
+              <th data-i18n="colCategory">دسته‌بندی</th>
+              <th data-i18n="colPrice">قیمت</th>
+              <th data-i18n="colStock">موجودی</th>
+              <th data-i18n="colColors">رنگ‌ها</th>
+              <th data-i18n="colSizes">سایزها</th>
+              <th data-i18n="colStatus">وضعیت</th>
+              <th data-i18n="colActions">عملیات</th>
+            </tr></thead>
+            <tbody id="products-tbody">
+              <tr><td colspan="10" style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</td></tr>
+            </tbody>
+          </table>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- Categories -->
+    <div id="tab-categories" class="hidden">
+      <div class="page-header">
+        <h2>🏷️ <span data-i18n="catSubtitle">دسته‌بندی‌ها</span></h2>
+        <button class="btn btn-primary" onclick="openCategoryModal()" data-i18n="addCatBtn">+ افزودن دسته‌بندی</button>
+      </div>
+      <div class="page-body" id="categories-body">
+        <div style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</div>
+      </div>
+    </div>
+
+    <!-- Customers -->
+    <div id="tab-customers" class="hidden">
+      <div class="page-header">
+        <h2>👥 <span data-i18n="navCustomers">مشتریان</span></h2>
+      </div>
+      <div class="page-body">
+        <div class="card"><div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th data-i18n="custId">شناسه</th>
+              <th data-i18n="custName">نام</th>
+              <th data-i18n="custEmail">ایمیل</th>
+              <th data-i18n="custMobile">موبایل</th>
+              <th data-i18n="custRegBy">نوع ثبت‌نام</th>
+              <th data-i18n="custStatus">وضعیت</th>
+              <th data-i18n="custJoined">تاریخ عضویت</th>
+              <th data-i18n="colActions">عملیات</th>
+            </tr></thead>
+            <tbody id="customers-tbody">
+              <tr><td colspan="8" style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</td></tr>
+            </tbody>
+          </table>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- Sizes -->
+    <div id="tab-sizes" class="hidden">
+      <div class="page-header">
+        <h2>📏 <span data-i18n="navSizes">سایزها</span></h2>
+        <button class="btn btn-primary" onclick="openSizeModal()" data-i18n="addSizeBtn">+ افزودن سایز</button>
+      </div>
+      <div class="page-body">
+        <div class="card"><div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th data-i18n="sizeLabel">سایز</th>
+              <th data-i18n="sortOrder">ترتیب نمایش</th>
+              <th data-i18n="colActions">عملیات</th>
+            </tr></thead>
+            <tbody id="sizes-tbody">
+              <tr><td colspan="3" style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</td></tr>
+            </tbody>
+          </table>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- Colors -->
+    <div id="tab-colors" class="hidden">
+      <div class="page-header">
+        <h2>🎨 <span data-i18n="navColors">رنگ‌ها</span></h2>
+        <button class="btn btn-primary" onclick="openColorModal()" data-i18n="addColorBtn">+ افزودن رنگ</button>
+      </div>
+      <div class="page-body">
+        <div class="card"><div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th data-i18n="colorPreview">پیش‌نمایش</th>
+              <th data-i18n="colorKey">کلید</th>
+              <th data-i18n="colorFa">نام فارسی</th>
+              <th data-i18n="colorEn">نام انگلیسی</th>
+              <th data-i18n="colorTr">نام ترکی</th>
+              <th data-i18n="colorHex">کد رنگ</th>
+              <th data-i18n="colActions">عملیات</th>
+            </tr></thead>
+            <tbody id="colors-tbody">
+              <tr><td colspan="7" style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</td></tr>
+            </tbody>
+          </table>
+        </div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ MODAL ═══ -->
+<div id="modal-overlay" class="hidden">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="modal-title"></h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<!-- ═══ CONFIRM ═══ -->
+<div id="confirm-overlay" class="hidden">
+  <div class="confirm-card">
+    <div class="confirm-icon">🗑️</div>
+    <h4 id="confirm-title" data-i18n="deleteItem">حذف آیتم</h4>
+    <p id="confirm-text"></p>
+    <div class="confirm-actions">
+      <button class="btn btn-danger" id="confirm-yes-btn" data-i18n="confirmYes">بله، حذف کن</button>
+      <button class="btn btn-secondary" onclick="closeConfirm()" data-i18n="confirmNo">انصراف</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── Translations ─────────────────────────────────────────────────────────────
+const LANGS = {
+  fa: {
+    dir: 'rtl', lang: 'fa',
+    storeAdmin:'پنل مدیریت فروشگاه', adminPanel:'پنل مدیریت',
+    loginBtn:'ورود به پنل', username:'نام کاربری', password:'رمز عبور',
+    connecting:'در حال ورود...', connFail:'اتصال به سرور ناموفق بود',
+    navGroupCatalog:'فروشگاه', navGroupConfig:'تنظیمات پایه', navGroupUsers:'کاربران',
+    navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navCustomers:'مشتریان', logout:'خروج',
+    addProduct:'+ افزودن محصول',
+    colId:'#', colMedia:'رسانه', colName:'نام محصول', colCategory:'دسته‌بندی', colPrice:'قیمت',
+    colStock:'موجودی', colColors:'رنگ‌ها', colSizes:'سایزها', colStatus:'وضعیت', colActions:'عملیات',
+    active:'فعال', inactive:'غیرفعال', edit:'✏️ ویرایش', del:'🗑️',
+    loading:'در حال بارگذاری...', noProducts:'هنوز محصولی ثبت نشده',
+    addProductTitle:'افزودن محصول جدید', editProductTitle:'ویرایش محصول',
+    saveChanges:'ذخیره تغییرات', addItem:'➕ افزودن', cancel:'انصراف',
+    basicInfo:'اطلاعات اصلی', categorization:'دسته‌بندی', priceStock:'قیمت و موجودی',
+    colorsSection:'رنگ‌ها', sizesSection:'سایزها', mediaSection:'تصاویر و ویدیو', appearance:'ظاهر',
+    uploadImage:'+ آپلود تصویر', uploadVideo:'+ آپلود ویدیو', addVideoUrl:'افزودن لینک',
+    videoUrlLbl:'لینک ویدیو (اختیاری)', videoUrlPlh:'https://youtu.be/... یا لینک مستقیم mp4',
+    uploading:'در حال آپلود...', uploadErr:'خطا در آپلود',
+    descriptions:'توضیحات', statusSection:'وضعیت',
+    nameFa:'نام فارسی *', nameEn:'نام انگلیسی', nameTr:'نام ترکی', emojiLbl:'ایموجی',
+    categoryField:'دسته‌بندی *', subcategoryField:'زیردسته',
+    genderField:'جنسیت', tagField:'برچسب',
+    priceField:'قیمت (تومان)', stockField:'موجودی (تعداد)',
+    gradient:'CSS Gradient',
+    descFa:'توضیحات فارسی', descEn:'توضیحات انگلیسی', descTr:'توضیحات ترکی',
+    activeProduct:'محصول فعال باشد',
+    selectCat:'انتخاب کنید...', noSub:'بدون زیردسته',
+    genderAll:'همه', genderMale:'مردانه', genderFemale:'زنانه',
+    tagNone:'بدون برچسب', tagBestseller:'پرفروش', tagNew:'جدید',
+    noColorsDefined:'ابتدا از تب رنگ‌ها، رنگ تعریف کنید',
+    sizesHint:'Enter یا کاما بزن تا سایز اضافه بشه', sizePlaceholder:'سایز + Enter (مثال: S یا 40)',
+    catSubtitle:'دسته‌بندی‌ها', addCatBtn:'+ افزودن دسته‌بندی',
+    addCatTitle:'افزودن دسته‌بندی جدید', editCatTitle:'ویرایش دسته‌بندی',
+    deleteCat:'حذف دسته‌بندی', confirmDeleteCat:'این دسته‌بندی حذف شود؟', deletedCat:'دسته‌بندی حذف شد',
+    savedCat:'دسته‌بندی ذخیره شد ✅', addedCat:'دسته‌بندی جدید اضافه شد ✅',
+    catKey:'کلید دسته', catFa:'نام فارسی', catEn:'نام انگلیسی', catTr:'نام ترکی',
+    catKeyPlh:'مثال: clothing', catFaPlh:'مثال: لباس',
+    noCats:'هنوز دسته‌بندی ثبت نشده',
+    addSubcat:'+ افزودن زیردسته', addSubcatForCat:'+ زیردسته جدید',
+    noSubcats:'هنوز زیردسته‌ای ندارد',
+    subKey:'کلید', subFa:'نام فارسی', subEn:'نام انگلیسی', subTr:'نام ترکی',
+    addSubcatTitle:'افزودن زیردسته', editSubcatTitle:'ویرایش زیردسته',
+    catField:'دسته‌بندی *', keyField:'کلید (key) *', keyPlaceholder:'مثال: tshirt',
+    colorPreview:'پیش‌نمایش', colorKey:'کلید', colorFa:'نام فارسی',
+    colorEn:'نام انگلیسی', colorTr:'نام ترکی', colorHex:'کد رنگ',
+    addColorBtn:'+ افزودن رنگ', addColorTitle:'افزودن رنگ جدید', editColorTitle:'ویرایش رنگ',
+    hexField:'کد رنگ (HEX) *', hexPlaceholder:'#000000', noColors:'هنوز رنگی تعریف نشده',
+    nameFaPlh:'مثال: تیشرت ورزشی', nameEnPlh:'Sports T-Shirt', nameTrPlh:'Spor Tişört',
+    descFaPlh:'ویژگی‌ها و مشخصات محصول...', descEnPlh:'Product description...', descTrPlh:'Ürün açıklaması...',
+    gradientPlh:'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    savedProduct:'محصول ویرایش شد ✅', addedProduct:'محصول جدید اضافه شد ✅',
+    deactivatedProduct:'محصول غیرفعال شد',
+    savedSubcat:'زیردسته ذخیره شد ✅', deletedSubcat:'زیردسته حذف شد',
+    savedColor:'رنگ ذخیره شد ✅', deletedColor:'رنگ حذف شد',
+    sizeLabel:'سایز', sortOrder:'ترتیب', addSizeBtn:'+ افزودن سایز',
+    addSizeTitle:'افزودن سایز جدید', editSizeTitle:'ویرایش سایز',
+    sizeLabelField:'برچسب سایز *', sizeLabelPlh:'مثال: S یا 42',
+    sortOrderField:'ترتیب نمایش', savedSize:'سایز ذخیره شد ✅', deletedSize:'سایز حذف شد',
+    confirmDeleteSize:'این سایز حذف شود؟', noSizes:'هنوز سایزی تعریف نشده',
+    noSizesDefined:'ابتدا از تب سایزها، سایز تعریف کنید',
+    valSizeLabel:'برچسب سایز الزامی است',
+    custId:'شناسه مشتری', custName:'نام', custEmail:'ایمیل', custMobile:'موبایل',
+    custRegBy:'نوع ثبت‌نام', custLang:'زبان', custStatus:'وضعیت', custJoined:'تاریخ عضویت',
+    custRegEmail:'ایمیل', custRegMobile:'موبایل',
+    noCustomers:'هنوز مشتری ثبت نشده', editCustomerTitle:'ویرایش اطلاعات مشتری',
+    custActive:'فعال', custInactive:'غیرفعال', custActiveLabel:'حساب فعال باشد',
+    savedCustomer:'اطلاعات مشتری ذخیره شد ✅',
+    saveError:'خطا در ذخیره', deleteError:'خطا در حذف',
+    valNameFa:'نام فارسی الزامی است', valCategory:'دسته‌بندی را انتخاب کنید',
+    valSubcatFields:'دسته، کلید و نام فارسی الزامی‌اند',
+    valColorFields:'کلید، نام فارسی و کد رنگ الزامی‌اند',
+    valHexFormat:'کد رنگ باید به فرمت #RRGGBB باشد',
+    deleteItem:'حذف آیتم', confirmYes:'بله، حذف کن', confirmNo:'انصراف',
+    confirmDeleteProduct:'این محصول حذف شود؟', confirmDeleteSubcat:'این زیردسته حذف شود؟',
+    confirmDeleteColor:'این رنگ حذف شود؟',
+    bestseller:'پرفروش', newTag:'جدید',
+    colorKeyPlh:'مثال: navy', colorFaPlh:'سرمه‌ای', colorEnPlh:'Navy', colorTrPlh:'Lacivert',
+  },
+  en: {
+    dir: 'ltr', lang: 'en',
+    storeAdmin:'Store Admin Panel', adminPanel:'Admin Panel',
+    loginBtn:'Login', username:'Username', password:'Password',
+    connecting:'Logging in...', connFail:'Could not connect to server',
+    navGroupCatalog:'Store', navGroupConfig:'Configuration', navGroupUsers:'Users',
+    navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navCustomers:'Customers', logout:'Logout',
+    addProduct:'+ Add Product',
+    colId:'#', colMedia:'Media', colName:'Product Name', colCategory:'Category', colPrice:'Price',
+    colStock:'Stock', colColors:'Colors', colSizes:'Sizes', colStatus:'Status', colActions:'Actions',
+    active:'Active', inactive:'Inactive', edit:'✏️ Edit', del:'🗑️',
+    loading:'Loading...', noProducts:'No products yet',
+    addProductTitle:'Add New Product', editProductTitle:'Edit Product',
+    saveChanges:'Save Changes', addItem:'➕ Add', cancel:'Cancel',
+    basicInfo:'Basic Info', categorization:'Category', priceStock:'Price & Stock',
+    colorsSection:'Colors', sizesSection:'Sizes', mediaSection:'Images & Video', appearance:'Appearance',
+    uploadImage:'+ Upload Image', uploadVideo:'+ Upload Video', addVideoUrl:'Add Link',
+    videoUrlLbl:'Video URL (optional)', videoUrlPlh:'https://youtu.be/... or direct mp4 link',
+    uploading:'Uploading...', uploadErr:'Upload error',
+    descriptions:'Descriptions', statusSection:'Status',
+    nameFa:'Farsi Name *', nameEn:'English Name', nameTr:'Turkish Name', emojiLbl:'Emoji',
+    categoryField:'Category *', subcategoryField:'Subcategory',
+    genderField:'Gender', tagField:'Tag',
+    priceField:'Price', stockField:'Stock (qty)',
+    gradient:'CSS Gradient',
+    descFa:'Farsi Description', descEn:'English Description', descTr:'Turkish Description',
+    activeProduct:'Product is active',
+    selectCat:'Select...', noSub:'No subcategory',
+    genderAll:'Unisex', genderMale:'Male', genderFemale:'Female',
+    tagNone:'No tag', tagBestseller:'Bestseller', tagNew:'New',
+    noColorsDefined:'First define colors in the Colors tab',
+    sizesHint:'Press Enter or comma to add a size', sizePlaceholder:'Type size + Enter (e.g. S or 40)',
+    catSubtitle:'Categories', addCatBtn:'+ Add Category',
+    addCatTitle:'Add New Category', editCatTitle:'Edit Category',
+    deleteCat:'Delete Category', confirmDeleteCat:'Delete this category?', deletedCat:'Category deleted',
+    savedCat:'Category saved ✅', addedCat:'Category added ✅',
+    catKey:'Key', catFa:'Farsi Name', catEn:'English Name', catTr:'Turkish Name',
+    catKeyPlh:'e.g. clothing', catFaPlh:'e.g. Clothing',
+    noCats:'No categories yet',
+    addSubcat:'+ Add Subcategory', addSubcatForCat:'+ New Subcategory',
+    noSubcats:'No subcategories yet',
+    subKey:'Key', subFa:'Farsi Name', subEn:'English Name', subTr:'Turkish Name',
+    addSubcatTitle:'Add Subcategory', editSubcatTitle:'Edit Subcategory',
+    catField:'Category *', keyField:'Key *', keyPlaceholder:'e.g. tshirt',
+    colorPreview:'Preview', colorKey:'Key', colorFa:'Farsi Name',
+    colorEn:'English Name', colorTr:'Turkish Name', colorHex:'Hex Code',
+    addColorBtn:'+ Add Color', addColorTitle:'Add New Color', editColorTitle:'Edit Color',
+    hexField:'Color Code (HEX) *', hexPlaceholder:'#000000', noColors:'No colors defined yet',
+    nameFaPlh:'e.g. Sports T-Shirt (FA)', nameEnPlh:'Sports T-Shirt', nameTrPlh:'Spor Tişört',
+    descFaPlh:'Features and specs...', descEnPlh:'Product description...', descTrPlh:'Ürün açıklaması...',
+    gradientPlh:'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    savedProduct:'Product updated ✅', addedProduct:'Product added ✅',
+    deactivatedProduct:'Product deactivated',
+    savedSubcat:'Subcategory saved ✅', deletedSubcat:'Subcategory deleted',
+    savedColor:'Color saved ✅', deletedColor:'Color deleted',
+    sizeLabel:'Size', sortOrder:'Order', addSizeBtn:'+ Add Size',
+    addSizeTitle:'Add New Size', editSizeTitle:'Edit Size',
+    sizeLabelField:'Size Label *', sizeLabelPlh:'e.g. S or 42',
+    sortOrderField:'Display Order', savedSize:'Size saved ✅', deletedSize:'Size deleted',
+    confirmDeleteSize:'Delete this size?', noSizes:'No sizes defined yet',
+    noSizesDefined:'First define sizes in the Sizes tab',
+    valSizeLabel:'Size label is required',
+    custId:'Customer ID', custName:'Name', custEmail:'Email', custMobile:'Mobile',
+    custRegBy:'Registered Via', custLang:'Language', custStatus:'Status', custJoined:'Joined',
+    custRegEmail:'Email', custRegMobile:'Mobile',
+    noCustomers:'No customers yet', editCustomerTitle:'Edit Customer',
+    custActive:'Active', custInactive:'Inactive', custActiveLabel:'Account is active',
+    savedCustomer:'Customer saved ✅',
+    saveError:'Save error', deleteError:'Delete error',
+    valNameFa:'Farsi name is required', valCategory:'Please select a category',
+    valSubcatFields:'Category, key and Farsi name are required',
+    valColorFields:'Key, Farsi name and hex code are required',
+    valHexFormat:'Color code must be in #RRGGBB format',
+    deleteItem:'Delete Item', confirmYes:'Yes, Delete', confirmNo:'Cancel',
+    confirmDeleteProduct:'Delete this product?', confirmDeleteSubcat:'Delete this subcategory?',
+    confirmDeleteColor:'Delete this color?',
+    bestseller:'Bestseller', newTag:'New',
+    colorKeyPlh:'e.g. navy', colorFaPlh:'Farsi name', colorEnPlh:'Navy', colorTrPlh:'Lacivert',
+  },
+  tr: {
+    dir: 'ltr', lang: 'tr',
+    storeAdmin:'Mağaza Yönetim Paneli', adminPanel:'Yönetim Paneli',
+    loginBtn:'Giriş Yap', username:'Kullanıcı Adı', password:'Şifre',
+    connecting:'Giriş yapılıyor...', connFail:'Sunucuya bağlanılamadı',
+    navGroupCatalog:'Mağaza', navGroupConfig:'Yapılandırma', navGroupUsers:'Kullanıcılar',
+    navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navCustomers:'Müşteriler', logout:'Çıkış',
+    addProduct:'+ Ürün Ekle',
+    colId:'#', colMedia:'Medya', colName:'Ürün Adı', colCategory:'Kategori', colPrice:'Fiyat',
+    colStock:'Stok', colColors:'Renkler', colSizes:'Bedenler', colStatus:'Durum', colActions:'İşlemler',
+    active:'Aktif', inactive:'Pasif', edit:'✏️ Düzenle', del:'🗑️',
+    loading:'Yükleniyor...', noProducts:'Henüz ürün yok',
+    addProductTitle:'Yeni Ürün Ekle', editProductTitle:'Ürünü Düzenle',
+    saveChanges:'Değişiklikleri Kaydet', addItem:'➕ Ekle', cancel:'İptal',
+    basicInfo:'Temel Bilgiler', categorization:'Kategori', priceStock:'Fiyat & Stok',
+    colorsSection:'Renkler', sizesSection:'Bedenler', mediaSection:'Görseller & Video', appearance:'Görünüm',
+    uploadImage:'+ Görsel Yükle', uploadVideo:'+ Video Yükle', addVideoUrl:'Bağlantı Ekle',
+    videoUrlLbl:'Video Bağlantısı (isteğe bağlı)', videoUrlPlh:'https://youtu.be/... veya doğrudan mp4',
+    uploading:'Yükleniyor...', uploadErr:'Yükleme hatası',
+    descriptions:'Açıklamalar', statusSection:'Durum',
+    nameFa:'Farsça Ad *', nameEn:'İngilizce Ad', nameTr:'Türkçe Ad', emojiLbl:'Emoji',
+    categoryField:'Kategori *', subcategoryField:'Alt Kategori',
+    genderField:'Cinsiyet', tagField:'Etiket',
+    priceField:'Fiyat', stockField:'Stok (adet)',
+    gradient:'CSS Gradyan',
+    descFa:'Farsça Açıklama', descEn:'İngilizce Açıklama', descTr:'Türkçe Açıklama',
+    activeProduct:'Ürün aktif olsun',
+    selectCat:'Seçiniz...', noSub:'Alt kategori yok',
+    genderAll:'Unisex', genderMale:'Erkek', genderFemale:'Kadın',
+    tagNone:'Etiket yok', tagBestseller:'Çok Satan', tagNew:'Yeni',
+    noColorsDefined:'Önce Renkler sekmesinde renk tanımlayın',
+    sizesHint:'Beden eklemek için Enter veya virgül', sizePlaceholder:'Beden yaz + Enter (örn. S veya 40)',
+    catSubtitle:'Kategoriler', addCatBtn:'+ Kategori Ekle',
+    addCatTitle:'Yeni Kategori Ekle', editCatTitle:'Kategoriyi Düzenle',
+    deleteCat:'Kategori Sil', confirmDeleteCat:'Bu kategori silinsin mi?', deletedCat:'Kategori silindi',
+    savedCat:'Kategori kaydedildi ✅', addedCat:'Kategori eklendi ✅',
+    catKey:'Anahtar', catFa:'Farsça Ad', catEn:'İngilizce Ad', catTr:'Türkçe Ad',
+    catKeyPlh:'örn. clothing', catFaPlh:'örn. Giyim',
+    noCats:'Henüz kategori yok',
+    addSubcat:'+ Alt Kategori Ekle', addSubcatForCat:'+ Yeni Alt Kategori',
+    noSubcats:'Henüz alt kategori yok',
+    subKey:'Anahtar', subFa:'Farsça Ad', subEn:'İngilizce Ad', subTr:'Türkçe Ad',
+    addSubcatTitle:'Alt Kategori Ekle', editSubcatTitle:'Alt Kategoriyi Düzenle',
+    catField:'Kategori *', keyField:'Anahtar *', keyPlaceholder:'örn. tshirt',
+    colorPreview:'Önizleme', colorKey:'Anahtar', colorFa:'Farsça Ad',
+    colorEn:'İngilizce Ad', colorTr:'Türkçe Ad', colorHex:'Renk Kodu',
+    addColorBtn:'+ Renk Ekle', addColorTitle:'Yeni Renk Ekle', editColorTitle:'Rengi Düzenle',
+    hexField:'Renk Kodu (HEX) *', hexPlaceholder:'#000000', noColors:'Henüz renk tanımlanmadı',
+    nameFaPlh:'örn. Spor Tişört (FA)', nameEnPlh:'Sports T-Shirt', nameTrPlh:'Spor Tişört',
+    descFaPlh:'Özellikler...', descEnPlh:'Product description...', descTrPlh:'Ürün açıklaması...',
+    gradientPlh:'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    savedProduct:'Ürün güncellendi ✅', addedProduct:'Ürün eklendi ✅',
+    deactivatedProduct:'Ürün devre dışı bırakıldı',
+    savedSubcat:'Alt kategori kaydedildi ✅', deletedSubcat:'Alt kategori silindi',
+    savedColor:'Renk kaydedildi ✅', deletedColor:'Renk silindi',
+    sizeLabel:'Beden', sortOrder:'Sıra', addSizeBtn:'+ Beden Ekle',
+    addSizeTitle:'Yeni Beden Ekle', editSizeTitle:'Bedeni Düzenle',
+    sizeLabelField:'Beden Etiketi *', sizeLabelPlh:'örn. S veya 42',
+    sortOrderField:'Görüntüleme Sırası', savedSize:'Beden kaydedildi ✅', deletedSize:'Beden silindi',
+    confirmDeleteSize:'Bu beden silinsin mi?', noSizes:'Henüz beden tanımlanmadı',
+    noSizesDefined:'Önce Bedenler sekmesinde beden tanımlayın',
+    valSizeLabel:'Beden etiketi gereklidir',
+    custId:'Müşteri ID', custName:'Ad', custEmail:'E-posta', custMobile:'Telefon',
+    custRegBy:'Kayıt Yöntemi', custLang:'Dil', custStatus:'Durum', custJoined:'Üyelik Tarihi',
+    custRegEmail:'E-posta', custRegMobile:'Telefon',
+    noCustomers:'Henüz müşteri yok', editCustomerTitle:'Müşteriyi Düzenle',
+    custActive:'Aktif', custInactive:'Pasif', custActiveLabel:'Hesap aktif olsun',
+    savedCustomer:'Müşteri kaydedildi ✅',
+    saveError:'Kaydetme hatası', deleteError:'Silme hatası',
+    valNameFa:'Farsça ad gereklidir', valCategory:'Lütfen bir kategori seçin',
+    valSubcatFields:'Kategori, anahtar ve Farsça ad gereklidir',
+    valColorFields:'Anahtar, Farsça ad ve renk kodu gereklidir',
+    valHexFormat:'Renk kodu #RRGGBB formatında olmalı',
+    deleteItem:'Öğeyi Sil', confirmYes:'Evet, Sil', confirmNo:'İptal',
+    confirmDeleteProduct:'Bu ürün silinsin mi?', confirmDeleteSubcat:'Bu alt kategori silinsin mi?',
+    confirmDeleteColor:'Bu renk silinsin mi?',
+    bestseller:'Çok Satan', newTag:'Yeni',
+    colorKeyPlh:'örn. navy', colorFaPlh:'Farsça ad', colorEnPlh:'Navy', colorTrPlh:'Lacivert',
+  },
+};
+
+// ─── State ────────────────────────────────────────────────────────────────────
+const API = 'http://localhost:3001/api';
+let token = sessionStorage.getItem('admin_token');
+let currentLang = localStorage.getItem('admin_lang') || 'fa';
+let allCategories = [], allColors = [], allSizes = [], editingSizes = [], editingMedia = [];
+let currentTab = 'products';
+
+function t(key) { return LANGS[currentLang][key] || key; }
+
+// ─── Language ─────────────────────────────────────────────────────────────────
+function applyLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('admin_lang', lang);
+  const L = LANGS[lang];
+  document.documentElement.dir  = L.dir;
+  document.documentElement.lang = L.lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.dataset.i18n;
+    if (L[k]) el.textContent = L[k];
+  });
+  // Update login lang buttons
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.lang === lang);
+  });
+  // Update globe button
+  const globe = document.getElementById('lang-globe-btn');
+  if (globe) { globe.textContent = lang.toUpperCase(); globe.dataset.active = lang; }
+  document.querySelectorAll('.lang-opt').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.lang === lang);
+  });
+  if (token) refreshCurrentTab();
+}
+
+function toggleLangMenu(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('lang-globe-menu');
+  menu.classList.toggle('hidden');
+}
+
+function pickLang(lang) {
+  applyLang(lang);
+  document.getElementById('lang-globe-menu').classList.add('hidden');
+}
+
+// Close menu when clicking outside
+document.addEventListener('click', () => {
+  const menu = document.getElementById('lang-globe-menu');
+  if (menu) menu.classList.add('hidden');
+});
+
+function refreshCurrentTab() {
+  if (currentTab === 'products')   loadProducts();
+  if (currentTab === 'categories') loadCategories();
+  if (currentTab === 'colors')     loadColors();
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+(function init() {
+  applyLang(currentLang);
+  if (token) showAdmin();
+  document.getElementById('inp-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  document.getElementById('inp-username').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('inp-password').focus(); });
+})();
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const btn = document.getElementById('btn-login-submit');
+  const errEl = document.getElementById('login-error');
+  const username = document.getElementById('inp-username').value.trim();
+  const password = document.getElementById('inp-password').value;
+  errEl.textContent = '';
+  btn.disabled = true; btn.textContent = t('connecting');
+  try {
+    const res = await fetch(`${API}/admin/login`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (data.success) { token = data.token; sessionStorage.setItem('admin_token', token); showAdmin(); }
+    else errEl.textContent = data.message || t('loginBtn');
+  } catch { errEl.textContent = t('connFail'); }
+  btn.disabled = false; btn.textContent = t('loginBtn');
+}
+
+function doLogout() {
+  token = null; sessionStorage.removeItem('admin_token');
+  document.getElementById('admin-layout').classList.add('hidden');
+  document.getElementById('login-overlay').classList.remove('hidden');
+}
+
+function showAdmin() {
+  document.getElementById('login-overlay').classList.add('hidden');
+  document.getElementById('admin-layout').classList.remove('hidden');
+  showTab('products');
+}
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+function showTab(tab) {
+  currentTab = tab;
+  ['products','categories','colors','sizes','customers'].forEach(t2 => {
+    document.getElementById(`tab-${t2}`).classList.add('hidden');
+    document.getElementById(`nav-${t2}`).classList.remove('active');
+  });
+  document.getElementById(`tab-${tab}`).classList.remove('hidden');
+  document.getElementById(`nav-${tab}`).classList.add('active');
+  if (tab === 'products')   loadProducts();
+  if (tab === 'categories') loadCategories();
+  if (tab === 'colors')     loadColors();
+  if (tab === 'sizes')      loadSizes();
+  if (tab === 'customers')  loadCustomers();
+}
+
+// ─── API helper ───────────────────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const res = await fetch(`${API}${path}`, {
+    ...opts,
+    headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${token}`, ...(opts.headers||{}) },
+  });
+  const data = await res.json();
+  if (res.status === 401) { doLogout(); return null; }
+  return data;
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+}
+
+// ─── Confirm ──────────────────────────────────────────────────────────────────
+function showConfirm(text, onYes) {
+  document.getElementById('confirm-title').textContent = t('deleteItem');
+  document.getElementById('confirm-yes-btn').textContent = t('confirmYes');
+  document.querySelector('#confirm-overlay .btn-secondary').textContent = t('confirmNo');
+  document.getElementById('confirm-text').textContent = text;
+  document.getElementById('confirm-overlay').classList.remove('hidden');
+  document.getElementById('confirm-yes-btn').onclick = () => { closeConfirm(); onYes(); };
+}
+function closeConfirm() { document.getElementById('confirm-overlay').classList.add('hidden'); }
+
+// ─── Modal ────────────────────────────────────────────────────────────────────
+function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
+function openModal(title, bodyHtml, footerHtml) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHtml;
+  document.getElementById('modal-footer').innerHTML = footerHtml;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+// ─── PRODUCTS ─────────────────────────────────────────────────────────────────
+async function loadProducts() {
+  const [pR, cR, colR, szR] = await Promise.all([
+    api('/admin/products'), api('/admin/categories'), api('/admin/colors'), api('/admin/sizes')
+  ]);
+  if (!pR) return;
+  allCategories = cR?.data  || [];
+  allColors     = colR?.data || [];
+  allSizes      = szR?.data  || [];
+  renderProductsTable(pR.data || []);
+}
+
+function renderProductsTable(products) {
+  const tbody = document.getElementById('products-tbody');
+  if (!products.length) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon">📦</div><p>${t('noProducts')}</p></div></td></tr>`;
+    return;
+  }
+  const catBadgeMap = { clothing:'badge-clothing', shoes:'badge-shoes', accessories:'badge-accessories' };
+  tbody.innerHTML = products.map(p => {
+    const catKey   = p.categories?.key || '';
+    const catLabel = p.categories?.label_fa || '—';
+    const tagHtml  = p.tag ? `<span class="badge badge-${p.tag}">${t(p.tag === 'bestseller' ? 'bestseller' : 'newTag')}</span>` : '';
+    const colorDots = (p.product_colors||[]).map(pc =>
+      `<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${pc.colors?.hex};border:1px solid rgba(0,0,0,.15);margin:0 1px" title="${pc.colors?.name_fa}"></span>`
+    ).join('') || '—';
+    const sizeTags = (p.product_sizes||[]).map(s =>
+      `<span style="font-size:11px;background:#ede9fe;color:#7c3aed;padding:1px 6px;border-radius:10px;margin:1px">${s.size_label}</span>`
+    ).join('') || '—';
+    const statusBadge = p.is_active
+      ? `<span class="badge badge-active">${t('active')}</span>`
+      : `<span class="badge badge-inactive">${t('inactive')}</span>`;
+    const firstImg = (p.product_media||[]).find(m => m.type === 'image');
+    const firstVid = !firstImg && (p.product_media||[]).find(m => m.type === 'video');
+    const mediaSrc = firstImg ? ('http://localhost:3001' + firstImg.url) : null;
+    const mediaThumb = mediaSrc
+      ? `<img src="${mediaSrc}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" onerror="this.style.display='none'">`
+      : firstVid
+        ? `<div style="width:48px;height:48px;border-radius:6px;background:#111;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff">▶</div>`
+        : `<div style="width:48px;height:48px;border-radius:6px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:20px">${p.emoji||'📦'}</div>`;
+    const mediaCount = (p.product_media||[]).length;
+    return `<tr>
+      <td style="color:#999;font-size:12px">${p.id}</td>
+      <td>
+        <div style="position:relative;display:inline-block">
+          ${mediaThumb}
+          ${mediaCount > 1 ? `<span style="position:absolute;bottom:0;inset-inline-end:0;background:rgba(0,0,0,.6);color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px">+${mediaCount}</span>` : ''}
+        </div>
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${p.emoji ? `<span style="font-size:20px">${p.emoji}</span>` : ''}
+          <div><div style="font-weight:600">${p.name_fa}</div><div style="font-size:11px;color:#999">${p.name_en||''}</div>${tagHtml}</div>
+        </div>
+      </td>
+      <td>
+        <span class="badge ${catBadgeMap[catKey]||''}">${catLabel}</span>
+        ${p.subcategories ? `<span style="font-size:11px;color:#999;display:block;margin-top:2px">${p.subcategories.label_fa}</span>` : ''}
+      </td>
+      <td style="direction:ltr;text-align:right">${p.price ? Number(p.price).toLocaleString() : '—'}</td>
+      <td>${p.stock}</td>
+      <td>${colorDots}</td>
+      <td style="max-width:120px">${sizeTags}</td>
+      <td>${statusBadge}</td>
+      <td><div class="actions">
+        <button class="btn btn-secondary btn-sm" onclick="openProductModal(${p.id})">${t('edit')}</button>
+        <button class="btn btn-danger btn-sm" onclick="confirmDeleteProduct(${p.id},'${p.name_fa.replace(/'/g,"\\'")}')">${t('del')}</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+async function openProductModal(id = null) {
+  editingSizes = [];
+  editingMedia = [];
+  if (!allCategories.length || !allSizes.length) {
+    const [cR, colR, szR] = await Promise.all([api('/admin/categories'), api('/admin/colors'), api('/admin/sizes')]);
+    allCategories = cR?.data  || [];
+    allColors     = colR?.data || [];
+    allSizes      = szR?.data  || [];
+  }
+  let product = null;
+  if (id) {
+    const res = await api('/admin/products');
+    product = res?.data?.find(p => p.id === id) || null;
+    if (product) {
+      editingSizes = (product.product_sizes||[]).map(s => s.size_label);
+      editingMedia = (product.product_media||[]).map(m => ({ id: m.id, type: m.type, url: m.url }));
+    }
+  }
+
+  const catOptions = allCategories.map(c =>
+    `<option value="${c.id}" ${product?.category_id===c.id?'selected':''}>${c.label_fa} / ${c.label_en} / ${c.label_tr}</option>`
+  ).join('');
+
+  const colorChecks = allColors.map(c =>
+    `<label class="color-chip">
+      <input type="checkbox" name="color" value="${c.id}" ${(product?.product_colors||[]).some(pc=>pc.color_id===c.id)?'checked':''}>
+      <span class="color-dot" style="background:${c.hex}"></span>${c.name_fa} / ${c.name_en}
+    </label>`
+  ).join('');
+
+  const body = `
+    <div class="form-section-title">${t('basicInfo')}</div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>${t('nameFa')}</label>
+        <input type="text" id="f-name-fa" value="${product?.name_fa||''}" placeholder="${t('nameFaPlh')}">
+      </div>
+      <div class="form-field">
+        <label>${t('nameEn')}</label>
+        <input type="text" id="f-name-en" value="${product?.name_en||''}" placeholder="${t('nameEnPlh')}" style="direction:ltr">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>${t('nameTr')}</label>
+        <input type="text" id="f-name-tr" value="${product?.name_tr||''}" placeholder="${t('nameTrPlh')}" style="direction:ltr">
+      </div>
+      <div class="form-field">
+        <label>${t('emojiLbl')}</label>
+        <input type="text" id="f-emoji" value="${product?.emoji||''}" placeholder="👕">
+      </div>
+    </div>
+
+    <div class="form-section-title">${t('categorization')}</div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>${t('categoryField')}</label>
+        <select id="f-category" onchange="onCategoryChange()">
+          <option value="">${t('selectCat')}</option>${catOptions}
+        </select>
+      </div>
+      <div class="form-field">
+        <label>${t('subcategoryField')}</label>
+        <select id="f-subcategory"><option value="">${t('noSub')}</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>${t('genderField')}</label>
+        <select id="f-gender">
+          <option value="unisex" ${(!product||product.gender==='unisex')?'selected':''}>${t('genderAll')}</option>
+          <option value="male"   ${product?.gender==='male'  ?'selected':''}>${t('genderMale')}</option>
+          <option value="female" ${product?.gender==='female'?'selected':''}>${t('genderFemale')}</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>${t('tagField')}</label>
+        <select id="f-tag">
+          <option value=""           ${!product?.tag                 ?'selected':''}>${t('tagNone')}</option>
+          <option value="bestseller" ${product?.tag==='bestseller'   ?'selected':''}>${t('tagBestseller')}</option>
+          <option value="new"        ${product?.tag==='new'          ?'selected':''}>${t('tagNew')}</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-section-title">${t('priceStock')}</div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>${t('priceField')}</label>
+        <input type="number" id="f-price" value="${product?.price||0}" min="0" style="direction:ltr">
+      </div>
+      <div class="form-field">
+        <label>${t('stockField')}</label>
+        <input type="number" id="f-stock" value="${product?.stock||0}" min="0" style="direction:ltr">
+      </div>
+    </div>
+
+    <div class="form-section-title">${t('colorsSection')}</div>
+    <div class="color-grid">${allColors.length ? colorChecks : `<p style="color:#999;font-size:13px">${t('noColorsDefined')}</p>`}</div>
+
+    <div class="form-section-title">${t('sizesSection')}</div>
+    <div class="color-grid" id="sizes-grid">${allSizes.length
+      ? allSizes.map(s => `<label class="color-chip">
+          <input type="checkbox" name="size" value="${s.label}" ${editingSizes.includes(s.label)?'checked':''}>
+          <span style="font-weight:700;font-size:13px">${s.label}</span>
+        </label>`).join('')
+      : `<p style="color:#999;font-size:13px">${t('noSizesDefined')}</p>`
+    }</div>
+
+    <div class="form-section-title">${t('mediaSection')}</div>
+    <div class="media-grid" id="media-grid"></div>
+    <input type="file" id="media-file-input" accept="image/*,video/*" multiple style="display:none" onchange="handleMediaFiles(this.files)">
+
+    <div class="form-section-title">${t('descriptions')}</div>
+    <div class="form-row cols-1">
+      <div class="form-field">
+        <label>${t('descFa')}</label>
+        <textarea id="f-desc-fa" placeholder="${t('descFaPlh')}">${product?.desc_fa||''}</textarea>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>${t('descEn')}</label>
+        <textarea id="f-desc-en" style="direction:ltr" placeholder="${t('descEnPlh')}">${product?.desc_en||''}</textarea>
+      </div>
+      <div class="form-field">
+        <label>${t('descTr')}</label>
+        <textarea id="f-desc-tr" style="direction:ltr" placeholder="${t('descTrPlh')}">${product?.desc_tr||''}</textarea>
+      </div>
+    </div>
+
+    ${id ? `
+    <div class="form-section-title">${t('statusSection')}</div>
+    <div class="form-field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="f-active" ${product?.is_active!==false?'checked':''} style="width:18px;height:18px">
+        ${t('activeProduct')}
+      </label>
+    </div>` : ''}
+  `;
+
+  const footer = `
+    <button class="btn btn-primary" onclick="saveProduct(${id||'null'})">${id ? t('saveChanges') : t('addItem')}</button>
+    <button class="btn btn-secondary" onclick="closeModal()">${t('cancel')}</button>
+  `;
+
+  openModal(id ? t('editProductTitle') : t('addProductTitle'), body, footer);
+  renderMediaGrid();
+  if (product?.category_id) loadSubcategoriesForCategory(product.category_id, product.subcategory_id);
+}
+
+async function onCategoryChange() {
+  const catId = document.getElementById('f-category')?.value;
+  if (catId) loadSubcategoriesForCategory(Number(catId), null);
+}
+
+function loadSubcategoriesForCategory(catId, selectedSubId = null) {
+  const cat  = allCategories.find(c => c.id === catId);
+  const subs = cat?.subcategories || [];
+  const sel  = document.getElementById('f-subcategory');
+  if (!sel) return;
+  sel.innerHTML = `<option value="">${t('noSub')}</option>` +
+    subs.map(s => `<option value="${s.id}" ${s.id===selectedSubId?'selected':''}>${s.label_fa} / ${s.label_en}</option>`).join('');
+}
+
+function handleSizeInput(e) {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const val = e.target.value.trim();
+    if (val && !editingSizes.includes(val)) { editingSizes.push(val); renderSizeTags(); }
+    e.target.value = '';
+  }
+  if (e.key === 'Backspace' && !e.target.value && editingSizes.length) {
+    editingSizes.pop(); renderSizeTags();
+  }
+}
+function removeSize(s) { editingSizes = editingSizes.filter(x => x !== s); renderSizeTags(); }
+function renderSizeTags() {
+  const c = document.getElementById('size-tags-container');
+  if (!c) return;
+  c.innerHTML = editingSizes.map(s =>
+    `<span class="size-tag">${s}<span class="rm" onclick="removeSize('${s}')">×</span></span>`
+  ).join('');
+}
+
+async function saveProduct(id) {
+  const nameFA = document.getElementById('f-name-fa')?.value?.trim();
+  if (!nameFA) { showToast(t('valNameFa'), 'error'); return; }
+  const catId = document.getElementById('f-category')?.value;
+  if (!catId)  { showToast(t('valCategory'), 'error'); return; }
+  const color_ids = [...document.querySelectorAll('input[name="color"]:checked')].map(el => Number(el.value));
+  const payload = {
+    category_id: Number(catId),
+    subcategory_id: document.getElementById('f-subcategory')?.value || null,
+    gender:  document.getElementById('f-gender')?.value || 'unisex',
+    name_fa: nameFA,
+    name_en: document.getElementById('f-name-en')?.value?.trim() || '',
+    name_tr: document.getElementById('f-name-tr')?.value?.trim() || '',
+    desc_fa: document.getElementById('f-desc-fa')?.value?.trim() || '',
+    desc_en: document.getElementById('f-desc-en')?.value?.trim() || '',
+    desc_tr: document.getElementById('f-desc-tr')?.value?.trim() || '',
+    emoji:    document.getElementById('f-emoji')?.value?.trim() || '',
+    tag:   document.getElementById('f-tag')?.value || null,
+    price: Number(document.getElementById('f-price')?.value) || 0,
+    stock: Number(document.getElementById('f-stock')?.value) || 0,
+    color_ids,
+    sizes: [...document.querySelectorAll('input[name="size"]:checked')].map(cb => cb.value),
+    media: buildMediaPayload(),
+  };
+  if (id) { const el = document.getElementById('f-active'); payload.is_active = el ? el.checked : true; }
+
+  const res = id
+    ? await api(`/admin/products/${id}`, { method:'PUT', body:JSON.stringify(payload) })
+    : await api('/admin/products',        { method:'POST', body:JSON.stringify(payload) });
+
+  if (res?.success) { closeModal(); showToast(id ? t('savedProduct') : t('addedProduct')); loadProducts(); }
+  else showToast(res?.message || t('saveError'), 'error');
+}
+
+async function confirmDeleteProduct(id, name) {
+  showConfirm(`"${name}" — ${t('confirmDeleteProduct')}`, async () => {
+    const res = await api(`/admin/products/${id}`, { method:'DELETE' });
+    if (res?.success) { showToast(t('deactivatedProduct')); loadProducts(); }
+    else showToast(t('deleteError'), 'error');
+  });
+}
+
+// ─── MEDIA ────────────────────────────────────────────────────────────────────
+function renderMediaGrid() {
+  const grid = document.getElementById('media-grid');
+  if (!grid) return;
+  grid.innerHTML = editingMedia.map((m, i) => {
+    const isLocal = m.url.startsWith('/');
+    const src = isLocal ? 'http://localhost:3001' + m.url : m.url;
+    if (m.type === 'video') {
+      const inner = isLocal
+        ? `<video src="${src}" style="width:100%;height:100%;object-fit:cover"></video>`
+        : `<div style="width:100%;height:100%;background:#111;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff">▶</div>`;
+      return `<div class="media-thumb" id="mthumb-${i}">
+        ${inner}
+        <button class="rm-media" onclick="removeMedia(${i})" title="Remove">×</button>
+        <span class="type-badge">VID</span>
+      </div>`;
+    }
+    return `<div class="media-thumb" id="mthumb-${i}">
+      <img src="${src}" onerror="this.style.background='#333'" alt="media">
+      <button class="rm-media" onclick="removeMedia(${i})" title="Remove">×</button>
+      <span class="type-badge">IMG</span>
+    </div>`;
+  }).join('') +
+  `<button class="media-upload-btn" onclick="document.getElementById('media-file-input').click()" title="${t('uploadImage')} / ${t('uploadVideo')}">
+    <span class="upload-icon">🖼️</span>
+    <span>${t('uploadImage')}</span>
+  </button>`;
+}
+
+async function handleMediaFiles(files) {
+  for (const file of files) {
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await fetch(`${API}/admin/upload`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: form,
+      });
+      const data = await res.json();
+      if (data.success) {
+        editingMedia.push({ type: file.type.startsWith('video') ? 'video' : 'image', url: data.url });
+        renderMediaGrid();
+      } else { showToast((data.message || t('uploadErr')), 'error'); }
+    } catch (err) { showToast(err?.message || t('uploadErr'), 'error'); }
+  }
+}
+
+function buildMediaPayload() {
+  // Only send NEW media items (no id) — existing ones are already in DB
+  return editingMedia.filter(m => !m.id);
+}
+
+function addVideoUrlToMedia() {
+  const input = document.getElementById('f-video-url');
+  const url = input?.value?.trim();
+  if (!url) return;
+  editingMedia.push({ type: 'video', url });
+  input.value = '';
+  renderMediaGrid();
+}
+
+async function removeMedia(index) {
+  const m = editingMedia[index];
+  if (m.id) {
+    // Existing DB record — delete directly via API
+    const thumb = document.getElementById(`mthumb-${index}`);
+    if (thumb) { thumb.style.opacity = '0.4'; thumb.style.pointerEvents = 'none'; }
+    const res = await api(`/admin/media/${m.id}`, { method: 'DELETE' });
+    if (!res?.success) {
+      if (thumb) { thumb.style.opacity = ''; thumb.style.pointerEvents = ''; }
+      showToast(t('deleteError'), 'error');
+      return;
+    }
+  }
+  editingMedia.splice(index, 1);
+  renderMediaGrid();
+}
+
+// ─── CATEGORIES ───────────────────────────────────────────────────────────────
+async function loadCategories() {
+  const res = await api('/admin/categories');
+  if (!res) return;
+  allCategories = res.data || [];
+  renderCategoriesPage(res.data || []);
+}
+
+function renderCategoriesPage(cats) {
+  const el = document.getElementById('categories-body');
+  if (!cats.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">🏷️</div><p>${t('noCats')}</p></div>`;
+    return;
+  }
+  el.innerHTML = cats.map(cat => {
+    const subs = cat.subcategories || [];
+    const subsHtml = subs.length
+      ? `<div class="card" style="margin-top:8px"><div class="table-wrap"><table>
+          <thead><tr>
+            <th>${t('subKey')}</th><th>${t('subFa')}</th>
+            <th>${t('subEn')}</th><th>${t('subTr')}</th><th>${t('colActions')}</th>
+          </tr></thead>
+          <tbody>${subs.map(s => `<tr>
+            <td><code>${s.key}</code></td>
+            <td>${s.label_fa}</td>
+            <td style="direction:ltr">${s.label_en}</td>
+            <td style="direction:ltr">${s.label_tr}</td>
+            <td><div class="actions">
+              <button class="btn btn-secondary btn-sm" onclick='openSubcategoryModal(${JSON.stringify(s).replace(/'/g,"\\'")})'>${t('edit')}</button>
+              <button class="btn btn-danger btn-sm" onclick="confirmDeleteSubcategory(${s.id},'${s.label_fa.replace(/'/g,"\\'")}')">${t('del')}</button>
+            </div></td>
+          </tr>`).join('')}</tbody>
+        </table></div></div>`
+      : `<div style="padding:12px 16px;color:#999;font-size:13px">${t('noSubcats')}</div>`;
+    return `<div class="cat-section">
+      <div class="cat-section-header">
+        <div class="cat-info">
+          <span class="cat-title">${cat.label_fa}</span>
+          <span style="font-size:12px;color:#aaa">${cat.label_en} / ${cat.label_tr}</span>
+          <code>${cat.key}</code>
+        </div>
+        <div class="actions">
+          <button class="btn btn-secondary btn-sm" onclick="openCategoryModal(${cat.id})">${t('edit')}</button>
+          <button class="btn btn-primary btn-sm" onclick="openSubcategoryModal(null,${cat.id})">${t('addSubcatForCat')}</button>
+          <button class="btn btn-danger btn-sm" onclick="confirmDeleteCategory(${cat.id},'${cat.label_fa.replace(/'/g,"\\'")}')">${t('del')}</button>
+        </div>
+      </div>
+      ${subsHtml}
+    </div>`;
+  }).join('');
+}
+
+function openCategoryModal(id = null) {
+  const cat = id ? allCategories.find(c => c.id === id) : null;
+  const body = `
+    <div class="form-row">
+      <div class="form-field"><label>${t('keyField')}</label>
+        <input type="text" id="cf2-key" value="${cat?.key||''}" placeholder="${t('catKeyPlh')}" style="direction:ltr">
+      </div>
+      <div class="form-field"><label>${t('catFa')} *</label>
+        <input type="text" id="cf2-fa" value="${cat?.label_fa||''}" placeholder="${t('catFaPlh')}">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>${t('catEn')}</label>
+        <input type="text" id="cf2-en" value="${cat?.label_en||''}" style="direction:ltr">
+      </div>
+      <div class="form-field"><label>${t('catTr')}</label>
+        <input type="text" id="cf2-tr" value="${cat?.label_tr||''}" style="direction:ltr">
+      </div>
+    </div>
+  `;
+  const footer = `
+    <button class="btn btn-primary" onclick="saveCategory(${id||'null'})">${id ? t('saveChanges') : t('addItem')}</button>
+    <button class="btn btn-secondary" onclick="closeModal()">${t('cancel')}</button>
+  `;
+  openModal(id ? t('editCatTitle') : t('addCatTitle'), body, footer);
+}
+
+async function saveCategory(id) {
+  const key = document.getElementById('cf2-key')?.value?.trim();
+  const fa  = document.getElementById('cf2-fa')?.value?.trim();
+  if (!key || !fa) { showToast(t('valSubcatFields'), 'error'); return; }
+  const payload = {
+    key, label_fa: fa,
+    label_en: document.getElementById('cf2-en')?.value?.trim() || fa,
+    label_tr: document.getElementById('cf2-tr')?.value?.trim() || fa,
+  };
+  const res = id
+    ? await api(`/admin/categories/${id}`, { method:'PUT', body:JSON.stringify(payload) })
+    : await api('/admin/categories',        { method:'POST', body:JSON.stringify(payload) });
+  if (res?.success) { closeModal(); showToast(id ? t('savedCat') : t('addedCat')); loadCategories(); }
+  else showToast(res?.message || t('saveError'), 'error');
+}
+
+async function confirmDeleteCategory(id, name) {
+  showConfirm(`"${name}" — ${t('confirmDeleteCat')}`, async () => {
+    const res = await api(`/admin/categories/${id}`, { method:'DELETE' });
+    if (res?.success) { showToast(t('deletedCat')); loadCategories(); }
+    else showToast(t('deleteError'), 'error');
+  });
+}
+
+function openSubcategoryModal(sub = null, defaultCatId = null) {
+  const catOptions = allCategories.map(c =>
+    `<option value="${c.id}" ${(sub?.category_id||defaultCatId)===c.id?'selected':''}>${c.label_fa} / ${c.label_en}</option>`
+  ).join('');
+  const body = `
+    <div class="form-row cols-1">
+      <div class="form-field"><label>${t('catField')}</label>
+        <select id="sf-category">${catOptions}</select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>${t('keyField')}</label>
+        <input type="text" id="sf-key" value="${sub?.key||''}" placeholder="${t('keyPlaceholder')}" style="direction:ltr">
+      </div>
+      <div class="form-field"><label>${t('subFa')} *</label>
+        <input type="text" id="sf-fa" value="${sub?.label_fa||''}" placeholder="${t('nameFaPlh')}">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>${t('subEn')}</label>
+        <input type="text" id="sf-en" value="${sub?.label_en||''}" style="direction:ltr">
+      </div>
+      <div class="form-field"><label>${t('subTr')}</label>
+        <input type="text" id="sf-tr" value="${sub?.label_tr||''}" style="direction:ltr">
+      </div>
+    </div>
+  `;
+  const footer = `
+    <button class="btn btn-primary" onclick="saveSubcategory(${sub?.id||'null'})">${sub ? t('saveChanges') : t('addItem')}</button>
+    <button class="btn btn-secondary" onclick="closeModal()">${t('cancel')}</button>
+  `;
+  openModal(sub ? t('editSubcatTitle') : t('addSubcatTitle'), body, footer);
+}
+
+async function saveSubcategory(id) {
+  const catId = document.getElementById('sf-category')?.value;
+  const key   = document.getElementById('sf-key')?.value?.trim();
+  const fa    = document.getElementById('sf-fa')?.value?.trim();
+  if (!catId || !key || !fa) { showToast(t('valSubcatFields'), 'error'); return; }
+  const payload = {
+    category_id: Number(catId), key, label_fa: fa,
+    label_en: document.getElementById('sf-en')?.value?.trim() || fa,
+    label_tr: document.getElementById('sf-tr')?.value?.trim() || fa,
+  };
+  const res = id
+    ? await api(`/admin/subcategories/${id}`, { method:'PUT', body:JSON.stringify(payload) })
+    : await api('/admin/subcategories',        { method:'POST', body:JSON.stringify(payload) });
+  if (res?.success) { closeModal(); showToast(t('savedSubcat')); loadCategories(); }
+  else showToast(res?.message || t('saveError'), 'error');
+}
+
+async function confirmDeleteSubcategory(id, name) {
+  showConfirm(`"${name}" — ${t('confirmDeleteSubcat')}`, async () => {
+    const res = await api(`/admin/subcategories/${id}`, { method:'DELETE' });
+    if (res?.success) { showToast(t('deletedSubcat')); loadCategories(); }
+    else showToast(t('deleteError'), 'error');
+  });
+}
+
+// ─── COLORS ───────────────────────────────────────────────────────────────────
+async function loadColors() {
+  const res = await api('/admin/colors');
+  if (!res) return;
+  allColors = res.data || [];
+  renderColorsTable(res.data || []);
+}
+
+function renderColorsTable(colors) {
+  const tbody = document.getElementById('colors-tbody');
+  if (!colors.length) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon">🎨</div><p>${t('noColors')}</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = colors.map(c => `<tr>
+    <td><span style="display:inline-block;width:32px;height:32px;border-radius:8px;background:${c.hex};border:1px solid rgba(0,0,0,.1)"></span></td>
+    <td><code>${c.key}</code></td>
+    <td>${c.name_fa}</td>
+    <td style="direction:ltr">${c.name_en}</td>
+    <td style="direction:ltr">${c.name_tr}</td>
+    <td style="direction:ltr">${c.hex}</td>
+    <td><div class="actions">
+      <button class="btn btn-secondary btn-sm" onclick='openColorModal(${JSON.stringify(c).replace(/'/g,"\\'")})'>${t('edit')}</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmDeleteColor(${c.id},'${c.name_fa}')">${t('del')}</button>
+    </div></td>
+  </tr>`).join('');
+}
+
+function openColorModal(color = null) {
+  const body = `
+    <div class="form-row">
+      <div class="form-field"><label>${t('keyField')}</label>
+        <input type="text" id="cf-key" value="${color?.key||''}" placeholder="${t('colorKeyPlh')}" style="direction:ltr">
+      </div>
+      <div class="form-field"><label>${t('colorFa')} *</label>
+        <input type="text" id="cf-fa" value="${color?.name_fa||''}" placeholder="${t('colorFaPlh')}">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>${t('colorEn')}</label>
+        <input type="text" id="cf-en" value="${color?.name_en||''}" placeholder="${t('colorEnPlh')}" style="direction:ltr">
+      </div>
+      <div class="form-field"><label>${t('colorTr')}</label>
+        <input type="text" id="cf-tr" value="${color?.name_tr||''}" placeholder="${t('colorTrPlh')}" style="direction:ltr">
+      </div>
+    </div>
+    <div class="form-row cols-1">
+      <div class="form-field"><label>${t('hexField')}</label>
+        <div class="color-picker-row">
+          <input type="color" id="cf-color-picker" value="${color?.hex||'#000000'}" oninput="document.getElementById('cf-hex').value=this.value">
+          <input type="text"  id="cf-hex" value="${color?.hex||'#000000'}" placeholder="${t('hexPlaceholder')}" style="direction:ltr" oninput="syncColorPicker()">
+        </div>
+      </div>
+    </div>
+  `;
+  const footer = `
+    <button class="btn btn-primary" onclick="saveColor(${color?.id||'null'})">${color ? t('saveChanges') : t('addItem')}</button>
+    <button class="btn btn-secondary" onclick="closeModal()">${t('cancel')}</button>
+  `;
+  openModal(color ? t('editColorTitle') : t('addColorTitle'), body, footer);
+}
+
+function syncColorPicker() {
+  const hex = document.getElementById('cf-hex')?.value;
+  const p   = document.getElementById('cf-color-picker');
+  if (p && /^#[0-9a-fA-F]{6}$/.test(hex)) p.value = hex;
+}
+
+async function saveColor(id) {
+  const key = document.getElementById('cf-key')?.value?.trim();
+  const fa  = document.getElementById('cf-fa')?.value?.trim();
+  const hex = document.getElementById('cf-hex')?.value?.trim();
+  if (!key || !fa || !hex) { showToast(t('valColorFields'), 'error'); return; }
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) { showToast(t('valHexFormat'), 'error'); return; }
+  const payload = {
+    key, hex, name_fa: fa,
+    name_en: document.getElementById('cf-en')?.value?.trim() || fa,
+    name_tr: document.getElementById('cf-tr')?.value?.trim() || fa,
+  };
+  const res = id
+    ? await api(`/admin/colors/${id}`, { method:'PUT', body:JSON.stringify(payload) })
+    : await api('/admin/colors',        { method:'POST', body:JSON.stringify(payload) });
+  if (res?.success) { closeModal(); showToast(t('savedColor')); loadColors(); }
+  else showToast(res?.message || t('saveError'), 'error');
+}
+
+async function confirmDeleteColor(id, name) {
+  showConfirm(`"${name}" — ${t('confirmDeleteColor')}`, async () => {
+    const res = await api(`/admin/colors/${id}`, { method:'DELETE' });
+    if (res?.success) { showToast(t('deletedColor')); loadColors(); }
+    else showToast(t('deleteError'), 'error');
+  });
+}
+
+// ─── CUSTOMERS ───────────────────────────────────────────────────────────────
+async function loadCustomers() {
+  const res = await api('/admin/customers');
+  if (!res) return;
+  renderCustomersTable(res.data || []);
+}
+
+function renderCustomersTable(customers) {
+  const tbody = document.getElementById('customers-tbody');
+  if (!customers.length) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icon">👥</div><p>${t('noCustomers')}</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = customers.map(c => {
+    const idBadge  = `<span style="font-family:monospace;font-weight:800;color:var(--primary)">#${String(c.id).padStart(6,'0')}</span>`;
+    const regBadge = c.registered_by === 'e'
+      ? `<span class="badge" style="background:#dbeafe;color:#1d4ed8">📧 ${t('custRegEmail')}</span>`
+      : `<span class="badge" style="background:#dcfce7;color:#15803d">📱 ${t('custRegMobile')}</span>`;
+    const statusBadge = c.is_active
+      ? `<span class="badge badge-active">${t('custActive')}</span>`
+      : `<span class="badge badge-inactive">${t('custInactive')}</span>`;
+    const joined = new Date(c.created_at).toLocaleDateString('fa-IR');
+    return `<tr>
+      <td>${idBadge}</td>
+      <td style="font-weight:600">${c.full_name}</td>
+      <td style="direction:ltr;font-size:13px">${c.email || '—'}</td>
+      <td style="direction:ltr;font-size:13px">${c.mobile || '—'}</td>
+      <td>${regBadge}</td>
+      <td>${statusBadge}</td>
+      <td style="font-size:12px;color:#999">${joined}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick='openCustomerModal(${JSON.stringify(c).replace(/'/g,"\\'")})'>${t('edit')}</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function openCustomerModal(c) {
+  const body = `
+    <div style="background:#f8f8f8;border-radius:10px;padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+      <span style="font-size:12px;color:#666">${t('custId')}:</span>
+      <span style="font-family:monospace;font-size:20px;font-weight:800;color:var(--primary)">#${String(c.id).padStart(6,'0')}</span>
+      <span style="font-size:11px;color:#aaa;margin-inline-start:auto">${t('custRegBy')}: ${c.registered_by==='e' ? '📧 '+t('custRegEmail') : '📱 '+t('custRegMobile')}</span>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>${t('custName')}</label>
+        <input type="text" id="cu-name" value="${(c.full_name||'').replace(/"/g,'&quot;')}">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>${t('custEmail')}</label>
+        <input type="text" id="cu-email" value="${(c.email||'').replace(/"/g,'&quot;')}"
+          style="direction:ltr${c.registered_by==='e'?';opacity:.7;cursor:default':''}"
+          ${c.registered_by==='e'?'disabled':''}>
+      </div>
+      <div class="form-field"><label>${t('custMobile')}</label>
+        <input type="text" id="cu-mobile" value="${(c.mobile||'').replace(/"/g,'&quot;')}"
+          style="direction:ltr${c.registered_by==='m'?';opacity:.7;cursor:default':''}"
+          ${c.registered_by==='m'?'disabled':''}>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>${t('custLang')}</label>
+        <select id="cu-lang">
+          <option value="fa" ${c.preferred_lang==='fa'?'selected':''}>فارسی</option>
+          <option value="en" ${c.preferred_lang==='en'?'selected':''}>English</option>
+          <option value="tr" ${c.preferred_lang==='tr'?'selected':''}>Türkçe</option>
+        </select>
+      </div>
+      <div class="form-field" style="justify-content:flex-end;padding-top:24px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600">
+          <input type="checkbox" id="cu-active" ${c.is_active?'checked':''} style="width:16px;height:16px">
+          ${t('custActiveLabel')}
+        </label>
+      </div>
+    </div>
+  `;
+  const footer = `
+    <button class="btn btn-primary" onclick="saveCustomer(${c.id})">${t('saveChanges')}</button>
+    <button class="btn btn-secondary" onclick="closeModal()">${t('cancel')}</button>
+  `;
+  openModal(t('editCustomerTitle'), body, footer);
+}
+
+async function saveCustomer(id) {
+  const payload = {
+    full_name:     document.getElementById('cu-name')?.value?.trim() || '',
+    email:         document.getElementById('cu-email')?.value?.trim() || null,
+    mobile:        document.getElementById('cu-mobile')?.value?.trim() || null,
+    preferred_lang:document.getElementById('cu-lang')?.value || 'fa',
+    is_active:     document.getElementById('cu-active')?.checked ?? true,
+  };
+  const res = await api(`/admin/customers/${id}`, { method:'PUT', body:JSON.stringify(payload) });
+  if (res?.success) { closeModal(); showToast(t('savedCustomer')); loadCustomers(); }
+  else showToast(res?.message || t('saveError'), 'error');
+}
+
+// ─── SIZES ────────────────────────────────────────────────────────────────────
+async function loadSizes() {
+  const res = await api('/admin/sizes');
+  if (!res) return;
+  allSizes = res.data || [];
+  renderSizesTable(res.data || []);
+}
+
+function renderSizesTable(sizes) {
+  const tbody = document.getElementById('sizes-tbody');
+  if (!sizes.length) {
+    tbody.innerHTML = `<tr><td colspan="3"><div class="empty-state"><div class="icon">📏</div><p>${t('noSizes')}</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = sizes.map(s => `<tr>
+    <td><span style="display:inline-block;background:#ede9fe;color:#7c3aed;padding:4px 14px;border-radius:20px;font-weight:700">${s.label}</span></td>
+    <td>${s.sort_order}</td>
+    <td><div class="actions">
+      <button class="btn btn-secondary btn-sm" onclick='openSizeModal(${JSON.stringify(s).replace(/'/g,"\\'")})'>${t('edit')}</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmDeleteSize(${s.id},'${s.label}')">${t('del')}</button>
+    </div></td>
+  </tr>`).join('');
+}
+
+function openSizeModal(size = null) {
+  const body = `
+    <div class="form-row">
+      <div class="form-field"><label>${t('sizeLabelField')}</label>
+        <input type="text" id="sz-label" value="${size?.label||''}" placeholder="${t('sizeLabelPlh')}" style="direction:ltr">
+      </div>
+      <div class="form-field"><label>${t('sortOrderField')}</label>
+        <input type="number" id="sz-order" value="${size?.sort_order??0}" min="0" style="direction:ltr">
+      </div>
+    </div>
+  `;
+  const footer = `
+    <button class="btn btn-primary" onclick="saveSize(${size?.id||'null'})">${size ? t('saveChanges') : t('addItem')}</button>
+    <button class="btn btn-secondary" onclick="closeModal()">${t('cancel')}</button>
+  `;
+  openModal(size ? t('editSizeTitle') : t('addSizeTitle'), body, footer);
+}
+
+async function saveSize(id) {
+  const label = document.getElementById('sz-label')?.value?.trim();
+  if (!label) { showToast(t('valSizeLabel'), 'error'); return; }
+  const payload = { label, sort_order: Number(document.getElementById('sz-order')?.value) || 0 };
+  const res = id
+    ? await api(`/admin/sizes/${id}`,  { method:'PUT',  body:JSON.stringify(payload) })
+    : await api('/admin/sizes',         { method:'POST', body:JSON.stringify(payload) });
+  if (res?.success) { closeModal(); showToast(t('savedSize')); loadSizes(); }
+  else showToast(res?.message || t('saveError'), 'error');
+}
+
+async function confirmDeleteSize(id, label) {
+  showConfirm(`"${label}" — ${t('confirmDeleteSize')}`, async () => {
+    const res = await api(`/admin/sizes/${id}`, { method:'DELETE' });
+    if (res?.success) { showToast(t('deletedSize')); loadSizes(); }
+    else showToast(t('deleteError'), 'error');
+  });
+}
+</script>
+</body>
+</html>
