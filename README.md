@@ -1,110 +1,142 @@
-# MayaFit — فروشگاه تخصصی ورزشی
+# ShilFit — فروشگاه تخصصی ورزشی
 
-وبسایت فروشگاهی استاتیک برای فروشگاه ورزشی MayaFit / Akhgar Sport.
-ساخته‌شده با HTML، CSS و JavaScript خالص — بدون فریم‌ورک، بدون build tool.
+وبسایت فروشگاهی چندزبانه برای ShilFit.  
+فرانت‌اند: HTML/CSS/JS خالص — بدون فریم‌ورک، بدون build tool.  
+بک‌اند: Node.js + Express + Prisma + PostgreSQL.
 
 ---
 
-## ویژگی‌ها
+## ویژگی‌های فرانت‌اند
 
-- **چندزبانه** — فارسی / انگلیسی / ترکی (RTL/LTR خودکار)
-- **فیلتر محصولات** — بر اساس دسته، زیردسته و جنسیت (زنانه/مردانه)
-- **سبد خرید** — افزودن محصول با انتخاب رنگ و سایز، ذخیره در localStorage
-- **علاقه‌مندی‌ها** — ذخیره محصولات مورد علاقه
-- **ثبت‌نام / ورود** — modal احراز هویت ساده (client-side)
-- **سفارش واتساپ و تلگرام** — ارسال پیام آماده به فروشنده
+- **چندزبانه** — فارسی / انگلیسی / ترکی با RTL/LTR خودکار
+- **فیلتر محصولات** — drawer کشویی با فیلتر رنگ (multi-select) و سایز
+- **مرتب‌سازی** — جدیدترین / قیمت صعودی-نزولی / پرفروش‌ترین
+- **منوی Mega** — زیر "همه محصولات" ستون‌های داینامیک از API
+- **منوی زنانه/مردانه** — زیردسته‌ها با label دسته‌بندی
+- **پنهان‌سازی هوشمند** — subcategory بدون موجودی از منو پنهان می‌شود
+- **سبد خرید** — slide-in panel با انتخاب رنگ و سایز، ذخیره در localStorage
+- **علاقه‌مندی‌ها** — panel جداگانه با empty state
+- **Modal محصول** — گالری تصویر/ویدیو، انتخاب رنگ و سایز، دکمه سفارش
+- **Quick Add** — افزودن سریع بدون باز کردن modal کامل
+- **سفارش واتساپ و تلگرام** — پیام آماده به فروشنده
 - **ریسپانسیو** — موبایل، تبلت و دسکتاپ
-- **Quick Add popup** — افزودن سریع بدون باز کردن modal کامل
-- **Modal محصول** — جزئیات، انتخاب رنگ، سایز و دکمه سفارش
+
+## ویژگی‌های پنل ادمین (`admin.html`)
+
+- ورود با نام کاربری و رمز عبور (JWT)
+- مدیریت محصولات — افزودن، ویرایش، حذف، آپلود تصویر/ویدیو
+- مدیریت دسته‌بندی‌ها و زیردسته‌ها
+- مدیریت رنگ‌ها و سایزها
+- مدیریت مشتریان و سفارش‌ها
+- سوییچ زبان (FA / EN / TR)
 
 ---
 
-## ساختار فایل‌ها
+## ساختار پروژه
 
 ```
 Store/
-├── index.html      # صفحه اصلی (RTL، فونت Vazirmatn)
-├── style.css       # تمام استایل‌ها (CSS variables، ریسپانسیو)
-├── products.js     # داده محصولات + تنظیمات تماس (CONTACT)
-├── main.js         # رندر، فیلتر، سبد خرید، مدال، علاقه‌مندی‌ها
-├── i18n.js         # ترجمه‌ها (FA / EN / TR)
-└── README.md
+├── backend/
+│   ├── controllers/
+│   │   ├── adminController.js
+│   │   ├── productsController.js
+│   │   ├── customersController.js
+│   │   ├── ordersController.js
+│   │   └── paymentsController.js
+│   ├── middleware/
+│   │   ├── adminAuth.js       # JWT authentication
+│   │   ├── errorHandler.js
+│   │   └── upload.js          # multer — تصویر و ویدیو
+│   ├── prisma/
+│   │   ├── schema.prisma
+│   │   ├── client.js
+│   │   └── seed.js
+│   ├── routes/
+│   │   ├── admin.js
+│   │   ├── products.js
+│   │   ├── customers.js
+│   │   ├── orders.js
+│   │   └── payments.js
+│   ├── public/uploads/        # فایل‌های آپلودشده
+│   ├── server.js
+│   └── package.json
+│
+└── frontend/
+    ├── index.html             # صفحه اصلی (RTL، فونت Vazirmatn)
+    ├── admin.html             # پنل مدیریت
+    ├── style.css              # تمام استایل‌ها (CSS variables، ریسپانسیو)
+    ├── main.js                # رندر، فیلتر، سبد خرید، مدال
+    ├── i18n.js                # ترجمه‌ها (FA / EN / TR)
+    └── products.js            # (legacy — داده از API می‌آید)
 ```
 
 ---
 
-## تنظیم اطلاعات تماس
+## راه‌اندازی
 
-در بالای فایل `products.js`:
+### پیش‌نیازها
 
-```js
-const CONTACT = {
-  phone:            '05392184323',
-  phoneDisplay:     '+۰-۵۳۹۲۱۸۴۳۲۳',
-  phoneDisplayLatin:'+0-5392184323',
-  whatsapp:         '905392184323',   // کد کشور + شماره (بدون +)
-  telegram:         'akhgar_sport',   // یوزرنیم تلگرام
-};
-```
+- Node.js 18+
+- PostgreSQL
 
-تمام لینک‌های واتساپ، تلگرام و شماره تلفن به‌صورت خودکار از این آبجکت پر می‌شوند.
-
----
-
-## اجرا
-
-چون فایل‌ها استاتیک هستند، کافیه مستقیم `index.html` را در مرورگر باز کنید
-یا یک سرور ساده راه‌اندازی کنید:
+### نصب و اجرا
 
 ```bash
-# با Python
-python3 -m http.server 8080
+cd backend
+npm install
+```
 
-# با Node.js / npx
+یک فایل `.env` در پوشه `backend` بسازید:
+
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/shilfit"
+JWT_SECRET="your-secret-key"
+PORT=3001
+```
+
+```bash
+# ساخت جداول دیتابیس
+npx prisma migrate dev
+
+# (اختیاری) پر کردن داده اولیه
+node prisma/seed.js
+
+# اجرای سرور
+node server.js
+```
+
+سرور روی `http://localhost:3001` بالا می‌آید.
+
+فرانت‌اند را در مرورگر باز کنید — یا با یک سرور ساده:
+
+```bash
+cd frontend
 npx serve .
 ```
 
-سپس آدرس `http://localhost:8080` را باز کنید.
-
 ---
 
-## اضافه کردن محصول جدید
+## API — مسیرهای اصلی
 
-در فایل `products.js` به آرایه `products` یک آبجکت اضافه کنید:
-
-```js
-{
-  id: 19,
-  category: 'clothing',          // 'clothing' | 'shoes' | 'accessories'
-  subcategory: 'tshirt',
-  gender: 'male',                // 'male' | 'female' | حذف کنید برای همه
-  name: {
-    fa: 'نام محصول',
-    en: 'Product Name',
-    tr: 'Ürün Adı',
-  },
-  description: {
-    fa: 'توضیح فارسی',
-    en: 'English description',
-    tr: 'Türkçe açıklama',
-  },
-  colors: [COLORS.black, COLORS.white],
-  sizes: ['S', 'M', 'L', 'XL'],  // null برای محصولات بدون سایز
-  unavailableSizes: ['XL'],       // اختیاری
-  unavailableColors: [],          // اختیاری
-  emoji: '👕',
-  gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-  tag: 'new',                     // 'new' | 'bestseller' | null
-}
-```
+| Method | Route | توضیح |
+|--------|-------|--------|
+| `GET` | `/api/products` | لیست محصولات (با فیلتر category/subcategory/gender) |
+| `GET` | `/api/products/:id` | جزئیات یک محصول |
+| `GET` | `/api/categories` | دسته‌بندی‌ها و زیردسته‌ها |
+| `GET` | `/api/colors` | لیست رنگ‌ها |
+| `GET` | `/api/sizes` | لیست سایزها |
+| `POST` | `/api/admin/login` | ورود ادمین — دریافت JWT |
+| `POST` | `/api/products` | افزودن محصول (نیاز به JWT) |
+| `PUT` | `/api/products/:id` | ویرایش محصول (نیاز به JWT) |
+| `DELETE` | `/api/products/:id` | حذف محصول (نیاز به JWT) |
 
 ---
 
 ## سیستم طراحی
 
 | متغیر | مقدار | کاربرد |
-|---|---|---|
-| `--primary` | `#FF5C00` | رنگ اصلی (نارنجی) |
+|-------|-------|--------|
+| `--primary` | `#FF6200` | رنگ اصلی (نارنجی) |
 | `--dark` | `#111111` | پس‌زمینه تیره |
 | `--bg` | `#f5f5f5` | پس‌زمینه صفحه |
 | `--radius` | `14px` | گوشه کارت‌ها |
@@ -115,13 +147,16 @@ npx serve .
 
 ## تکنولوژی‌ها
 
-- HTML5 / CSS3 / JavaScript (ES5+)
-- Google Fonts — Vazirmatn
-- localStorage برای ذخیره سبد خرید، علاقه‌مندی‌ها و زبان
-- WhatsApp API و Telegram deep link برای سفارش‌گیری
+**فرانت‌اند:** HTML5 / CSS3 / JavaScript (ES5+) — بدون فریم‌ورک  
+**بک‌اند:** Node.js / Express.js  
+**ORM:** Prisma  
+**دیتابیس:** PostgreSQL  
+**آپلود فایل:** multer  
+**احراز هویت:** JWT  
+**ذخیره محلی:** localStorage (سبد خرید، علاقه‌مندی‌ها، زبان)
 
 ---
 
 ## مرورگرهای پشتیبانی‌شده
 
-Chrome 90+، Firefox 88+، Safari 14+، Edge 90+
+Chrome 90+ / Firefox 88+ / Safari 14+ / Edge 90+
