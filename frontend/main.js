@@ -1,3 +1,20 @@
+// ─── Confirm Popup ────────────────────────────────────────────────────────────
+function showConfirm(msg, onYes) {
+  var t   = TRANSLATIONS[currentLang];
+  var ov  = document.getElementById('confirm-overlay');
+  var box = document.getElementById('confirm-box');
+  if (!ov) return onYes();
+  document.getElementById('confirm-msg').textContent = msg;
+  document.getElementById('confirm-yes').textContent = t.confirm_yes || 'بله';
+  document.getElementById('confirm-no').textContent  = t.confirm_no  || 'انصراف';
+  ov.style.display = 'flex';
+  function close() { ov.style.display = 'none'; ov.removeEventListener('click', onOverlay); }
+  function onOverlay(e) { if (e.target === ov) close(); }
+  ov.addEventListener('click', onOverlay);
+  document.getElementById('confirm-yes').onclick = function() { close(); onYes(); };
+  document.getElementById('confirm-no').onclick  = function() { close(); };
+}
+
 // ─── Toast ────────────────────────────────────────────────────────────────────
 function showToast(msg) {
   var wrap = document.getElementById('app-toast');
@@ -320,8 +337,13 @@ function loadActivePreorder() {
 
 function cancelPreorder() {
   var t = TRANSLATIONS[currentLang];
-  if (!confirm(t.cancel_confirm || 'آیا مطمئنید؟')) return;
   if (!currentPreorder) return;
+  showConfirm(t.cancel_confirm || 'آیا مطمئنید؟', function() {
+    _doCancelPreorder();
+  });
+}
+function _doCancelPreorder() {
+  var t = TRANSLATIONS[currentLang];
   var token = getSession();
 
   fetch(API_BASE + '/orders/' + currentPreorder.id, {
@@ -2429,7 +2451,12 @@ function toggleProfileOrder(orderId) {
 
 function profileCancelOrder(orderId) {
   var t = TRANSLATIONS[currentLang];
-  if (!confirm(t.cancel_confirm || 'آیا مطمئنید؟')) return;
+  showConfirm(t.cancel_confirm || 'آیا مطمئنید؟', function() {
+    _doProfileCancelOrder(orderId);
+  });
+}
+function _doProfileCancelOrder(orderId) {
+  var t = TRANSLATIONS[currentLang];
   var token = getSession();
   fetch(API_BASE + '/orders/' + orderId, {
     method: 'DELETE',

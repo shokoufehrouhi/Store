@@ -3270,6 +3270,16 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   to   { transform: scale(1);   opacity: 1; }
 }
 
+/* ─── Confirm Popup ──────────────────────────────────────────────────────── */
+#confirm-overlay { backdrop-filter: blur(2px); }
+#confirm-box { animation: confirm-in .18s ease; }
+@keyframes confirm-in {
+  from { transform: scale(.9) translateY(8px); opacity: 0; }
+  to   { transform: scale(1)  translateY(0);   opacity: 1; }
+}
+#confirm-yes:hover { opacity: .88; }
+#confirm-no:hover  { background: #f9fafb; }
+
 /* ─── Preorder / Order Status UI ──────────────────────────────────────────── */
 .preorder-status-card {
   padding: 14px 16px;
