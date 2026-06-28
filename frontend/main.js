@@ -2190,6 +2190,26 @@ function initIdleTimer() {
   resetIdleTimer();
 }
 
+function reloadProducts() {
+  fetch(API_BASE + '/products')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data || !data.success) return;
+      var newProducts = data.data.map(mapApiProduct);
+      var snapshot = function(list) {
+        return JSON.stringify(list.map(function(p) {
+          return { id: p.id, delivery_days: p.delivery_days, stock: p.stock, price: p.price, tag: p.tag };
+        }));
+      };
+      if (snapshot(newProducts) !== snapshot(products)) {
+        products = newProducts;
+        updateNavVisibility();
+        renderGrid();
+      }
+    })
+    .catch(function() {});
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   fillContactInfo();
   initLangSwitcher();
@@ -2227,4 +2247,12 @@ document.addEventListener('DOMContentLoaded', function() {
     updateNavVisibility();
     renderGrid();
   });
+
+  // Re-fetch products when tab becomes visible (e.g. after editing in admin)
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') reloadProducts();
+  });
+
+  // Also poll every 60 seconds in the background
+  setInterval(reloadProducts, 60000);
 });
