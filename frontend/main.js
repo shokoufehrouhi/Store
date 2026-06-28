@@ -379,6 +379,8 @@ function registerPreorder() {
     if (data.success) {
       currentPreorder = data.data;
       localStorage.setItem('mf_preorder_id', String(data.data.id));
+      cart = [];
+      saveCart();
       showToast(TRANSLATIONS[currentLang].preorder_registered || 'پیش‌سفارش ثبت شد');
       renderCart();
     } else {
@@ -2351,39 +2353,39 @@ function renderOrders() {
   }
 }
 
+var _cachedApiOrders  = [];
+var _profileExpandedId = null;
+
 function _renderOrdersList(apiOrders) {
+  _cachedApiOrders = apiOrders;
   var t   = TRANSLATIONS[currentLang];
   var user = getCurrentUser();
   var container = document.getElementById('profile-tab-orders');
   if (!container) return;
   var localOrders = user ? (user.orders || []) : [];
   var dateLocale = currentLang === 'fa' ? 'fa-IR' : currentLang === 'tr' ? 'tr-TR' : 'en-US';
+  var nameKey = currentLang === 'fa' ? 'name_fa' : currentLang === 'tr' ? 'name_tr' : 'name_en';
 
-  var preorderColors = {
-    preorder:        '#3b82f6',
-    payment_needed:  '#f59e0b',
-    approval_needed: '#eab308',
-    preparing:       '#22c55e',
-    delivery:        '#8b5cf6',
-    delivered:       '#16a34a',
-    cancelled:       '#9ca3af',
+  var ORDER_COLORS = {
+    preorder:'#3b82f6', payment_needed:'#f59e0b', approval_needed:'#eab308',
+    preparing:'#22c55e', delivery:'#8b5cf6', delivered:'#16a34a', cancelled:'#9ca3af',
   };
-  var preorderLabels = {
-    preorder:        t.preorder_registered   || 'پیش‌سفارش',
-    payment_needed:  t.payment_info_title    || 'در انتظار پرداخت',
-    approval_needed: t.receipt_uploaded      || 'در انتظار تأیید',
-    preparing:       t.preparing_msg         || 'در حال آماده‌سازی',
-    delivery:        t.carrier_label         || 'ارسال شده',
-    delivered:       t.order_delivered       || 'تحویل شده',
-    cancelled:       t.cancel_preorder       || 'لغو شده',
+  var ORDER_LABELS = {
+    preorder:        t.preorder_registered || 'پیش‌سفارش',
+    payment_needed:  t.payment_info_title  || 'در انتظار پرداخت',
+    approval_needed: t.receipt_uploaded    || 'در انتظار تأیید',
+    preparing:       t.preparing_msg       || 'در حال آماده‌سازی',
+    delivery:        'ارسال شده',
+    delivered:       t.order_delivered     || 'تحویل شده',
+    cancelled:       'لغو شده',
   };
 
   var apiHtml = apiOrders.map(function(order) {
     var st    = order.status;
-    var badgeColor = preorderColors[st] || '#6b7280';
-    var badgeLabel = preorderLabels[st] || st;
+    var badgeColor = ORDER_COLORS[st] || '#6b7280';
+    var badgeLabel = ORDER_LABELS[st] || st;
     var dateStr = new Date(order.created_at).toLocaleDateString(dateLocale);
-    var nameKey = currentLang === 'fa' ? 'name_fa' : currentLang === 'tr' ? 'name_tr' : 'name_en';
+    var isExpanded = (_profileExpandedId === order.id);
 
     var itemsHtml = (order.order_items || []).map(function(oi) {
       var pname = oi.products ? (oi.products[nameKey] || oi.products.name_fa || '') : '';
@@ -2394,27 +2396,83 @@ function _renderOrdersList(apiOrders) {
         '</div>';
     }).join('');
 
-    var extraHtml = '';
-    if (st === 'payment_needed' && order.iban) {
-      extraHtml += '<div style="margin-top:8px;padding:8px 12px;background:#fff5f0;border-right:3px solid #FF5C00;border-radius:6px;font-size:12px">' +
-        (t.payment_iban || 'شبا') + ': <strong style="direction:ltr;display:inline-block">' + order.iban + '</strong>' +
-        (order.bank_name ? ' &nbsp;|&nbsp; ' + order.bank_name : '') +
-        '</div>';
-    }
-    if ((st === 'delivery' || st === 'delivered') && order.carrier_name) {
-      extraHtml += '<div style="margin-top:8px;padding:8px 12px;background:#f5f3ff;border-right:3px solid #8b5cf6;border-radius:6px;font-size:12px">' +
-        (t.carrier_label || 'پست') + ': ' + order.carrier_name +
-        (order.tracking_number ? ' &nbsp;|&nbsp; ' + (t.tracking_label || 'کد پیگیری') + ': <strong style="direction:ltr;display:inline-block">' + order.tracking_number + '</strong>' : '') +
-        '</div>';
+    // ─── Detail area (shown when expanded) ──────────────────────────────────
+    var detailHtml = '';
+    if (isExpanded) {
+      detailHtml += '<div class="order-detail-area">';
+
+      if (st === 'preorder') {
+        detailHtml += '<p class="order-detail-hint">' + (t.preorder_wait_payment || 'منتظر اطلاعات پرداخت باشید') + '</p>';
+        detailHtml += '<button class="order-action-btn order-action-cancel" onclick="profileCancelOrder(' + order.id + ')">' + (t.cancel_preorder || 'لغو پیش‌سفارش') + '</button>';
+      }
+
+      if (st === 'payment_needed') {
+        if (order.payment_rejection_reason) {
+          detailHtml += '<div class="order-rejection-box"><strong>' + (t.payment_rejected || 'رد شد') + ':</strong> ' + order.payment_rejection_reason + '</div>';
+        }
+        if (order.iban) {
+          detailHtml += '<div class="order-payment-info-box">' +
+            '<div class="order-payment-info-title">' + (t.payment_info_title || 'اطلاعات پرداخت') + '</div>' +
+            '<div class="order-payment-row"><span>' + (t.payment_iban || 'شبا') + ':</span><strong style="direction:ltr">' + order.iban + '</strong></div>' +
+            (order.bank_name ? '<div class="order-payment-row"><span>' + (t.payment_bank || 'بانک') + ':</span>' + order.bank_name + '</div>' : '') +
+            (order.account_holder ? '<div class="order-payment-row"><span>' + (t.payment_holder || 'صاحب حساب') + ':</span>' + order.account_holder + '</div>' : '') +
+            '</div>';
+        }
+        detailHtml += '<div class="order-upload-area">' +
+          '<p style="font-size:13px;font-weight:600;margin-bottom:8px">' + (t.upload_receipt || 'آپلود رسید پرداخت') + '</p>' +
+          '<input type="file" id="prof-receipt-' + order.id + '" accept="image/*" style="display:none" onchange="profileUploadReceipt(this,' + order.id + ')">' +
+          '<button class="order-action-btn order-action-upload" onclick="document.getElementById(\'prof-receipt-' + order.id + '\').click()">' + (t.upload_receipt_btn || 'انتخاب و ارسال رسید') + '</button>' +
+          '</div>';
+        detailHtml += '<button class="order-action-btn order-action-cancel" onclick="profileCancelOrder(' + order.id + ')">' + (t.cancel_preorder || 'لغو') + '</button>';
+      }
+
+      if (st === 'approval_needed') {
+        detailHtml += '<p class="order-detail-hint">' + (t.receipt_uploaded || 'رسید ارسال شد، در انتظار تأیید') + '</p>';
+        if (order.payment_receipt_url) {
+          detailHtml += '<a href="' + SERVER_BASE + order.payment_receipt_url + '" target="_blank" class="order-receipt-link">' + (t.upload_receipt || 'مشاهده رسید ارسالی') + ' ↗</a>';
+        }
+      }
+
+      if (st === 'preparing') {
+        var maxDays = 0;
+        (order.order_items || []).forEach(function(oi) {
+          var d = oi.products && oi.products.delivery_days ? Number(oi.products.delivery_days) : 5;
+          if (d > maxDays) maxDays = d;
+        });
+        detailHtml += '<p class="order-detail-hint" style="color:#22c55e">' + (t.payment_approved || 'پرداخت تأیید شد') + '!</p>';
+        detailHtml += '<p class="order-detail-hint">' + (t.preparing_msg || 'در حال آماده‌سازی') + '</p>';
+        if (maxDays) {
+          detailHtml += '<p class="order-detail-hint">' + (t.delivery_days_msg || 'زمان تحویل') + ': <strong>' + localizeNumber(String(maxDays)) + ' ' + (t.delivery_unit || 'روز کاری') + '</strong></p>';
+        }
+      }
+
+      if (st === 'delivery') {
+        detailHtml += '<div class="order-tracking-box">' +
+          (order.carrier_name ? '<div class="order-payment-row"><span>' + (t.carrier_label || 'باربری') + ':</span>' + order.carrier_name + '</div>' : '') +
+          (order.tracking_number ? '<div class="order-payment-row"><span>' + (t.tracking_label || 'کد پیگیری') + ':</span><strong style="direction:ltr">' + order.tracking_number + '</strong></div>' : '') +
+          '</div>';
+      }
+
+      if (st === 'delivered') {
+        detailHtml += '<p class="order-detail-hint" style="color:#16a34a;font-weight:700">' + (t.order_delivered || 'تحویل داده شد ✓') + '</p>';
+      }
+
+      if (st === 'cancelled') {
+        detailHtml += '<p class="order-detail-hint" style="color:#9ca3af">❌ ' + (ORDER_LABELS.cancelled) + '</p>';
+      }
+
+      detailHtml += '</div>';
     }
 
-    return '<div class="order-card">' +
-      '<div class="order-header">' +
+    return '<div class="order-card" id="porder-' + order.id + '">' +
+      '<div class="order-header order-header--clickable" onclick="toggleProfileOrder(' + order.id + ')">' +
       '<span class="order-id"># ' + order.id + '</span>' +
       '<span style="background:' + badgeColor + '20;color:' + badgeColor + ';border:1px solid ' + badgeColor + '40;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700">' + badgeLabel + '</span>' +
       '<span class="order-date">' + dateStr + '</span>' +
+      '<span class="order-toggle-arrow">' + (isExpanded ? '▲' : '▼') + '</span>' +
       '</div>' +
-      itemsHtml + extraHtml +
+      itemsHtml +
+      detailHtml +
       '</div>';
   }).join('');
 
@@ -2457,6 +2515,68 @@ function _renderOrdersList(apiOrders) {
     return;
   }
   container.innerHTML = combined;
+}
+
+function toggleProfileOrder(orderId) {
+  _profileExpandedId = (_profileExpandedId === orderId) ? null : orderId;
+  _renderOrdersList(_cachedApiOrders);
+}
+
+function profileCancelOrder(orderId) {
+  var t = TRANSLATIONS[currentLang];
+  if (!confirm(t.cancel_confirm || 'آیا مطمئنید؟')) return;
+  var token = getSession();
+  fetch(API_BASE + '/orders/' + orderId, {
+    method: 'DELETE',
+    headers: { 'x-session-token': token },
+  }).then(function(res) { return res.json(); }).then(function(data) {
+    if (data.success) {
+      if (currentPreorder && currentPreorder.id === orderId) {
+        currentPreorder = null;
+        localStorage.removeItem('mf_preorder_id');
+        renderCart();
+      }
+      showToast(t.cancel_preorder || 'لغو شد');
+      _profileExpandedId = null;
+      renderOrders();
+    } else {
+      showToast(data.message || 'خطا');
+    }
+  }).catch(function() { showToast('خطا در اتصال'); });
+}
+
+function profileUploadReceipt(input, orderId) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var t = TRANSLATIONS[currentLang];
+  var token = getSession();
+  var btn = document.querySelector('#prof-receipt-' + orderId + ' ~ button') ||
+            input.parentElement.querySelector('button');
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
+  var formData = new FormData();
+  formData.append('receipt', file);
+  fetch(API_BASE + '/orders/' + orderId + '/receipt', {
+    method: 'POST',
+    headers: { 'x-session-token': token },
+    body: formData,
+  }).then(function(res) { return res.json(); }).then(function(data) {
+    if (data.success) {
+      if (currentPreorder && currentPreorder.id === orderId) {
+        currentPreorder = data.data;
+        renderCart();
+      }
+      showToast(t.receipt_uploaded || 'رسید ارسال شد');
+      renderOrders();
+    } else {
+      showToast(data.message || 'خطا در ارسال رسید');
+      if (btn) { btn.disabled = false; btn.textContent = t.upload_receipt_btn || 'ارسال رسید'; }
+    }
+  }).catch(function() {
+    showToast('خطا در اتصال');
+    if (btn) { btn.disabled = false; }
+  });
+  input.value = '';
 }
 
 // ─── Favorites ────────────────────────────────────────────────────────────────
