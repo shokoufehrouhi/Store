@@ -229,7 +229,7 @@ async function createProduct(req, res, next) {
   try {
     const {
       category_id, subcategory_id, gender, name_fa, name_en, name_tr,
-      desc_fa, desc_en, desc_tr, emoji, gradient, tag, price, stock,
+      desc_fa, desc_en, desc_tr, gradient, tag, price, stock, delivery_days,
       color_ids, sizes, media,
     } = req.body;
 
@@ -241,14 +241,14 @@ async function createProduct(req, res, next) {
         name_fa,
         name_en: name_en || name_fa,
         name_tr: name_tr || name_fa,
-        desc_fa:  desc_fa  || null,
-        desc_en:  desc_en  || null,
-        desc_tr:  desc_tr  || null,
-        emoji:    emoji    || null,
-        gradient: gradient || null,
-        tag:      tag      || null,
-        price:    price    || 0,
-        stock:    stock    || 0,
+        desc_fa:       desc_fa   || null,
+        desc_en:       desc_en   || null,
+        desc_tr:       desc_tr   || null,
+        gradient:      gradient  || null,
+        tag:           tag       || null,
+        price:         price     || 0,
+        stock:         stock     || 0,
+        delivery_days: delivery_days != null ? Number(delivery_days) : 5,
         product_colors: color_ids?.length ? {
           create: color_ids.map(id => ({ color_id: Number(id), is_available: true })),
         } : undefined,
@@ -275,7 +275,7 @@ async function updateProduct(req, res, next) {
     const id = Number(req.params.id);
     const {
       category_id, subcategory_id, gender, name_fa, name_en, name_tr,
-      desc_fa, desc_en, desc_tr, emoji, gradient, tag, price, stock, is_active,
+      desc_fa, desc_en, desc_tr, gradient, tag, price, stock, is_active, delivery_days,
       color_ids, sizes, media,
     } = req.body;
 
@@ -294,16 +294,16 @@ async function updateProduct(req, res, next) {
         name_fa,
         name_en: name_en || name_fa,
         name_tr: name_tr || name_fa,
-        desc_fa:   desc_fa   || null,
-        desc_en:   desc_en   || null,
-        desc_tr:   desc_tr   || null,
-        emoji:     emoji     || null,
-        gradient:  gradient  || null,
-        tag:       tag       || null,
-        price:     price     || 0,
-        stock:     stock     || 0,
-        is_active: is_active !== undefined ? Boolean(is_active) : true,
-        updated_at: new Date(),
+        desc_fa:       desc_fa   || null,
+        desc_en:       desc_en   || null,
+        desc_tr:       desc_tr   || null,
+        gradient:      gradient  || null,
+        tag:           tag       || null,
+        price:         price     || 0,
+        stock:         stock     || 0,
+        delivery_days: delivery_days != null ? Number(delivery_days) : 5,
+        is_active:     is_active !== undefined ? Boolean(is_active) : true,
+        updated_at:    new Date(),
         product_colors: color_ids?.length ? {
           create: color_ids.map(cid => ({ color_id: Number(cid), is_available: true })),
         } : undefined,
