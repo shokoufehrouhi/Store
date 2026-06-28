@@ -12,12 +12,13 @@ async function getAll(req, res, next) {
     const rows = await prisma.products.findMany({
       where,
       include: {
-        categories:     { select: { key: true, label_fa: true, label_en: true, label_tr: true } },
-        subcategories:  { select: { key: true, label_fa: true, label_en: true, label_tr: true } },
-        product_colors: { include: { colors: true } },
-        product_sizes:  true,
-        product_media:  { orderBy: { sort_order: 'asc' } },
-        _count:         { select: { order_items: true } },
+        categories:        { select: { key: true, label_fa: true, label_en: true, label_tr: true } },
+        subcategories:     { select: { key: true, label_fa: true, label_en: true, label_tr: true } },
+        product_colors:    { include: { colors: true } },
+        product_sizes:     true,
+        product_media:     { orderBy: { sort_order: 'asc' } },
+        product_inventory: { select: { color_id: true, size_label: true, quantity: true } },
+        _count:            { select: { order_items: true } },
       },
       orderBy: { created_at: 'desc' },
     });
@@ -33,11 +34,12 @@ async function getOne(req, res, next) {
     const product = await prisma.products.findUnique({
       where: { id: Number(req.params.id) },
       include: {
-        categories:     true,
-        subcategories:  true,
-        product_colors: { include: { colors: true } },
-        product_sizes:  true,
-        product_media:  { orderBy: { sort_order: 'asc' } },
+        categories:        true,
+        subcategories:     true,
+        product_colors:    { include: { colors: true } },
+        product_sizes:     true,
+        product_media:     { orderBy: { sort_order: 'asc' } },
+        product_inventory: { select: { color_id: true, size_label: true, quantity: true } },
       },
     });
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });

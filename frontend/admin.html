@@ -228,8 +228,9 @@
     }
     .form-section-title:first-child { border-top: none; margin-top: 0; padding-top: 0; }
 
-    /* Color checkboxes */
+    /* Color / Size checkboxes + availability */
     .color-grid { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 0; }
+    .avail-row { display: flex; align-items: center; gap: 5px; }
     .color-chip {
       display: flex; align-items: center; gap: 6px; padding: 6px 12px;
       border: 1.5px solid var(--border); border-radius: 20px; cursor: pointer;
@@ -238,6 +239,15 @@
     .color-chip input { display: none; }
     .color-chip:has(input:checked) { border-color: var(--primary); background: #fff5f0; }
     .color-dot { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); flex-shrink: 0; }
+    .avail-pill-label {
+      display: flex; align-items: center; gap: 4px; padding: 4px 9px;
+      border-radius: 20px; font-size: 11px; font-weight: 700; cursor: pointer;
+      user-select: none; border: 1.5px solid; transition: all .15s; white-space: nowrap;
+      color: #16a34a; border-color: #bbf7d0; background: #f0fdf4;
+    }
+    .avail-pill-label:has(input:not(:checked)) { color: #ef4444; border-color: #fecaca; background: #fef2f2; }
+    .avail-pill-label input { display: none; }
+    .avail-pill-label.off { opacity: .35; pointer-events: none; }
 
     /* Sizes tag input */
     .sizes-input-wrap {
@@ -255,6 +265,24 @@
       border: none; outline: none; font-family: inherit; font-size: 14px;
       min-width: 80px; flex: 1; background: transparent; direction: ltr;
     }
+
+    /* ── Inventory Matrix ───────────────────────────────── */
+    .inv-matrix-wrap { overflow-x: auto; }
+    .inv-matrix { border-collapse: collapse; font-size: 13px; min-width: 100%; }
+    .inv-matrix th, .inv-matrix td { padding: 7px 10px; text-align: center; border: 1px solid var(--border); }
+    .inv-matrix thead th { background: #f4f4f4; font-weight: 700; white-space: nowrap; }
+    .inv-matrix .inv-color-cell {
+      text-align: start; white-space: nowrap; background: #fafafa;
+      font-weight: 600; display: flex; align-items: center; gap: 6px; min-width: 110px;
+    }
+    .inv-qty-input {
+      width: 60px; padding: 4px 6px; border: 1.5px solid var(--border);
+      border-radius: 6px; text-align: center; font-family: monospace; font-size: 13px;
+      direction: ltr; outline: none; transition: border-color .15s;
+    }
+    .inv-qty-input:focus { border-color: var(--primary); }
+    .inv-qty-input.zero { color: #bbb; }
+    .inv-matrix-empty { font-size: 13px; color: #999; padding: 8px 0; }
 
     /* Gradient preview */
     .gradient-preview { height: 36px; border-radius: 6px; border: 1px solid var(--border); margin-top: 6px; background: #eee; }
@@ -465,6 +493,11 @@
         <button class="btn btn-primary" onclick="openProductModal()" data-i18n="addProduct">+ افزودن محصول</button>
       </div>
       <div class="page-body">
+        <div class="card" style="padding:14px 20px;margin-bottom:12px">
+          <input id="product-search" type="text" placeholder="" data-i18n-placeholder="productSearchPlh"
+            style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 14px;font-size:14px;font-family:inherit;outline:none;direction:ltr;text-align:left"
+            oninput="filterProducts()" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+        </div>
         <div class="card"><div class="table-wrap">
           <table>
             <thead><tr>
@@ -570,10 +603,10 @@
             <thead><tr>
               <th data-i18n="ordersColId">#</th>
               <th data-i18n="ordersColCustomer">مشتری</th>
+              <th data-i18n="ordersColProducts">محصولات</th>
               <th data-i18n="ordersColStatus">وضعیت</th>
               <th data-i18n="ordersColTotal">مبلغ کل</th>
               <th data-i18n="ordersColDate">تاریخ</th>
-              <th data-i18n="ordersColActions">عملیات</th>
             </tr></thead>
             <tbody id="orders-tbody">
               <tr><td colspan="6" style="text-align:center;padding:40px;color:#999" data-i18n="ordersLoading">در حال بارگذاری...</td></tr>
@@ -672,7 +705,10 @@ const LANGS = {
     uploadImage:'+ آپلود تصویر', uploadVideo:'+ آپلود ویدیو', addVideoUrl:'افزودن لینک',
     videoUrlLbl:'لینک ویدیو (اختیاری)', videoUrlPlh:'https://youtu.be/... یا لینک مستقیم mp4',
     uploading:'در حال آپلود...', uploadErr:'خطا در آپلود',
+    errInvalidFileType:'نوع فایل پشتیبانی نمی‌شود', errFileTooLarge:'حجم فایل بیش از حد مجاز است',
     descriptions:'توضیحات', statusSection:'وضعیت',
+    productCodeLbl:'کد محصول', productCodePlh:'مثال: SHF-001',
+    productSearchPlh:'جستجو بر اساس نام، توضیحات یا کد محصول...',
     nameFa:'نام فارسی *', nameEn:'نام انگلیسی', nameTr:'نام ترکی', deliveryDaysLbl:'زمان تحویل (روز کاری)',
     categoryField:'دسته‌بندی *', subcategoryField:'زیردسته',
     genderField:'جنسیت', tagField:'برچسب',
@@ -684,6 +720,9 @@ const LANGS = {
     genderAll:'همه', genderMale:'مردانه', genderFemale:'زنانه',
     tagNone:'بدون برچسب', tagBestseller:'پرفروش', tagNew:'جدید',
     noColorsDefined:'ابتدا از تب رنگ‌ها، رنگ تعریف کنید',
+    availYes:'موجود', availNo:'ناموجود',
+    inventorySection:'موجودی انبار', inventoryNoSelections:'ابتدا رنگ یا سایز انتخاب کنید',
+    colorLbl:'رنگ', sizeLbl:'سایز', qtyLbl:'تعداد',
     sizesHint:'Enter یا کاما بزن تا سایز اضافه بشه', sizePlaceholder:'سایز + Enter (مثال: S یا 40)',
     catSubtitle:'دسته‌بندی‌ها', addCatBtn:'+ افزودن دسته‌بندی',
     addCatTitle:'افزودن دسته‌بندی جدید', editCatTitle:'ویرایش دسته‌بندی',
@@ -733,14 +772,14 @@ const LANGS = {
     colorKeyPlh:'مثال: navy', colorFaPlh:'سرمه‌ای', colorEnPlh:'Navy', colorTrPlh:'Lacivert',
     // Orders
     ordersTitle:'سفارشات', ordersFilterAll:'همه وضعیت‌ها', ordersRefresh:'🔄 بروزرسانی',
-    ordersColId:'#', ordersColCustomer:'مشتری', ordersColStatus:'وضعیت',
+    ordersColId:'#', ordersColCustomer:'مشتری', ordersColProducts:'محصولات', ordersColStatus:'وضعیت',
     ordersColTotal:'مبلغ کل', ordersColDate:'تاریخ', ordersColActions:'عملیات',
     ordersEmpty:'سفارشی یافت نشد', ordersLoading:'در حال بارگذاری...', ordersLoadError:'خطا در بارگذاری',
     orderDetails:'جزئیات', orderClose:'✕', orderDetailTitle:'جزئیات سفارش',
     orderCustomerLbl:'مشتری', orderMobileLbl:'موبایل', orderItemsLbl:'اقلام سفارش',
     orderActionPayment:'ثبت اطلاعات پرداخت',
     orderIbanLbl:'شماره شبا', orderBankLbl:'نام بانک', orderHolderLbl:'نام صاحب حساب',
-    orderBankPlh:'بانک ملی', orderHolderPlh:'نام و نام خانوادگی', orderIbanPlh:'IR...',
+    orderBankPlh:'بانک ملی', orderHolderPlh:'نام و نام خانوادگی', orderIbanPlh:'TR...',
     orderSavePayment:'ثبت اطلاعات پرداخت', orderReviewReceipt:'بررسی رسید پرداخت',
     orderViewReceipt:'مشاهده در تب جدید', orderApprove:'تأیید پرداخت', orderReject:'رد پرداخت',
     orderRejectReasonLbl:'دلیل رد', orderRejectReasonPlh:'دلیل رد پرداخت را بنویسید...',
@@ -749,6 +788,7 @@ const LANGS = {
     orderTrackingLbl:'کد پیگیری', orderSaveShipping:'ثبت و ارسال',
     orderCarrierInfo:'باربری', orderTrackingInfo:'کد پیگیری',
     orderMarkDelivered:'تحویل داده شد', orderDeliveredMsg:'سفارش تحویل داده شد ✓',
+    orderShippedAt:'تاریخ ارسال', orderDeliveredAt:'تاریخ تحویل',
     orderPaymentSaved:'اطلاعات پرداخت ثبت شد ✅', orderPaymentApproved:'پرداخت تأیید شد ✅',
     orderPaymentRejected:'پرداخت رد شد', orderShippingSaved:'اطلاعات ارسال ثبت شد ✅',
     orderMarkedDelivered:'سفارش تحویل داده شد ✅', orderIbanInfo:'شبا',
@@ -779,7 +819,10 @@ const LANGS = {
     uploadImage:'+ Upload Image', uploadVideo:'+ Upload Video', addVideoUrl:'Add Link',
     videoUrlLbl:'Video URL (optional)', videoUrlPlh:'https://youtu.be/... or direct mp4 link',
     uploading:'Uploading...', uploadErr:'Upload error',
+    errInvalidFileType:'File type not supported', errFileTooLarge:'File size exceeds the limit',
     descriptions:'Descriptions', statusSection:'Status',
+    productCodeLbl:'Product Code', productCodePlh:'e.g. SHF-001',
+    productSearchPlh:'Search by name, description or product code...',
     nameFa:'Farsi Name *', nameEn:'English Name', nameTr:'Turkish Name', deliveryDaysLbl:'Delivery Time (working days)',
     categoryField:'Category *', subcategoryField:'Subcategory',
     genderField:'Gender', tagField:'Tag',
@@ -791,6 +834,9 @@ const LANGS = {
     genderAll:'Unisex', genderMale:'Male', genderFemale:'Female',
     tagNone:'No tag', tagBestseller:'Bestseller', tagNew:'New',
     noColorsDefined:'First define colors in the Colors tab',
+    availYes:'In Stock', availNo:'Out of Stock',
+    inventorySection:'Inventory', inventoryNoSelections:'First select colors or sizes',
+    colorLbl:'Color', sizeLbl:'Size', qtyLbl:'Qty',
     sizesHint:'Press Enter or comma to add a size', sizePlaceholder:'Type size + Enter (e.g. S or 40)',
     catSubtitle:'Categories', addCatBtn:'+ Add Category',
     addCatTitle:'Add New Category', editCatTitle:'Edit Category',
@@ -840,14 +886,14 @@ const LANGS = {
     colorKeyPlh:'e.g. navy', colorFaPlh:'Farsi name', colorEnPlh:'Navy', colorTrPlh:'Lacivert',
     // Orders
     ordersTitle:'Orders', ordersFilterAll:'All Statuses', ordersRefresh:'🔄 Refresh',
-    ordersColId:'#', ordersColCustomer:'Customer', ordersColStatus:'Status',
+    ordersColId:'#', ordersColCustomer:'Customer', ordersColProducts:'Products', ordersColStatus:'Status',
     ordersColTotal:'Total', ordersColDate:'Date', ordersColActions:'Actions',
     ordersEmpty:'No orders found', ordersLoading:'Loading...', ordersLoadError:'Load error',
     orderDetails:'Details', orderClose:'✕', orderDetailTitle:'Order Details',
     orderCustomerLbl:'Customer', orderMobileLbl:'Mobile', orderItemsLbl:'Order Items',
     orderActionPayment:'Set Payment Info',
     orderIbanLbl:'IBAN', orderBankLbl:'Bank Name', orderHolderLbl:'Account Holder',
-    orderBankPlh:'e.g. Mellat Bank', orderHolderPlh:'Full Name', orderIbanPlh:'IR...',
+    orderBankPlh:'e.g. Ziraat Bank', orderHolderPlh:'Full Name', orderIbanPlh:'TR...',
     orderSavePayment:'Save Payment Info', orderReviewReceipt:'Review Payment Receipt',
     orderViewReceipt:'View in New Tab', orderApprove:'Approve Payment', orderReject:'Reject Payment',
     orderRejectReasonLbl:'Reject Reason', orderRejectReasonPlh:'Enter reason for rejection...',
@@ -856,6 +902,7 @@ const LANGS = {
     orderTrackingLbl:'Tracking Number', orderSaveShipping:'Save & Ship',
     orderCarrierInfo:'Carrier', orderTrackingInfo:'Tracking',
     orderMarkDelivered:'Mark as Delivered', orderDeliveredMsg:'Order Delivered ✓',
+    orderShippedAt:'Shipped At', orderDeliveredAt:'Delivered At',
     orderPaymentSaved:'Payment info saved ✅', orderPaymentApproved:'Payment approved ✅',
     orderPaymentRejected:'Payment rejected', orderShippingSaved:'Shipping info saved ✅',
     orderMarkedDelivered:'Order marked as delivered ✅', orderIbanInfo:'IBAN',
@@ -886,7 +933,10 @@ const LANGS = {
     uploadImage:'+ Görsel Yükle', uploadVideo:'+ Video Yükle', addVideoUrl:'Bağlantı Ekle',
     videoUrlLbl:'Video Bağlantısı (isteğe bağlı)', videoUrlPlh:'https://youtu.be/... veya doğrudan mp4',
     uploading:'Yükleniyor...', uploadErr:'Yükleme hatası',
+    errInvalidFileType:'Dosya türü desteklenmiyor', errFileTooLarge:'Dosya boyutu sınırı aşıyor',
     descriptions:'Açıklamalar', statusSection:'Durum',
+    productCodeLbl:'Ürün Kodu', productCodePlh:'örn. SHF-001',
+    productSearchPlh:'Ad, açıklama veya ürün koduna göre ara...',
     nameFa:'Farsça Ad *', nameEn:'İngilizce Ad', nameTr:'Türkçe Ad', deliveryDaysLbl:'Teslimat Süresi (iş günü)',
     categoryField:'Kategori *', subcategoryField:'Alt Kategori',
     genderField:'Cinsiyet', tagField:'Etiket',
@@ -898,6 +948,9 @@ const LANGS = {
     genderAll:'Unisex', genderMale:'Erkek', genderFemale:'Kadın',
     tagNone:'Etiket yok', tagBestseller:'Çok Satan', tagNew:'Yeni',
     noColorsDefined:'Önce Renkler sekmesinde renk tanımlayın',
+    availYes:'Mevcut', availNo:'Stokta Yok',
+    inventorySection:'Stok Takibi', inventoryNoSelections:'Önce renk veya beden seçin',
+    colorLbl:'Renk', sizeLbl:'Beden', qtyLbl:'Adet',
     sizesHint:'Beden eklemek için Enter veya virgül', sizePlaceholder:'Beden yaz + Enter (örn. S veya 40)',
     catSubtitle:'Kategoriler', addCatBtn:'+ Kategori Ekle',
     addCatTitle:'Yeni Kategori Ekle', editCatTitle:'Kategoriyi Düzenle',
@@ -947,7 +1000,7 @@ const LANGS = {
     colorKeyPlh:'örn. navy', colorFaPlh:'Farsça ad', colorEnPlh:'Navy', colorTrPlh:'Lacivert',
     // Orders
     ordersTitle:'Siparişler', ordersFilterAll:'Tüm Durumlar', ordersRefresh:'🔄 Yenile',
-    ordersColId:'#', ordersColCustomer:'Müşteri', ordersColStatus:'Durum',
+    ordersColId:'#', ordersColCustomer:'Müşteri', ordersColProducts:'Ürünler', ordersColStatus:'Durum',
     ordersColTotal:'Toplam', ordersColDate:'Tarih', ordersColActions:'İşlemler',
     ordersEmpty:'Sipariş bulunamadı', ordersLoading:'Yükleniyor...', ordersLoadError:'Yükleme hatası',
     orderDetails:'Detaylar', orderClose:'✕', orderDetailTitle:'Sipariş Detayları',
@@ -963,6 +1016,7 @@ const LANGS = {
     orderTrackingLbl:'Takip Numarası', orderSaveShipping:'Kaydet ve Gönder',
     orderCarrierInfo:'Kargo', orderTrackingInfo:'Takip No',
     orderMarkDelivered:'Teslim Edildi Olarak İşaretle', orderDeliveredMsg:'Sipariş Teslim Edildi ✓',
+    orderShippedAt:'Gönderim Tarihi', orderDeliveredAt:'Teslim Tarihi',
     orderPaymentSaved:'Ödeme bilgisi kaydedildi ✅', orderPaymentApproved:'Ödeme onaylandı ✅',
     orderPaymentRejected:'Ödeme reddedildi', orderShippingSaved:'Kargo bilgisi kaydedildi ✅',
     orderMarkedDelivered:'Sipariş teslim edildi olarak işaretlendi ✅', orderIbanInfo:'IBAN',
@@ -980,7 +1034,7 @@ const LANGS = {
 const API = 'http://localhost:3001/api';
 let token = sessionStorage.getItem('admin_token');
 let currentLang = localStorage.getItem('admin_lang') || 'fa';
-let allCategories = [], allColors = [], allSizes = [], editingSizes = [], editingMedia = [];
+let allCategories = [], allColors = [], allSizes = [], editingSizes = [], editingMedia = [], editingInventory = [];
 let currentTab = 'products';
 
 function t(key) { return LANGS[currentLang][key] || key; }
@@ -995,6 +1049,10 @@ function applyLang(lang) {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const k = el.dataset.i18n;
     if (L[k]) el.textContent = L[k];
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const k = el.dataset.i18nPlaceholder;
+    if (L[k]) el.placeholder = L[k];
   });
   // Update login lang buttons
   document.querySelectorAll('.lang-btn').forEach(btn => {
@@ -1134,6 +1192,8 @@ function openModal(title, bodyHtml, footerHtml) {
 
 // ─── PRODUCTS ─────────────────────────────────────────────────────────────────
 async function loadProducts() {
+  const searchEl = document.getElementById('product-search');
+  if (searchEl) searchEl.value = '';
   const [pR, cR, colR, szR] = await Promise.all([
     api('/admin/products'), api('/admin/categories'), api('/admin/colors'), api('/admin/sizes')
   ]);
@@ -1141,7 +1201,25 @@ async function loadProducts() {
   allCategories = cR?.data  || [];
   allColors     = colR?.data || [];
   allSizes      = szR?.data  || [];
-  renderProductsTable(pR.data || []);
+  _allProducts = pR.data || [];
+  renderProductsTable(_allProducts);
+}
+
+var _allProducts = [];
+
+function filterProducts() {
+  const q = (document.getElementById('product-search')?.value || '').trim().toLowerCase();
+  if (!q) return renderProductsTable(_allProducts);
+  const filtered = _allProducts.filter(p => {
+    return (p.code      || '').toLowerCase().includes(q) ||
+           (p.name_fa   || '').toLowerCase().includes(q) ||
+           (p.name_en   || '').toLowerCase().includes(q) ||
+           (p.name_tr   || '').toLowerCase().includes(q) ||
+           (p.desc_fa   || '').toLowerCase().includes(q) ||
+           (p.desc_en   || '').toLowerCase().includes(q) ||
+           (p.desc_tr   || '').toLowerCase().includes(q);
+  });
+  renderProductsTable(filtered);
 }
 
 function renderProductsTable(products) {
@@ -1183,7 +1261,12 @@ function renderProductsTable(products) {
       </td>
       <td>
         <div style="display:flex;align-items:center;gap:8px">
-          <div><div style="font-weight:600">${p.name_fa}</div><div style="font-size:11px;color:#999">${p.name_en||''}</div>${tagHtml}</div>
+          <div>
+            ${p.code ? `<div style="font-size:11px;color:#6b7280;font-family:monospace;margin-bottom:2px">${p.code}</div>` : ''}
+            <div style="font-weight:600">${p.name_fa}</div>
+            <div style="font-size:11px;color:#999">${p.name_en||''}</div>
+            ${tagHtml}
+          </div>
         </div>
       </td>
       <td>
@@ -1206,6 +1289,7 @@ function renderProductsTable(products) {
 async function openProductModal(id = null) {
   editingSizes = [];
   editingMedia = [];
+  editingInventory = [];
   if (!allCategories.length || !allSizes.length) {
     const [cR, colR, szR] = await Promise.all([api('/admin/categories'), api('/admin/colors'), api('/admin/sizes')]);
     allCategories = cR?.data  || [];
@@ -1217,8 +1301,9 @@ async function openProductModal(id = null) {
     const res = await api('/admin/products');
     product = res?.data?.find(p => p.id === id) || null;
     if (product) {
-      editingSizes = (product.product_sizes||[]).map(s => s.size_label);
-      editingMedia = (product.product_media||[]).map(m => ({ id: m.id, type: m.type, url: m.url }));
+      editingSizes    = (product.product_sizes||[]).map(s => s.size_label);
+      editingMedia    = (product.product_media||[]).map(m => ({ id: m.id, type: m.type, url: m.url }));
+      editingInventory = product.product_inventory || [];
     }
   }
 
@@ -1226,12 +1311,21 @@ async function openProductModal(id = null) {
     `<option value="${c.id}" ${product?.category_id===c.id?'selected':''}>${c.label_fa} / ${c.label_en} / ${c.label_tr}</option>`
   ).join('');
 
-  const colorChecks = allColors.map(c =>
-    `<label class="color-chip">
-      <input type="checkbox" name="color" value="${c.id}" ${(product?.product_colors||[]).some(pc=>pc.color_id===c.id)?'checked':''}>
-      <span class="color-dot" style="background:${c.hex}"></span>${c.name_fa} / ${c.name_en}
-    </label>`
-  ).join('');
+  const colorChecks = allColors.map(c => {
+    const pc = (product?.product_colors||[]).find(pc => pc.color_id === c.id);
+    const selected = !!pc;
+    const avail    = pc ? pc.is_available !== false : true;
+    return `<div class="avail-row">
+      <label class="color-chip">
+        <input type="checkbox" name="color" value="${c.id}" ${selected?'checked':''} onchange="onColorToggle(this)">
+        <span class="color-dot" style="background:${c.hex}"></span>${c.name_fa} / ${c.name_en}
+      </label>
+      <label class="avail-pill-label ${selected?'':'off'}" id="avail-color-${c.id}">
+        <input type="checkbox" name="color_avail" value="${c.id}" ${avail?'checked':''}>
+        <span id="avail-color-txt-${c.id}">${avail ? (t('availYes')||'موجود') : (t('availNo')||'ناموجود')}</span>
+      </label>
+    </div>`;
+  }).join('');
 
   const body = `
     <div class="form-section-title">${t('basicInfo')}</div>
@@ -1241,15 +1335,21 @@ async function openProductModal(id = null) {
         <input type="text" id="f-name-fa" value="${product?.name_fa||''}" placeholder="${t('nameFaPlh')}">
       </div>
       <div class="form-field">
-        <label>${t('nameEn')}</label>
-        <input type="text" id="f-name-en" value="${product?.name_en||''}" placeholder="${t('nameEnPlh')}" style="direction:ltr">
+        <label>${t('productCodeLbl')}</label>
+        <input type="text" id="f-code" value="${product?.code||''}" placeholder="${t('productCodePlh')}" style="direction:ltr;font-family:monospace">
       </div>
     </div>
     <div class="form-row">
       <div class="form-field">
+        <label>${t('nameEn')}</label>
+        <input type="text" id="f-name-en" value="${product?.name_en||''}" placeholder="${t('nameEnPlh')}" style="direction:ltr">
+      </div>
+      <div class="form-field">
         <label>${t('nameTr')}</label>
         <input type="text" id="f-name-tr" value="${product?.name_tr||''}" placeholder="${t('nameTrPlh')}" style="direction:ltr">
       </div>
+    </div>
+    <div class="form-row">
       <div class="form-field">
         <label>${t('deliveryDaysLbl')}</label>
         <input type="number" id="f-delivery-days" value="${product?.delivery_days ?? 5}" min="1" max="60" style="direction:ltr">
@@ -1305,12 +1405,26 @@ async function openProductModal(id = null) {
 
     <div class="form-section-title">${t('sizesSection')}</div>
     <div class="color-grid" id="sizes-grid">${allSizes.length
-      ? allSizes.map(s => `<label class="color-chip">
-          <input type="checkbox" name="size" value="${s.label}" ${editingSizes.includes(s.label)?'checked':''}>
-          <span style="font-weight:700;font-size:13px">${s.label}</span>
-        </label>`).join('')
+      ? allSizes.map(s => {
+          const ps = (product?.product_sizes||[]).find(ps => ps.size_label === s.label);
+          const selected = !!ps;
+          const avail    = ps ? ps.is_available !== false : true;
+          return `<div class="avail-row">
+            <label class="color-chip">
+              <input type="checkbox" name="size" value="${s.label}" ${selected?'checked':''} onchange="onSizeToggle(this)">
+              <span style="font-weight:700;font-size:13px">${s.label}</span>
+            </label>
+            <label class="avail-pill-label ${selected?'':'off'}" id="avail-size-${s.label}">
+              <input type="checkbox" name="size_avail" value="${s.label}" ${avail?'checked':''}>
+              <span id="avail-size-txt-${s.label}">${avail ? (t('availYes')||'موجود') : (t('availNo')||'ناموجود')}</span>
+            </label>
+          </div>`;
+        }).join('')
       : `<p style="color:#999;font-size:13px">${t('noSizesDefined')}</p>`
     }</div>
+
+    <div class="form-section-title">${t('inventorySection')}</div>
+    <div id="inventory-matrix-section"></div>
 
     <div class="form-section-title">${t('mediaSection')}</div>
     <div class="media-grid" id="media-grid"></div>
@@ -1351,7 +1465,88 @@ async function openProductModal(id = null) {
 
   openModal(id ? t('editProductTitle') : t('addProductTitle'), body, footer);
   renderMediaGrid();
+  renderInventoryMatrix();
   if (product?.category_id) loadSubcategoriesForCategory(product.category_id, product.subcategory_id);
+}
+
+function onColorToggle(cb) {
+  const pill = document.getElementById('avail-color-' + cb.value);
+  if (pill) { cb.checked ? pill.classList.remove('off') : pill.classList.add('off'); }
+  renderInventoryMatrix();
+}
+function onSizeToggle(cb) {
+  const pill = document.getElementById('avail-size-' + cb.value);
+  if (pill) { cb.checked ? pill.classList.remove('off') : pill.classList.add('off'); }
+  renderInventoryMatrix();
+}
+
+function getInvQty(colorId, sizeLabel) {
+  const entry = editingInventory.find(i =>
+    String(i.color_id ?? '') === String(colorId ?? '') &&
+    String(i.size_label ?? '') === String(sizeLabel ?? '')
+  );
+  return entry ? entry.quantity : 6;
+}
+
+function renderInventoryMatrix() {
+  const wrap = document.getElementById('inventory-matrix-section');
+  if (!wrap) return;
+
+  const checkedColors = [...document.querySelectorAll('input[name="color"]:checked')].map(cb => {
+    return allColors.find(c => c.id === Number(cb.value));
+  }).filter(Boolean);
+
+  const checkedSizes = [...document.querySelectorAll('input[name="size"]:checked')].map(cb => cb.value);
+
+  if (!checkedColors.length && !checkedSizes.length) {
+    wrap.innerHTML = `<p class="inv-matrix-empty">${t('inventoryNoSelections')||'ابتدا رنگ یا سایز انتخاب کنید'}</p>`;
+    return;
+  }
+
+  if (checkedColors.length && checkedSizes.length) {
+    // Full color × size matrix
+    let html = '<div class="inv-matrix-wrap"><table class="inv-matrix"><thead><tr><th></th>';
+    checkedSizes.forEach(s => { html += `<th>${s}</th>`; });
+    html += '</tr></thead><tbody>';
+    checkedColors.forEach(color => {
+      html += `<tr><td class="inv-color-cell"><span class="color-dot" style="background:${color.hex}"></span>${color.name_fa}</td>`;
+      checkedSizes.forEach(size => {
+        const qty = getInvQty(color.id, size);
+        html += `<td><input type="number" class="inv-qty-input${qty===0?' zero':''}" min="0"
+          data-color="${color.id}" data-size="${size}" value="${qty}"
+          oninput="this.classList.toggle('zero',!+this.value)"></td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    wrap.innerHTML = html;
+
+  } else if (checkedColors.length) {
+    // Only colors — one qty per color
+    let html = `<div class="inv-matrix-wrap"><table class="inv-matrix"><thead><tr><th>${t('colorLbl')||'رنگ'}</th><th>${t('qtyLbl')||'تعداد'}</th></tr></thead><tbody>`;
+    checkedColors.forEach(color => {
+      const qty = getInvQty(color.id, null);
+      html += `<tr><td class="inv-color-cell"><span class="color-dot" style="background:${color.hex}"></span>${color.name_fa}</td>
+        <td><input type="number" class="inv-qty-input${qty===0?' zero':''}" min="0"
+          data-color="${color.id}" data-size="" value="${qty}"
+          oninput="this.classList.toggle('zero',!+this.value)"></td></tr>`;
+    });
+    html += '</tbody></table></div>';
+    wrap.innerHTML = html;
+
+  } else {
+    // Only sizes — one qty per size
+    let html = `<div class="inv-matrix-wrap"><table class="inv-matrix"><thead><tr><th>${t('sizeLbl')||'سایز'}</th><th>${t('qtyLbl')||'تعداد'}</th></tr></thead><tbody>`;
+    checkedSizes.forEach(size => {
+      const qty = getInvQty(null, size);
+      html += `<tr><td style="font-weight:700">${size}</td>
+        <td><input type="number" class="inv-qty-input${qty===0?' zero':''}" min="0"
+          data-color="" data-size="${size}" value="${qty}"
+          oninput="this.classList.toggle('zero',!+this.value)"></td></tr>`;
+    });
+    html += '</tbody></table></div>';
+    wrap.innerHTML = html;
+  }
 }
 
 async function onCategoryChange() {
@@ -1393,11 +1588,19 @@ async function saveProduct(id) {
   if (!nameFA) { showToast(t('valNameFa'), 'error'); return; }
   const catId = document.getElementById('f-category')?.value;
   if (!catId)  { showToast(t('valCategory'), 'error'); return; }
-  const color_ids = [...document.querySelectorAll('input[name="color"]:checked')].map(el => Number(el.value));
+  const colors = [...document.querySelectorAll('input[name="color"]:checked')].map(el => {
+    const avEl = document.getElementById('avail-color-' + el.value)?.querySelector('input[name="color_avail"]');
+    return { id: Number(el.value), is_available: avEl ? avEl.checked : true };
+  });
+  const sizes = [...document.querySelectorAll('input[name="size"]:checked')].map(el => {
+    const avEl = document.getElementById('avail-size-' + el.value)?.querySelector('input[name="size_avail"]');
+    return { label: el.value, is_available: avEl ? avEl.checked : true };
+  });
   const payload = {
     category_id: Number(catId),
     subcategory_id: document.getElementById('f-subcategory')?.value || null,
     gender:  document.getElementById('f-gender')?.value || 'unisex',
+    code:    document.getElementById('f-code')?.value?.trim() || null,
     name_fa: nameFA,
     name_en: document.getElementById('f-name-en')?.value?.trim() || '',
     name_tr: document.getElementById('f-name-tr')?.value?.trim() || '',
@@ -1408,9 +1611,14 @@ async function saveProduct(id) {
     tag:   document.getElementById('f-tag')?.value || null,
     price: Number(document.getElementById('f-price')?.value) || 0,
     stock: Number(document.getElementById('f-stock')?.value) || 0,
-    color_ids,
-    sizes: [...document.querySelectorAll('input[name="size"]:checked')].map(cb => cb.value),
+    colors,
+    sizes,
     media: buildMediaPayload(),
+    inventory: [...document.querySelectorAll('.inv-qty-input')].map(inp => ({
+      color_id:   inp.dataset.color ? Number(inp.dataset.color) : null,
+      size_label: inp.dataset.size  || null,
+      quantity:   Number(inp.value) || 0,
+    })),
   };
   if (id) { const el = document.getElementById('f-active'); payload.is_active = el ? el.checked : true; }
 
@@ -1473,8 +1681,13 @@ async function handleMediaFiles(files) {
       if (data.success) {
         editingMedia.push({ type: file.type.startsWith('video') ? 'video' : 'image', url: data.url });
         renderMediaGrid();
-      } else { showToast((data.message || t('uploadErr')), 'error'); }
-    } catch (err) { showToast(err?.message || t('uploadErr'), 'error'); }
+      } else {
+        const msg = data.errorCode === 'invalid_file_type' ? t('errInvalidFileType')
+                  : data.errorCode === 'file_too_large'    ? t('errFileTooLarge')
+                  : (data.message || t('uploadErr'));
+        showToast(msg, 'error');
+      }
+    } catch (err) { showToast(t('uploadErr'), 'error'); }
   }
 }
 
@@ -1996,19 +2209,27 @@ function renderOrdersTable() {
   }
 
   const dateLocale = currentLang === 'fa' ? 'fa-IR' : currentLang === 'tr' ? 'tr-TR' : 'en-US';
+  const nameKey = currentLang === 'fa' ? 'name_fa' : currentLang === 'tr' ? 'name_tr' : 'name_en';
   tbody.innerHTML = orders.map(order => {
     const color  = ORDER_STATUS_COLORS[order.status] || '#6b7280';
     const label  = orderStatusLabel(order.status);
     const cust   = order.customers ? order.customers.full_name : '-';
     const total  = Number(order.total_amount).toLocaleString(dateLocale);
     const date   = new Date(order.created_at).toLocaleDateString(dateLocale);
-    return `<tr>
+    const items  = order.order_items || [];
+    const productLinks = items.map(item => {
+      const p = item.products;
+      if (!p) return '';
+      const pname = p[nameKey] || p.name_fa || '-';
+      return `<a href="#" onclick="event.stopPropagation();openProductFromOrder(${p.id})" style="color:#3b82f6;text-decoration:none;font-size:13px;display:block;line-height:1.6">${pname}</a>`;
+    }).join('');
+    return `<tr style="cursor:pointer" onclick="openOrderDetail(${order.id})">
       <td style="font-family:monospace;font-weight:700">#${order.id}</td>
       <td>${cust}<br><span style="font-size:12px;color:#888">${order.customers?.mobile||''}</span></td>
+      <td>${productLinks || '-'}</td>
       <td><span style="background:${color}20;color:${color};border:1px solid ${color}40;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700">${label}</span></td>
       <td style="direction:ltr;text-align:left">${total}</td>
       <td style="font-size:13px;color:#888">${date}</td>
-      <td><button class="btn btn-secondary btn-sm" onclick="openOrderDetail(${order.id})">${t('orderDetails')}</button></td>
     </tr>`;
   }).join('');
 }
@@ -2059,7 +2280,7 @@ function renderOrderDetail() {
       const p = item.products;
       const pname = p ? (p[nameKey] || p.name_fa || '-') : '-';
       html += `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px">
-        <span style="flex:1">${pname}</span>
+        <span style="flex:1">${pname}${p?.code ? `<span style="font-size:11px;color:#6b7280;font-family:monospace;margin-right:6px"> · ${p.code}</span>` : ''}</span>
         ${item.colors ? `<span style="background:${item.colors.hex||'#eee'};width:16px;height:16px;border-radius:50%;border:1px solid #ddd;flex-shrink:0;align-self:center"></span>` : ''}
         ${item.size_label ? `<span>${item.size_label}</span>` : ''}
         <span>×${item.qty}</span>
@@ -2074,13 +2295,15 @@ function renderOrderDetail() {
   if (st === 'preorder') {
     html += `<div style="font-weight:700;font-size:14px;margin-bottom:10px">${t('orderActionPayment')}</div>
     <div class="form-row">
-      <div class="form-field"><label>${t('orderIbanLbl')}</label><input id="act-iban" placeholder="${t('orderIbanPlh')}" style="direction:ltr"></div>
-      <div class="form-field"><label>${t('orderBankLbl')}</label><input id="act-bank" placeholder="${t('orderBankPlh')}"></div>
+      <div class="form-field"><label>${t('orderIbanLbl')}</label><input id="act-iban" placeholder="${t('orderIbanPlh')}" style="direction:ltr" value="TR" oninput="enforceIbanPrefix(this)" onkeydown="return blockIbanLetters(event)"></div>
+      <div class="form-field"><label>${t('orderBankLbl')}</label><input id="act-bank" placeholder="${t('orderBankPlh')}" oninput="checkPaymentFields()"></div>
     </div>
     <div class="form-row cols-1">
-      <div class="form-field"><label>${t('orderHolderLbl')}</label><input id="act-holder" placeholder="${t('orderHolderPlh')}"></div>
+      <div class="form-field"><label>${t('orderHolderLbl')}</label><input id="act-holder" placeholder="${t('orderHolderPlh')}" oninput="checkPaymentFields()"></div>
     </div>
-    <button class="btn btn-primary" onclick="adminSetPaymentInfo(${order.id})">${t('orderSavePayment')}</button>`;
+    <div style="text-align:center;margin-top:4px">
+      <button id="btn-save-payment" class="btn btn-primary" onclick="adminSetPaymentInfo(${order.id})" disabled style="opacity:.4;cursor:not-allowed">${t('orderSavePayment')}</button>
+    </div>`;
   }
 
   if (st === 'approval_needed') {
@@ -2112,15 +2335,25 @@ function renderOrderDetail() {
   }
 
   if (st === 'delivery') {
+    const shippedStr = order.shipped_at ? new Date(order.shipped_at).toLocaleString(dateLocale) : '-';
     html += `<div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:13px">
       <strong>${t('orderCarrierInfo')}:</strong> ${order.carrier_name||'-'}<br>
-      <strong>${t('orderTrackingInfo')}:</strong> <span style="direction:ltr;display:inline-block">${order.tracking_number||'-'}</span>
+      <strong>${t('orderTrackingInfo')}:</strong> <span style="direction:ltr;display:inline-block">${order.tracking_number||'-'}</span><br>
+      <strong>${t('orderShippedAt')}:</strong> <span style="direction:ltr;display:inline-block">${shippedStr}</span>
     </div>
     <button class="btn btn-primary" onclick="adminMarkDelivered(${order.id})">${t('orderMarkDelivered')}</button>`;
   }
 
   if (st === 'delivered') {
-    html += `<div style="color:#16a34a;font-size:15px;font-weight:700">${t('orderDeliveredMsg')}</div>`;
+    const shippedStr   = order.shipped_at   ? new Date(order.shipped_at).toLocaleString(dateLocale)   : '-';
+    const deliveredStr = order.delivered_at ? new Date(order.delivered_at).toLocaleString(dateLocale) : '-';
+    html += `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:13px">
+      <div style="color:#16a34a;font-size:15px;font-weight:700;margin-bottom:8px">${t('orderDeliveredMsg')}</div>
+      ${order.carrier_name ? `<strong>${t('orderCarrierInfo')}:</strong> ${order.carrier_name}<br>` : ''}
+      ${order.tracking_number ? `<strong>${t('orderTrackingInfo')}:</strong> <span style="direction:ltr;display:inline-block">${order.tracking_number}</span><br>` : ''}
+      <strong>${t('orderShippedAt')}:</strong> <span style="direction:ltr;display:inline-block">${shippedStr}</span><br>
+      <strong>${t('orderDeliveredAt')}:</strong> <span style="direction:ltr;display:inline-block">${deliveredStr}</span>
+    </div>`;
   }
 
   // Show bank/IBAN info if available (for status >= payment_needed)
@@ -2141,11 +2374,45 @@ function adminShowRejectForm(id) {
   if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none';
 }
 
+function enforceIbanPrefix(input) {
+  var cursor = input.selectionStart;
+  var v = input.value.replace(/[^0-9]/g, '');
+  input.value = 'TR' + v;
+  var pos = Math.max(2, cursor);
+  input.setSelectionRange(pos, pos);
+  checkPaymentFields();
+}
+
+function blockIbanLetters(e) {
+  // Allow: backspace, delete, arrows, tab, home, end
+  if ([8,9,35,36,37,38,39,40,46].indexOf(e.keyCode) !== -1) return true;
+  // Block if cursor is in TR prefix zone and it's a letter key
+  if (e.key && e.key.length === 1 && /[a-zA-Z]/.test(e.key)) return false;
+  return true;
+}
+
+function checkPaymentFields() {
+  var iban   = (document.getElementById('act-iban')?.value || '').trim();
+  var bank   = (document.getElementById('act-bank')?.value || '').trim();
+  var holder = (document.getElementById('act-holder')?.value || '').trim();
+  var btn    = document.getElementById('btn-save-payment');
+  if (!btn) return;
+  var valid  = iban.length > 2 && bank.length > 0 && holder.length > 0;
+  btn.disabled = !valid;
+  btn.style.opacity = valid ? '1' : '.4';
+  btn.style.cursor  = valid ? 'pointer' : 'not-allowed';
+}
+
+function openProductFromOrder(productId) {
+  switchTab('products');
+  setTimeout(function() { openProductModal(productId); }, 300);
+}
+
 async function adminSetPaymentInfo(orderId) {
   const iban           = document.getElementById('act-iban')?.value?.trim();
   const bank_name      = document.getElementById('act-bank')?.value?.trim();
   const account_holder = document.getElementById('act-holder')?.value?.trim();
-  if (!iban) { showToast(t('orderValidIban'), 'error'); return; }
+  if (!iban || !iban.toUpperCase().startsWith('TR')) { showToast(t('orderValidIban'), 'error'); return; }
   const res = await api(`/admin/orders/${orderId}/payment-info`, {
     method: 'PATCH',
     body:   JSON.stringify({ iban, bank_name, account_holder }),

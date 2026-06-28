@@ -11,7 +11,15 @@ router.post('/upload', (req, res, next) => {
   const upload = getUploadMiddleware();
   if (!upload) return res.status(503).json({ success: false, message: 'multer not installed — run: npm install multer' });
   upload.single('file')(req, res, (err) => {
-    if (err) return next(err);
+    if (err) {
+      if (err.code === 'INVALID_FILE_TYPE' || err.message === 'invalid_file_type') {
+        return res.status(400).json({ success: false, errorCode: 'invalid_file_type' });
+      }
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ success: false, errorCode: 'file_too_large' });
+      }
+      return next(err);
+    }
     c.uploadMedia(req, res);
   });
 });

@@ -36,14 +36,15 @@ model categories {
 }
 
 model colors {
-  id             Int              @id @default(autoincrement())
-  key            String           @unique @db.VarChar(20)
-  hex            String           @db.Char(7)
-  name_fa        String           @db.VarChar(30)
-  name_en        String           @db.VarChar(30)
-  name_tr        String           @db.VarChar(30)
-  order_items    order_items[]
-  product_colors product_colors[]
+  id                Int                  @id @default(autoincrement())
+  key               String               @unique @db.VarChar(20)
+  hex               String               @db.Char(7)
+  name_fa           String               @db.VarChar(30)
+  name_en           String               @db.VarChar(30)
+  name_tr           String               @db.VarChar(30)
+  order_items       order_items[]
+  product_colors    product_colors[]
+  product_inventory product_inventory[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -97,6 +98,8 @@ model orders {
   payment_rejection_reason String?
   carrier_name             String?       @db.VarChar(60)
   tracking_number          String?       @db.VarChar(60)
+  shipped_at               DateTime?     @db.Timestamptz(6)
+  delivered_at             DateTime?     @db.Timestamptz(6)
   created_at               DateTime      @default(now()) @db.Timestamptz(6)
   updated_at               DateTime      @default(now()) @db.Timestamptz(6)
   order_items              order_items[]
@@ -143,31 +146,33 @@ model product_sizes {
 }
 
 model products {
-  id             Int              @id @default(autoincrement())
-  category_id    Int
-  subcategory_id Int?
-  gender         gender_type      @default(unisex)
-  name_fa        String           @db.VarChar(120)
-  name_en        String           @db.VarChar(120)
-  name_tr        String           @db.VarChar(120)
-  desc_fa        String?
-  desc_en        String?
-  desc_tr        String?
-  emoji          String?          @db.VarChar(10)
-  gradient       String?          @db.VarChar(200)
-  delivery_days  Int              @default(5)
-  tag            product_tag?
-  price          Decimal          @default(0) @db.Decimal(12, 0)
-  stock          Int              @default(0)
-  is_active      Boolean          @default(true)
-  created_at     DateTime         @default(now()) @db.Timestamptz(6)
-  updated_at     DateTime         @default(now()) @db.Timestamptz(6)
-  order_items    order_items[]
-  product_colors product_colors[]
-  product_sizes  product_sizes[]
-  product_media  product_media[]
-  categories     categories       @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  subcategories  subcategories?   @relation(fields: [subcategory_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                Int                  @id @default(autoincrement())
+  category_id       Int
+  subcategory_id    Int?
+  gender            gender_type          @default(unisex)
+  code              String?              @unique @db.VarChar(40)
+  name_fa           String               @db.VarChar(120)
+  name_en           String               @db.VarChar(120)
+  name_tr           String               @db.VarChar(120)
+  desc_fa           String?
+  desc_en           String?
+  desc_tr           String?
+  emoji             String?              @db.VarChar(10)
+  gradient          String?              @db.VarChar(200)
+  delivery_days     Int                  @default(5)
+  tag               product_tag?
+  price             Decimal              @default(0) @db.Decimal(12, 0)
+  stock             Int                  @default(0)
+  is_active         Boolean              @default(true)
+  created_at        DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime             @default(now()) @db.Timestamptz(6)
+  order_items       order_items[]
+  product_colors    product_colors[]
+  product_sizes     product_sizes[]
+  product_media     product_media[]
+  product_inventory product_inventory[]
+  categories        categories           @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subcategories     subcategories?       @relation(fields: [subcategory_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([is_active], map: "idx_products_active")
   @@index([category_id], map: "idx_products_category")
@@ -217,6 +222,19 @@ model subcategories {
   categories  categories @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([category_id, key])
+}
+
+model product_inventory {
+  id         Int       @id @default(autoincrement())
+  product_id Int
+  color_id   Int?
+  size_label String?   @db.VarChar(10)
+  quantity   Int       @default(0)
+  products   products  @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  colors     colors?   @relation(fields: [color_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([product_id, color_id, size_label])
+  @@index([product_id], map: "idx_product_inventory_product")
 }
 
 enum gender_type {

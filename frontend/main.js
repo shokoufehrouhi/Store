@@ -16,10 +16,20 @@ function showConfirm(msg, onYes) {
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
-function showToast(msg) {
+function showToast(msg, type) {
   var wrap = document.getElementById('app-toast');
   if (!wrap) return;
   document.getElementById('app-toast-msg').textContent = msg;
+  var icon = document.getElementById('app-toast-icon');
+  if (icon) {
+    if (type === 'error') {
+      icon.textContent = '✕';
+      icon.classList.add('error');
+    } else {
+      icon.textContent = '✓';
+      icon.classList.remove('error');
+    }
+  }
   wrap.classList.add('show');
   clearTimeout(wrap._t);
   wrap._t = setTimeout(function() { wrap.classList.remove('show'); }, 2600);
@@ -35,6 +45,7 @@ var PLACEHOLDER_SVG = '<svg class="img-placeholder" viewBox="0 0 22 28" fill="no
 var API_BASE           = 'http://localhost:3001/api';
 var SERVER_BASE        = 'http://localhost:3001';
 var currentLang        = localStorage.getItem('lang') || 'fa';
+var currentSearch      = '';
 var currentCategory    = 'all';
 var currentSubcategory = null;
 var currentGender      = 'all';
@@ -56,6 +67,7 @@ function mapApiProduct(p) {
   var videos = media.filter(function(m) { return m.type === 'video'; });
   return {
     id:          p.id,
+    code:        p.code || null,
     _fromApi:    true,
     category:    p.categories    ? p.categories.key    : '',
     subcategory: p.subcategories ? p.subcategories.key : null,
@@ -76,9 +88,12 @@ function mapApiProduct(p) {
     media:  media,
     images: images,
     videos: videos,
-    price:  Number(p.price)  || 0,
-    stock:  p.stock          || 0,
-    sales:  Number(p.sales)  || 0,
+    price:     Number(p.price) || 0,
+    stock:     p.stock         || 0,
+    sales:     Number(p.sales) || 0,
+    inventory: (p.product_inventory || []).map(function(i) {
+      return { color_id: i.color_id, size_label: i.size_label, quantity: i.quantity };
+    }),
   };
 }
 
@@ -201,6 +216,7 @@ function renderCart() {
       '<div class="cart-item-thumb" ' + thumbStyle + '>' + thumbInner + '</div>' +
       '<div class="cart-item-info">' +
       '<span class="cart-item-name">' + name + '</span>' +
+      (p.code ? '<span class="cart-item-code">' + p.code + '</span>' : '') +
       (colorName
         ? '<span class="cart-item-meta"><span class="cart-item-color-dot" style="background:' + colorHex + '"></span>' + colorName + '</span>'
         : '') +
@@ -300,13 +316,15 @@ function registerPreorder() {
       renderCart();
       closeCart();
       showToast(TRANSLATIONS[currentLang].preorder_registered || 'پیش‌سفارش ثبت شد');
+      reloadProducts(true);
       openProfileModal();
       showProfileTab('orders');
     } else {
-      showToast(data.message || 'خطا در ثبت پیش‌سفارش');
+      showToast(data.message || 'خطا در ثبت پیش‌سفارش', 'error');
+      if (data.message === 'Session expired') { handleSessionExpired(); }
     }
   }).catch(function() {
-    showToast('خطا در اتصال به سرور');
+    showToast('خطا در اتصال به سرور', 'error');
   });
 }
 
@@ -357,25 +375,36 @@ function _doCancelPreorder() {
       saveCart();
       renderCart();
       showToast(TRANSLATIONS[currentLang].preorder_cancelled || 'پیش‌سفارش لغو شد');
+      reloadProducts(true);
     } else {
-      showToast(data.message || 'خطا در لغو سفارش');
+      showToast(data.message || 'خطا در لغو سفارش', 'error');
+      if (data.message === 'Session expired') { handleSessionExpired(); }
     }
-  }).catch(function() { showToast('خطا در اتصال به سرور'); });
+  }).catch(function() { showToast('خطا در اتصال به سرور', 'error'); });
 }
 
 function handleReceiptFileChange(input) {
   var file = input.files && input.files[0];
   if (!file || !currentPreorder) return;
+  var t = TRANSLATIONS[currentLang];
+  var okExt  = /\.(jpg|jpeg|png|pdf)$/i.test(file.name);
+  var okMime = ['image/jpeg', 'image/png', 'application/pdf'].includes(file.type);
+  if (!okExt && !okMime) {
+    showToast(t.receipt_invalid_type || 'نوع فایل پشتیبانی نمی‌شود', 'error');
+    input.value = '';
+    return;
+  }
   uploadReceipt(file);
   input.value = '';
 }
 
 function uploadReceipt(file) {
+  var t = TRANSLATIONS[currentLang];
   var token = getSession();
   var formData = new FormData();
   formData.append('receipt', file);
   var btn = document.querySelector('.receipt-upload-form button');
-  if (btn) { btn.disabled = true; btn.textContent = 'در حال ارسال...'; }
+  if (btn) { btn.disabled = true; btn.textContent = t.uploading || 'در حال ارسال...'; }
 
   fetch(API_BASE + '/orders/' + currentPreorder.id + '/receipt', {
     method: 'POST',
@@ -384,14 +413,17 @@ function uploadReceipt(file) {
   }).then(function(res) { return res.json(); }).then(function(data) {
     if (data.success) {
       currentPreorder = data.data;
-      showToast(TRANSLATIONS[currentLang].receipt_uploaded || 'رسید ارسال شد');
+      showToast(t.receipt_uploaded || 'رسید ارسال شد');
       renderCart();
     } else {
-      showToast(data.message || 'خطا در ارسال رسید');
-      if (btn) { btn.disabled = false; btn.textContent = TRANSLATIONS[currentLang].upload_receipt_btn || 'انتخاب و ارسال رسید'; }
+      var errMsg = data.errorCode === 'invalid_file_type' ? (t.receipt_invalid_type || 'نوع فایل پشتیبانی نمی‌شود')
+                 : data.errorCode === 'file_too_large'    ? (t.receipt_too_large || 'حجم فایل بیش از حد مجاز است')
+                 : (t.upload_error || 'خطا در ارسال رسید');
+      showToast(errMsg, 'error');
+      if (btn) { btn.disabled = false; btn.textContent = t.upload_receipt_btn || 'انتخاب و ارسال رسید'; }
     }
   }).catch(function() {
-    showToast('خطا در اتصال به سرور');
+    showToast(t.network_error || 'خطا در اتصال به سرور', 'error');
     if (btn) { btn.disabled = false; }
   });
 }
@@ -436,11 +468,13 @@ function quickAdd(event, productId) {
       '<span class="qa-label">' + t.color_label + '</span>' +
       '<div class="qa-colors-row" id="qa-colors-row">' +
       p.colors.map(function(colorObj) {
-        var colorKey  = colorObj.key || Object.keys(COLORS).find(function(k) { return COLORS[k] === colorObj; }) || '';
+        var colorKey  = colorObj.key || '';
         var isUnavail = p.unavailableColors && p.unavailableColors.indexOf(colorKey) !== -1;
+        var isNoStock = !isUnavail && isColorOutOfStock(p, colorObj.id);
+        var cls = 'color-swatch' + (isUnavail ? ' unavailable' : '') + (isNoStock ? ' out-of-stock' : '');
         return (
-          '<button class="color-swatch' + (isUnavail ? ' unavailable' : '') + '" data-color-key="' + colorKey + '"' +
-          (isUnavail ? ' data-unavailable="true"' : '') +
+          '<button class="' + cls + '" data-color-key="' + colorKey + '" data-color-id="' + colorObj.id + '"' +
+          ((isUnavail || isNoStock) ? ' data-unavailable="true"' : '') +
           ' style="background:' + colorObj.hex + '"' +
           ' title="' + colorObj.name[currentLang] + '"' +
           ' onclick="qaSelectColor(this)"></button>'
@@ -468,14 +502,21 @@ function quickAdd(event, productId) {
       '</div></div>';
   }
 
+  var qaFirstImg = p.images && p.images.length ? p.images[0] : null;
+  var qaThumbInner = qaFirstImg
+    ? '<img src="' + SERVER_BASE + qaFirstImg.url + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px" onerror="this.style.display=\'none\'">'
+    : PLACEHOLDER_SVG;
+  var qaThumbStyle = qaFirstImg ? '' : 'style="background:' + p.gradient + '"';
+
   document.getElementById('quick-add-popup').innerHTML =
     '<div class="qa-header">' +
-    '<div class="qa-product-thumb" style="background:' + p.gradient + '">' + PLACEHOLDER_SVG + '</div>' +
+    '<div class="qa-product-thumb" ' + qaThumbStyle + '>' + qaThumbInner + '</div>' +
     '<span class="qa-product-name">' + p.name[currentLang] + '</span>' +
     '<button class="qa-close" onclick="closeQuickAdd()">✕</button>' +
     '</div>' +
     colorsHtml +
     sizesHtml +
+    '<div id="qa-stock-badge" class="modal-stock-badge-wrap"></div>' +
     '<button class="qa-confirm-btn" onclick="qaConfirm()">🛒 ' + t.add_to_cart + '</button>';
 
   document.getElementById('quick-add-overlay').classList.add('open');
@@ -496,19 +537,61 @@ function qaSelectColor(swatch) {
   });
   swatch.classList.add('selected');
   _qaColor = swatch.dataset.colorKey;
+  _qaSize  = null;
+  var row = document.getElementById('qa-sizes-row');
+  if (row) row.querySelectorAll('.modal-size-chip').forEach(function(c) { c.classList.remove('selected'); });
   var nameEl = document.getElementById('qa-color-name');
-  if (nameEl) {
-    nameEl.textContent = COLORS[_qaColor] ? COLORS[_qaColor].name[currentLang] : '';
-    nameEl.style.color = '';
-  }
+  if (nameEl) { nameEl.textContent = COLORS[_qaColor] ? COLORS[_qaColor].name[currentLang] : ''; nameEl.style.color = ''; }
+  var colorId = swatch.dataset.colorId ? Number(swatch.dataset.colorId) : null;
+  qaUpdateSizeChips(colorId);
+  qaUpdateStockBadge();
 }
 
 function qaSelectSize(chip) {
-  if (chip.dataset.unavailable === 'true') return;
+  if (chip.dataset.unavailable === 'true' || chip.dataset.outOfStock === 'true') return;
   var row = document.getElementById('qa-sizes-row');
   if (row) row.querySelectorAll('.modal-size-chip').forEach(function(c) { c.classList.remove('selected'); });
   chip.classList.add('selected');
   _qaSize = chip.dataset.size;
+  qaUpdateStockBadge();
+}
+
+function qaUpdateSizeChips(colorId) {
+  var p = _qaProduct;
+  if (!p || !p.inventory || !p.inventory.length) return;
+  var row = document.getElementById('qa-sizes-row');
+  if (!row) return;
+  row.querySelectorAll('.modal-size-chip').forEach(function(chip) {
+    if (chip.dataset.unavailable === 'true') return;
+    var qty = getModalInventory(p, colorId, chip.dataset.size);
+    if (qty !== null && qty === 0) {
+      chip.classList.add('out-of-stock');
+      chip.dataset.outOfStock = 'true';
+    } else {
+      chip.classList.remove('out-of-stock');
+      chip.dataset.outOfStock = '';
+    }
+  });
+}
+
+function qaUpdateStockBadge() {
+  var wrap = document.getElementById('qa-stock-badge');
+  if (!wrap) return;
+  var p = _qaProduct;
+  var t = TRANSLATIONS[currentLang];
+  if (!p || !p.inventory || !p.inventory.length) { wrap.innerHTML = ''; return; }
+  var colorObj  = _qaColor ? (p.colors||[]).find(function(c) { return c.key === _qaColor; }) : null;
+  var colorId   = colorObj ? colorObj.id : null;
+  var needColor = p.colors && p.colors.length > 0;
+  var needSize  = p.sizes  && p.sizes.length  > 0;
+  if ((needColor && !_qaColor) || (needSize && !_qaSize)) { wrap.innerHTML = ''; return; }
+  var qty = getModalInventory(p, needColor ? colorId : null, needSize ? _qaSize : null);
+  if (qty === null) { wrap.innerHTML = ''; return; }
+  if (qty === 0) {
+    wrap.innerHTML = '<span class="stock-badge stock-out">' + (t.stock_out || 'ناموجود') + '</span>';
+  } else {
+    wrap.innerHTML = '<span class="stock-badge stock-in">' + (t.stock_count || 'موجودی') + ': ' + qty + ' ' + (t.stock_unit || 'عدد') + '</span>';
+  }
 }
 
 function qaConfirm() {
@@ -766,6 +849,7 @@ function renderProduct(p) {
     genderBadge +
     '    </div>' +
     '    <h3 class="product-name">' + name + '</h3>' +
+    (p.code ? '    <div class="product-code-badge"><span class="product-code-label">' + (t.product_code_label || 'کد محصول') + ':</span> ' + p.code + '</div>' : '') +
     '    <p class="product-desc">' + desc + '</p>' +
     renderCardSizesColors(p) +
     '    <div class="product-delivery">⏱ ' + localizeNumber(p.delivery_days) + ' ' + t.delivery_unit + '</div>' +
@@ -797,6 +881,14 @@ var SVG_CART   = '<path d="M8 8h6l10 30h26l6-20H20"/><circle cx="26" cy="52" r="
 var SVG_HEART  = '<path d="M32 52S8 36 8 20a14 14 0 0124-9.9A14 14 0 0156 20c0 16-24 32-24 32z"/>';
 
 function gridEmpty(t) {
+  if (currentSearch) {
+    return '<div class="grid-empty-wrap">'
+         + emptyView(SVG_SEARCH,
+             t.search_no_result || 'محصولی یافت نشد',
+             '"' + currentSearch + '"',
+             null, null)
+         + '</div>';
+  }
   var hasFilters = currentColors.length > 0 || currentSizes.length > 0;
   if (hasFilters) {
     return '<div class="grid-empty-wrap">'
@@ -899,6 +991,16 @@ function renderFilterBar(baseList) {
     if (activeCount > 0) html += '<span class="filter-active-badge">' + activeCount + '</span>';
     html += '</button>';
   }
+
+  var searchPh = t.search_placeholder || 'جستجو...';
+  html += '<div class="filter-search-wrap">'
+        + '<span class="filter-search-icon">🔍</span>'
+        + '<input type="text" class="filter-search-input" id="site-search-input"'
+        + ' placeholder="' + searchPh.replace(/"/g, '&quot;') + '"'
+        + ' value="' + currentSearch.replace(/"/g, '&quot;') + '"'
+        + ' oninput="siteSearch(this.value)"'
+        + '/>'
+        + '</div>';
 
   html += '<div class="filter-sort-group">';
   html += '<span class="filter-label">' + (t.sort_label || 'مرتب‌سازی') + '</span>';
@@ -1013,7 +1115,12 @@ function clearFilters() {
   renderGrid();
 }
 
-function renderGrid() {
+function siteSearch(val) {
+  currentSearch = (val || '').trim();
+  renderGrid(true);
+}
+
+function renderGrid(skipFilterBar) {
   var grid = document.getElementById('products-grid');
   var t    = TRANSLATIONS[currentLang];
 
@@ -1024,13 +1131,28 @@ function renderGrid() {
   });
 
   _filterBaseList = baseList;
-  renderFilterBar(baseList);
-  var drawer = document.getElementById('filter-drawer');
-  if (drawer && drawer.classList.contains('open')) renderFilterDrawerBody(baseList);
+  if (!skipFilterBar) {
+    renderFilterBar(baseList);
+    var drawer = document.getElementById('filter-drawer');
+    if (drawer && drawer.classList.contains('open')) renderFilterDrawerBody(baseList);
+  }
 
   var filteredList = baseList.filter(function(p) {
     if (currentColors.length && !p.colors.some(function(c) { return currentColors.indexOf(c.key) !== -1; })) return false;
     if (currentSizes.length  && !p.sizes.some(function(s)  { return currentSizes.indexOf(s)  !== -1; })) return false;
+    if (currentSearch) {
+      var q = currentSearch.toLowerCase();
+      var n = p.name || {};
+      var d = p.description || {};
+      var inName = (n.fa && n.fa.toLowerCase().indexOf(q) !== -1) ||
+                   (n.en && n.en.toLowerCase().indexOf(q) !== -1) ||
+                   (n.tr && n.tr.toLowerCase().indexOf(q) !== -1);
+      var inDesc = (d.fa && d.fa.toLowerCase().indexOf(q) !== -1) ||
+                   (d.en && d.en.toLowerCase().indexOf(q) !== -1) ||
+                   (d.tr && d.tr.toLowerCase().indexOf(q) !== -1);
+      var inCode = p.code && p.code.toLowerCase().indexOf(q) !== -1;
+      if (!inName && !inDesc && !inCode) return false;
+    }
     return true;
   });
 
@@ -1205,6 +1327,61 @@ function getGradientVariants(gradient) {
   });
 }
 
+function getModalInventory(p, colorId, sizeLabel) {
+  if (!p || !p.inventory || !p.inventory.length) return null;
+  var cid = colorId == null ? null : Number(colorId);
+  var sl  = sizeLabel || null;
+  var entry = p.inventory.find(function(i) {
+    return (i.color_id === cid) && (i.size_label === sl || (!i.size_label && !sl));
+  });
+  return entry ? entry.quantity : null;
+}
+
+function isColorOutOfStock(p, colorId) {
+  if (!p.inventory || !p.inventory.length) return false;
+  var entries = p.inventory.filter(function(i) { return i.color_id === colorId; });
+  if (!entries.length) return false;
+  return entries.every(function(i) { return i.quantity === 0; });
+}
+
+function updateSizeChipsForColor(colorId) {
+  var p = window._modalProduct;
+  if (!p || !p.inventory || !p.inventory.length) return;
+  document.querySelectorAll('.modal-size-chip').forEach(function(chip) {
+    var size = chip.dataset.size;
+    var qty  = getModalInventory(p, colorId, size);
+    if (qty !== null && qty === 0) {
+      chip.classList.add('out-of-stock');
+      chip.dataset.outOfStock = 'true';
+    } else {
+      chip.classList.remove('out-of-stock');
+      chip.dataset.outOfStock = '';
+    }
+  });
+}
+
+function updateModalStockBadge() {
+  var wrap = document.getElementById('modal-stock-badge');
+  if (!wrap) return;
+  var p         = window._modalProduct;
+  var colorKey  = window._modalSelectedColor;
+  var size      = window._modalSelectedSize;
+  var t         = TRANSLATIONS[currentLang];
+  if (!p || !p.inventory || !p.inventory.length) { wrap.innerHTML = ''; return; }
+  var colorObj  = colorKey ? (p.colors || []).find(function(c) { return c.key === colorKey; }) : null;
+  var colorId   = colorObj ? colorObj.id : null;
+  var needColor = p.colors && p.colors.length > 0;
+  var needSize  = p.sizes  && p.sizes.length  > 0;
+  if ((needColor && !colorKey) || (needSize && !size)) { wrap.innerHTML = ''; return; }
+  var qty = getModalInventory(p, needColor ? colorId : null, needSize ? size : null);
+  if (qty === null) { wrap.innerHTML = ''; return; }
+  if (qty === 0) {
+    wrap.innerHTML = '<span class="stock-badge stock-out">' + (t.stock_out || 'ناموجود') + '</span>';
+  } else {
+    wrap.innerHTML = '<span class="stock-badge stock-in">' + (t.stock_count || 'موجودی') + ': ' + qty + ' ' + (t.stock_unit || 'عدد') + '</span>';
+  }
+}
+
 function openModal(productId) {
   var p = products.find(function(pr) { return pr.id === productId; });
   if (!p) return;
@@ -1253,11 +1430,13 @@ function openModal(productId) {
       '<span class="modal-label">' + t.color_label + '</span>' +
       '<div class="modal-colors-row">' +
       p.colors.map(function(colorObj) {
-        var colorKey  = colorObj.key || Object.keys(COLORS).find(function(k) { return COLORS[k] === colorObj; }) || '';
-        var isUnavail = p.unavailableColors && p.unavailableColors.indexOf(colorKey) !== -1;
+        var colorKey   = colorObj.key || '';
+        var isUnavail  = p.unavailableColors && p.unavailableColors.indexOf(colorKey) !== -1;
+        var isNoStock  = !isUnavail && isColorOutOfStock(p, colorObj.id);
+        var cls = 'color-swatch' + (isUnavail ? ' unavailable' : '') + (isNoStock ? ' out-of-stock' : '');
         return (
-          '<button class="color-swatch' + (isUnavail ? ' unavailable' : '') + '" data-color-key="' + colorKey + '"' +
-          (isUnavail ? ' data-unavailable="true"' : '') +
+          '<button class="' + cls + '" data-color-key="' + colorKey + '" data-color-id="' + colorObj.id + '"' +
+          ((isUnavail || isNoStock) ? ' data-unavailable="true"' : '') +
           ' style="background:' + colorObj.hex + '"' +
           ' title="' + colorObj.name[currentLang] + '"' +
           ' onclick="selectModalColor(this)"></button>'
@@ -1323,9 +1502,11 @@ function openModal(productId) {
     modalGenderBadge +
     '    </div>' +
     '    <h2 class="modal-name">' + name + '</h2>' +
+    (p.code ? '    <div class="product-code-badge"><span class="product-code-label">' + (t.product_code_label || 'کد محصول') + ':</span> ' + p.code + '</div>' : '') +
     '    <p class="modal-desc">' + desc + '</p>' +
     colorsHtml +
     sizesHtml +
+    '    <div id="modal-stock-badge" class="modal-stock-badge-wrap"></div>' +
     '    <div class="modal-buy-section">' +
     '      <button class="modal-add-to-cart" id="modal-add-to-cart" onclick="addToCartFromModal()">🛒 ' + t.add_to_cart + '</button>' +
     '      <div class="modal-divider">' + (currentLang === 'fa' ? 'یا سفارش مستقیم' : currentLang === 'tr' ? 'veya direkt sipariş' : 'or order directly') + '</div>' +
@@ -1391,14 +1572,17 @@ function selectModalColor(swatch) {
   });
   swatch.classList.add('selected');
   window._modalSelectedColor = swatch.dataset.colorKey;
+  window._modalSelectedSize  = null;
+  document.querySelectorAll('.modal-size-chip').forEach(function(c) { c.classList.remove('selected'); });
 
   var colorKey  = swatch.dataset.colorKey;
+  var colorId   = swatch.dataset.colorId ? Number(swatch.dataset.colorId) : null;
   var colorName = COLORS[colorKey] ? COLORS[colorKey].name[currentLang] : '';
   var nameEl    = document.getElementById('color-selected-name');
-  if (nameEl) {
-    nameEl.textContent = colorName;
-    nameEl.style.color = '';
-  }
+  if (nameEl) { nameEl.textContent = colorName; nameEl.style.color = ''; }
+
+  updateSizeChipsForColor(colorId);
+  updateModalStockBadge();
   updateModalWALink();
 }
 
@@ -1446,11 +1630,12 @@ function switchThumb(thumb) {
 }
 
 function selectModalSize(chip) {
-  if (chip.dataset.unavailable === 'true') return;
+  if (chip.dataset.unavailable === 'true' || chip.dataset.outOfStock === 'true') return;
   var row = chip.parentElement;
   row.querySelectorAll('.modal-size-chip').forEach(function(c) { c.classList.remove('selected'); });
   chip.classList.add('selected');
   window._modalSelectedSize = chip.dataset.size;
+  updateModalStockBadge();
   updateModalWALink();
 }
 
@@ -1476,6 +1661,13 @@ function initModal() {
 function getUsers()       { return []; } // stub — no local user list; doForgot/doReset pending backend support
 function getSession()     { return localStorage.getItem('mf_session') || null; }
 function setSession(tok)  { tok ? localStorage.setItem('mf_session', tok) : localStorage.removeItem('mf_session'); }
+
+function handleSessionExpired() {
+  setSession(null);
+  localStorage.removeItem('mf_current_user');
+  updateAuthUI();
+  setTimeout(function() { openAuthModal('login'); }, 400);
+}
 
 function getCurrentUser() {
   var token = getSession();
@@ -2316,8 +2508,9 @@ function _renderOrdersList(apiOrders) {
 
     var itemsHtml = (order.order_items || []).map(function(oi) {
       var pname = oi.products ? (oi.products[nameKey] || oi.products.name_fa || '') : '';
+      var pcode = oi.products && oi.products.code ? oi.products.code : '';
       return '<div class="order-item-row">' +
-        '<span>• ' + pname + '</span>' +
+        '<span>• ' + pname + (pcode ? '<span style="font-size:11px;color:#9ca3af;font-family:monospace;margin-right:4px"> [' + pcode + ']</span>' : '') + '</span>' +
         (oi.size_label ? '<span>' + oi.size_label + '</span>' : '') +
         '<span>× ' + oi.qty + '</span>' +
         '</div>';
@@ -2347,7 +2540,7 @@ function _renderOrdersList(apiOrders) {
         }
         detailHtml += '<div class="order-upload-area">' +
           '<p style="font-size:13px;font-weight:600;margin-bottom:8px">' + (t.upload_receipt || 'آپلود رسید پرداخت') + '</p>' +
-          '<input type="file" id="prof-receipt-' + order.id + '" accept="image/*" style="display:none" onchange="profileUploadReceipt(this,' + order.id + ')">' +
+          '<input type="file" id="prof-receipt-' + order.id + '" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" style="display:none" onchange="profileUploadReceipt(this,' + order.id + ')">' +
           '<button class="order-action-btn order-action-upload" onclick="document.getElementById(\'prof-receipt-' + order.id + '\').click()">' + (t.upload_receipt_btn || 'انتخاب و ارسال رسید') + '</button>' +
           '</div>';
         detailHtml += '<button class="order-action-btn order-action-cancel" onclick="profileCancelOrder(' + order.id + ')">' + (t.cancel_preorder || 'لغو') + '</button>';
@@ -2374,14 +2567,24 @@ function _renderOrdersList(apiOrders) {
       }
 
       if (st === 'delivery') {
+        var shippedStr = order.shipped_at ? new Date(order.shipped_at).toLocaleString(dateLocale) : '-';
         detailHtml += '<div class="order-tracking-box">' +
           (order.carrier_name ? '<div class="order-payment-row"><span>' + (t.carrier_label || 'باربری') + ':</span>' + order.carrier_name + '</div>' : '') +
           (order.tracking_number ? '<div class="order-payment-row"><span>' + (t.tracking_label || 'کد پیگیری') + ':</span><strong style="direction:ltr">' + order.tracking_number + '</strong></div>' : '') +
+          '<div class="order-payment-row"><span>' + (t.shipped_at_label || 'تاریخ ارسال') + ':</span><span style="direction:ltr">' + shippedStr + '</span></div>' +
           '</div>';
       }
 
       if (st === 'delivered') {
-        detailHtml += '<p class="order-detail-hint" style="color:#16a34a;font-weight:700">' + (t.order_delivered || 'تحویل داده شد ✓') + '</p>';
+        var shippedStr2   = order.shipped_at   ? new Date(order.shipped_at).toLocaleString(dateLocale)   : '-';
+        var deliveredStr2 = order.delivered_at ? new Date(order.delivered_at).toLocaleString(dateLocale) : '-';
+        detailHtml += '<div class="order-tracking-box">' +
+          '<p style="color:#16a34a;font-weight:700;margin:0 0 8px">' + (t.order_delivered || 'تحویل داده شد ✓') + '</p>' +
+          (order.carrier_name ? '<div class="order-payment-row"><span>' + (t.carrier_label || 'باربری') + ':</span>' + order.carrier_name + '</div>' : '') +
+          (order.tracking_number ? '<div class="order-payment-row"><span>' + (t.tracking_label || 'کد پیگیری') + ':</span><strong style="direction:ltr">' + order.tracking_number + '</strong></div>' : '') +
+          '<div class="order-payment-row"><span>' + (t.shipped_at_label || 'تاریخ ارسال') + ':</span><span style="direction:ltr">' + shippedStr2 + '</span></div>' +
+          '<div class="order-payment-row"><span>' + (t.delivered_at_label || 'تاریخ تحویل') + ':</span><span style="direction:ltr">' + deliveredStr2 + '</span></div>' +
+          '</div>';
       }
 
       if (st === 'cancelled') {
@@ -2469,18 +2672,27 @@ function _doProfileCancelOrder(orderId) {
         renderCart();
       }
       showToast(t.preorder_cancelled || 'پیش‌سفارش لغو شد');
+      reloadProducts(true);
       _profileExpandedId = null;
       renderOrders();
     } else {
-      showToast(data.message || 'خطا');
+      showToast(data.message || 'خطا', 'error');
+      if (data.message === 'Session expired') { handleSessionExpired(); }
     }
-  }).catch(function() { showToast('خطا در اتصال'); });
+  }).catch(function() { showToast('خطا در اتصال', 'error'); });
 }
 
 function profileUploadReceipt(input, orderId) {
   var file = input.files && input.files[0];
   if (!file) return;
   var t = TRANSLATIONS[currentLang];
+  var okExt  = /\.(jpg|jpeg|png|pdf)$/i.test(file.name);
+  var okMime = ['image/jpeg', 'image/png', 'application/pdf'].includes(file.type);
+  if (!okExt && !okMime) {
+    showToast(t.receipt_invalid_type || 'نوع فایل پشتیبانی نمی‌شود', 'error');
+    input.value = '';
+    return;
+  }
   var token = getSession();
   var btn = document.querySelector('#prof-receipt-' + orderId + ' ~ button') ||
             input.parentElement.querySelector('button');
@@ -2501,11 +2713,14 @@ function profileUploadReceipt(input, orderId) {
       showToast(t.receipt_uploaded || 'رسید ارسال شد');
       renderOrders();
     } else {
-      showToast(data.message || 'خطا در ارسال رسید');
+      var errMsg = data.errorCode === 'invalid_file_type' ? (t.receipt_invalid_type || 'نوع فایل پشتیبانی نمی‌شود')
+                 : data.errorCode === 'file_too_large'    ? (t.receipt_too_large || 'حجم فایل بیش از حد مجاز است')
+                 : (t.upload_error || 'خطا در ارسال رسید');
+      showToast(errMsg, 'error');
       if (btn) { btn.disabled = false; btn.textContent = t.upload_receipt_btn || 'ارسال رسید'; }
     }
   }).catch(function() {
-    showToast('خطا در اتصال');
+    showToast(t.network_error || 'خطا در اتصال', 'error');
     if (btn) { btn.disabled = false; }
   });
   input.value = '';
@@ -2578,7 +2793,7 @@ function initIdleTimer() {
   resetIdleTimer();
 }
 
-function reloadProducts() {
+function reloadProducts(forceRender) {
   fetch(API_BASE + '/products')
     .then(function(r) { return r.json(); })
     .then(function(data) {
@@ -2586,10 +2801,11 @@ function reloadProducts() {
       var newProducts = data.data.map(mapApiProduct);
       var snapshot = function(list) {
         return JSON.stringify(list.map(function(p) {
-          return { id: p.id, delivery_days: p.delivery_days, stock: p.stock, price: p.price, tag: p.tag };
+          return { id: p.id, delivery_days: p.delivery_days, stock: p.stock, price: p.price, tag: p.tag,
+                   inv: JSON.stringify(p.inventory) };
         }));
       };
-      if (snapshot(newProducts) !== snapshot(products)) {
+      if (forceRender || snapshot(newProducts) !== snapshot(products)) {
         products = newProducts;
         updateNavVisibility();
         renderGrid();

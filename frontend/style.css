@@ -613,6 +613,43 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   margin-bottom: 18px;
 }
 
+.filter-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 140px;
+}
+.filter-search-icon {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  pointer-events: none;
+  color: #b0b7c3;
+}
+[dir="rtl"] .filter-search-icon { right: 10px; }
+[dir="ltr"] .filter-search-icon { left: 10px; }
+.filter-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 34px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+  font-size: 13px;
+  color: #111;
+  font-family: inherit;
+  outline: none;
+  transition: border-color .18s, box-shadow .18s;
+}
+[dir="rtl"] .filter-search-input { padding: 0 30px 0 10px; text-align: right; }
+[dir="ltr"] .filter-search-input { padding: 0 10px 0 30px; text-align: left; }
+.filter-search-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(255,92,0,.12);
+  background: #fff;
+}
+.filter-search-input::placeholder { color: #b0b7c3; }
+
 .filter-toggle-btn {
   display: flex;
   align-items: center;
@@ -1792,6 +1829,22 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   line-height: 1.35;
   color: var(--text);
 }
+.product-code-badge {
+  display: inline-block;
+  font-family: monospace;
+  font-size: 12px;
+  color: #6b7280;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 2px 8px;
+  margin-bottom: 8px;
+}
+.product-code-label {
+  font-family: inherit;
+  font-weight: 600;
+  color: #9ca3af;
+}
 .modal-desc {
   font-size: 13.5px;
   color: var(--text-light);
@@ -1836,8 +1889,9 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   position: relative;
 }
 .modal-size-chip.unavailable:hover { color: var(--text-muted); border-color: var(--border); }
-.modal-size-chip.unavailable::after {
-  content: '×';
+.modal-size-chip.unavailable::after,
+.modal-size-chip.out-of-stock::after {
+  content: '✕';
   position: absolute;
   top: -7px;
   right: -7px;
@@ -1846,14 +1900,23 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   background: #ef4444;
   color: #fff;
   border-radius: 50%;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
 }
-[dir="ltr"] .modal-size-chip.unavailable::after { right: auto; left: -7px; }
+[dir="ltr"] .modal-size-chip.unavailable::after,
+[dir="ltr"] .modal-size-chip.out-of-stock::after { right: auto; left: -7px; }
+.modal-size-chip.out-of-stock {
+  color: var(--text-muted);
+  border-color: var(--border);
+  opacity: .5;
+  cursor: not-allowed;
+  position: relative;
+}
+.modal-size-chip.out-of-stock:hover { color: var(--text-muted); border-color: var(--border); }
 .modal-size-chip.selected {
   background: var(--primary);
   border-color: var(--primary);
@@ -1954,6 +2017,37 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   );
 }
 .color-swatch.unavailable:hover { transform: none; }
+.color-swatch.out-of-stock {
+  cursor: not-allowed;
+  opacity: .5;
+  position: relative;
+  overflow: visible;
+}
+.color-swatch.out-of-stock::after {
+  content: '✕';
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  width: 13px;
+  height: 13px;
+  background: #ef4444;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 8px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 0 0 0 1.5px #fff;
+}
+.color-swatch.out-of-stock:hover { transform: none; }
+.modal-stock-badge-wrap { min-height: 28px; margin: 6px 0 2px; }
+.stock-badge {
+  display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+}
+.stock-in { background: #f0fdf4; color: #16a34a; border: 1.5px solid #bbf7d0; }
+.stock-out { background: #fef2f2; color: #ef4444; border: 1.5px solid #fecaca; }
 .color-swatch.selected {
   border-color: #fff;
   outline-color: var(--primary);
@@ -2321,6 +2415,12 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.cart-item-code {
+  font-family: monospace;
+  font-size: 11px;
+  color: #9ca3af;
+  display: block;
 }
 .cart-item-meta {
   font-size: 11.5px;
@@ -3259,6 +3359,9 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.app-toast-check.error {
+  background: #ef4444;
 }
 #app-toast-msg {
   font-size: 15px;

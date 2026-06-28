@@ -213,11 +213,12 @@ async function getProducts(req, res, next) {
   try {
     const products = await prisma.products.findMany({
       include: {
-        categories:     { select: { key: true, label_fa: true } },
-        subcategories:  { select: { key: true, label_fa: true } },
-        product_colors: { include: { colors: true } },
-        product_sizes:  true,
-        product_media:  { orderBy: { sort_order: 'asc' } },
+        categories:        { select: { key: true, label_fa: true } },
+        subcategories:     { select: { key: true, label_fa: true } },
+        product_colors:    { include: { colors: true } },
+        product_sizes:     true,
+        product_media:     { orderBy: { sort_order: 'asc' } },
+        product_inventory: { include: { colors: { select: { id: true, hex: true, name_fa: true, name_en: true } } }, orderBy: [{ color_id: 'asc' }, { size_label: 'asc' }] },
       },
       orderBy: { created_at: 'desc' },
     });
@@ -228,16 +229,28 @@ async function getProducts(req, res, next) {
 async function createProduct(req, res, next) {
   try {
     const {
-      category_id, subcategory_id, gender, name_fa, name_en, name_tr,
+      category_id, subcategory_id, gender, code, name_fa, name_en, name_tr,
       desc_fa, desc_en, desc_tr, gradient, tag, price, stock, delivery_days,
-      color_ids, sizes, media,
+      colors, sizes, media, inventory,
     } = req.body;
+
+    let finalCode = code?.trim() || null;
+    if (!finalCode) {
+      const last = await prisma.products.findFirst({
+        where: { code: { startsWith: 'SHIL' } },
+        orderBy: { code: 'desc' },
+        select: { code: true },
+      });
+      const nextNum = last?.code ? Number(last.code.replace('SHIL', '')) + 1 : 100;
+      finalCode = 'SHIL' + String(nextNum).padStart(8, '0');
+    }
 
     const product = await prisma.products.create({
       data: {
         category_id:    Number(category_id),
         subcategory_id: subcategory_id ? Number(subcategory_id) : null,
         gender:         gender || 'unisex',
+        code:          finalCode,
         name_fa,
         name_en: name_en || name_fa,
         name_tr: name_tr || name_fa,
@@ -249,23 +262,35 @@ async function createProduct(req, res, next) {
         price:         price     || 0,
         stock:         stock     || 0,
         delivery_days: delivery_days != null ? Number(delivery_days) : 5,
-        product_colors: color_ids?.length ? {
-          create: color_ids.map(id => ({ color_id: Number(id), is_available: true })),
+        product_colors: colors?.length ? {
+          create: colors.map(c => ({ color_id: Number(c.id), is_available: c.is_available !== false })),
         } : undefined,
         product_sizes: sizes?.length ? {
-          create: sizes.map(s => ({ size_label: s, is_available: true })),
+          create: sizes.map(s => ({ size_label: s.label, is_available: s.is_available !== false })),
         } : undefined,
         product_media: media?.length ? {
           create: media.map((m, i) => ({ type: m.type, url: m.url, sort_order: i })),
         } : undefined,
       },
       include: {
-        categories:     { select: { key: true, label_fa: true } },
-        product_colors: { include: { colors: true } },
-        product_sizes:  true,
-        product_media:  { orderBy: { sort_order: 'asc' } },
+        categories:        { select: { key: true, label_fa: true } },
+        product_colors:    { include: { colors: true } },
+        product_sizes:     true,
+        product_media:     { orderBy: { sort_order: 'asc' } },
+        product_inventory: true,
       },
     });
+    if (inventory?.length) {
+      await prisma.product_inventory.createMany({
+        data: inventory.map(i => ({
+          product_id: product.id,
+          color_id:   i.color_id ? Number(i.color_id) : null,
+          size_label: i.size_label || null,
+          quantity:   Number(i.quantity) || 0,
+        })),
+        skipDuplicates: true,
+      });
+    }
     res.status(201).json({ success: true, data: product });
   } catch (err) { next(err); }
 }
@@ -274,13 +299,14 @@ async function updateProduct(req, res, next) {
   try {
     const id = Number(req.params.id);
     const {
-      category_id, subcategory_id, gender, name_fa, name_en, name_tr,
+      category_id, subcategory_id, gender, code, name_fa, name_en, name_tr,
       desc_fa, desc_en, desc_tr, gradient, tag, price, stock, is_active, delivery_days,
-      color_ids, sizes, media,
+      colors, sizes, media, inventory,
     } = req.body;
 
     await prisma.product_colors.deleteMany({ where: { product_id: id } });
     await prisma.product_sizes.deleteMany({ where:  { product_id: id } });
+    await prisma.product_inventory.deleteMany({ where: { product_id: id } });
 
     const existingMedia = await prisma.product_media.findMany({ where: { product_id: id }, orderBy: { sort_order: 'asc' } });
     const existingCount = existingMedia.length;
@@ -291,6 +317,7 @@ async function updateProduct(req, res, next) {
         category_id:    Number(category_id),
         subcategory_id: subcategory_id ? Number(subcategory_id) : null,
         gender:         gender || 'unisex',
+        code:          code?.trim() || null,
         name_fa,
         name_en: name_en || name_fa,
         name_tr: name_tr || name_fa,
@@ -304,23 +331,35 @@ async function updateProduct(req, res, next) {
         delivery_days: delivery_days != null ? Number(delivery_days) : 5,
         is_active:     is_active !== undefined ? Boolean(is_active) : true,
         updated_at:    new Date(),
-        product_colors: color_ids?.length ? {
-          create: color_ids.map(cid => ({ color_id: Number(cid), is_available: true })),
+        product_colors: colors?.length ? {
+          create: colors.map(c => ({ color_id: Number(c.id), is_available: c.is_available !== false })),
         } : undefined,
         product_sizes: sizes?.length ? {
-          create: sizes.map(s => ({ size_label: s, is_available: true })),
+          create: sizes.map(s => ({ size_label: s.label, is_available: s.is_available !== false })),
         } : undefined,
         product_media: media?.length ? {
           create: media.map((m, i) => ({ type: m.type, url: m.url, sort_order: existingCount + i })),
         } : undefined,
       },
       include: {
-        categories:     { select: { key: true, label_fa: true } },
-        product_colors: { include: { colors: true } },
-        product_sizes:  true,
-        product_media:  { orderBy: { sort_order: 'asc' } },
+        categories:        { select: { key: true, label_fa: true } },
+        product_colors:    { include: { colors: true } },
+        product_sizes:     true,
+        product_media:     { orderBy: { sort_order: 'asc' } },
+        product_inventory: true,
       },
     });
+    if (inventory?.length) {
+      await prisma.product_inventory.createMany({
+        data: inventory.map(i => ({
+          product_id: id,
+          color_id:   i.color_id ? Number(i.color_id) : null,
+          size_label: i.size_label || null,
+          quantity:   Number(i.quantity) || 0,
+        })),
+        skipDuplicates: true,
+      });
+    }
     res.json({ success: true, data: product });
   } catch (err) { next(err); }
 }
@@ -386,7 +425,7 @@ const ADMIN_ORDER_INCLUDE = {
   customers:   { select: { id: true, full_name: true, mobile: true } },
   order_items: {
     include: {
-      products: { select: { id: true, name_fa: true, name_en: true, name_tr: true, delivery_days: true } },
+      products: { select: { id: true, code: true, name_fa: true, name_en: true, name_tr: true, delivery_days: true } },
       colors:   true,
     },
   },
@@ -428,6 +467,7 @@ async function approvePayment(req, res, next) {
     if (order.status !== 'approval_needed') {
       return res.status(400).json({ success: false, message: 'Order must be in approval_needed status' });
     }
+
     const updated = await prisma.orders.update({
       where: { id },
       data:  { status: 'preparing', updated_at: new Date() },
@@ -471,7 +511,7 @@ async function setShipping(req, res, next) {
     const { carrier_name, tracking_number } = req.body;
     const updated = await prisma.orders.update({
       where: { id },
-      data:  { carrier_name, tracking_number, status: 'delivery', updated_at: new Date() },
+      data:  { carrier_name, tracking_number, status: 'delivery', shipped_at: new Date(), updated_at: new Date() },
       include: ADMIN_ORDER_INCLUDE,
     });
     res.json({ success: true, data: updated });
@@ -488,7 +528,7 @@ async function markDelivered(req, res, next) {
     }
     const updated = await prisma.orders.update({
       where: { id },
-      data:  { status: 'delivered', updated_at: new Date() },
+      data:  { status: 'delivered', delivered_at: new Date(), updated_at: new Date() },
       include: ADMIN_ORDER_INCLUDE,
     });
     res.json({ success: true, data: updated });
