@@ -1272,6 +1272,74 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   margin-bottom: 0 !important;
 }
 
+/* ─── Return Policy Section ──────────────────────────────────────────────── */
+.policy-section {
+  background: #f9f9f9;
+  padding: 72px 0;
+  border-top: 1px solid #ebebeb;
+}
+
+.policy-header {
+  text-align: center;
+  margin-bottom: 44px;
+}
+
+.policy-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--dark);
+  margin-bottom: 8px;
+}
+
+.policy-subtitle {
+  font-size: 15px;
+  color: #888;
+}
+
+.policy-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.policy-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px 28px;
+  border: 1.5px solid #ebebeb;
+  text-align: center;
+  transition: box-shadow .2s, border-color .2s;
+}
+
+.policy-card:hover {
+  box-shadow: 0 8px 28px rgba(0,0,0,.08);
+  border-color: #FF6200;
+}
+
+.policy-card-icon {
+  font-size: 36px;
+  margin-bottom: 16px;
+  line-height: 1;
+}
+
+.policy-card h3 {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--dark);
+  margin-bottom: 10px;
+}
+
+.policy-card p {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.75;
+}
+
+@media (max-width: 700px) {
+  .policy-cards { grid-template-columns: 1fr; }
+  .policy-section { padding: 48px 0; }
+}
+
 /* ─── Footer ─────────────────────────────────────────────────────────────── */
 .footer {
   background: #0a0a0a;
