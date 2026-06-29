@@ -48,7 +48,7 @@ function getReceiptUploadMiddleware() {
   if (!multer) return null;
   return multer({
     storage: makeStorage(),
-    limits: { fileSize: 50 * 1024 * 1024 },
+    limits: { fileSize: 10 * 1024 * 1024 },
   });
 }
 

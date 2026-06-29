@@ -1,4 +1,7 @@
-const prisma = require('../prisma/client');
+const prisma  = require('../prisma/client');
+const path    = require('path');
+const fs      = require('fs');
+const { sendOrderEmail, label } = require('../utils/mailer');
 
 const ADMIN_USER  = 'Admin';
 const ADMIN_PASS  = 'Admin@12893';
@@ -230,7 +233,7 @@ async function createProduct(req, res, next) {
   try {
     const {
       category_id, subcategory_id, gender, code, name_fa, name_en, name_tr,
-      desc_fa, desc_en, desc_tr, gradient, tag, price, stock, delivery_days,
+      desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price, stock, delivery_days,
       colors, sizes, media, inventory,
     } = req.body;
 
@@ -259,9 +262,10 @@ async function createProduct(req, res, next) {
         desc_tr:       desc_tr   || null,
         gradient:      gradient  || null,
         tag:           tag       || null,
-        price:         price     || 0,
-        stock:         stock     || 0,
-        delivery_days: delivery_days != null ? Number(delivery_days) : 5,
+        price:            price     || 0,
+        discounted_price: discounted_price != null && discounted_price !== '' ? Number(discounted_price) : null,
+        stock:            stock     || 0,
+        delivery_days:    delivery_days != null ? Number(delivery_days) : 5,
         product_colors: colors?.length ? {
           create: colors.map(c => ({ color_id: Number(c.id), is_available: c.is_available !== false })),
         } : undefined,
@@ -300,7 +304,7 @@ async function updateProduct(req, res, next) {
     const id = Number(req.params.id);
     const {
       category_id, subcategory_id, gender, code, name_fa, name_en, name_tr,
-      desc_fa, desc_en, desc_tr, gradient, tag, price, stock, is_active, delivery_days,
+      desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price, stock, is_active, delivery_days,
       colors, sizes, media, inventory,
     } = req.body;
 
@@ -326,10 +330,11 @@ async function updateProduct(req, res, next) {
         desc_tr:       desc_tr   || null,
         gradient:      gradient  || null,
         tag:           tag       || null,
-        price:         price     || 0,
-        stock:         stock     || 0,
-        delivery_days: delivery_days != null ? Number(delivery_days) : 5,
-        is_active:     is_active !== undefined ? Boolean(is_active) : true,
+        price:            price     || 0,
+        discounted_price: discounted_price != null && discounted_price !== '' ? Number(discounted_price) : null,
+        stock:            stock     || 0,
+        delivery_days:    delivery_days != null ? Number(delivery_days) : 5,
+        is_active:        is_active !== undefined ? Boolean(is_active) : true,
         updated_at:    new Date(),
         product_colors: colors?.length ? {
           create: colors.map(c => ({ color_id: Number(c.id), is_available: c.is_available !== false })),
@@ -422,7 +427,8 @@ async function updateAdminCustomer(req, res, next) {
 // ─── Admin Orders ──────────────────────────────────────────────────────────────
 
 const ADMIN_ORDER_INCLUDE = {
-  customers:   { select: { id: true, full_name: true, mobile: true } },
+  customers:   { select: { id: true, full_name: true, email: true, mobile: true, preferred_lang: true } },
+  addresses:   true,
   order_items: {
     include: {
       products: { select: { id: true, code: true, name_fa: true, name_en: true, name_tr: true, delivery_days: true } },
@@ -455,6 +461,16 @@ async function setPaymentInfo(req, res, next) {
       data:  { iban, bank_name, account_holder, status: 'payment_needed', updated_at: new Date() },
       include: ADMIN_ORDER_INCLUDE,
     });
+    if (updated.customers) {
+      const ol = updated.lang || 'fa';
+      const extraInfo = [
+        { label: label('bank_name', ol),      value: bank_name },
+        { label: label('account_holder', ol), value: account_holder },
+        { label: label('iban', ol),           value: iban, dir: 'ltr' },
+        { label: label('order_total', ol),    value: Number(updated.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' TL', dir: 'ltr' },
+      ];
+      sendOrderEmail(updated.customers, updated, 'payment_needed', extraInfo).catch(() => {});
+    }
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
 }
@@ -473,6 +489,19 @@ async function approvePayment(req, res, next) {
       data:  { status: 'preparing', updated_at: new Date() },
       include: ADMIN_ORDER_INCLUDE,
     });
+    if (updated.customers) {
+      const attachFiles = [];
+      if (order.payment_receipt_url) {
+        const receiptPath = path.join(__dirname, '../public', order.payment_receipt_url);
+        const ext = path.extname(order.payment_receipt_url).toLowerCase();
+        const mime = ext === '.pdf' ? 'application/pdf' : (ext === '.png' ? 'image/png' : 'image/jpeg');
+        const stat = fs.statSync(receiptPath);
+        if (stat.size <= 8 * 1024 * 1024) {
+          attachFiles.push({ filename: 'payment_receipt' + ext, path: receiptPath, contentType: mime });
+        }
+      }
+      sendOrderEmail(updated.customers, updated, 'preparing', [], attachFiles).catch(() => {});
+    }
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
 }
@@ -496,6 +525,21 @@ async function rejectPayment(req, res, next) {
       },
       include: ADMIN_ORDER_INCLUDE,
     });
+    if (updated.customers) {
+      const ol = updated.lang || 'fa';
+      const extraInfo = reason ? [{ label: label('reject_reason', ol), value: reason }] : [];
+      const attachFiles = [];
+      if (order.payment_receipt_url) {
+        const receiptPath = path.join(__dirname, '../public', order.payment_receipt_url);
+        const ext = path.extname(order.payment_receipt_url).toLowerCase();
+        const mime = ext === '.pdf' ? 'application/pdf' : (ext === '.png' ? 'image/png' : 'image/jpeg');
+        const stat = fs.statSync(receiptPath);
+        if (stat.size <= 8 * 1024 * 1024) {
+          attachFiles.push({ filename: 'payment_receipt' + ext, path: receiptPath, contentType: mime });
+        }
+      }
+      sendOrderEmail(updated.customers, updated, 'rejected', extraInfo, attachFiles).catch(() => {});
+    }
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
 }
@@ -514,6 +558,14 @@ async function setShipping(req, res, next) {
       data:  { carrier_name, tracking_number, status: 'delivery', shipped_at: new Date(), updated_at: new Date() },
       include: ADMIN_ORDER_INCLUDE,
     });
+    if (updated.customers) {
+      const ol = updated.lang || 'fa';
+      const extraInfo = [
+        { label: label('carrier', ol),  value: carrier_name },
+        { label: label('tracking', ol), value: tracking_number, dir: 'ltr' },
+      ];
+      sendOrderEmail(updated.customers, updated, 'delivery', extraInfo).catch(() => {});
+    }
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
 }
@@ -531,6 +583,9 @@ async function markDelivered(req, res, next) {
       data:  { status: 'delivered', delivered_at: new Date(), updated_at: new Date() },
       include: ADMIN_ORDER_INCLUDE,
     });
+    if (updated.customers) {
+      sendOrderEmail(updated.customers, updated, 'delivered').catch(() => {});
+    }
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
 }
