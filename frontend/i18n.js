@@ -133,6 +133,9 @@ const TRANSLATIONS = {
     err_user_exists:    'این حساب قبلاً ثبت شده است',
     err_reset_fail:     'خطا: حساب یافت نشد',
     msg_reset_ok:       '✓ رمز عبور با موفقیت تغییر کرد',
+    msg_link_sent:      '✓ لینک بازیابی ارسال شد. ایمیل خود را بررسی کنید.',
+    msg_link_manual:    '✓ لینک بازیابی آماده است. با ادمین تماس بگیرید.',
+    err_token_invalid:  'لینک منقضی یا نامعتبر است. دوباره درخواست کنید.',
     // Profile
     profile_tab_info:   'اطلاعات من',
     profile_tab_addr:   'آدرس‌ها',
@@ -378,6 +381,9 @@ const TRANSLATIONS = {
     err_user_exists:    'This account already exists',
     err_reset_fail:     'Error: account not found',
     msg_reset_ok:       '✓ Password changed successfully',
+    msg_link_sent:      '✓ Reset link sent. Check your email.',
+    msg_link_manual:    '✓ Reset link ready. Contact admin.',
+    err_token_invalid:  'Link expired or invalid. Request again.',
     // Profile
     profile_tab_info:   'My Info',
     profile_tab_addr:   'Addresses',
@@ -623,6 +629,9 @@ const TRANSLATIONS = {
     err_user_exists:    'Bu hesap zaten kayıtlı',
     err_reset_fail:     'Hata: hesap bulunamadı',
     msg_reset_ok:       '✓ Şifre başarıyla değiştirildi',
+    msg_link_sent:      '✓ Sıfırlama bağlantısı gönderildi. E-postanızı kontrol edin.',
+    msg_link_manual:    '✓ Bağlantı hazır. Yönetici ile iletişime geçin.',
+    err_token_invalid:  'Bağlantı süresi dolmuş veya geçersiz. Tekrar isteyin.',
     // Profile
     profile_tab_info:   'Bilgilerim',
     profile_tab_addr:   'Adresler',

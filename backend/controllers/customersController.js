@@ -1,4 +1,6 @@
-const prisma = require('../prisma/client');
+const prisma   = require('../prisma/client');
+const crypto   = require('crypto');
+const nodemailer = require('nodemailer');
 
 // matches frontend: btoa(unescape(encodeURIComponent(pwd)))
 function hashPassword(pass) {
@@ -224,4 +226,138 @@ async function deleteAddress(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { register, login, logout, getProfile, updateProfile, addAddress, updateAddress, deleteAddress };
+// ─── Forgot Password ──────────────────────────────────────────────────────────
+const EMAIL_CONTENT = {
+  fa: {
+    subject: 'بازیابی رمز عبور — Akhgar Store',
+    dir:     'rtl',
+    greeting: (name) => `کاربر گرامی ${name}،`,
+    body:    'برای تغییر رمز عبور روی دکمه زیر کلیک کنید:',
+    btn:     'تغییر رمز عبور',
+    expire:  'این لینک ۱ ساعت اعتبار دارد.',
+    ignore:  'اگر این درخواست را شما ارسال نکرده‌اید، این ایمیل را نادیده بگیرید.',
+  },
+  en: {
+    subject: 'Password Reset — Akhgar Store',
+    dir:     'ltr',
+    greeting: (name) => `Dear ${name},`,
+    body:    'Click the button below to reset your password:',
+    btn:     'Reset Password',
+    expire:  'This link is valid for 1 hour.',
+    ignore:  'If you did not request this, please ignore this email.',
+  },
+  tr: {
+    subject: 'Şifre Sıfırlama — Akhgar Store',
+    dir:     'ltr',
+    greeting: (name) => `Sayın ${name},`,
+    body:    'Şifrenizi sıfırlamak için aşağıdaki düğmeye tıklayın:',
+    btn:     'Şifreyi Sıfırla',
+    expire:  'Bu bağlantı 1 saat geçerlidir.',
+    ignore:  'Bu isteği siz yapmadıysanız bu e-postayı dikkate almayın.',
+  },
+};
+
+function buildResetEmail(lang, name, resetLink) {
+  const c = EMAIL_CONTENT[lang] || EMAIL_CONTENT['fa'];
+  return `
+  <div dir="${c.dir}" style="font-family:Tahoma,Arial,sans-serif;font-size:15px;max-width:500px;margin:0 auto;padding:24px;background:#f9f9f9;border-radius:10px">
+    <div style="background:#111;padding:16px;border-radius:8px;text-align:center;margin-bottom:24px">
+      <span style="color:#FF5C00;font-size:22px;font-weight:bold">Akhgar Store</span>
+    </div>
+    <p style="color:#333;margin-bottom:8px">${c.greeting(name)}</p>
+    <p style="color:#333;margin-bottom:24px">${c.body}</p>
+    <div style="text-align:center;margin-bottom:24px">
+      <a href="${resetLink}" style="background:#FF5C00;color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:15px;font-weight:bold;display:inline-block">${c.btn}</a>
+    </div>
+    <p style="color:#888;font-size:12px;margin-bottom:4px">${c.expire}</p>
+    <p style="color:#aaa;font-size:11px">${c.ignore}</p>
+  </div>`;
+}
+
+async function forgotPassword(req, res, next) {
+  try {
+    const { identifier, lang } = req.body;
+    if (!identifier) return res.status(400).json({ success: false, message: 'identifier is required' });
+
+    const safeLang = ['fa', 'en', 'tr'].includes(lang) ? lang : 'fa';
+
+    const isEmail = identifier.includes('@');
+    const customer = await prisma.customers.findFirst({
+      where: isEmail ? { email: identifier } : { mobile: identifier },
+    });
+
+    // always respond 200 to avoid user enumeration
+    if (!customer) return res.json({ success: true, sent: false });
+
+    const token   = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await prisma.customers.update({
+      where: { id: customer.id },
+      data:  { reset_token: token, reset_token_expires: expires },
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5500';
+    const resetLink   = `${frontendUrl}/index.html?reset_token=${token}`;
+
+    if (process.env.SMTP_HOST && customer.email) {
+      const transporter = nodemailer.createTransport({
+        host:   process.env.SMTP_HOST,
+        port:   Number(process.env.SMTP_PORT) || 587,
+        secure: process.env.SMTP_SECURE === 'true',
+        auth:   { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      });
+      const c = EMAIL_CONTENT[safeLang] || EMAIL_CONTENT['fa'];
+      await transporter.sendMail({
+        from:    process.env.SMTP_FROM || process.env.SMTP_USER,
+        to:      customer.email,
+        subject: c.subject,
+        html:    buildResetEmail(safeLang, customer.full_name, resetLink),
+      });
+      return res.json({ success: true, sent: true });
+    }
+
+    // no SMTP — return link for admin to share manually
+    return res.json({ success: true, sent: false, reset_link: resetLink });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── Reset Password ───────────────────────────────────────────────────────────
+async function resetPassword(req, res, next) {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ success: false, message: 'token and password are required' });
+
+    const customer = await prisma.customers.findFirst({
+      where: {
+        reset_token:         token,
+        reset_token_expires: { gt: new Date() },
+      },
+    });
+    if (!customer) return res.status(400).json({ success: false, message: 'Invalid or expired token' });
+
+    await prisma.customers.update({
+      where: { id: customer.id },
+      data:  {
+        password_hash:       hashPassword(password),
+        reset_token:         null,
+        reset_token_expires: null,
+        updated_at:          new Date(),
+      },
+    });
+
+    // invalidate all existing sessions
+    await prisma.sessions.updateMany({
+      where: { customer_id: customer.id },
+      data:  { is_active: false },
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { register, login, logout, getProfile, updateProfile, addAddress, updateAddress, deleteAddress, forgotPassword, resetPassword };

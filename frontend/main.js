@@ -1819,27 +1819,62 @@ function doForgot() {
   var identifier = (document.getElementById('forgot-identifier').value || '').trim();
   clearAuthErrors();
   if (!identifier) { setAuthError('forgot-id-err', t.err_id_req); return; }
-  var user = getUsers().find(function(u) { return u.email === identifier || u.mobile === identifier; });
-  if (!user) { setAuthError('forgot-id-err', t.err_not_found); return; }
-  _forgotId = identifier;
-  showAuthView('reset');
+
+  var btn = document.querySelector('#auth-view-forgot .auth-submit-btn');
+  if (btn) btn.disabled = true;
+
+  fetch(API_BASE + '/customers/forgot-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier: identifier, lang: currentLang })
+  }).then(function(res) { return res.json(); }).then(function(data) {
+    if (btn) btn.disabled = false;
+    if (!data.success) { setAuthError('forgot-id-err', t.err_not_found); return; }
+    var errEl = document.getElementById('forgot-id-err');
+    if (errEl) {
+      errEl.className = 'auth-field-success';
+      errEl.textContent = data.sent ? t.msg_link_sent : t.msg_link_manual;
+    }
+  }).catch(function() {
+    if (btn) btn.disabled = false;
+    setAuthError('forgot-id-err', t.err_not_found);
+  });
 }
 
+var _resetToken = '';
+
 function doReset() {
-  var t       = TRANSLATIONS[currentLang];
+  var t        = TRANSLATIONS[currentLang];
   var password = document.getElementById('reset-password').value || '';
   var confirm  = document.getElementById('reset-confirm').value  || '';
   clearAuthErrors();
   if (!validatePassword(password)) { setAuthError('reset-pass-err',    t.err_pass_inv);     return; }
   if (password !== confirm)        { setAuthError('reset-confirm-err', t.err_pass_mismatch); return; }
-  var users = getUsers();
-  var user  = users.find(function(u) { return u.email === _forgotId || u.mobile === _forgotId; });
-  if (!user) { setAuthError('reset-pass-err', t.err_reset_fail); return; }
-  user.password = hashPass(password);
-  updateUser(user);
-  var msg = document.getElementById('reset-success-msg');
-  if (msg) { msg.textContent = t.msg_reset_ok; }
-  setTimeout(function() { showAuthView('login'); }, 2000);
+  if (!_resetToken)                { setAuthError('reset-pass-err',    t.err_token_invalid); return; }
+
+  var btn = document.querySelector('#auth-view-reset .auth-submit-btn');
+  if (btn) btn.disabled = true;
+
+  fetch(API_BASE + '/customers/reset-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: _resetToken, password: password })
+  }).then(function(res) { return res.json(); }).then(function(data) {
+    if (btn) btn.disabled = false;
+    if (data.success) {
+      var msg = document.getElementById('reset-success-msg');
+      if (msg) { msg.textContent = t.msg_reset_ok; }
+      _resetToken = '';
+      // clear token from URL
+      window.history.replaceState({}, '', window.location.pathname);
+      setTimeout(function() { showAuthView('login'); }, 2000);
+    } else {
+      setAuthError('reset-pass-err', t.err_token_invalid);
+    }
+  }).catch(function() {
+    if (btn) btn.disabled = false;
+    setAuthError('reset-pass-err', t.err_token_invalid);
+  });
 }
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
@@ -2826,6 +2861,14 @@ document.addEventListener('DOMContentLoaded', function() {
   updateAuthUI();
   updateFavBadge();
   initIdleTimer();
+
+  // Check for password reset token in URL
+  var urlParams = new URLSearchParams(window.location.search);
+  var resetToken = urlParams.get('reset_token');
+  if (resetToken) {
+    _resetToken = resetToken;
+    setTimeout(function() { openAuthModal('reset'); }, 300);
+  }
 
   Promise.all([
     fetch(API_BASE + '/categories').then(function(r) { return r.json(); }).catch(function() { return null; }),

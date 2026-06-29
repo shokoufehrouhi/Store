@@ -463,7 +463,7 @@
         <div class="form-field">
           <label data-i18n="auth_id_label">ایمیل یا شماره موبایل</label>
           <input type="text" id="forgot-identifier" data-i18n-ph="auth_id_ph" placeholder="email@example.com یا ۰۹..." onkeydown="if(event.key==='Enter')doForgot()">
-          <span class="auth-field-error" id="forgot-id-err"></span>
+          <span class="auth-field-error" id="forgot-id-err" style="display:block"></span>
         </div>
         <button class="auth-submit-btn" onclick="doForgot()" data-i18n="auth_btn_forgot">تأیید و ادامه</button>
         <p class="auth-switch-text"><button class="auth-link-btn" onclick="showAuthView('login')" data-i18n="auth_back_login">← بازگشت به ورود</button></p>
