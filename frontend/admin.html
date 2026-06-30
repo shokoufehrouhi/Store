@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin | ShilFit</title>
+  <title>Admin | Shilista</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -43,14 +43,7 @@
       width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,.4);
     }
     .login-logo { text-align: center; margin-bottom: 32px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-    .login-logo .logo-badge {
-      width: 56px; height: 56px; border-radius: 15px; background: #FF6200;
-      box-shadow: 0 6px 20px rgba(255,98,0,.35);
-      display: flex; align-items: center; justify-content: center;
-    }
-    .login-logo .logo-wordmark { display: flex; align-items: baseline; gap: 0; line-height: 1; }
-    .login-logo .logo-wordmark .w-shil { font-size: 26px; font-weight: 900; color: #111; text-transform: uppercase; letter-spacing: -.5px; }
-    .login-logo .logo-wordmark .w-fit  { font-size: 26px; font-weight: 900; color: #FF6200; text-transform: uppercase; letter-spacing: -.5px; }
+    .login-logo img { height: 72px; width: auto; object-fit: contain; }
     .login-logo p { color: var(--text-muted); font-size: 13px; margin: 0; }
     .login-card label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
     .login-card input {
@@ -93,16 +86,8 @@
       display: flex; align-items: center; justify-content: space-between;
     }
     .sidebar-logo .brand { display: flex; align-items: center; gap: 10px; }
-    .sidebar-logo .brand .sb-icon {
-      width: 36px; height: 36px; border-radius: 9px; background: #FF6200;
-      box-shadow: 0 2px 8px rgba(255,98,0,.35);
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    }
-    .sidebar-logo .brand .sb-text { display: flex; flex-direction: column; gap: 2px; line-height: 1; }
-    .sidebar-logo .brand .sb-wordmark { display: flex; align-items: baseline; gap: 0; }
-    .sidebar-logo .brand .sb-shil { font-size: 17px; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: -.3px; }
-    .sidebar-logo .brand .sb-fit  { font-size: 17px; font-weight: 900; color: var(--primary); text-transform: uppercase; letter-spacing: -.3px; }
-    .sidebar-logo .sub { font-size: 10px; color: #555; margin-top: 0; }
+    .sidebar-logo .brand img { height: 36px; width: auto; object-fit: contain; }
+    .sidebar-logo .sub { font-size: 10px; color: #555; margin-top: 2px; }
 
     /* Language globe button */
     .lang-globe-wrap { position: relative; flex-shrink: 0; }
@@ -173,7 +158,7 @@
 
     /* ── Buttons ────────────────────────────────── */
     .btn {
-      display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 18px;
       border-radius: 8px; font-family: inherit; font-size: 14px; font-weight: 600;
       border: none; cursor: pointer; transition: all .2s; white-space: nowrap;
     }
@@ -399,12 +384,7 @@
 <div id="login-overlay">
   <div class="login-card">
     <div class="login-logo">
-      <div class="logo-badge">
-        <svg width="26" height="33" viewBox="0 0 22 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M14 1L2 15h8.5L6 27L20 13h-8.5L14 1z" fill="white"/>
-        </svg>
-      </div>
-      <div class="logo-wordmark"><span class="w-shil">SHIL</span><span class="w-fit">FIT</span></div>
+      <img src="images/shilista_6_light_full_transparent.png" alt="Shilista">
       <p data-i18n="storeAdmin">پنل مدیریت فروشگاه</p>
     </div>
     <div class="login-lang">
@@ -431,15 +411,8 @@
   <aside id="sidebar">
     <div class="sidebar-logo">
       <div class="brand">
-        <div class="sb-icon">
-          <svg width="18" height="23" viewBox="0 0 22 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M14 1L2 15h8.5L6 27L20 13h-8.5L14 1z" fill="white"/>
-          </svg>
-        </div>
-        <div class="sb-text">
-          <div class="sb-wordmark"><span class="sb-shil">SHIL</span><span class="sb-fit">FIT</span></div>
-          <div class="sub" data-i18n="adminPanel">پنل مدیریت</div>
-        </div>
+        <img src="images/shilista_5_dark_full_transparent.png" alt="Shilista">
+        <div class="sub" data-i18n="adminPanel">پنل مدیریت</div>
       </div>
       <div class="lang-globe-wrap">
         <button class="lang-globe-btn" id="lang-globe-btn" data-active="fa" onclick="toggleLangMenu(event)">FA</button>
@@ -473,8 +446,11 @@
       </button>
 
       <div class="nav-section-label" data-i18n="navGroupOrders">سفارشات</div>
+      <button class="nav-item" onclick="showTab('active-orders')" id="nav-active-orders">
+        <span class="nav-icon">🔥</span><span data-i18n="navActiveOrders">سفارشات فعال</span>
+      </button>
       <button class="nav-item" onclick="showTab('orders')" id="nav-orders">
-        <span class="nav-icon">🛒</span><span data-i18n="navOrders">سفارشات</span>
+        <span class="nav-icon">📋</span><span data-i18n="navOrders">سفارشات تکمیل‌شده</span>
       </button>
     </nav>
     <div class="sidebar-footer">
@@ -580,19 +556,39 @@
     </div>
 
     <!-- Orders -->
+    <div id="tab-active-orders" class="hidden">
+      <div class="page-header">
+        <h2>🔥 <span data-i18n="navActiveOrders">سفارشات فعال</span></h2>
+        <button class="btn btn-secondary btn-sm" onclick="loadAdminOrders()" data-i18n="ordersRefresh">🔄 بروزرسانی</button>
+      </div>
+      <div class="page-body">
+        <div class="card"><div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th data-i18n="ordersColId">#</th>
+              <th data-i18n="ordersColCustomer">مشتری</th>
+              <th data-i18n="ordersColProducts">محصولات</th>
+              <th data-i18n="ordersColStatus">وضعیت</th>
+              <th data-i18n="ordersColTotal">مبلغ کل</th>
+              <th data-i18n="ordersColDate">تاریخ</th>
+            </tr></thead>
+            <tbody id="active-orders-tbody">
+              <tr><td colspan="6" style="text-align:center;padding:40px;color:#999" data-i18n="ordersLoading">در حال بارگذاری...</td></tr>
+            </tbody>
+          </table>
+        </div></div>
+      </div>
+    </div>
+
     <div id="tab-orders" class="hidden">
       <div class="page-header">
-        <h2>🛒 <span data-i18n="ordersTitle">سفارشات</span></h2>
+        <h2>📋 <span data-i18n="navOrders">سفارشات تکمیل‌شده</span></h2>
         <div style="display:flex;gap:8px;align-items:center">
           <select id="orders-status-filter" onchange="filterOrders()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
-            <option value="" data-i18n="ordersFilterAll">همه وضعیت‌ها</option>
-            <option value="preorder"        data-i18n="statusPreorder">پیش‌سفارش</option>
-            <option value="payment_needed"  data-i18n="statusPaymentNeeded">در انتظار پرداخت</option>
-            <option value="approval_needed" data-i18n="statusApprovalNeeded">در انتظار تأیید</option>
-            <option value="preparing"       data-i18n="statusPreparing">در حال آماده‌سازی</option>
-            <option value="delivery"        data-i18n="statusDelivery">ارسال شده</option>
-            <option value="delivered"       data-i18n="statusDelivered">تحویل شده</option>
-            <option value="cancelled"       data-i18n="statusCancelled">لغو شده</option>
+            <option value="" data-i18n="ordersFilterAll">همه</option>
+            <option value="delivered"  data-i18n="statusDelivered">تحویل شده</option>
+            <option value="cancelled"  data-i18n="statusCancelled">لغو شده</option>
+            <option value="rejected"   data-i18n="statusRejected">رد شده</option>
           </select>
           <button class="btn btn-secondary btn-sm" onclick="loadAdminOrders()" data-i18n="ordersRefresh">🔄 بروزرسانی</button>
         </div>
@@ -615,16 +611,6 @@
         </div></div>
       </div>
 
-      <!-- Order Detail Panel -->
-      <div id="order-detail-panel" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto">
-        <div style="background:#fff;border-radius:14px;width:100%;max-width:640px;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)">
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border)">
-            <h3 id="order-detail-title" style="font-size:17px;font-weight:700"></h3>
-            <button onclick="closeOrderDetail()" style="width:32px;height:32px;border-radius:8px;border:none;background:var(--bg);cursor:pointer;font-size:18px" data-i18n="orderClose">✕</button>
-          </div>
-          <div id="order-detail-body" style="padding:24px"></div>
-        </div>
-      </div>
     </div>
 
     <!-- Colors -->
@@ -653,6 +639,17 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- Order Detail Panel -->
+<div id="order-detail-panel" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto">
+  <div style="background:#fff;border-radius:14px;width:100%;max-width:640px;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border)">
+      <h3 id="order-detail-title" style="font-size:17px;font-weight:700"></h3>
+      <button onclick="closeOrderDetail()" style="width:32px;height:32px;border-radius:8px;border:none;background:var(--bg);cursor:pointer;font-size:18px" data-i18n="orderClose">✕</button>
+    </div>
+    <div id="order-detail-body" style="padding:24px"></div>
   </div>
 </div>
 
@@ -692,7 +689,7 @@ const LANGS = {
     loginBtn:'ورود به پنل', username:'نام کاربری', password:'رمز عبور',
     connecting:'در حال ورود...', connFail:'اتصال به سرور ناموفق بود',
     navGroupCatalog:'فروشگاه', navGroupConfig:'تنظیمات پایه', navGroupUsers:'کاربران',
-    navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navCustomers:'مشتریان', navGroupOrders:'سفارشات', navOrders:'سفارشات', logout:'خروج',
+    navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navCustomers:'مشتریان', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', logout:'خروج',
     addProduct:'+ افزودن محصول',
     colId:'#', colMedia:'رسانه', colName:'نام محصول', colCategory:'دسته‌بندی', colPrice:'قیمت',
     colStock:'موجودی', colColors:'رنگ‌ها', colSizes:'سایزها', colStatus:'وضعیت', colActions:'عملیات',
@@ -707,12 +704,12 @@ const LANGS = {
     uploading:'در حال آپلود...', uploadErr:'خطا در آپلود',
     errInvalidFileType:'نوع فایل پشتیبانی نمی‌شود', errFileTooLarge:'حجم فایل بیش از حد مجاز است',
     descriptions:'توضیحات', statusSection:'وضعیت',
-    productCodeLbl:'کد محصول', productCodePlh:'مثال: SHF-001',
+    productCodeLbl:'کد محصول', productCodePlh:'مثال: SHF-001', productCodeAuto:'خودکار',
     productSearchPlh:'جستجو بر اساس نام، توضیحات یا کد محصول...',
     nameFa:'نام فارسی *', nameEn:'نام انگلیسی', nameTr:'نام ترکی', deliveryDaysLbl:'زمان تحویل (روز کاری)',
     categoryField:'دسته‌بندی *', subcategoryField:'زیردسته',
     genderField:'جنسیت', tagField:'برچسب',
-    priceField:'قیمت (تومان)', stockField:'موجودی (تعداد)',
+    priceField:'قیمت اصلی (TL)', discountedPriceField:'قیمت با تخفیف (TL)',
     gradient:'CSS Gradient',
     descFa:'توضیحات فارسی', descEn:'توضیحات انگلیسی', descTr:'توضیحات ترکی',
     activeProduct:'محصول فعال باشد',
@@ -777,13 +774,14 @@ const LANGS = {
     ordersEmpty:'سفارشی یافت نشد', ordersLoading:'در حال بارگذاری...', ordersLoadError:'خطا در بارگذاری',
     orderDetails:'جزئیات', orderClose:'✕', orderDetailTitle:'جزئیات سفارش',
     orderCustomerLbl:'مشتری', orderMobileLbl:'موبایل', orderItemsLbl:'اقلام سفارش',
+    orderAddrLbl:'آدرس تحویل', orderNoteLbl:'یادداشت', orderTotalLbl:'جمع کل',
     orderActionPayment:'ثبت اطلاعات پرداخت',
     orderIbanLbl:'شماره شبا', orderBankLbl:'نام بانک', orderHolderLbl:'نام صاحب حساب',
     orderBankPlh:'بانک ملی', orderHolderPlh:'نام و نام خانوادگی', orderIbanPlh:'TR...',
     orderSavePayment:'ثبت اطلاعات پرداخت', orderReviewReceipt:'بررسی رسید پرداخت',
     orderViewReceipt:'مشاهده در تب جدید', orderApprove:'تأیید پرداخت', orderReject:'رد پرداخت',
     orderRejectReasonLbl:'دلیل رد', orderRejectReasonPlh:'دلیل رد پرداخت را بنویسید...',
-    orderConfirmReject:'تأیید رد', orderShippingTitle:'ثبت اطلاعات ارسال',
+    orderConfirmReject:'تأیید رد', orderRejectPreorder:'رد پیش‌سفارش', orderConfirmRejectPreorder:'تأیید رد پیش‌سفارش', orderShippingTitle:'ثبت اطلاعات ارسال',
     orderCarrierLbl:'شرکت پست / باربری', orderCarrierPlh:'پست پیشتاز',
     orderTrackingLbl:'کد پیگیری', orderSaveShipping:'ثبت و ارسال',
     orderCarrierInfo:'باربری', orderTrackingInfo:'کد پیگیری',
@@ -796,7 +794,7 @@ const LANGS = {
     orderSaveError:'خطا', orderFilterOpt:'وضعیت',
     statusPreorder:'پیش‌سفارش', statusPaymentNeeded:'در انتظار پرداخت',
     statusApprovalNeeded:'در انتظار تأیید', statusPreparing:'در حال آماده‌سازی',
-    statusDelivery:'ارسال شده', statusDelivered:'تحویل شده', statusCancelled:'لغو شده',
+    statusDelivery:'ارسال شده', statusDelivered:'تحویل شده', statusCancelled:'لغو شده', statusRejected:'رد شده',
     statusPending:'معلق', statusConfirmed:'تأیید شده', statusProcessing:'در حال پردازش',
     statusShipped:'ارسال شده', statusReturned:'برگشت خورده',
   },
@@ -806,7 +804,7 @@ const LANGS = {
     loginBtn:'Login', username:'Username', password:'Password',
     connecting:'Logging in...', connFail:'Could not connect to server',
     navGroupCatalog:'Store', navGroupConfig:'Configuration', navGroupUsers:'Users',
-    navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navCustomers:'Customers', navGroupOrders:'Orders', navOrders:'Orders', logout:'Logout',
+    navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navCustomers:'Customers', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', logout:'Logout',
     addProduct:'+ Add Product',
     colId:'#', colMedia:'Media', colName:'Product Name', colCategory:'Category', colPrice:'Price',
     colStock:'Stock', colColors:'Colors', colSizes:'Sizes', colStatus:'Status', colActions:'Actions',
@@ -821,12 +819,12 @@ const LANGS = {
     uploading:'Uploading...', uploadErr:'Upload error',
     errInvalidFileType:'File type not supported', errFileTooLarge:'File size exceeds the limit',
     descriptions:'Descriptions', statusSection:'Status',
-    productCodeLbl:'Product Code', productCodePlh:'e.g. SHF-001',
+    productCodeLbl:'Product Code', productCodePlh:'e.g. SHF-001', productCodeAuto:'Auto',
     productSearchPlh:'Search by name, description or product code...',
     nameFa:'Farsi Name *', nameEn:'English Name', nameTr:'Turkish Name', deliveryDaysLbl:'Delivery Time (working days)',
     categoryField:'Category *', subcategoryField:'Subcategory',
     genderField:'Gender', tagField:'Tag',
-    priceField:'Price', stockField:'Stock (qty)',
+    priceField:'Original Price (TL)', discountedPriceField:'Discounted Price (TL)',
     gradient:'CSS Gradient',
     descFa:'Farsi Description', descEn:'English Description', descTr:'Turkish Description',
     activeProduct:'Product is active',
@@ -891,13 +889,14 @@ const LANGS = {
     ordersEmpty:'No orders found', ordersLoading:'Loading...', ordersLoadError:'Load error',
     orderDetails:'Details', orderClose:'✕', orderDetailTitle:'Order Details',
     orderCustomerLbl:'Customer', orderMobileLbl:'Mobile', orderItemsLbl:'Order Items',
+    orderAddrLbl:'Delivery Address', orderNoteLbl:'Note', orderTotalLbl:'Total',
     orderActionPayment:'Set Payment Info',
     orderIbanLbl:'IBAN', orderBankLbl:'Bank Name', orderHolderLbl:'Account Holder',
     orderBankPlh:'e.g. Ziraat Bank', orderHolderPlh:'Full Name', orderIbanPlh:'TR...',
     orderSavePayment:'Save Payment Info', orderReviewReceipt:'Review Payment Receipt',
     orderViewReceipt:'View in New Tab', orderApprove:'Approve Payment', orderReject:'Reject Payment',
     orderRejectReasonLbl:'Reject Reason', orderRejectReasonPlh:'Enter reason for rejection...',
-    orderConfirmReject:'Confirm Rejection', orderShippingTitle:'Set Shipping Info',
+    orderConfirmReject:'Confirm Rejection', orderRejectPreorder:'Reject Pre-order', orderConfirmRejectPreorder:'Confirm Pre-order Rejection', orderShippingTitle:'Set Shipping Info',
     orderCarrierLbl:'Carrier / Shipping Co.', orderCarrierPlh:'e.g. DHL',
     orderTrackingLbl:'Tracking Number', orderSaveShipping:'Save & Ship',
     orderCarrierInfo:'Carrier', orderTrackingInfo:'Tracking',
@@ -910,7 +909,7 @@ const LANGS = {
     orderSaveError:'Error', orderFilterOpt:'Status',
     statusPreorder:'Pre-order', statusPaymentNeeded:'Payment Needed',
     statusApprovalNeeded:'Awaiting Approval', statusPreparing:'Preparing',
-    statusDelivery:'Shipped', statusDelivered:'Delivered', statusCancelled:'Cancelled',
+    statusDelivery:'Shipped', statusDelivered:'Delivered', statusCancelled:'Cancelled', statusRejected:'Rejected',
     statusPending:'Pending', statusConfirmed:'Confirmed', statusProcessing:'Processing',
     statusShipped:'Shipped', statusReturned:'Returned',
   },
@@ -920,7 +919,7 @@ const LANGS = {
     loginBtn:'Giriş Yap', username:'Kullanıcı Adı', password:'Şifre',
     connecting:'Giriş yapılıyor...', connFail:'Sunucuya bağlanılamadı',
     navGroupCatalog:'Mağaza', navGroupConfig:'Yapılandırma', navGroupUsers:'Kullanıcılar',
-    navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navCustomers:'Müşteriler', navGroupOrders:'Siparişler', navOrders:'Siparişler', logout:'Çıkış',
+    navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navCustomers:'Müşteriler', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', logout:'Çıkış',
     addProduct:'+ Ürün Ekle',
     colId:'#', colMedia:'Medya', colName:'Ürün Adı', colCategory:'Kategori', colPrice:'Fiyat',
     colStock:'Stok', colColors:'Renkler', colSizes:'Bedenler', colStatus:'Durum', colActions:'İşlemler',
@@ -935,12 +934,12 @@ const LANGS = {
     uploading:'Yükleniyor...', uploadErr:'Yükleme hatası',
     errInvalidFileType:'Dosya türü desteklenmiyor', errFileTooLarge:'Dosya boyutu sınırı aşıyor',
     descriptions:'Açıklamalar', statusSection:'Durum',
-    productCodeLbl:'Ürün Kodu', productCodePlh:'örn. SHF-001',
+    productCodeLbl:'Ürün Kodu', productCodePlh:'örn. SHF-001', productCodeAuto:'Otomatik',
     productSearchPlh:'Ad, açıklama veya ürün koduna göre ara...',
     nameFa:'Farsça Ad *', nameEn:'İngilizce Ad', nameTr:'Türkçe Ad', deliveryDaysLbl:'Teslimat Süresi (iş günü)',
     categoryField:'Kategori *', subcategoryField:'Alt Kategori',
     genderField:'Cinsiyet', tagField:'Etiket',
-    priceField:'Fiyat', stockField:'Stok (adet)',
+    priceField:'Asıl Fiyat (TL)', discountedPriceField:'İndirimli Fiyat (TL)',
     gradient:'CSS Gradyan',
     descFa:'Farsça Açıklama', descEn:'İngilizce Açıklama', descTr:'Türkçe Açıklama',
     activeProduct:'Ürün aktif olsun',
@@ -1005,13 +1004,14 @@ const LANGS = {
     ordersEmpty:'Sipariş bulunamadı', ordersLoading:'Yükleniyor...', ordersLoadError:'Yükleme hatası',
     orderDetails:'Detaylar', orderClose:'✕', orderDetailTitle:'Sipariş Detayları',
     orderCustomerLbl:'Müşteri', orderMobileLbl:'Telefon', orderItemsLbl:'Sipariş Kalemleri',
+    orderAddrLbl:'Teslimat Adresi', orderNoteLbl:'Not', orderTotalLbl:'Toplam',
     orderActionPayment:'Ödeme Bilgisi Ekle',
     orderIbanLbl:'IBAN', orderBankLbl:'Banka Adı', orderHolderLbl:'Hesap Sahibi',
     orderBankPlh:'örn. Ziraat Bankası', orderHolderPlh:'Ad ve Soyad', orderIbanPlh:'TR...',
     orderSavePayment:'Ödeme Bilgisini Kaydet', orderReviewReceipt:'Ödeme Makbuzunu İncele',
     orderViewReceipt:'Yeni Sekmede Görüntüle', orderApprove:'Ödemeyi Onayla', orderReject:'Ödemeyi Reddet',
     orderRejectReasonLbl:'Red Nedeni', orderRejectReasonPlh:'Red nedenini yazın...',
-    orderConfirmReject:'Reddi Onayla', orderShippingTitle:'Kargo Bilgisi Ekle',
+    orderConfirmReject:'Reddi Onayla', orderRejectPreorder:'Ön Siparişi Reddet', orderConfirmRejectPreorder:'Ön Sipariş Reddini Onayla', orderShippingTitle:'Kargo Bilgisi Ekle',
     orderCarrierLbl:'Kargo / Taşıyıcı Şirketi', orderCarrierPlh:'örn. Aras Kargo',
     orderTrackingLbl:'Takip Numarası', orderSaveShipping:'Kaydet ve Gönder',
     orderCarrierInfo:'Kargo', orderTrackingInfo:'Takip No',
@@ -1024,7 +1024,7 @@ const LANGS = {
     orderSaveError:'Hata', orderFilterOpt:'Durum',
     statusPreorder:'Ön Sipariş', statusPaymentNeeded:'Ödeme Bekleniyor',
     statusApprovalNeeded:'Onay Bekleniyor', statusPreparing:'Hazırlanıyor',
-    statusDelivery:'Kargoda', statusDelivered:'Teslim Edildi', statusCancelled:'İptal Edildi',
+    statusDelivery:'Kargoda', statusDelivered:'Teslim Edildi', statusCancelled:'İptal Edildi', statusRejected:'Reddedildi',
     statusPending:'Beklemede', statusConfirmed:'Onaylandı', statusProcessing:'İşleniyor',
     statusShipped:'Kargoya Verildi', statusReturned:'İade Edildi',
   },
@@ -1088,7 +1088,7 @@ function refreshCurrentTab() {
   if (currentTab === 'products')   loadProducts();
   if (currentTab === 'categories') loadCategories();
   if (currentTab === 'colors')     loadColors();
-  if (currentTab === 'orders')     { renderOrdersTable(); if (_selectedOrder) renderOrderDetail(); }
+  if (currentTab === 'orders' || currentTab === 'active-orders') { renderOrdersTable(); if (_selectedOrder) renderOrderDetail(); }
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -1134,7 +1134,7 @@ function showAdmin() {
 // ─── Navigation ───────────────────────────────────────────────────────────────
 function showTab(tab) {
   currentTab = tab;
-  ['products','categories','colors','sizes','customers','orders'].forEach(t2 => {
+  ['products','categories','colors','sizes','customers','active-orders','orders'].forEach(t2 => {
     const el = document.getElementById(`tab-${t2}`);
     const nav = document.getElementById(`nav-${t2}`);
     if (el)  el.classList.add('hidden');
@@ -1142,12 +1142,13 @@ function showTab(tab) {
   });
   document.getElementById(`tab-${tab}`).classList.remove('hidden');
   document.getElementById(`nav-${tab}`).classList.add('active');
-  if (tab === 'products')   loadProducts();
-  if (tab === 'categories') loadCategories();
-  if (tab === 'colors')     loadColors();
-  if (tab === 'sizes')      loadSizes();
-  if (tab === 'customers')  loadCustomers();
-  if (tab === 'orders')     loadAdminOrders();
+  if (tab === 'products')      loadProducts();
+  if (tab === 'categories')    loadCategories();
+  if (tab === 'colors')        loadColors();
+  if (tab === 'sizes')         loadSizes();
+  if (tab === 'customers')     loadCustomers();
+  if (tab === 'active-orders') loadAdminOrders();
+  if (tab === 'orders')        loadAdminOrders();
 }
 
 // ─── API helper ───────────────────────────────────────────────────────────────
@@ -1273,7 +1274,10 @@ function renderProductsTable(products) {
         <span class="badge ${catBadgeMap[catKey]||''}">${catLabel}</span>
         ${p.subcategories ? `<span style="font-size:11px;color:#999;display:block;margin-top:2px">${p.subcategories.label_fa}</span>` : ''}
       </td>
-      <td style="direction:ltr;text-align:right">${p.price ? Number(p.price).toLocaleString() : '—'}</td>
+      <td style="direction:ltr;text-align:right">
+        ${p.price ? Number(p.price).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' TL' : '—'}
+        ${p.discounted_price ? `<br><span style="color:#ef4444;font-size:11px;font-weight:700">${Number(p.discounted_price).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} TL</span>` : ''}
+      </td>
       <td>${p.stock}</td>
       <td>${colorDots}</td>
       <td style="max-width:120px">${sizeTags}</td>
@@ -1336,7 +1340,7 @@ async function openProductModal(id = null) {
       </div>
       <div class="form-field">
         <label>${t('productCodeLbl')}</label>
-        <input type="text" id="f-code" value="${product?.code||''}" placeholder="${t('productCodePlh')}" style="direction:ltr;font-family:monospace">
+        <input type="text" id="f-code" value="${product?.code||''}" placeholder="${product ? '' : (t('productCodeAuto')||'Auto')}" style="direction:ltr;font-family:monospace;background:#f3f4f6;cursor:default" readonly>
       </div>
     </div>
     <div class="form-row">
@@ -1395,8 +1399,8 @@ async function openProductModal(id = null) {
         <input type="number" id="f-price" value="${product?.price||0}" min="0" style="direction:ltr">
       </div>
       <div class="form-field">
-        <label>${t('stockField')}</label>
-        <input type="number" id="f-stock" value="${product?.stock||0}" min="0" style="direction:ltr">
+        <label>${t('discountedPriceField')}</label>
+        <input type="number" id="f-discounted-price" value="${product?.discounted_price||''}" min="0" placeholder="—" style="direction:ltr">
       </div>
     </div>
 
@@ -1600,7 +1604,7 @@ async function saveProduct(id) {
     category_id: Number(catId),
     subcategory_id: document.getElementById('f-subcategory')?.value || null,
     gender:  document.getElementById('f-gender')?.value || 'unisex',
-    code:    document.getElementById('f-code')?.value?.trim() || null,
+    code:    null,
     name_fa: nameFA,
     name_en: document.getElementById('f-name-en')?.value?.trim() || '',
     name_tr: document.getElementById('f-name-tr')?.value?.trim() || '',
@@ -1610,7 +1614,8 @@ async function saveProduct(id) {
     delivery_days: Number(document.getElementById('f-delivery-days')?.value) || 5,
     tag:   document.getElementById('f-tag')?.value || null,
     price: Number(document.getElementById('f-price')?.value) || 0,
-    stock: Number(document.getElementById('f-stock')?.value) || 0,
+    discounted_price: document.getElementById('f-discounted-price')?.value !== '' ? Number(document.getElementById('f-discounted-price')?.value) || null : null,
+    stock: 0,
     colors,
     sizes,
     media: buildMediaPayload(),
@@ -2147,6 +2152,7 @@ const ORDER_STATUS_KEYS = {
   delivery:        'statusDelivery',
   delivered:       'statusDelivered',
   cancelled:       'statusCancelled',
+  rejected:        'statusRejected',
   pending:         'statusPending',
   confirmed:       'statusConfirmed',
   processing:      'statusProcessing',
@@ -2163,6 +2169,7 @@ const ORDER_STATUS_COLORS = {
   delivery:        '#8b5cf6',
   delivered:       '#16a34a',
   cancelled:       '#9ca3af',
+  rejected:        '#dc2626',
 };
 
 async function loadAdminOrders() {
@@ -2191,17 +2198,23 @@ async function loadAdminOrders() {
   }, 30000);
 }
 
+const ACTIVE_STATUSES   = ['preorder','payment_needed','approval_needed','preparing','delivery'];
+const ARCHIVED_STATUSES = ['delivered','cancelled','rejected'];
+
 function filterOrders() {
   renderOrdersTable();
 }
 
 function renderOrdersTable() {
-  const tbody  = document.getElementById('orders-tbody');
-  const filter = document.getElementById('orders-status-filter')?.value || '';
-  if (!tbody) return;
+  _renderOrderRows('active-orders-tbody', _allAdminOrders.filter(o => ACTIVE_STATUSES.includes(o.status)));
+  const filter  = document.getElementById('orders-status-filter')?.value || '';
+  const archived = _allAdminOrders.filter(o => ARCHIVED_STATUSES.includes(o.status));
+  _renderOrderRows('orders-tbody', filter ? archived.filter(o => o.status === filter) : archived);
+}
 
-  let orders = _allAdminOrders;
-  if (filter) orders = orders.filter(o => o.status === filter);
+function _renderOrderRows(tbodyId, orders) {
+  const tbody = document.getElementById(tbodyId);
+  if (!tbody) return;
 
   if (!orders.length) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#999">${t('ordersEmpty')}</td></tr>`;
@@ -2214,22 +2227,35 @@ function renderOrdersTable() {
     const color  = ORDER_STATUS_COLORS[order.status] || '#6b7280';
     const label  = orderStatusLabel(order.status);
     const cust   = order.customers ? order.customers.full_name : '-';
-    const total  = Number(order.total_amount).toLocaleString(dateLocale);
+    const total  = Number(order.total_amount).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' TL';
     const date   = new Date(order.created_at).toLocaleDateString(dateLocale);
     const items  = order.order_items || [];
     const productLinks = items.map(item => {
       const p = item.products;
       if (!p) return '';
       const pname = p[nameKey] || p.name_fa || '-';
-      return `<a href="#" onclick="event.stopPropagation();openProductFromOrder(${p.id})" style="color:#3b82f6;text-decoration:none;font-size:13px;display:block;line-height:1.6">${pname}</a>`;
+      return `<a href="javascript:void(0)" onclick="event.stopPropagation();openProductFromOrder(${p.id})" style="color:#3b82f6;text-decoration:none;font-size:13px;display:block;line-height:1.6">${pname}</a>`;
     }).join('');
-    return `<tr style="cursor:pointer" onclick="openOrderDetail(${order.id})">
-      <td style="font-family:monospace;font-weight:700">#${order.id}</td>
-      <td>${cust}<br><span style="font-size:12px;color:#888">${order.customers?.mobile||''}</span></td>
-      <td>${productLinks || '-'}</td>
-      <td><span style="background:${color}20;color:${color};border:1px solid ${color}40;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700">${label}</span></td>
-      <td style="direction:ltr;text-align:left">${total}</td>
-      <td style="font-size:13px;color:#888">${date}</td>
+    const noteHtml = order.note
+      ? `<div style="margin-top:5px;font-size:12px;color:#92400e;background:#fffbeb;border-inline-start:2px solid #f59e0b;padding:2px 6px;border-radius:4px;line-height:1.5">💬 ${order.note}</div>`
+      : '';
+    const rejectedAt = order.payment_rejection_reason && order.rejected_at
+      ? new Date(order.rejected_at).toLocaleString(dateLocale)
+      : null;
+    const rejectHtml = order.payment_rejection_reason
+      ? `<div style="margin-top:5px;font-size:12px;color:#b91c1c;background:#fef2f2;border-inline-start:2px solid #f87171;padding:4px 6px;border-radius:4px;line-height:1.6">
+           🚫 ${order.payment_rejection_reason}
+           ${rejectedAt ? `<span style="display:block;color:#9ca3af;font-size:11px;margin-top:1px">${rejectedAt}</span>` : ''}
+         </div>`
+      : '';
+    const _oc = `openOrderDetail(${order.id})`;
+    return `<tr style="cursor:pointer">
+      <td style="font-family:monospace;font-weight:700" onclick="${_oc}">#${order.id}</td>
+      <td onclick="${_oc}">${cust}<br><span style="font-size:12px;color:#888">${order.customers?.mobile||''}</span></td>
+      <td><div onclick="${_oc}" style="cursor:pointer">${productLinks || '-'}${noteHtml}</div></td>
+      <td onclick="${_oc}"><span style="background:${color}20;color:${color};border:1px solid ${color}40;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700">${label}</span></td>
+      <td style="direction:ltr;text-align:left" onclick="${_oc}">${total}</td>
+      <td style="font-size:13px;color:#888" onclick="${_oc}">${date}</td>
     </tr>`;
   }).join('');
 }
@@ -2269,23 +2295,57 @@ function renderOrderDetail() {
   </div>`;
 
   // Customer info
-  html += `<div style="background:#f9fafb;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:14px">
+  html += `<div style="background:#f9fafb;border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:14px">
     <strong>${t('orderCustomerLbl')}:</strong> ${cust.full_name||'-'} &nbsp;|&nbsp; ${t('orderMobileLbl')}: ${cust.mobile||'-'}
+    ${cust.email ? `&nbsp;|&nbsp; ${cust.email}` : ''}
   </div>`;
+
+  // Delivery address
+  const addr = order.addresses;
+  if (addr) {
+    html += `<div style="background:#f0f9ff;border-right:3px solid #38bdf8;border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:13px;line-height:1.7">
+      <strong>${t('orderAddrLbl')}:</strong><br>
+      ${addr.recipient} · <span style="direction:ltr;display:inline-block">${addr.phone}</span><br>
+      ${addr.city}${addr.province ? ' — ' + addr.province : ''}<br>
+      ${addr.detail}${addr.postal_code ? ' <span style="color:#6b7280">(' + addr.postal_code + ')</span>' : ''}
+    </div>`;
+  }
+
+  // Note
+  if (order.note) {
+    html += `<div style="background:#fffbeb;border-right:3px solid #f59e0b;border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:13px">
+      <strong>${t('orderNoteLbl')}:</strong> ${order.note}
+    </div>`;
+  }
 
   // Order items
   if (order.order_items && order.order_items.length) {
-    html += `<div style="margin-bottom:16px"><strong style="font-size:13px;color:#888;display:block;margin-bottom:8px">${t('orderItemsLbl')}</strong>`;
+    let itemsTotal = 0;
+    html += `<div style="margin-bottom:12px"><strong style="font-size:13px;color:#888;display:block;margin-bottom:8px">${t('orderItemsLbl')}</strong>`;
     order.order_items.forEach(item => {
       const p = item.products;
       const pname = p ? (p[nameKey] || p.name_fa || '-') : '-';
-      html += `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px">
-        <span style="flex:1">${pname}${p?.code ? `<span style="font-size:11px;color:#6b7280;font-family:monospace;margin-right:6px"> · ${p.code}</span>` : ''}</span>
-        ${item.colors ? `<span style="background:${item.colors.hex||'#eee'};width:16px;height:16px;border-radius:50%;border:1px solid #ddd;flex-shrink:0;align-self:center"></span>` : ''}
-        ${item.size_label ? `<span>${item.size_label}</span>` : ''}
-        <span>×${item.qty}</span>
+      const linePrice = item.unit_price ? Number(item.unit_price) * item.qty : 0;
+      itemsTotal += linePrice;
+      const colorName = item.colors
+        ? (currentLang === 'fa' ? item.colors.name_fa : currentLang === 'tr' ? item.colors.name_tr : item.colors.name_en) || ''
+        : '';
+      html += `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:13px;align-items:center">
+        <span style="flex:1">${pname}${p?.code ? `<span style="font-size:11px;color:#6b7280;font-family:monospace;margin-right:6px"> · ${p.code}</span>` : ''}${colorName ? `<span style="font-size:11px;color:#9ca3af;margin-right:4px"> · ${colorName}</span>` : ''}</span>
+        ${item.colors ? `<span style="background:${item.colors.hex||'#eee'};width:14px;height:14px;border-radius:50%;border:1px solid #ddd;flex-shrink:0"></span>` : ''}
+        ${item.size_label ? `<span style="color:#6b7280">${item.size_label}</span>` : ''}
+        <span style="color:#6b7280">×${item.qty}</span>
+        ${linePrice ? `<span style="font-weight:600;min-width:80px;text-align:end">${linePrice.toLocaleString('en-US')} TL</span>` : ''}
       </div>`;
     });
+    // Total row
+    const total = order.total_amount || itemsTotal;
+    if (total) {
+      html += `<div style="display:flex;justify-content:space-between;padding:10px 0 0;font-size:14px;font-weight:700;border-top:2px solid #e5e7eb;margin-top:4px">
+        <span>${t('orderTotalLbl')}</span>
+        <span>${Number(total).toLocaleString('en-US')} TL</span>
+      </div>`;
+    }
     html += '</div>';
   }
 
@@ -2301,8 +2361,13 @@ function renderOrderDetail() {
     <div class="form-row cols-1">
       <div class="form-field"><label>${t('orderHolderLbl')}</label><input id="act-holder" placeholder="${t('orderHolderPlh')}" oninput="checkPaymentFields()"></div>
     </div>
-    <div style="text-align:center;margin-top:4px">
-      <button id="btn-save-payment" class="btn btn-primary" onclick="adminSetPaymentInfo(${order.id})" disabled style="opacity:.4;cursor:not-allowed">${t('orderSavePayment')}</button>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button id="btn-save-payment" class="btn btn-primary" onclick="adminSetPaymentInfo(${order.id})" disabled style="flex:1;opacity:.4;cursor:not-allowed">${t('orderSavePayment')}</button>
+      <button class="btn btn-danger" onclick="adminShowPreorderRejectForm(${order.id})" style="flex:1">${t('orderRejectPreorder')}</button>
+    </div>
+    <div id="preorder-reject-form" style="display:none;margin-top:14px">
+      <div class="form-field" style="margin-bottom:10px"><label>${t('orderRejectReasonLbl')}</label><textarea id="preorder-reject-reason" rows="3" placeholder="${t('orderRejectReasonPlh')}"></textarea></div>
+      <button class="btn btn-danger" onclick="adminConfirmRejectPreorder(${order.id})" style="width:100%">${t('orderConfirmRejectPreorder')}</button>
     </div>`;
   }
 
@@ -2356,6 +2421,15 @@ function renderOrderDetail() {
     </div>`;
   }
 
+  if (order.payment_rejection_reason) {
+    const rejDateStr = order.rejected_at ? new Date(order.rejected_at).toLocaleString(dateLocale) : '-';
+    html += `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:13px">
+      <div style="color:#b91c1c;font-size:14px;font-weight:700;margin-bottom:8px">🚫 ${t('orderRejectReasonLbl')}</div>
+      <div style="color:#7f1d1d;margin-bottom:6px;white-space:pre-wrap">${order.payment_rejection_reason}</div>
+      <div style="color:#9ca3af;font-size:12px;direction:ltr;text-align:start">${rejDateStr}</div>
+    </div>`;
+  }
+
   // Show bank/IBAN info if available (for status >= payment_needed)
   if (['payment_needed','approval_needed','preparing','delivery','delivered'].includes(st) && order.iban) {
     html += `<div style="background:#fff5f0;border-right:4px solid var(--primary);border-radius:8px;padding:12px 16px;margin-top:14px;font-size:13px">
@@ -2372,6 +2446,23 @@ function renderOrderDetail() {
 function adminShowRejectForm(id) {
   const f = document.getElementById('reject-form');
   if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+function adminShowPreorderRejectForm(id) {
+  const f = document.getElementById('preorder-reject-form');
+  if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+async function adminConfirmRejectPreorder(orderId) {
+  const reason = document.getElementById('preorder-reject-reason')?.value?.trim() || '';
+  const res = await api(`/admin/orders/${orderId}/reject-preorder`, {
+    method: 'PATCH',
+    body: JSON.stringify({ reason }),
+  });
+  if (!res?.success) return alert(t('orderActionError') || 'Error');
+  _allAdminOrders = _allAdminOrders.map(o => o.id === orderId ? res.data : o);
+  renderOrdersTable();
+  closeOrderDetail();
 }
 
 function enforceIbanPrefix(input) {

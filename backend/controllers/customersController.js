@@ -1,6 +1,6 @@
 const prisma   = require('../prisma/client');
 const crypto   = require('crypto');
-const nodemailer = require('nodemailer');
+const { sendRawEmail, LOGO_CID } = require('../utils/mailer');
 
 // matches frontend: btoa(unescape(encodeURIComponent(pwd)))
 function hashPassword(pass) {
@@ -110,9 +110,12 @@ async function getProfile(req, res, next) {
         id: true, full_name: true, email: true, mobile: true, registered_by: true,
         preferred_lang: true, created_at: true,
         addresses: { select: { id: true, recipient: true, phone: true, city: true, postal_code: true, detail: true, is_default: true } },
+        customer_favorites: { select: { product_id: true } },
       },
     });
-    res.json({ success: true, data: customer });
+    const data = { ...customer, favorites: customer.customer_favorites.map(f => f.product_id) };
+    delete data.customer_favorites;
+    res.json({ success: true, data });
   } catch (err) {
     next(err);
   }
@@ -164,9 +167,10 @@ async function updateProfile(req, res, next) {
   }
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function resolveSession(req, res) {
   const token = req.headers['x-session-token'];
-  if (!token) { res.status(401).json({ success: false, message: 'No session token' }); return null; }
+  if (!token || !UUID_RE.test(token)) { res.status(401).json({ success: false, message: 'No session token' }); return null; }
   const session = await prisma.sessions.findFirst({
     where: { id: token, is_active: true, expires_at: { gt: new Date() } },
   });
@@ -229,7 +233,7 @@ async function deleteAddress(req, res, next) {
 // ─── Forgot Password ──────────────────────────────────────────────────────────
 const EMAIL_CONTENT = {
   fa: {
-    subject: 'بازیابی رمز عبور — Akhgar Store',
+    subject: 'بازیابی رمز عبور — Shilista',
     dir:     'rtl',
     greeting: (name) => `کاربر گرامی ${name}،`,
     body:    'برای تغییر رمز عبور روی دکمه زیر کلیک کنید:',
@@ -238,7 +242,7 @@ const EMAIL_CONTENT = {
     ignore:  'اگر این درخواست را شما ارسال نکرده‌اید، این ایمیل را نادیده بگیرید.',
   },
   en: {
-    subject: 'Password Reset — Akhgar Store',
+    subject: 'Password Reset — Shilista',
     dir:     'ltr',
     greeting: (name) => `Dear ${name},`,
     body:    'Click the button below to reset your password:',
@@ -247,7 +251,7 @@ const EMAIL_CONTENT = {
     ignore:  'If you did not request this, please ignore this email.',
   },
   tr: {
-    subject: 'Şifre Sıfırlama — Akhgar Store',
+    subject: 'Şifre Sıfırlama — Shilista',
     dir:     'ltr',
     greeting: (name) => `Sayın ${name},`,
     body:    'Şifrenizi sıfırlamak için aşağıdaki düğmeye tıklayın:',
@@ -259,19 +263,38 @@ const EMAIL_CONTENT = {
 
 function buildResetEmail(lang, name, resetLink) {
   const c = EMAIL_CONTENT[lang] || EMAIL_CONTENT['fa'];
-  return `
-  <div dir="${c.dir}" style="font-family:Tahoma,Arial,sans-serif;font-size:15px;max-width:500px;margin:0 auto;padding:24px;background:#f9f9f9;border-radius:10px">
-    <div style="background:#111;padding:16px;border-radius:8px;text-align:center;margin-bottom:24px">
-      <span style="color:#FF5C00;font-size:22px;font-weight:bold">Akhgar Store</span>
-    </div>
-    <p style="color:#333;margin-bottom:8px">${c.greeting(name)}</p>
-    <p style="color:#333;margin-bottom:24px">${c.body}</p>
-    <div style="text-align:center;margin-bottom:24px">
-      <a href="${resetLink}" style="background:#FF5C00;color:#fff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:15px;font-weight:bold;display:inline-block">${c.btn}</a>
-    </div>
-    <p style="color:#888;font-size:12px;margin-bottom:4px">${c.expire}</p>
-    <p style="color:#aaa;font-size:11px">${c.ignore}</p>
-  </div>`;
+  return `<!DOCTYPE html>
+<html dir="${c.dir}" lang="${lang}">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,Tahoma,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0eb;padding:32px 0">
+  <tr><td align="center">
+    <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+      <tr>
+        <td style="background:#fff;padding:24px 32px 16px;border-bottom:2px solid #f0e8df;text-align:center">
+          <img src="cid:${LOGO_CID}" alt="Shilista" height="48" style="height:48px;width:auto;display:inline-block">
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:28px 32px" dir="${c.dir}">
+          <p style="margin:0 0 12px;font-size:15px;color:#333">${c.greeting(name)}</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#555">${c.body}</p>
+          <div style="text-align:center;margin-bottom:24px">
+            <a href="${resetLink}" style="background:#c0562a;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-size:15px;font-weight:bold;display:inline-block">${c.btn}</a>
+          </div>
+          <p style="margin:0 0 4px;font-size:12px;color:#888">${c.expire}</p>
+          <p style="margin:0;font-size:11px;color:#aaa">${c.ignore}</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#fdf5ed;padding:16px 32px;border-top:1px solid #f0e8df;text-align:center">
+          <p style="margin:0;font-size:12px;color:#aaa">shilista.com</p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
 }
 
 async function forgotPassword(req, res, next) {
@@ -301,19 +324,8 @@ async function forgotPassword(req, res, next) {
     const resetLink   = `${frontendUrl}/index.html?reset_token=${token}`;
 
     if (process.env.SMTP_HOST && customer.email) {
-      const transporter = nodemailer.createTransport({
-        host:   process.env.SMTP_HOST,
-        port:   Number(process.env.SMTP_PORT) || 587,
-        secure: process.env.SMTP_SECURE === 'true',
-        auth:   { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      });
       const c = EMAIL_CONTENT[safeLang] || EMAIL_CONTENT['fa'];
-      await transporter.sendMail({
-        from:    process.env.SMTP_FROM || process.env.SMTP_USER,
-        to:      customer.email,
-        subject: c.subject,
-        html:    buildResetEmail(safeLang, customer.full_name, resetLink),
-      });
+      await sendRawEmail(customer.email, c.subject, buildResetEmail(safeLang, customer.full_name, resetLink));
       return res.json({ success: true, sent: true });
     }
 
@@ -360,4 +372,83 @@ async function resetPassword(req, res, next) {
   }
 }
 
-module.exports = { register, login, logout, getProfile, updateProfile, addAddress, updateAddress, deleteAddress, forgotPassword, resetPassword };
+async function getFavorites(req, res, next) {
+  try {
+    const session = await resolveSession(req, res);
+    if (!session) return;
+    const rows = await prisma.customer_favorites.findMany({
+      where: { customer_id: session.customer_id },
+      select: { product_id: true },
+    });
+    res.json({ success: true, data: rows.map(r => r.product_id) });
+  } catch (err) { next(err); }
+}
+
+async function addFavorite(req, res, next) {
+  try {
+    const session = await resolveSession(req, res);
+    if (!session) return;
+    const productId = parseInt(req.params.productId, 10);
+    if (!productId) return res.status(400).json({ success: false, message: 'Invalid product' });
+    await prisma.customer_favorites.upsert({
+      where: { customer_id_product_id: { customer_id: session.customer_id, product_id: productId } },
+      create: { customer_id: session.customer_id, product_id: productId },
+      update: {},
+    });
+    res.json({ success: true });
+  } catch (err) { next(err); }
+}
+
+async function removeFavorite(req, res, next) {
+  try {
+    const session = await resolveSession(req, res);
+    if (!session) return;
+    const productId = parseInt(req.params.productId, 10);
+    if (!productId) return res.status(400).json({ success: false, message: 'Invalid product' });
+    await prisma.customer_favorites.deleteMany({
+      where: { customer_id: session.customer_id, product_id: productId },
+    });
+    res.json({ success: true });
+  } catch (err) { next(err); }
+}
+
+async function getCart(req, res, next) {
+  try {
+    const session = await resolveSession(req, res);
+    if (!session) return;
+    const rows = await prisma.cart_items.findMany({
+      where: { customer_id: session.customer_id },
+      select: { product_id: true, color_key: true, size_label: true, qty: true },
+    });
+    const data = rows.map(r => ({ id: r.product_id, colorKey: r.color_key || null, size: r.size_label || null, qty: r.qty }));
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+}
+
+async function syncCart(req, res, next) {
+  try {
+    const session = await resolveSession(req, res);
+    if (!session) return;
+    const items = req.body.items;
+    if (!Array.isArray(items)) return res.status(400).json({ success: false, message: 'items array required' });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.cart_items.deleteMany({ where: { customer_id: session.customer_id } });
+      if (items.length > 0) {
+        await tx.cart_items.createMany({
+          data: items.map(item => ({
+            customer_id: session.customer_id,
+            product_id:  Number(item.id),
+            color_key:   item.colorKey  || null,
+            size_label:  item.size      || null,
+            qty:         Number(item.qty) || 1,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    });
+    res.json({ success: true });
+  } catch (err) { next(err); }
+}
+
+module.exports = { register, login, logout, getProfile, updateProfile, addAddress, updateAddress, deleteAddress, forgotPassword, resetPassword, getFavorites, addFavorite, removeFavorite, getCart, syncCart };

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ShilFit | شیل‌فیت | ShilFit Spor</title>
-  <meta name="description" content="فروشگاه تخصصی ورزشی ShilFit — لباس، کفش و اکسسوری ورزشی">
+  <title>Shilista | شیلیستا | Shilista Spor</title>
+  <meta name="description" content="فروشگاه تخصصی ورزشی Shilista — لباس، کفش و اکسسوری ورزشی">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -22,15 +22,7 @@
     <div class="container">
       <div class="header-inner">
         <a href="#" class="logo">
-          <div class="logo-icon">
-            <svg width="22" height="28" viewBox="0 0 22 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M14 1L2 15h8.5L6 27L20 13h-8.5L14 1z" fill="white"/>
-            </svg>
-          </div>
-          <div class="logo-text">
-            <div class="logo-name"><span class="logo-shil">SHIL</span><span class="logo-fit">FIT</span></div>
-            <span class="logo-tagline" data-i18n="logo_tagline">فروشگاه ورزشی</span>
-          </div>
+          <img src="images/shilista_6_light_full_transparent.png" class="logo-img" alt="Shilista">
         </a>
 
         <nav class="nav-links">
@@ -134,7 +126,7 @@
         </div>
 
         <button class="auth-header-btn" id="auth-header-btn" onclick="handleAuthBtnClick()">👤 ورود</button>
-        <a href="#contact" class="order-btn" data-i18n="order_btn">ثبت سفارش</a>
+        <button class="order-btn" onclick="openCheckout()" data-i18n="order_btn">ثبت سفارش</button>
         <button class="fav-header-btn" id="fav-header-btn" onclick="openFavoritesPanel()" aria-label="Favorites">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
@@ -162,7 +154,7 @@
           <button class="mobile-lang-opt" data-lang="en">EN</button>
           <button class="mobile-lang-opt" data-lang="tr">TR</button>
         </div>
-        <a href="#contact" class="mobile-order-btn" data-i18n="order_btn">ثبت سفارش</a>
+        <button class="mobile-order-btn" onclick="openCheckout();closeMenu()" data-i18n="order_btn">ثبت سفارش</button>
       </nav>
     </div>
   </header>
@@ -280,63 +272,44 @@
     </div>
   </section>
 
-  <!-- بخش سیاست بازگشت -->
-  <section class="policy-section" id="return-policy">
-    <div class="container">
-      <div class="policy-header">
-        <h2 class="policy-title" data-i18n="policy_title">سیاست بازگشت کالا</h2>
-        <p class="policy-subtitle" data-i18n="policy_subtitle">خرید مطمئن، بازگشت آسان</p>
-      </div>
-      <div class="policy-cards">
-        <div class="policy-card">
-          <div class="policy-card-icon">📦</div>
-          <h3 data-i18n="policy_rule1_title">شرط بازگشت</h3>
-          <p data-i18n="policy_rule1_desc">تا ۷ روز پس از دریافت محصول، در صورتی که کالا استفاده نشده باشد، امکان بازگشت وجود دارد.</p>
-        </div>
-        <div class="policy-card">
-          <div class="policy-card-icon">⏰</div>
-          <h3 data-i18n="policy_rule2_title">مهلت ارسال</h3>
-          <p data-i18n="policy_rule2_desc">از زمان ثبت درخواست بازگشت، ۷ روز فرصت دارید تا محصول را به دست ما برسانید.</p>
-        </div>
-        <div class="policy-card">
-          <div class="policy-card-icon">💬</div>
-          <h3 data-i18n="policy_rule3_title">نحوه ثبت درخواست</h3>
-          <p data-i18n="policy_rule3_desc">برای ثبت درخواست بازگشت، کافیه از طریق واتساپ یا تلگرام با ما در تماس باشید.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- فوتر -->
   <footer class="footer">
     <div class="container">
       <div class="footer-content">
         <div class="footer-logo">
           <a href="#" class="logo logo--footer">
-            <div class="logo-icon logo-icon--sm">
-              <svg width="17" height="22" viewBox="0 0 22 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M14 1L2 15h8.5L6 27L20 13h-8.5L14 1z" fill="white"/>
-              </svg>
-            </div>
-            <div class="logo-text">
-              <div class="logo-name"><span class="logo-shil">SHIL</span><span class="logo-fit">FIT</span></div>
-              <span class="logo-tagline" data-i18n="logo_tagline">فروشگاه ورزشی</span>
-            </div>
+            <img src="images/shilista_5_dark_full_transparent.png" class="logo-img logo-img--footer" alt="Shilista">
           </a>
+          <p class="footer-tagline" data-i18n="footer_tagline">بپوش، بدرخش، پیروز شو</p>
         </div>
-        <div class="footer-links">
+        <div class="footer-col">
+          <h4 class="footer-col-title" data-i18n="footer_quick">دسترسی سریع</h4>
           <a href="#products"      data-i18n="footer_products">محصولات</a>
           <a href="#contact"       data-i18n="footer_contact">تماس با ما</a>
-          <a href="#return-policy" data-i18n="policy_title">سیاست بازگشت</a>
           <a class="js-wa-link" href="#" target="_blank" data-i18n="float_wa">واتساپ</a>
           <a class="js-tg-link" href="#" target="_blank" data-i18n="float_tg">تلگرام</a>
         </div>
+        <div class="footer-col">
+          <h4 class="footer-col-title" data-i18n="footer_legal">اطلاعات قانونی</h4>
+          <a href="#" onclick="openLegalModal('company');return false" data-i18n="footer_company_info">اطلاعات شرکت</a>
+          <a href="#" onclick="openLegalModal('terms');return false"   data-i18n="footer_terms">شرایط و قوانین خرید</a>
+          <a href="#" onclick="openLegalModal('return');return false" data-i18n="footer_return">سیاست مرجوعی کالا</a>
+          <a href="#" onclick="openLegalModal('privacy');return false" data-i18n="footer_privacy">سیاست حریم خصوصی (KVKK)</a>
+        </div>
       </div>
       <div class="footer-bottom">
-        <p data-i18n="footer_copy">© ۱۴۰۴ ShilFit — تمامی حقوق محفوظ است</p>
+        <p data-i18n="footer_copy">© ۱۴۰۴ Shilista — تمامی حقوق محفوظ است</p>
       </div>
     </div>
   </footer>
+
+  <!-- Legal Modal -->
+  <div id="legal-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeLegalModal()">
+    <div class="legal-modal-box">
+      <button class="auth-modal-close" onclick="closeLegalModal()">✕</button>
+      <div id="legal-modal-content"></div>
+    </div>
+  </div>
 
   <!-- دکمه‌های شناور -->
   <div class="floating-buttons">
@@ -554,8 +527,75 @@
       </div>
     </div>
   </div>
-  <script src="i18n.js?v=46"></script>
-  <script src="products.js?v=46"></script>
-  <script src="main.js?v=46"></script>
+  <!-- ═══ CHECKOUT PAGE ═══ -->
+  <div class="checkout-overlay" id="checkout-overlay">
+    <div class="checkout-page" id="checkout-page">
+
+      <!-- Header -->
+      <div class="checkout-header">
+        <button class="checkout-back-btn" onclick="closeCheckout()" id="checkout-back-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          <span data-i18n="checkout_back">بازگشت به سبد</span>
+        </button>
+        <h2 class="checkout-title" data-i18n="checkout_title">تایید و ثبت سفارش</h2>
+      </div>
+
+      <!-- Body -->
+      <div class="checkout-body">
+
+        <!-- Items -->
+        <section class="checkout-section">
+          <h3 class="checkout-section-title" data-i18n="checkout_items">محصولات</h3>
+          <div id="checkout-items-list"></div>
+        </section>
+
+        <!-- Address -->
+        <section class="checkout-section">
+          <h3 class="checkout-section-title" data-i18n="checkout_address">آدرس تحویل</h3>
+          <div id="checkout-addr-selected"></div>
+          <div id="checkout-addr-list" style="display:none"></div>
+          <button class="checkout-add-addr-btn" onclick="checkoutAddAddress()" id="checkout-add-addr-btn" style="display:none" data-i18n="checkout_add_addr">+ افزودن آدرس جدید</button>
+          <!-- inline address form -->
+          <div id="checkout-addr-form" style="display:none">
+            <div class="address-form-grid" style="margin-top:12px">
+              <div class="form-field"><label data-i18n="addr_name_label">نام گیرنده</label><input id="co-addr-name"><span class="auth-field-error" id="co-addr-name-err"></span></div>
+              <div class="form-field"><label data-i18n="addr_phone_label">شماره تماس</label><input id="co-addr-phone"><span class="auth-field-error" id="co-addr-phone-err"></span></div>
+              <div class="form-field"><label data-i18n="addr_city_label">شهر</label><input id="co-addr-city"><span class="auth-field-error" id="co-addr-city-err"></span></div>
+              <div class="form-field"><label data-i18n="addr_postal_label">کد پستی</label><input id="co-addr-postal"></div>
+            </div>
+            <div class="form-field"><label data-i18n="addr_detail_label">آدرس کامل</label><textarea id="co-addr-detail" rows="2"></textarea><span class="auth-field-error" id="co-addr-detail-err"></span></div>
+            <div class="addr-form-actions">
+              <button class="auth-submit-btn" onclick="checkoutSaveAddress()" data-i18n="addr_save_btn">ذخیره آدرس</button>
+              <button class="addr-cancel-btn" onclick="checkoutCancelAddress()" data-i18n="addr_cancel_btn">انصراف</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Note -->
+        <section class="checkout-section">
+          <h3 class="checkout-section-title" data-i18n="checkout_note">توضیحات</h3>
+          <textarea class="checkout-note-input" id="checkout-note" rows="3" data-i18n-ph="checkout_note_ph" placeholder="توضیح سفارش، درخواست خاص..."></textarea>
+        </section>
+
+      </div>
+
+      <!-- Footer -->
+      <div class="checkout-footer">
+        <div class="checkout-total-row">
+          <span data-i18n="checkout_total">جمع کل</span>
+          <span class="checkout-total-price" id="checkout-total-price"></span>
+        </div>
+        <button class="checkout-submit-btn" id="checkout-submit-btn" onclick="submitCheckout()">
+          <span data-i18n="checkout_submit">ثبت پیش‌سفارش</span>
+        </button>
+        <div class="checkout-err" id="checkout-err"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="i18n.js?v=49"></script>
+  <script src="products.js?v=49"></script>
+  <script src="main.js?v=49"></script>
 </body>
 </html>

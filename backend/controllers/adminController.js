@@ -303,7 +303,7 @@ async function updateProduct(req, res, next) {
   try {
     const id = Number(req.params.id);
     const {
-      category_id, subcategory_id, gender, code, name_fa, name_en, name_tr,
+      category_id, subcategory_id, gender, name_fa, name_en, name_tr,
       desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price, stock, is_active, delivery_days,
       colors, sizes, media, inventory,
     } = req.body;
@@ -321,7 +321,6 @@ async function updateProduct(req, res, next) {
         category_id:    Number(category_id),
         subcategory_id: subcategory_id ? Number(subcategory_id) : null,
         gender:         gender || 'unisex',
-        code:          code?.trim() || null,
         name_fa,
         name_en: name_en || name_fa,
         name_tr: name_tr || name_fa,
@@ -520,6 +519,7 @@ async function rejectPayment(req, res, next) {
       data:  {
         status:                   'payment_needed',
         payment_rejection_reason: reason || null,
+        rejected_at:              new Date(),
         payment_receipt_url:      null,
         updated_at:               new Date(),
       },
@@ -539,6 +539,29 @@ async function rejectPayment(req, res, next) {
         }
       }
       sendOrderEmail(updated.customers, updated, 'rejected', extraInfo, attachFiles).catch(() => {});
+    }
+    res.json({ success: true, data: updated });
+  } catch (err) { next(err); }
+}
+
+async function rejectPreorder(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const order = await prisma.orders.findUnique({ where: { id } });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.status !== 'preorder') {
+      return res.status(400).json({ success: false, message: 'Order must be in preorder status' });
+    }
+    const { reason } = req.body;
+    const updated = await prisma.orders.update({
+      where: { id },
+      data:  { status: 'rejected', payment_rejection_reason: reason || null, rejected_at: new Date(), updated_at: new Date() },
+      include: ADMIN_ORDER_INCLUDE,
+    });
+    if (updated.customers) {
+      const ol = updated.lang || 'fa';
+      const extraInfo = reason ? [{ label: label('reject_reason', ol), value: reason }] : [];
+      sendOrderEmail(updated.customers, updated, 'preorder_rejected', extraInfo).catch(() => {});
     }
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
@@ -598,5 +621,5 @@ module.exports = {
   getSizes, createSize, updateSize, deleteSize,
   getAdminCustomers, updateAdminCustomer,
   getProducts, createProduct, updateProduct, deleteProduct,
-  getAdminOrders, setPaymentInfo, approvePayment, rejectPayment, setShipping, markDelivered,
+  getAdminOrders, setPaymentInfo, approvePayment, rejectPayment, rejectPreorder, setShipping, markDelivered,
 };
