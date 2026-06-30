@@ -1747,7 +1747,7 @@ function hashPass(pwd) { return btoa(unescape(encodeURIComponent(pwd))); }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 function validateEmail(e)    { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim()); }
-function validateMobile(m)   { return /^0[59][0-9]{9}$/.test(m.replace(/[\s\-]/g, '')); }
+function validateMobile(m)   { return /^05[0-9]{9}$/.test(m.replace(/[\s\-]/g, '')); }
 function validatePassword(p) { return p.length >= 8 && /[A-Z]/.test(p) && /[a-z]/.test(p) && /[0-9]/.test(p); }
 
 // ─── Auth UI helpers ──────────────────────────────────────────────────────────
@@ -2525,10 +2525,11 @@ function saveAddress() {
   });
   var t2 = TRANSLATIONS[currentLang];
   var valid = true;
-  if (!name)   { setAuthError('addr-name-err',   t2.err_addr_name);   valid = false; }
-  if (!phone)  { setAuthError('addr-phone-err',  t2.err_addr_phone);  valid = false; }
-  if (!city)   { setAuthError('addr-city-err',   t2.err_addr_city);   valid = false; }
-  if (!detail) { setAuthError('addr-detail-err', t2.err_addr_detail); valid = false; }
+  if (!name)                      { setAuthError('addr-name-err',   t2.err_addr_name);               valid = false; }
+  if (!phone)                     { setAuthError('addr-phone-err',  t2.err_addr_phone);              valid = false; }
+  else if (!validateMobile(phone)){ setAuthError('addr-phone-err',  t2.err_mobile_inv || '05 ile başlamalı'); valid = false; }
+  if (!city)                      { setAuthError('addr-city-err',   t2.err_addr_city);               valid = false; }
+  if (!detail)                    { setAuthError('addr-detail-err', t2.err_addr_detail);             valid = false; }
   if (!valid) return;
 
   var user = getCurrentUser();

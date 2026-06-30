@@ -2,6 +2,10 @@ const prisma   = require('../prisma/client');
 const crypto   = require('crypto');
 const { sendRawEmail, LOGO_CID } = require('../utils/mailer');
 
+function isValidMobile(m) {
+  return /^05[0-9]{9}$/.test((m || '').replace(/[\s\-]/g, ''));
+}
+
 // matches frontend: btoa(unescape(encodeURIComponent(pwd)))
 function hashPassword(pass) {
   return Buffer.from(pass, 'utf8').toString('base64');
@@ -13,6 +17,9 @@ async function register(req, res, next) {
     const customerName = full_name || name;
     if (!customerName || !password || (!email && !mobile)) {
       return res.status(400).json({ success: false, message: 'name, password and email or mobile are required' });
+    }
+    if (mobile && !isValidMobile(mobile)) {
+      return res.status(400).json({ success: false, message: 'invalid_mobile' });
     }
     const existing = await prisma.customers.findFirst({
       where: { OR: [email ? { email } : {}, mobile ? { mobile } : {}] },
@@ -146,6 +153,7 @@ async function updateProfile(req, res, next) {
     }
 
     if (mobile && mobile !== customer.mobile) {
+      if (!isValidMobile(mobile)) return res.status(400).json({ success: false, message: 'invalid_mobile' });
       const taken = await prisma.customers.findFirst({ where: { mobile, NOT: { id: customer.id } } });
       if (taken) return res.status(409).json({ success: false, message: 'Mobile already in use' });
     }
@@ -185,6 +193,7 @@ async function addAddress(req, res, next) {
     if (!recipient || !phone || !city || !detail) {
       return res.status(400).json({ success: false, message: 'recipient, phone, city, detail are required' });
     }
+    if (!isValidMobile(phone)) return res.status(400).json({ success: false, message: 'invalid_mobile' });
     const address = await prisma.addresses.create({
       data: { customer_id: session.customer_id, recipient, phone, city, postal_code: postal_code || null, detail },
     });
@@ -199,6 +208,7 @@ async function updateAddress(req, res, next) {
     const existing = await prisma.addresses.findFirst({ where: { id, customer_id: session.customer_id } });
     if (!existing) return res.status(404).json({ success: false, message: 'Address not found' });
     const { recipient, phone, city, postal_code, detail, is_default } = req.body;
+    if (phone && !isValidMobile(phone)) return res.status(400).json({ success: false, message: 'invalid_mobile' });
     if (is_default) {
       await prisma.$executeRaw`UPDATE addresses SET is_default = false WHERE customer_id = ${session.customer_id}`;
       await prisma.$executeRaw`UPDATE addresses SET is_default = true  WHERE id = ${id} AND customer_id = ${session.customer_id}`;

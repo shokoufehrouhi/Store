@@ -559,7 +559,18 @@
     <div id="tab-active-orders" class="hidden">
       <div class="page-header">
         <h2>🔥 <span data-i18n="navActiveOrders">سفارشات فعال</span></h2>
-        <button class="btn btn-secondary btn-sm" onclick="loadAdminOrders()" data-i18n="ordersRefresh">🔄 بروزرسانی</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="active-orders-search" type="text" placeholder="" data-i18n-placeholder="ordersSearchPlh" oninput="renderOrdersTable()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;min-width:220px">
+          <select id="active-orders-status-filter" onchange="renderOrdersTable()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
+            <option value="" data-i18n="ordersFilterAll">همه</option>
+            <option value="preorder"         data-i18n="statusPreorder">پیش‌سفارش</option>
+            <option value="payment_needed"   data-i18n="statusPaymentNeeded">در انتظار پرداخت</option>
+            <option value="approval_needed"  data-i18n="statusApprovalNeeded">در انتظار تأیید</option>
+            <option value="preparing"        data-i18n="statusPreparing">در حال آماده‌سازی</option>
+            <option value="delivery"         data-i18n="statusDelivery">ارسال شده</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="loadAdminOrders()" data-i18n="ordersRefresh">🔄 بروزرسانی</button>
+        </div>
       </div>
       <div class="page-body">
         <div class="card"><div class="table-wrap">
@@ -584,6 +595,7 @@
       <div class="page-header">
         <h2>📋 <span data-i18n="navOrders">سفارشات تکمیل‌شده</span></h2>
         <div style="display:flex;gap:8px;align-items:center">
+          <input id="orders-search" type="text" placeholder="" data-i18n-placeholder="ordersSearchPlh" oninput="renderOrdersTable()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;min-width:220px">
           <select id="orders-status-filter" onchange="filterOrders()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
             <option value="" data-i18n="ordersFilterAll">همه</option>
             <option value="delivered"  data-i18n="statusDelivered">تحویل شده</option>
@@ -797,6 +809,7 @@ const LANGS = {
     statusDelivery:'ارسال شده', statusDelivered:'تحویل شده', statusCancelled:'لغو شده', statusRejected:'رد شده',
     statusPending:'معلق', statusConfirmed:'تأیید شده', statusProcessing:'در حال پردازش',
     statusShipped:'ارسال شده', statusReturned:'برگشت خورده',
+    ordersSearchPlh:'جستجو: شماره، موبایل، ایمیل...',
   },
   en: {
     dir: 'ltr', lang: 'en',
@@ -912,6 +925,7 @@ const LANGS = {
     statusDelivery:'Shipped', statusDelivered:'Delivered', statusCancelled:'Cancelled', statusRejected:'Rejected',
     statusPending:'Pending', statusConfirmed:'Confirmed', statusProcessing:'Processing',
     statusShipped:'Shipped', statusReturned:'Returned',
+    ordersSearchPlh:'Search: order #, mobile, email...',
   },
   tr: {
     dir: 'ltr', lang: 'tr',
@@ -1027,6 +1041,7 @@ const LANGS = {
     statusDelivery:'Kargoda', statusDelivered:'Teslim Edildi', statusCancelled:'İptal Edildi', statusRejected:'Reddedildi',
     statusPending:'Beklemede', statusConfirmed:'Onaylandı', statusProcessing:'İşleniyor',
     statusShipped:'Kargoya Verildi', statusReturned:'İade Edildi',
+    ordersSearchPlh:'Ara: sipariş #, mobil, e-posta...',
   },
 };
 
@@ -2205,11 +2220,29 @@ function filterOrders() {
   renderOrdersTable();
 }
 
+function _matchesOrderSearch(order, q) {
+  if (!q) return true;
+  const id     = String(order.id);
+  const mobile = (order.customers?.mobile || '').toLowerCase();
+  const email  = (order.customers?.email  || '').toLowerCase();
+  return id.includes(q) || mobile.includes(q) || email.includes(q);
+}
+
 function renderOrdersTable() {
-  _renderOrderRows('active-orders-tbody', _allAdminOrders.filter(o => ACTIVE_STATUSES.includes(o.status)));
-  const filter  = document.getElementById('orders-status-filter')?.value || '';
-  const archived = _allAdminOrders.filter(o => ARCHIVED_STATUSES.includes(o.status));
-  _renderOrderRows('orders-tbody', filter ? archived.filter(o => o.status === filter) : archived);
+  const activeQ      = (document.getElementById('active-orders-search')?.value || '').trim().toLowerCase();
+  const activeStatus = document.getElementById('active-orders-status-filter')?.value || '';
+  const archivedQ    = (document.getElementById('orders-search')?.value || '').trim().toLowerCase();
+
+  let active = _allAdminOrders.filter(o => ACTIVE_STATUSES.includes(o.status));
+  if (activeStatus) active = active.filter(o => o.status === activeStatus);
+  active = active.filter(o => _matchesOrderSearch(o, activeQ));
+  _renderOrderRows('active-orders-tbody', active);
+
+  const statusFilter = document.getElementById('orders-status-filter')?.value || '';
+  let archived = _allAdminOrders.filter(o => ARCHIVED_STATUSES.includes(o.status));
+  if (statusFilter) archived = archived.filter(o => o.status === statusFilter);
+  archived = archived.filter(o => _matchesOrderSearch(o, archivedQ));
+  _renderOrderRows('orders-tbody', archived);
 }
 
 function _renderOrderRows(tbodyId, orders) {
@@ -2252,7 +2285,7 @@ function _renderOrderRows(tbodyId, orders) {
     return `<tr style="cursor:pointer">
       <td style="font-family:monospace;font-weight:700" onclick="${_oc}">#${order.id}</td>
       <td onclick="${_oc}">${cust}<br><span style="font-size:12px;color:#888">${order.customers?.mobile||''}</span></td>
-      <td><div onclick="${_oc}" style="cursor:pointer">${productLinks || '-'}${noteHtml}</div></td>
+      <td><div onclick="${_oc}" style="cursor:pointer">${productLinks || '-'}</div></td>
       <td onclick="${_oc}"><span style="background:${color}20;color:${color};border:1px solid ${color}40;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700">${label}</span></td>
       <td style="direction:ltr;text-align:left" onclick="${_oc}">${total}</td>
       <td style="font-size:13px;color:#888" onclick="${_oc}">${date}</td>

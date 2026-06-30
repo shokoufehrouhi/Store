@@ -403,6 +403,9 @@ async function updateAdminCustomer(req, res, next) {
       if (taken) return res.status(409).json({ success: false, message: 'Email already in use' });
     }
     if (mobile) {
+      if (!/^05[0-9]{9}$/.test((mobile || '').replace(/[\s\-]/g, ''))) {
+        return res.status(400).json({ success: false, message: 'invalid_mobile' });
+      }
       const taken = await prisma.customers.findFirst({ where: { mobile, NOT: { id } } });
       if (taken) return res.status(409).json({ success: false, message: 'Mobile already in use' });
     }
