@@ -164,9 +164,11 @@ async function updateProfile(req, res, next) {
     const customer = await prisma.customers.findUnique({ where: { id: session.customer_id } });
     if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
 
-    const { email, mobile, full_name } = req.body;
+    const { email, full_name } = req.body;
+    const hasMobileKey = Object.prototype.hasOwnProperty.call(req.body, 'mobile');
+    const mobileRaw = hasMobileKey ? (req.body.mobile || null) : undefined;
 
-    if (!email && !mobile && !full_name) {
+    if (!email && !hasMobileKey && !full_name) {
       return res.status(400).json({ success: false, message: 'email, mobile, or full_name is required' });
     }
 
@@ -175,20 +177,24 @@ async function updateProfile(req, res, next) {
       if (taken) return res.status(409).json({ success: false, message: 'Email already in use' });
     }
 
-    if (mobile && mobile !== customer.mobile) {
-      if (!isValidMobile(mobile)) return res.status(400).json({ success: false, message: 'invalid_mobile' });
-      const taken = await prisma.customers.findFirst({ where: { mobile, NOT: { id: customer.id } } });
+    if (mobileRaw && mobileRaw !== customer.mobile) {
+      if (!isValidMobile(mobileRaw)) return res.status(400).json({ success: false, message: 'invalid_mobile' });
+      const taken = await prisma.customers.findFirst({ where: { mobile: mobileRaw, NOT: { id: customer.id } } });
       if (taken) return res.status(409).json({ success: false, message: 'Mobile already in use' });
+    }
+
+    const dataUpdate = { updated_at: new Date() };
+    if (full_name) dataUpdate.full_name = full_name;
+    if (email) dataUpdate.email = email;
+    if (mobileRaw) {
+      dataUpdate.mobile = mobileRaw;
+    } else if (hasMobileKey && mobileRaw === null && customer.registered_by !== 'm') {
+      dataUpdate.mobile = null;
     }
 
     const updated = await prisma.customers.update({
       where: { id: customer.id },
-      data: {
-        ...(full_name ? { full_name } : {}),
-        ...(email     ? { email }     : {}),
-        ...(mobile    ? { mobile }    : {}),
-        updated_at: new Date(),
-      },
+      data: dataUpdate,
       select: { id: true, full_name: true, email: true, mobile: true, registered_by: true },
     });
 

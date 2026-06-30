@@ -1,11 +1,11 @@
 // ─── Confirm Popup ────────────────────────────────────────────────────────────
-function showConfirm(msg, onYes) {
+function showConfirm(msg, onYes, yesLabel) {
   var t   = TRANSLATIONS[currentLang];
   var ov  = document.getElementById('confirm-overlay');
   var box = document.getElementById('confirm-box');
   if (!ov) return onYes();
   document.getElementById('confirm-msg').textContent = msg;
-  document.getElementById('confirm-yes').textContent = t.confirm_yes || 'بله';
+  document.getElementById('confirm-yes').textContent = yesLabel || t.confirm_yes || 'بله';
   document.getElementById('confirm-no').textContent  = t.confirm_no  || 'انصراف';
   ov.style.display = 'flex';
   function close() { ov.style.display = 'none'; ov.removeEventListener('click', onOverlay); }
@@ -345,6 +345,22 @@ function registerPreorder() {
   var user = getCurrentUser();
   if (!user) { openAuthModal('login'); return; }
   if (!cart.length) return;
+
+  var t = TRANSLATIONS[currentLang];
+  var missingEmail  = !user.email;
+  var missingMobile = !user.mobile;
+  if (missingEmail || missingMobile) {
+    var msg = missingEmail && missingMobile
+      ? (t.order_need_email_mobile || 'برای ثبت سفارش باید ایمیل و موبایل در پروفایل ثبت شده باشد')
+      : missingEmail
+        ? (t.order_need_email  || 'برای ثبت سفارش باید ایمیل در پروفایل ثبت شده باشد')
+        : (t.order_need_mobile || 'برای ثبت سفارش باید موبایل در پروفایل ثبت شده باشد');
+    showConfirm(msg, function() {
+      openProfileModal();
+      showProfileTab('info');
+    }, t.go_to_profile || 'رفتن به پروفایل');
+    return;
+  }
 
   var token = getSession();
   var items = cart.map(function(item) {
@@ -2358,7 +2374,10 @@ function saveInfoAll() {
 
   var body = { full_name: nameVal };
   if (user.registered_by !== 'e' && emailVal  && emailVal  !== user.email)  body.email  = emailVal;
-  if (user.registered_by !== 'm' && mobileVal && mobileVal !== user.mobile) body.mobile = mobileVal;
+  if (user.registered_by !== 'm') {
+    if (mobileVal && mobileVal !== user.mobile) body.mobile = mobileVal;
+    else if (!mobileVal && user.mobile) body.mobile = null;
+  }
 
   var btn = document.getElementById('info-save-btn');
   if (btn) { btn.disabled = true; btn.style.opacity = '.7'; }
@@ -3196,12 +3215,37 @@ function submitCheckout() {
   var t    = TRANSLATIONS[currentLang];
   var user = getCurrentUser();
   if (!user || !cart.length) return;
+
+  var missingEmail  = !user.email;
+  var missingMobile = !user.mobile;
+  if (missingEmail || missingMobile) {
+    var msg = (missingEmail && missingMobile)
+      ? (t.order_need_email_mobile || 'Email va mobile lazem ast')
+      : missingEmail
+        ? (t.order_need_email  || 'Email lazem ast')
+        : (t.order_need_mobile || 'Mobile lazem ast');
+    showConfirm(msg, function() {
+      closeCheckout();
+      openProfileModal();
+      showProfileTab('info');
+    }, t.go_to_profile || 'Raft be profile');
+    return;
+  }
+
   var addrs = user.addresses || [];
   var errEl = document.getElementById('checkout-err');
   errEl.textContent = '';
 
-  if (addrs.length && !_checkoutAddrId) {
-    errEl.textContent = t.checkout_select_addr || 'یک آدرس انتخاب کنید';
+  if (!_checkoutAddrId) {
+    if (addrs.length) {
+      showConfirm(t.checkout_select_addr || 'یک آدرس انتخاب کنید', function() {});
+    } else {
+      showConfirm(t.checkout_need_addr || 'ابتدا یک آدرس تحویل اضافه کنید', function() {
+        closeCheckout();
+        openProfileModal();
+        showProfileTab('addresses');
+      }, t.checkout_add_addr_btn || 'افزودن آدرس');
+    }
     return;
   }
 
