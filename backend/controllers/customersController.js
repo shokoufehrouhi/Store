@@ -1,14 +1,29 @@
 const prisma   = require('../prisma/client');
 const crypto   = require('crypto');
+const bcrypt   = require('bcrypt');
 const { sendRawEmail, LOGO_CID } = require('../utils/mailer');
+
+const BCRYPT_ROUNDS = 12;
 
 function isValidMobile(m) {
   return /^05[0-9]{9}$/.test((m || '').replace(/[\s\-]/g, ''));
 }
 
-// matches frontend: btoa(unescape(encodeURIComponent(pwd)))
-function hashPassword(pass) {
+function legacyHash(pass) {
   return Buffer.from(pass, 'utf8').toString('base64');
+}
+
+async function hashPassword(pass) {
+  return bcrypt.hash(pass, BCRYPT_ROUNDS);
+}
+
+async function verifyPassword(plain, stored) {
+  // bcrypt hashes start with $2b$
+  if (stored && stored.startsWith('$2b$')) {
+    return bcrypt.compare(plain, stored);
+  }
+  // legacy base64
+  return stored === legacyHash(plain);
 }
 
 async function register(req, res, next) {
@@ -28,7 +43,7 @@ async function register(req, res, next) {
 
     const customer = await prisma.customers.create({
       data: { full_name: customerName, email: email || null, mobile: mobile || null,
-              password_hash: hashPassword(password), preferred_lang: preferred_lang || 'fa',
+              password_hash: await hashPassword(password), preferred_lang: preferred_lang || 'fa',
               registered_by: email ? 'e' : 'm' },
       select: { id: true, full_name: true, email: true, mobile: true, registered_by: true, preferred_lang: true, created_at: true },
     });
@@ -57,8 +72,16 @@ async function login(req, res, next) {
     const customer = await prisma.customers.findFirst({
       where: isEmail ? { email: identifier } : { mobile: identifier },
     });
-    if (!customer || customer.password_hash !== hashPassword(password)) {
+    if (!customer || !(await verifyPassword(password, customer.password_hash))) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+    if (!customer.is_active) {
+      return res.status(403).json({ success: false, message: 'Account is deactivated' });
+    }
+    // auto-upgrade legacy base64 hash to bcrypt on successful login
+    if (customer.password_hash && !customer.password_hash.startsWith('$2b$')) {
+      const upgraded = await hashPassword(password);
+      await prisma.customers.update({ where: { id: customer.id }, data: { password_hash: upgraded } });
     }
 
     // create session
@@ -181,8 +204,10 @@ async function resolveSession(req, res) {
   if (!token || !UUID_RE.test(token)) { res.status(401).json({ success: false, message: 'No session token' }); return null; }
   const session = await prisma.sessions.findFirst({
     where: { id: token, is_active: true, expires_at: { gt: new Date() } },
+    include: { customers: { select: { is_active: true } } },
   });
   if (!session) { res.status(401).json({ success: false, message: 'Session expired' }); return null; }
+  if (!session.customers?.is_active) { res.status(403).json({ success: false, message: 'Account is deactivated' }); return null; }
   return session;
 }
 
@@ -331,7 +356,7 @@ async function forgotPassword(req, res, next) {
     });
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5500';
-    const resetLink   = `${frontendUrl}/index.html?reset_token=${token}`;
+    const resetLink   = `${frontendUrl}/index.html#reset_token=${token}`;
 
     if (process.env.SMTP_HOST && customer.email) {
       const c = EMAIL_CONTENT[safeLang] || EMAIL_CONTENT['fa'];
@@ -339,8 +364,7 @@ async function forgotPassword(req, res, next) {
       return res.json({ success: true, sent: true });
     }
 
-    // no SMTP — return link for admin to share manually
-    return res.json({ success: true, sent: false, reset_link: resetLink });
+    return res.json({ success: true, sent: false });
   } catch (err) {
     next(err);
   }
@@ -363,7 +387,7 @@ async function resetPassword(req, res, next) {
     await prisma.customers.update({
       where: { id: customer.id },
       data:  {
-        password_hash:       hashPassword(password),
+        password_hash:       await hashPassword(password),
         reset_token:         null,
         reset_token_expires: null,
         updated_at:          new Date(),

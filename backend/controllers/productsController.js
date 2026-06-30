@@ -66,10 +66,28 @@ async function create(req, res, next) {
 
 async function update(req, res, next) {
   try {
-    const product = await prisma.products.update({
-      where: { id: Number(req.params.id) },
-      data: req.body,
-    });
+    const { category_id, subcategory_id, gender, name_fa, name_en, name_tr,
+            desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price,
+            stock, delivery_days, is_active, emoji } = req.body;
+    const data = {};
+    if (category_id    != null) data.category_id    = category_id;
+    if (subcategory_id != null) data.subcategory_id = subcategory_id;
+    if (gender         != null) data.gender         = gender;
+    if (name_fa        != null) data.name_fa        = name_fa;
+    if (name_en        != null) data.name_en        = name_en;
+    if (name_tr        != null) data.name_tr        = name_tr;
+    if (desc_fa        != null) data.desc_fa        = desc_fa;
+    if (desc_en        != null) data.desc_en        = desc_en;
+    if (desc_tr        != null) data.desc_tr        = desc_tr;
+    if (gradient       != null) data.gradient       = gradient;
+    if (emoji          != null) data.emoji          = emoji;
+    if (tag            != null) data.tag            = tag;
+    if (price          != null) data.price          = price;
+    if (discounted_price != null) data.discounted_price = discounted_price;
+    if (stock          != null) data.stock          = stock;
+    if (delivery_days  != null) data.delivery_days  = Number(delivery_days);
+    if (is_active      != null) data.is_active      = Boolean(is_active);
+    const product = await prisma.products.update({ where: { id: Number(req.params.id) }, data });
     res.json({ success: true, data: product });
   } catch (err) {
     next(err);

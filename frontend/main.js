@@ -42,8 +42,9 @@ function closeToast() {
 var PLACEHOLDER_SVG = '<svg class="img-placeholder" viewBox="0 0 22 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 1L2 15h8.5L6 27L20 13h-8.5L14 1z" fill="white" opacity="0.18"/></svg>';
 
 // ─── State ────────────────────────────────────────────────────────────────────
-var API_BASE           = 'http://localhost:3001/api';
-var SERVER_BASE        = 'http://localhost:3001';
+var _isLocal    = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+var SERVER_BASE = _isLocal ? 'http://localhost:3001' : '';
+var API_BASE    = SERVER_BASE + '/api';
 var currentLang        = localStorage.getItem('lang') || 'fa';
 var currentSearch      = '';
 var currentCategory    = 'all';
@@ -1862,6 +1863,8 @@ function doLogin() {
       loadCartFromServer();
       loadFavoritesFromServer();
       executePendingCart();
+    } else if (r.status === 429) {
+      setAuthError('login-pass-err', t.err_too_many_attempts || 'Too many attempts, try again later');
     } else {
       setAuthError('login-id-err', t.err_login_invalid);
     }
@@ -2356,7 +2359,6 @@ function saveInfoAll() {
   var body = { full_name: nameVal };
   if (user.registered_by !== 'e' && emailVal  && emailVal  !== user.email)  body.email  = emailVal;
   if (user.registered_by !== 'm' && mobileVal && mobileVal !== user.mobile) body.mobile = mobileVal;
-  console.log('[saveInfoAll] registered_by:', user.registered_by, '| emailVal:', emailVal, '| user.email:', user.email, '| body:', JSON.stringify(body));
 
   var btn = document.getElementById('info-save-btn');
   if (btn) { btn.disabled = true; btn.style.opacity = '.7'; }
@@ -3371,10 +3373,11 @@ document.addEventListener('DOMContentLoaded', function() {
   initIdleTimer();
 
   // Check for password reset token in URL
-  var urlParams = new URLSearchParams(window.location.search);
-  var resetToken = urlParams.get('reset_token');
+  var hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  var resetToken = hashParams.get('reset_token');
   if (resetToken) {
     _resetToken = resetToken;
+    window.history.replaceState({}, '', window.location.pathname);
     setTimeout(function() { openAuthModal('reset'); }, 300);
   }
 

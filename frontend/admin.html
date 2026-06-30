@@ -1046,13 +1046,16 @@ const LANGS = {
 };
 
 // ─── State ────────────────────────────────────────────────────────────────────
-const API = 'http://localhost:3001/api';
+const _isLocal   = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+const SERVER_URL = _isLocal ? 'http://localhost:3001' : '';
+const API        = SERVER_URL + '/api';
 let token = sessionStorage.getItem('admin_token');
 let currentLang = localStorage.getItem('admin_lang') || 'fa';
 let allCategories = [], allColors = [], allSizes = [], editingSizes = [], editingMedia = [], editingInventory = [];
 let currentTab = 'products';
 
 function t(key) { return LANGS[currentLang][key] || key; }
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 // ─── Language ─────────────────────────────────────────────────────────────────
 function applyLang(lang) {
@@ -1260,7 +1263,7 @@ function renderProductsTable(products) {
       : `<span class="badge badge-inactive">${t('inactive')}</span>`;
     const firstImg = (p.product_media||[]).find(m => m.type === 'image');
     const firstVid = !firstImg && (p.product_media||[]).find(m => m.type === 'video');
-    const mediaSrc = firstImg ? ('http://localhost:3001' + firstImg.url) : null;
+    const mediaSrc = firstImg ? (SERVER_URL + firstImg.url) : null;
     const mediaThumb = mediaSrc
       ? `<img src="${mediaSrc}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" onerror="this.style.display='none'">`
       : firstVid
@@ -1664,7 +1667,7 @@ function renderMediaGrid() {
   if (!grid) return;
   grid.innerHTML = editingMedia.map((m, i) => {
     const isLocal = m.url.startsWith('/');
-    const src = isLocal ? 'http://localhost:3001' + m.url : m.url;
+    const src = isLocal ? SERVER_URL + m.url : m.url;
     if (m.type === 'video') {
       const inner = isLocal
         ? `<video src="${src}" style="width:100%;height:100%;object-fit:cover"></video>`
@@ -2022,9 +2025,9 @@ function renderCustomersTable(customers) {
     const joined = new Date(c.created_at).toLocaleDateString('fa-IR');
     return `<tr>
       <td>${idBadge}</td>
-      <td style="font-weight:600">${c.full_name}</td>
-      <td style="direction:ltr;font-size:13px">${c.email || '—'}</td>
-      <td style="direction:ltr;font-size:13px">${c.mobile || '—'}</td>
+      <td style="font-weight:600">${esc(c.full_name)}</td>
+      <td style="direction:ltr;font-size:13px">${esc(c.email) || '—'}</td>
+      <td style="direction:ltr;font-size:13px">${esc(c.mobile) || '—'}</td>
       <td>${regBadge}</td>
       <td>${statusBadge}</td>
       <td style="font-size:12px;color:#999">${joined}</td>
@@ -2259,7 +2262,7 @@ function _renderOrderRows(tbodyId, orders) {
   tbody.innerHTML = orders.map(order => {
     const color  = ORDER_STATUS_COLORS[order.status] || '#6b7280';
     const label  = orderStatusLabel(order.status);
-    const cust   = order.customers ? order.customers.full_name : '-';
+    const cust   = order.customers ? esc(order.customers.full_name) : '-';
     const total  = Number(order.total_amount).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' TL';
     const date   = new Date(order.created_at).toLocaleDateString(dateLocale);
     const items  = order.order_items || [];
@@ -2284,7 +2287,7 @@ function _renderOrderRows(tbodyId, orders) {
     const _oc = `openOrderDetail(${order.id})`;
     return `<tr style="cursor:pointer">
       <td style="font-family:monospace;font-weight:700" onclick="${_oc}">#${order.id}</td>
-      <td onclick="${_oc}">${cust}<br><span style="font-size:12px;color:#888">${order.customers?.mobile||''}</span></td>
+      <td onclick="${_oc}">${cust}<br><span style="font-size:12px;color:#888">${esc(order.customers?.mobile||'')}</span></td>
       <td><div onclick="${_oc}" style="cursor:pointer">${productLinks || '-'}</div></td>
       <td onclick="${_oc}"><span style="background:${color}20;color:${color};border:1px solid ${color}40;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700">${label}</span></td>
       <td style="direction:ltr;text-align:left" onclick="${_oc}">${total}</td>
@@ -2329,8 +2332,8 @@ function renderOrderDetail() {
 
   // Customer info
   html += `<div style="background:#f9fafb;border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:14px">
-    <strong>${t('orderCustomerLbl')}:</strong> ${cust.full_name||'-'} &nbsp;|&nbsp; ${t('orderMobileLbl')}: ${cust.mobile||'-'}
-    ${cust.email ? `&nbsp;|&nbsp; ${cust.email}` : ''}
+    <strong>${t('orderCustomerLbl')}:</strong> ${esc(cust.full_name)||'-'} &nbsp;|&nbsp; ${t('orderMobileLbl')}: ${esc(cust.mobile)||'-'}
+    ${cust.email ? `&nbsp;|&nbsp; ${esc(cust.email)}` : ''}
   </div>`;
 
   // Delivery address
@@ -2338,16 +2341,16 @@ function renderOrderDetail() {
   if (addr) {
     html += `<div style="background:#f0f9ff;border-right:3px solid #38bdf8;border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:13px;line-height:1.7">
       <strong>${t('orderAddrLbl')}:</strong><br>
-      ${addr.recipient} · <span style="direction:ltr;display:inline-block">${addr.phone}</span><br>
-      ${addr.city}${addr.province ? ' — ' + addr.province : ''}<br>
-      ${addr.detail}${addr.postal_code ? ' <span style="color:#6b7280">(' + addr.postal_code + ')</span>' : ''}
+      ${esc(addr.recipient)} · <span style="direction:ltr;display:inline-block">${esc(addr.phone)}</span><br>
+      ${esc(addr.city)}${addr.province ? ' — ' + esc(addr.province) : ''}<br>
+      ${esc(addr.detail)}${addr.postal_code ? ' <span style="color:#6b7280">(' + esc(addr.postal_code) + ')</span>' : ''}
     </div>`;
   }
 
   // Note
   if (order.note) {
     html += `<div style="background:#fffbeb;border-right:3px solid #f59e0b;border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:13px">
-      <strong>${t('orderNoteLbl')}:</strong> ${order.note}
+      <strong>${t('orderNoteLbl')}:</strong> ${esc(order.note)}
     </div>`;
   }
 
@@ -2405,7 +2408,7 @@ function renderOrderDetail() {
   }
 
   if (st === 'approval_needed') {
-    const receiptUrl = order.payment_receipt_url ? 'http://localhost:3001' + order.payment_receipt_url : null;
+    const receiptUrl = order.payment_receipt_url ? SERVER_URL + order.payment_receipt_url : null;
     html += `<div style="font-weight:700;font-size:14px;margin-bottom:10px">${t('orderReviewReceipt')}</div>`;
     if (receiptUrl) {
       html += `<div style="margin-bottom:14px">

@@ -3,16 +3,12 @@ const path    = require('path');
 const fs      = require('fs');
 const { sendOrderEmail, label } = require('../utils/mailer');
 
-const ADMIN_USER  = 'Admin';
-const ADMIN_PASS  = 'Admin@12893';
-const ADMIN_TOKEN = 'akhgar-admin-9f3k2m8x7n1p4q6r';
-
 // ─── Auth ──────────────────────────────────────────────────────────────────────
 
 async function login(req, res) {
   const { username, password } = req.body;
-  if (username === ADMIN_USER && password === ADMIN_PASS) {
-    return res.json({ success: true, token: ADMIN_TOKEN });
+  if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
+    return res.json({ success: true, token: process.env.ADMIN_TOKEN });
   }
   return res.status(401).json({ success: false, message: 'نام کاربری یا رمز اشتباه است' });
 }

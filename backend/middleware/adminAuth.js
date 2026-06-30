@@ -1,8 +1,7 @@
-const ADMIN_TOKEN = 'akhgar-admin-9f3k2m8x7n1p4q6r';
-
 module.exports = (req, res, next) => {
-  const auth = req.headers.authorization;
-  if (!auth || auth !== `Bearer ${ADMIN_TOKEN}`) {
+  const token = process.env.ADMIN_TOKEN;
+  const auth  = req.headers.authorization;
+  if (!token || !auth || auth !== `Bearer ${token}`) {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
   next();
