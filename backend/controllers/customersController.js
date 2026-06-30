@@ -1,7 +1,7 @@
 const prisma   = require('../prisma/client');
 const crypto   = require('crypto');
 const bcrypt   = require('bcrypt');
-const { sendRawEmail, LOGO_CID } = require('../utils/mailer');
+const { sendRawEmail } = require('../utils/mailer');
 
 const BCRYPT_ROUNDS = 12;
 
@@ -313,7 +313,9 @@ function buildResetEmail(lang, name, resetLink) {
     <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
       <tr>
         <td style="background:#fff;padding:24px 32px 16px;border-bottom:2px solid #f0e8df;text-align:center">
-          <img src="cid:${LOGO_CID}" alt="Shilista" height="48" style="height:48px;width:auto;display:inline-block">
+          ${process.env.SITE_URL
+            ? `<img src="${process.env.SITE_URL}/images/shilista_6_light_full_transparent.png" alt="Shilista" height="48" style="height:48px;width:auto;display:inline-block">`
+            : `<span style="font-size:26px;font-weight:700;color:#c0562a;letter-spacing:1px;font-family:Arial,sans-serif">Shilista</span>`}
         </td>
       </tr>
       <tr>

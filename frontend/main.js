@@ -3031,9 +3031,27 @@ function openCheckout() {
   if (!user) { openAuthModal('login'); return; }
   if (!cart.length) { openCart(); return; }
   closeCart();
-  renderCheckout();
   document.getElementById('checkout-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
+  // fetch fresh profile to get up-to-date addresses
+  fetch(API_BASE + '/customers/profile', { headers: { 'x-session-token': getSession() } })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success && data.data) {
+        var u = data.data;
+        if (Array.isArray(u.addresses)) {
+          u.addresses = u.addresses.map(function(a) {
+            return { id: a.id, name: a.recipient, phone: a.phone, city: a.city, postal: a.postal_code || '', detail: a.detail, is_default: a.is_default };
+          });
+        }
+        var cur = getCurrentUser();
+        u.favorites = cur.favorites || [];
+        u.orders    = cur.orders    || [];
+        updateUser(u);
+      }
+      renderCheckout();
+    })
+    .catch(function() { renderCheckout(); });
 }
 
 function closeCheckout() {
