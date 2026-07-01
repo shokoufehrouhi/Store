@@ -1869,9 +1869,13 @@ function doLogin() {
     if (r.status === 200 && r.data.success) {
       setSession(r.data.token);
       var customer = r.data.customer;
-      customer.addresses = customer.addresses || [];
+      customer.addresses = Array.isArray(customer.addresses)
+        ? customer.addresses.map(function(a) {
+            return { id: a.id, name: a.recipient, phone: a.phone, city: a.city, postal: a.postal_code || '', detail: a.detail, is_default: a.is_default };
+          })
+        : [];
       customer.favorites = [];
-      customer.orders    = customer.orders    || [];
+      customer.orders    = [];
       localStorage.setItem('mf_current_user', JSON.stringify(customer));
       closeAuthModal();
       updateAuthUI();
@@ -2654,6 +2658,9 @@ function renderOrders() {
     fetch(API_BASE + '/orders/my', {
       headers: { 'x-session-token': token },
     }).then(function(res) { return res.json(); }).then(function(data) {
+      if (!data.success && (data.message === 'Session expired' || data.message === 'No session token')) {
+        doLogout(); openAuthModal('login'); return;
+      }
       _renderOrdersList(data.success ? data.data : []);
     }).catch(function() { _renderOrdersList([]); });
   } else {
@@ -3033,8 +3040,7 @@ function openCheckout() {
   closeCart();
   document.getElementById('checkout-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
-  // fetch fresh profile to get up-to-date addresses
-  fetch(API_BASE + '/customers/profile', { headers: { 'x-session-token': getSession() } })
+  var profilePromise = fetch(API_BASE + '/customers/profile', { headers: { 'x-session-token': getSession() } })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.success && data.data) {
@@ -3049,9 +3055,11 @@ function openCheckout() {
         u.orders    = cur.orders    || [];
         updateUser(u);
       }
-      renderCheckout();
     })
-    .catch(function() { renderCheckout(); });
+    .catch(function() {});
+  Promise.allSettled([profilePromise]).then(function() {
+    renderCheckout();
+  });
 }
 
 function closeCheckout() {

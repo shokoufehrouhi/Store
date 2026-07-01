@@ -3710,6 +3710,22 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 }
 .checkout-change-addr-btn:hover { color: var(--primary-dark); }
 
+/* Bank Account */
+.checkout-bank-card {
+  display: flex; align-items: flex-start; gap: 12px;
+  border: 1.5px solid #eee; border-radius: 12px;
+  padding: 12px 14px; margin-bottom: 10px; cursor: pointer;
+  transition: border-color .15s, background .15s; background: #fff;
+}
+.checkout-bank-card:last-of-type { margin-bottom: 0; }
+.checkout-bank-card.selected { border-color: var(--primary); background: rgba(255,92,0,.04); }
+.checkout-bank-card .checkout-addr-radio { flex-shrink: 0; margin-top: 2px; }
+.checkout-bank-info { flex: 1; }
+.checkout-bank-name { font-size: 14px; font-weight: 700; color: #111; display: block; }
+.checkout-bank-holder { font-size: 12px; color: #888; display: block; margin-top: 2px; }
+.checkout-bank-iban { font-size: 12px; color: #555; display: block; margin-top: 3px; direction: ltr; font-family: monospace; }
+.checkout-bank-empty { font-size: 13px; color: #aaa; text-align: center; padding: 16px 0; }
+
 /* Note */
 .checkout-note-input {
   width: 100%; border: 1.5px solid #eee; border-radius: 10px;

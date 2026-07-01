@@ -272,6 +272,16 @@ model product_inventory {
   @@index([product_id], map: "idx_product_inventory_product")
 }
 
+model bank_accounts {
+  id             Int      @id @default(autoincrement())
+  bank_name      String   @db.VarChar(60)
+  account_holder String   @db.VarChar(120)
+  iban           String   @db.VarChar(40)
+  is_active      Boolean  @default(true)
+  sort_order     Int      @default(0) @db.SmallInt
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+}
+
 enum gender_type {
   male
   female

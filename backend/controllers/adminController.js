@@ -7,10 +7,10 @@ const { sendOrderEmail, label } = require('../utils/mailer');
 
 async function login(req, res) {
   const { username, password } = req.body;
-  if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
+  if (username.toLowerCase() === process.env.ADMIN_USER.toLowerCase() && password === process.env.ADMIN_PASS) {
     return res.json({ success: true, token: process.env.ADMIN_TOKEN });
   }
-  return res.status(401).json({ success: false, message: 'نام کاربری یا رمز اشتباه است' });
+  return res.status(401).json({ success: false, message: 'Invalid username or password' });
 }
 
 // ─── Categories ────────────────────────────────────────────────────────────────
@@ -612,6 +612,300 @@ async function markDelivered(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// ─── Bank Accounts ────────────────────────────────────────────────────────────
+
+async function getBankAccounts(req, res, next) {
+  try {
+    const accounts = await prisma.bank_accounts.findMany({ orderBy: [{ sort_order: 'asc' }, { id: 'asc' }] });
+    res.json({ success: true, data: accounts });
+  } catch (err) { next(err); }
+}
+
+async function createBankAccount(req, res, next) {
+  try {
+    const { bank_name, account_holder, iban, is_active, sort_order } = req.body;
+    if (!bank_name || !account_holder || !iban)
+      return res.status(400).json({ success: false, message: 'bank_name, account_holder and iban are required' });
+    const account = await prisma.bank_accounts.create({
+      data: { bank_name, account_holder, iban, is_active: is_active !== false, sort_order: sort_order || 0 },
+    });
+    res.status(201).json({ success: true, data: account });
+  } catch (err) { next(err); }
+}
+
+async function updateBankAccount(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const { bank_name, account_holder, iban, is_active, sort_order } = req.body;
+    const account = await prisma.bank_accounts.update({
+      where: { id },
+      data: { bank_name, account_holder, iban, is_active, sort_order },
+    });
+    res.json({ success: true, data: account });
+  } catch (err) { next(err); }
+}
+
+async function deleteBankAccount(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    await prisma.bank_accounts.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (err) { next(err); }
+}
+
+// ─── Reports ───────────────────────────────────────────────────────────────────
+
+async function getReports(req, res, next) {
+  try {
+    const { from, to } = req.query;
+    const dateFilter = {};
+    if (from) dateFilter.gte = new Date(from);
+    if (to)   dateFilter.lte = new Date(to);
+    const hasDate = Object.keys(dateFilter).length > 0;
+    const orderWhere = hasDate ? { created_at: dateFilter } : {};
+
+    const [
+      totalOrders,
+      successOrders,
+      rejectedOrders,
+      cancelledOrders,
+      activeOrders,
+      revenueAgg,
+      totalCustomers,
+      newCustomers,
+    ] = await Promise.all([
+      prisma.orders.count({ where: orderWhere }),
+      prisma.orders.count({ where: { ...orderWhere, status: 'delivered' } }),
+      prisma.orders.count({ where: { ...orderWhere, status: 'rejected' } }),
+      prisma.orders.count({ where: { ...orderWhere, status: 'cancelled' } }),
+      prisma.orders.count({ where: { ...orderWhere, status: { in: ['preorder','payment_needed','approval_needed','preparing','delivery'] } } }),
+      prisma.orders.aggregate({
+        where: { ...orderWhere, status: 'delivered' },
+        _sum: { total_amount: true },
+        _avg: { total_amount: true },
+      }),
+      prisma.customers.count(),
+      hasDate ? prisma.customers.count({ where: { created_at: dateFilter } }) : prisma.customers.count(),
+    ]);
+
+    // Status breakdown via raw SQL
+    const statusRows = hasDate
+      ? await prisma.$queryRaw`SELECT status, COUNT(*)::int AS cnt FROM orders WHERE created_at >= ${dateFilter.gte} AND created_at <= ${dateFilter.lte} GROUP BY status`
+      : await prisma.$queryRaw`SELECT status, COUNT(*)::int AS cnt FROM orders GROUP BY status`;
+    const statusMap = {};
+    for (const row of statusRows) statusMap[row.status] = Number(row.cnt);
+
+    // Top products via raw SQL (Prisma groupBy doesn't support relation filters)
+    let topProductsEnriched = [];
+    try {
+      const rows = hasDate
+        ? await prisma.$queryRaw`
+            SELECT oi.product_id, SUM(oi.qty)::int AS total_qty,
+                   p.name_fa, p.name_en, p.name_tr, p.code
+            FROM order_items oi
+            JOIN orders o ON o.id = oi.order_id
+            JOIN products p ON p.id = oi.product_id
+            WHERE o.status = 'delivered'
+              AND o.created_at >= ${dateFilter.gte}
+              AND o.created_at <= ${dateFilter.lte}
+            GROUP BY oi.product_id, p.name_fa, p.name_en, p.name_tr, p.code
+            ORDER BY total_qty DESC
+            LIMIT 5`
+        : await prisma.$queryRaw`
+            SELECT oi.product_id, SUM(oi.qty)::int AS total_qty,
+                   p.name_fa, p.name_en, p.name_tr, p.code
+            FROM order_items oi
+            JOIN orders o ON o.id = oi.order_id
+            JOIN products p ON p.id = oi.product_id
+            WHERE o.status = 'delivered'
+            GROUP BY oi.product_id, p.name_fa, p.name_en, p.name_tr, p.code
+            ORDER BY total_qty DESC
+            LIMIT 5`;
+      topProductsEnriched = rows.map(r => ({
+        product_id: r.product_id,
+        qty:        Number(r.total_qty),
+        name_fa:    r.name_fa,
+        name_en:    r.name_en,
+        name_tr:    r.name_tr,
+        code:       r.code,
+      }));
+    } catch (_) {}
+
+    res.json({
+      success: true,
+      data: {
+        orders: {
+          total:     totalOrders,
+          delivered: successOrders,
+          rejected:  rejectedOrders,
+          cancelled: cancelledOrders,
+          active:    activeOrders,
+          byStatus:  statusMap,
+        },
+        revenue: {
+          total: Number(revenueAgg._sum.total_amount || 0),
+          avg:   Math.round(Number(revenueAgg._avg.total_amount || 0)),
+        },
+        customers: {
+          total: totalCustomers,
+          new:   newCustomers,
+        },
+        topProducts: topProductsEnriched,
+      },
+    });
+  } catch (err) { next(err); }
+}
+
+// ─── Financial Report ──────────────────────────────────────────────────────────
+
+async function getFinancialReport(req, res, next) {
+  try {
+    const { from, to } = req.query;
+    const dateFilter = {};
+    if (from) dateFilter.gte = new Date(from);
+    if (to)   dateFilter.lte = new Date(to);
+    const hasDate = Object.keys(dateFilter).length > 0;
+
+    const where = {
+      status: 'delivered',
+      ...(hasDate ? { created_at: dateFilter } : {}),
+    };
+
+    const [summary, byBank, orders] = await Promise.all([
+      prisma.orders.aggregate({
+        where,
+        _sum:   { total_amount: true },
+        _count: { id: true },
+        _avg:   { total_amount: true },
+        _max:   { total_amount: true },
+        _min:   { total_amount: true },
+      }),
+
+      // Breakdown per bank account
+      hasDate
+        ? prisma.$queryRaw`
+            SELECT
+              COALESCE(bank_name, '—')      AS bank_name,
+              COALESCE(account_holder, '—') AS account_holder,
+              COALESCE(iban, '—')           AS iban,
+              COUNT(*)::int                 AS order_count,
+              SUM(total_amount)::float      AS total_amount
+            FROM orders
+            WHERE status = 'delivered'
+              AND created_at >= ${dateFilter.gte}
+              AND created_at <= ${dateFilter.lte}
+            GROUP BY bank_name, account_holder, iban
+            ORDER BY total_amount DESC`
+        : prisma.$queryRaw`
+            SELECT
+              COALESCE(bank_name, '—')      AS bank_name,
+              COALESCE(account_holder, '—') AS account_holder,
+              COALESCE(iban, '—')           AS iban,
+              COUNT(*)::int                 AS order_count,
+              SUM(total_amount)::float      AS total_amount
+            FROM orders
+            WHERE status = 'delivered'
+            GROUP BY bank_name, account_holder, iban
+            ORDER BY total_amount DESC`,
+
+      prisma.orders.findMany({
+        where,
+        orderBy:  { created_at: 'desc' },
+        select: {
+          id:             true,
+          created_at:     true,
+          total_amount:   true,
+          bank_name:      true,
+          account_holder: true,
+          iban:           true,
+          note:           true,
+          customers: { select: { id: true, full_name: true, mobile: true, email: true } },
+        },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          totalRevenue:  Math.round(Number(summary._sum.total_amount  || 0)),
+          orderCount:    summary._count.id,
+          avgOrder:      Math.round(Number(summary._avg.total_amount  || 0)),
+          maxOrder:      Math.round(Number(summary._max.total_amount  || 0)),
+          minOrder:      Math.round(Number(summary._min.total_amount  || 0)),
+        },
+        byBank: byBank.map(r => ({
+          bank_name:      r.bank_name,
+          account_holder: r.account_holder,
+          iban:           r.iban,
+          orderCount:     Number(r.order_count),
+          totalAmount:    Math.round(Number(r.total_amount || 0)),
+        })),
+        orders: orders.map(o => ({
+          id:             o.id,
+          created_at:     o.created_at,
+          total_amount:   Math.round(Number(o.total_amount || 0)),
+          bank_name:      o.bank_name,
+          account_holder: o.account_holder,
+          iban:           o.iban,
+          customer_name:  o.customers?.full_name || '—',
+          customer_phone: o.customers?.mobile || o.customers?.email || '—',
+        })),
+      },
+    });
+  } catch (err) { next(err); }
+}
+
+// ─── Customer Reports ──────────────────────────────────────────────────────────
+
+async function getCustomerReports(req, res, next) {
+  try {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek  = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [totalCustomers, newToday, newThisWeek, newThisMonth, topCustomers] = await Promise.all([
+      prisma.customers.count({ where: { is_active: true } }),
+      prisma.customers.count({ where: { created_at: { gte: startOfToday } } }),
+      prisma.customers.count({ where: { created_at: { gte: startOfWeek  } } }),
+      prisma.customers.count({ where: { created_at: { gte: startOfMonth } } }),
+      prisma.$queryRaw`
+        SELECT
+          c.id,
+          c.full_name,
+          c.email,
+          c.mobile,
+          COUNT(o.id)::int           AS order_count,
+          SUM(o.total_amount)::float AS total_spent
+        FROM customers c
+        JOIN orders o ON o.customer_id = c.id AND o.status = 'delivered'
+        GROUP BY c.id, c.full_name, c.email, c.mobile
+        ORDER BY order_count DESC, total_spent DESC
+        LIMIT 50
+      `,
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        totalCustomers,
+        newToday,
+        newThisWeek,
+        newThisMonth,
+        topCustomers: topCustomers.map(r => ({
+          id:          r.id,
+          full_name:   r.full_name,
+          email:       r.email,
+          mobile:      r.mobile,
+          orderCount:  Number(r.order_count),
+          totalSpent:  Math.round(Number(r.total_spent || 0)),
+        })),
+      },
+    });
+  } catch (err) { next(err); }
+}
+
 module.exports = {
   login, uploadMedia, deleteMedia,
   getCategories, createCategory, updateCategory, deleteCategory,
@@ -621,4 +915,6 @@ module.exports = {
   getAdminCustomers, updateAdminCustomer,
   getProducts, createProduct, updateProduct, deleteProduct,
   getAdminOrders, setPaymentInfo, approvePayment, rejectPayment, rejectPreorder, setShipping, markDelivered,
+  getBankAccounts, createBankAccount, updateBankAccount, deleteBankAccount,
+  getReports, getFinancialReport, getCustomerReports,
 };

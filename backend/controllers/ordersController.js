@@ -53,13 +53,13 @@ async function createPreorder(req, res, next) {
     const order = await prisma.$transaction(async (tx) => {
       const created = await tx.orders.create({
         data: {
-          customer_id:  customerId,
-          address_id:   address_id ? Number(address_id) : null,
-          status:       'preorder',
-          channel:      'online',
-          note:         note || null,
-          lang:         safeLang,
-          total_amount: total,
+          customer_id:    customerId,
+          address_id:     address_id ? Number(address_id) : null,
+          status:         'preorder',
+          channel:        'online',
+          note:           note || null,
+          lang:           safeLang,
+          total_amount:   total,
           order_items: {
             create: items.map(function(i) {
               return {
@@ -86,7 +86,7 @@ async function createPreorder(req, res, next) {
       return created;
     });
 
-    sendOrderEmail(order.customers, order, 'preorder').catch(() => {});
+    sendOrderEmail(order.customers, order, 'preorder', []).catch(() => {});
     res.status(201).json({ success: true, data: order });
   } catch (err) {
     next(err);

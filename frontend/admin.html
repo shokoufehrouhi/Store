@@ -121,7 +121,7 @@
     .lang-opt:hover { transform: scale(1.12); }
     .lang-opt.active { border-color: #fff; }
 
-    .sidebar-nav { flex: 1; padding: 16px 12px; }
+    .sidebar-nav { flex: 1; padding: 16px 12px; overflow-y: auto; }
     .nav-item {
       display: flex; align-items: center; gap: 10px; padding: 11px 14px;
       border-radius: 8px; color: #999; font-size: 14px; font-weight: 500;
@@ -198,6 +198,37 @@
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
     .form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
     .form-row.cols-1 { grid-template-columns: 1fr; }
+    .bank-select-card { display:flex;align-items:flex-start;gap:12px;border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:8px;cursor:pointer;transition:border-color .15s,background .15s; }
+    .bank-select-card:last-of-type { margin-bottom:0; }
+    .bank-select-card.selected { border-color:var(--primary);background:rgba(255,92,0,.04); }
+    .bank-select-card:hover:not(.selected) { border-color:#bbb;background:#fafafa; }
+    .bank-select-radio { width:18px;height:18px;border-radius:50%;border:2px solid #ccc;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;transition:border-color .15s; }
+    .bank-select-radio.selected { border-color:var(--primary); }
+    .bank-select-dot { width:9px;height:9px;border-radius:50%;background:var(--primary);display:none; }
+    .bank-select-radio.selected .bank-select-dot { display:block; }
+    .rpt-subtab { padding:9px 20px;border:none;border-bottom:3px solid transparent;background:none;font-family:inherit;font-size:14px;font-weight:600;color:var(--text-muted);cursor:pointer;margin-bottom:-2px;transition:all .15s; }
+    .rpt-subtab:hover { color:var(--text); }
+    .rpt-subtab.active { color:var(--primary);border-bottom-color:var(--primary); }
+    .th-sort { cursor:pointer;user-select:none;white-space:nowrap; }
+    .th-sort:hover { color:var(--primary); }
+    .th-sort::after { content:' ⇅';opacity:.35;font-size:11px; }
+    .th-sort.asc::after  { content:' ↑';opacity:1;color:var(--primary); }
+    .th-sort.desc::after { content:' ↓';opacity:1;color:var(--primary); }
+    .rpt-period-btn { padding:7px 16px;border:1.5px solid var(--border);border-radius:20px;background:var(--white);color:var(--text);font-family:inherit;font-size:13px;cursor:pointer;transition:all .15s; }
+    .rpt-period-btn:hover { border-color:var(--primary);color:var(--primary); }
+    .rpt-period-btn.active { background:var(--primary);border-color:var(--primary);color:#fff; }
+    .rpt-kpi-card { background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;gap:6px; }
+    .rpt-kpi-card--accent { border-color:var(--primary);background:rgba(255,92,0,.04); }
+    .rpt-kpi-icon { font-size:22px;line-height:1; }
+    .rpt-kpi-val { font-size:26px;font-weight:800;color:var(--text);line-height:1.1; }
+    .rpt-kpi-card--accent .rpt-kpi-val { color:var(--primary); }
+    .rpt-kpi-lbl { font-size:12px;color:var(--text-muted);font-weight:500; }
+    .rpt-top-row { display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border); }
+    .rpt-top-row:last-child { border-bottom:none; }
+    .rpt-top-rank { font-size:18px;width:28px;flex-shrink:0;text-align:center; }
+    .rpt-top-name { flex:1;font-size:13px;font-weight:600; }
+    .rpt-top-code { font-size:11px;color:#aaa; }
+    .rpt-top-qty { font-size:13px;font-weight:700;color:var(--primary);white-space:nowrap; }
     .form-field { display: flex; flex-direction: column; gap: 6px; }
     .form-field label { font-size: 13px; font-weight: 600; color: var(--text-muted); }
     .form-field input, .form-field select, .form-field textarea {
@@ -452,6 +483,16 @@
       <button class="nav-item" onclick="showTab('orders')" id="nav-orders">
         <span class="nav-icon">📋</span><span data-i18n="navOrders">سفارشات تکمیل‌شده</span>
       </button>
+
+      <div class="nav-section-label" data-i18n="navGroupPayment">پرداخت</div>
+      <button class="nav-item" onclick="showTab('bank-accounts')" id="nav-bank-accounts">
+        <span class="nav-icon">🏦</span><span data-i18n="navBankAccounts">حساب‌های بانکی</span>
+      </button>
+
+      <div class="nav-section-label" data-i18n="navGroupAnalytics">آمار</div>
+      <button class="nav-item" onclick="showTab('reports')" id="nav-reports">
+        <span class="nav-icon">📊</span><span data-i18n="navReports">گزارش‌ها</span>
+      </button>
     </nav>
     <div class="sidebar-footer">
       <button class="btn-logout" onclick="doLogout()">
@@ -651,6 +692,199 @@
       </div>
     </div>
 
+    <!-- Bank Accounts Tab -->
+    <div id="tab-bank-accounts" class="hidden">
+      <div class="page-header">
+        <h2>🏦 <span data-i18n="navBankAccounts">حساب‌های بانکی</span></h2>
+        <button class="btn btn-primary" onclick="openBankAccountModal()" data-i18n="bankAddBtn">+ افزودن حساب</button>
+      </div>
+      <div class="page-body">
+        <div class="card"><div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th data-i18n="bankColBank">بانک</th>
+              <th data-i18n="bankColHolder">صاحب حساب</th>
+              <th data-i18n="bankColIban">شبا / IBAN</th>
+              <th data-i18n="colStatus">وضعیت</th>
+              <th data-i18n="colActions">عملیات</th>
+            </tr></thead>
+            <tbody id="bank-accounts-tbody">
+              <tr><td colspan="5" style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</td></tr>
+            </tbody>
+          </table>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- Reports Tab -->
+    <div id="tab-reports" class="hidden">
+      <div class="page-header">
+        <h2>📊 <span data-i18n="navReports">گزارش‌ها</span></h2>
+      </div>
+      <div class="page-body">
+        <!-- Sub-tab nav -->
+        <div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:2px solid var(--border)">
+          <button class="rpt-subtab active" id="rpt-subtab-sales"      onclick="switchReportSubtab('sales')"     data-i18n="rptSubSales">گزارش فروش</button>
+          <button class="rpt-subtab"        id="rpt-subtab-customers"  onclick="switchReportSubtab('customers')" data-i18n="rptSubCustomers">گزارش مشتریان</button>
+          <button class="rpt-subtab"        id="rpt-subtab-financial"  onclick="switchReportSubtab('financial')" data-i18n="rptSubFinancial">گزارش مالی</button>
+        </div>
+
+        <!-- Sales sub-tab -->
+        <div id="rpt-section-sales">
+
+        <!-- Period selector -->
+        <div class="card" style="margin-bottom:16px">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+            <button class="rpt-period-btn active" id="rpt-btn-today"   onclick="setReportPeriod('today')"   data-i18n="rptToday">امروز</button>
+            <button class="rpt-period-btn"        id="rpt-btn-week"    onclick="setReportPeriod('week')"    data-i18n="rptWeek">این هفته</button>
+            <button class="rpt-period-btn"        id="rpt-btn-month"   onclick="setReportPeriod('month')"   data-i18n="rptMonth">این ماه</button>
+            <button class="rpt-period-btn"        id="rpt-btn-custom"  onclick="setReportPeriod('custom')"  data-i18n="rptCustom">بازه دلخواه</button>
+            <div id="rpt-custom-range" style="display:none;gap:8px;align-items:center;flex-wrap:wrap">
+              <input type="date" id="rpt-from" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+              <span style="color:#999">—</span>
+              <input type="date" id="rpt-to"   style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+              <button class="btn btn-primary" style="padding:6px 16px;font-size:13px" onclick="loadReports()" data-i18n="rptApply">اعمال</button>
+              <button style="padding:6px 12px;font-size:13px;border:1.5px solid var(--border);border-radius:8px;background:none;cursor:pointer;color:var(--text-muted)" onclick="clearCustomPeriod()" data-i18n="rptClear">پاک کردن</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- KPI cards -->
+        <div id="rpt-kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;margin-bottom:20px">
+          <div class="rpt-kpi-card"><div class="rpt-kpi-icon">📦</div><div class="rpt-kpi-val" id="rpt-total">—</div><div class="rpt-kpi-lbl" data-i18n="rptTotalOrders">کل سفارشات</div></div>
+          <div class="rpt-kpi-card"><div class="rpt-kpi-icon">✅</div><div class="rpt-kpi-val" id="rpt-delivered">—</div><div class="rpt-kpi-lbl" data-i18n="rptDelivered">تحویل داده شده</div></div>
+          <div class="rpt-kpi-card"><div class="rpt-kpi-icon">🔥</div><div class="rpt-kpi-val" id="rpt-active">—</div><div class="rpt-kpi-lbl" data-i18n="rptActive">در جریان</div></div>
+          <div class="rpt-kpi-card"><div class="rpt-kpi-icon">❌</div><div class="rpt-kpi-val" id="rpt-rejected">—</div><div class="rpt-kpi-lbl" data-i18n="rptRejected">رد شده</div></div>
+          <div class="rpt-kpi-card"><div class="rpt-kpi-icon">🚫</div><div class="rpt-kpi-val" id="rpt-cancelled">—</div><div class="rpt-kpi-lbl" data-i18n="rptCancelled">لغو شده</div></div>
+          <div class="rpt-kpi-card rpt-kpi-card--accent"><div class="rpt-kpi-icon">💰</div><div class="rpt-kpi-val" id="rpt-revenue">—</div><div class="rpt-kpi-lbl" data-i18n="rptRevenue">درآمد (تحویل‌شده)</div></div>
+          <div class="rpt-kpi-card"><div class="rpt-kpi-icon">📈</div><div class="rpt-kpi-val" id="rpt-avg">—</div><div class="rpt-kpi-lbl" data-i18n="rptAvgOrder">میانگین سفارش</div></div>
+          <div class="rpt-kpi-card"><div class="rpt-kpi-icon">👥</div><div class="rpt-kpi-val" id="rpt-customers">—</div><div class="rpt-kpi-lbl" data-i18n="rptCustomers">مشتریان جدید</div></div>
+        </div>
+
+        <!-- Status breakdown + Top products -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="card" style="padding:24px">
+            <div style="font-weight:700;font-size:15px;margin-bottom:20px" data-i18n="rptStatusBreakdown">وضعیت سفارشات</div>
+            <div id="rpt-donut-wrap" style="display:flex;gap:24px;align-items:center">
+              <svg id="rpt-donut-svg" viewBox="0 0 120 120" style="width:120px;height:120px;flex-shrink:0"></svg>
+              <div id="rpt-donut-legend" style="flex:1;display:flex;flex-direction:column;gap:7px"></div>
+            </div>
+          </div>
+          <div class="card" style="padding:24px">
+            <div style="font-weight:700;font-size:15px;margin-bottom:20px" data-i18n="rptTopProducts">پرفروش‌ترین محصولات</div>
+            <div id="rpt-top-products"></div>
+          </div>
+        </div>
+        </div><!-- /rpt-section-sales -->
+
+        <!-- Customers sub-tab -->
+        <div id="rpt-section-customers" style="display:none">
+
+          <!-- KPI row -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;margin-bottom:20px">
+            <div class="rpt-kpi-card rpt-kpi-card--accent">
+              <div class="rpt-kpi-icon">👥</div>
+              <div class="rpt-kpi-val" id="crt-total">—</div>
+              <div class="rpt-kpi-lbl" data-i18n="crtTotal">کل مشتریان</div>
+            </div>
+            <div class="rpt-kpi-card">
+              <div class="rpt-kpi-icon">📅</div>
+              <div class="rpt-kpi-val" id="crt-month">—</div>
+              <div class="rpt-kpi-lbl" data-i18n="crtMonth">ثبت‌نام ماه جاری</div>
+            </div>
+            <div class="rpt-kpi-card">
+              <div class="rpt-kpi-icon">📆</div>
+              <div class="rpt-kpi-val" id="crt-week">—</div>
+              <div class="rpt-kpi-lbl" data-i18n="crtWeek">ثبت‌نام هفته جاری</div>
+            </div>
+            <div class="rpt-kpi-card">
+              <div class="rpt-kpi-icon">🌅</div>
+              <div class="rpt-kpi-val" id="crt-today">—</div>
+              <div class="rpt-kpi-lbl" data-i18n="crtToday">ثبت‌نام امروز</div>
+            </div>
+          </div>
+
+          <!-- Top customers table -->
+          <div class="card" style="padding:24px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+              <div style="font-weight:700;font-size:15px" data-i18n="crtTopTitle">مشتریان با بیشترین خرید موفق</div>
+              <input id="crt-search" type="text" placeholder="جستجو بر اساس تماس..." oninput="filterCrtTable()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;min-width:200px;outline:none">
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th style="width:36px">#</th>
+                  <th data-i18n="crtColName">نام مشتری</th>
+                  <th data-i18n="crtColContact">تماس</th>
+                  <th class="th-sort" id="crt-th-orders" style="text-align:center" onclick="sortCrtTable('orders')" data-i18n="crtColOrders">تعداد خرید</th>
+                  <th class="th-sort" id="crt-th-spent"  style="text-align:center" onclick="sortCrtTable('spent')"  data-i18n="crtColSpent">مجموع خرید</th>
+                </tr></thead>
+                <tbody id="crt-tbody">
+                  <tr><td colspan="5" style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div><!-- /rpt-section-customers -->
+
+        <!-- Financial sub-tab -->
+        <div id="rpt-section-financial" style="display:none">
+
+          <!-- Period selector -->
+          <div class="card" style="margin-bottom:16px">
+            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+              <button class="rpt-period-btn active" id="fin-btn-today"  onclick="setFinPeriod('today')"  data-i18n="rptToday">امروز</button>
+              <button class="rpt-period-btn"        id="fin-btn-week"   onclick="setFinPeriod('week')"   data-i18n="rptWeek">این هفته</button>
+              <button class="rpt-period-btn"        id="fin-btn-month"  onclick="setFinPeriod('month')"  data-i18n="rptMonth">این ماه</button>
+              <button class="rpt-period-btn"        id="fin-btn-custom" onclick="setFinPeriod('custom')" data-i18n="rptCustom">بازه دلخواه</button>
+              <div id="fin-custom-range" style="display:none;gap:8px;align-items:center;flex-wrap:wrap">
+                <input type="date" id="fin-from" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+                <span style="color:#999">—</span>
+                <input type="date" id="fin-to"   style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px">
+                <button class="btn btn-primary" style="padding:6px 16px;font-size:13px" onclick="loadFinancialReport()" data-i18n="rptApply">اعمال</button>
+                <button style="padding:6px 12px;font-size:13px;border:1.5px solid var(--border);border-radius:8px;background:none;cursor:pointer;color:var(--text-muted)" onclick="clearFinPeriod()" data-i18n="rptClear">پاک کردن</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Summary KPIs -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;margin-bottom:20px">
+            <div class="rpt-kpi-card rpt-kpi-card--accent"><div class="rpt-kpi-icon">💰</div><div class="rpt-kpi-val" id="fin-total">—</div><div class="rpt-kpi-lbl" data-i18n="finTotalRev">کل درآمد</div></div>
+            <div class="rpt-kpi-card"><div class="rpt-kpi-icon">📦</div><div class="rpt-kpi-val" id="fin-count">—</div><div class="rpt-kpi-lbl" data-i18n="finOrderCount">سفارش تحویل‌شده</div></div>
+            <div class="rpt-kpi-card"><div class="rpt-kpi-icon">📈</div><div class="rpt-kpi-val" id="fin-avg">—</div><div class="rpt-kpi-lbl" data-i18n="finAvg">میانگین سفارش</div></div>
+            <div class="rpt-kpi-card"><div class="rpt-kpi-icon">⬆️</div><div class="rpt-kpi-val" id="fin-max">—</div><div class="rpt-kpi-lbl" data-i18n="finMax">بیشترین سفارش</div></div>
+            <div class="rpt-kpi-card"><div class="rpt-kpi-icon">⬇️</div><div class="rpt-kpi-val" id="fin-min">—</div><div class="rpt-kpi-lbl" data-i18n="finMin">کمترین سفارش</div></div>
+          </div>
+
+          <!-- Per-bank breakdown -->
+          <div class="card" style="padding:24px;margin-bottom:20px">
+            <div style="font-weight:700;font-size:15px;margin-bottom:16px" data-i18n="finByBank">ورودی به تفکیک حساب بانکی</div>
+            <div id="fin-by-bank"></div>
+          </div>
+
+          <!-- Orders detail table -->
+          <div class="card" style="padding:24px">
+            <div style="font-weight:700;font-size:15px;margin-bottom:16px" data-i18n="finOrdersTitle">جزئیات خریدهای موفق</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th data-i18n="colId">#</th>
+                  <th class="th-sort" id="fin-th-date"   onclick="sortFinTable('date')"   data-i18n="finColDate">تاریخ</th>
+                  <th data-i18n="finColCustomer">مشتری</th>
+                  <th class="th-sort" id="fin-th-bank"   onclick="sortFinTable('bank')"   data-i18n="finColBank">حساب دریافت</th>
+                  <th class="th-sort" id="fin-th-amount" onclick="sortFinTable('amount')" data-i18n="finColAmount">مبلغ</th>
+                </tr></thead>
+                <tbody id="fin-orders-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div><!-- /rpt-section-financial -->
+
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -701,7 +935,15 @@ const LANGS = {
     loginBtn:'ورود به پنل', username:'نام کاربری', password:'رمز عبور',
     connecting:'در حال ورود...', connFail:'اتصال به سرور ناموفق بود',
     navGroupCatalog:'فروشگاه', navGroupConfig:'تنظیمات پایه', navGroupUsers:'کاربران',
-    navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navCustomers:'مشتریان', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', logout:'خروج',
+    navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navCustomers:'مشتریان', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج',
+    rptSubSales:'گزارش فروش', rptSubCustomers:'گزارش مشتریان', rptSubFinancial:'گزارش مالی',
+    crtTotal:'کل مشتریان', crtMonth:'ثبت‌نام ماه جاری', crtWeek:'ثبت‌نام هفته جاری', crtToday:'ثبت‌نام امروز',
+    crtTopTitle:'مشتریان با بیشترین خرید موفق', crtColName:'نام مشتری', crtColContact:'تماس', crtColOrders:'تعداد خرید', crtColSpent:'مجموع خرید',
+    finTotalRev:'کل درآمد', finOrderCount:'سفارش تحویل‌شده', finAvg:'میانگین سفارش', finMax:'بیشترین سفارش', finMin:'کمترین سفارش',
+    finByBank:'ورودی به تفکیک حساب بانکی', finOrdersTitle:'جزئیات خریدهای موفق', finColDate:'تاریخ', finColCustomer:'مشتری', finColBank:'حساب دریافت', finColAmount:'مبلغ',
+    rptToday:'امروز', rptWeek:'این هفته', rptMonth:'این ماه', rptCustom:'بازه دلخواه', rptApply:'اعمال', rptClear:'پاک کردن', rptStAll:'همه',
+    rptTotalOrders:'کل سفارشات', rptDelivered:'تحویل داده شده', rptActive:'در جریان', rptRejected:'رد شده', rptCancelled:'لغو شده', rptRevenue:'درآمد (تحویل‌شده)', rptAvgOrder:'میانگین سفارش', rptCustomers:'مشتریان جدید',
+    rptStatusBreakdown:'وضعیت سفارشات', rptTopProducts:'پرفروش‌ترین محصولات', rptQtySold:'فروش رفته',
     addProduct:'+ افزودن محصول',
     colId:'#', colMedia:'رسانه', colName:'نام محصول', colCategory:'دسته‌بندی', colPrice:'قیمت',
     colStock:'موجودی', colColors:'رنگ‌ها', colSizes:'سایزها', colStatus:'وضعیت', colActions:'عملیات',
@@ -763,6 +1005,13 @@ const LANGS = {
     confirmDeleteSize:'این سایز حذف شود؟', noSizes:'هنوز سایزی تعریف نشده',
     noSizesDefined:'ابتدا از تب سایزها، سایز تعریف کنید',
     valSizeLabel:'برچسب سایز الزامی است',
+    bankAddBtn:'+ افزودن حساب', bankColBank:'بانک', bankColHolder:'صاحب حساب', bankColIban:'شبا / IBAN',
+    bankEditTitle:'ویرایش حساب بانکی', bankAddTitle:'افزودن حساب بانکی',
+    bankNameField:'نام بانک', bankHolderField:'صاحب حساب', bankIbanField:'شبا / IBAN',
+    bankSortField:'ترتیب نمایش', bankActiveField:'فعال',
+    bankSaved:'حساب ذخیره شد ✅', bankDeleted:'حساب حذف شد',
+    bankRequired:'همه فیلدها الزامی است', bankConfirmDelete:'این حساب حذف شود؟',
+    noBankAccounts:'هیچ حسابی ثبت نشده',
     custId:'شناسه مشتری', custName:'نام', custEmail:'ایمیل', custMobile:'موبایل',
     custRegBy:'نوع ثبت‌نام', custLang:'زبان', custStatus:'وضعیت', custJoined:'تاریخ عضویت',
     custRegEmail:'ایمیل', custRegMobile:'موبایل',
@@ -786,7 +1035,7 @@ const LANGS = {
     ordersEmpty:'سفارشی یافت نشد', ordersLoading:'در حال بارگذاری...', ordersLoadError:'خطا در بارگذاری',
     orderDetails:'جزئیات', orderClose:'✕', orderDetailTitle:'جزئیات سفارش',
     orderCustomerLbl:'مشتری', orderMobileLbl:'موبایل', orderItemsLbl:'اقلام سفارش',
-    orderAddrLbl:'آدرس تحویل', orderNoteLbl:'یادداشت', orderTotalLbl:'جمع کل',
+    orderAddrLbl:'آدرس تحویل', orderNoAddr:'آدرس ثبت نشده', orderNoteLbl:'یادداشت', orderTotalLbl:'جمع کل',
     orderActionPayment:'ثبت اطلاعات پرداخت',
     orderIbanLbl:'شماره شبا', orderBankLbl:'نام بانک', orderHolderLbl:'نام صاحب حساب',
     orderBankPlh:'بانک ملی', orderHolderPlh:'نام و نام خانوادگی', orderIbanPlh:'TR...',
@@ -817,7 +1066,15 @@ const LANGS = {
     loginBtn:'Login', username:'Username', password:'Password',
     connecting:'Logging in...', connFail:'Could not connect to server',
     navGroupCatalog:'Store', navGroupConfig:'Configuration', navGroupUsers:'Users',
-    navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navCustomers:'Customers', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', logout:'Logout',
+    navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navCustomers:'Customers', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout',
+    rptSubSales:'Sales Report', rptSubCustomers:'Customer Report', rptSubFinancial:'Financial Report',
+    crtTotal:'Total Customers', crtMonth:'Registered This Month', crtWeek:'Registered This Week', crtToday:'Registered Today',
+    crtTopTitle:'Top Customers by Successful Orders', crtColName:'Customer', crtColContact:'Contact', crtColOrders:'Orders', crtColSpent:'Total Spent',
+    finTotalRev:'Total Revenue', finOrderCount:'Delivered Orders', finAvg:'Avg. Order', finMax:'Highest Order', finMin:'Lowest Order',
+    finByBank:'Income by Bank Account', finOrdersTitle:'Successful Order Details', finColDate:'Date', finColCustomer:'Customer', finColBank:'Bank Account', finColAmount:'Amount',
+    rptToday:'Today', rptWeek:'This Week', rptMonth:'This Month', rptCustom:'Custom Range', rptApply:'Apply', rptClear:'Clear', rptStAll:'All',
+    rptTotalOrders:'Total Orders', rptDelivered:'Delivered', rptActive:'In Progress', rptRejected:'Rejected', rptCancelled:'Cancelled', rptRevenue:'Revenue (Delivered)', rptAvgOrder:'Avg. Order Value', rptCustomers:'New Customers',
+    rptStatusBreakdown:'Order Status Breakdown', rptTopProducts:'Top Selling Products', rptQtySold:'Sold',
     addProduct:'+ Add Product',
     colId:'#', colMedia:'Media', colName:'Product Name', colCategory:'Category', colPrice:'Price',
     colStock:'Stock', colColors:'Colors', colSizes:'Sizes', colStatus:'Status', colActions:'Actions',
@@ -879,6 +1136,13 @@ const LANGS = {
     confirmDeleteSize:'Delete this size?', noSizes:'No sizes defined yet',
     noSizesDefined:'First define sizes in the Sizes tab',
     valSizeLabel:'Size label is required',
+    bankAddBtn:'+ Add Account', bankColBank:'Bank', bankColHolder:'Account Holder', bankColIban:'IBAN',
+    bankEditTitle:'Edit Bank Account', bankAddTitle:'Add Bank Account',
+    bankNameField:'Bank Name', bankHolderField:'Account Holder', bankIbanField:'IBAN',
+    bankSortField:'Display Order', bankActiveField:'Active',
+    bankSaved:'Account saved ✅', bankDeleted:'Account deleted',
+    bankRequired:'All fields are required', bankConfirmDelete:'Delete this account?',
+    noBankAccounts:'No accounts defined yet',
     custId:'Customer ID', custName:'Name', custEmail:'Email', custMobile:'Mobile',
     custRegBy:'Registered Via', custLang:'Language', custStatus:'Status', custJoined:'Joined',
     custRegEmail:'Email', custRegMobile:'Mobile',
@@ -902,7 +1166,7 @@ const LANGS = {
     ordersEmpty:'No orders found', ordersLoading:'Loading...', ordersLoadError:'Load error',
     orderDetails:'Details', orderClose:'✕', orderDetailTitle:'Order Details',
     orderCustomerLbl:'Customer', orderMobileLbl:'Mobile', orderItemsLbl:'Order Items',
-    orderAddrLbl:'Delivery Address', orderNoteLbl:'Note', orderTotalLbl:'Total',
+    orderAddrLbl:'Delivery Address', orderNoAddr:'No address saved', orderNoteLbl:'Note', orderTotalLbl:'Total',
     orderActionPayment:'Set Payment Info',
     orderIbanLbl:'IBAN', orderBankLbl:'Bank Name', orderHolderLbl:'Account Holder',
     orderBankPlh:'e.g. Ziraat Bank', orderHolderPlh:'Full Name', orderIbanPlh:'TR...',
@@ -933,7 +1197,15 @@ const LANGS = {
     loginBtn:'Giriş Yap', username:'Kullanıcı Adı', password:'Şifre',
     connecting:'Giriş yapılıyor...', connFail:'Sunucuya bağlanılamadı',
     navGroupCatalog:'Mağaza', navGroupConfig:'Yapılandırma', navGroupUsers:'Kullanıcılar',
-    navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navCustomers:'Müşteriler', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', logout:'Çıkış',
+    navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navCustomers:'Müşteriler', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış',
+    rptSubSales:'Satış Raporu', rptSubCustomers:'Müşteri Raporu', rptSubFinancial:'Mali Rapor',
+    crtTotal:'Toplam Müşteri', crtMonth:'Bu Ay Kayıt', crtWeek:'Bu Hafta Kayıt', crtToday:'Bugün Kayıt',
+    crtTopTitle:'En Çok Satın Alan Müşteriler', crtColName:'Müşteri', crtColContact:'İletişim', crtColOrders:'Sipariş', crtColSpent:'Toplam Harcama',
+    finTotalRev:'Toplam Gelir', finOrderCount:'Teslim Edilen Sipariş', finAvg:'Ort. Sipariş', finMax:'En Yüksek Sipariş', finMin:'En Düşük Sipariş',
+    finByBank:'Banka Hesabına Göre Gelir', finOrdersTitle:'Başarılı Sipariş Detayları', finColDate:'Tarih', finColCustomer:'Müşteri', finColBank:'Banka Hesabı', finColAmount:'Tutar',
+    rptToday:'Bugün', rptWeek:'Bu Hafta', rptMonth:'Bu Ay', rptCustom:'Özel Aralık', rptApply:'Uygula', rptClear:'Temizle', rptStAll:'Tümü',
+    rptTotalOrders:'Toplam Sipariş', rptDelivered:'Teslim Edildi', rptActive:'Devam Ediyor', rptRejected:'Reddedildi', rptCancelled:'İptal Edildi', rptRevenue:'Gelir (Teslim)', rptAvgOrder:'Ort. Sipariş Tutarı', rptCustomers:'Yeni Müşteriler',
+    rptStatusBreakdown:'Sipariş Durumu', rptTopProducts:'En Çok Satan Ürünler', rptQtySold:'Satış',
     addProduct:'+ Ürün Ekle',
     colId:'#', colMedia:'Medya', colName:'Ürün Adı', colCategory:'Kategori', colPrice:'Fiyat',
     colStock:'Stok', colColors:'Renkler', colSizes:'Bedenler', colStatus:'Durum', colActions:'İşlemler',
@@ -995,6 +1267,13 @@ const LANGS = {
     confirmDeleteSize:'Bu beden silinsin mi?', noSizes:'Henüz beden tanımlanmadı',
     noSizesDefined:'Önce Bedenler sekmesinde beden tanımlayın',
     valSizeLabel:'Beden etiketi gereklidir',
+    bankAddBtn:'+ Hesap Ekle', bankColBank:'Banka', bankColHolder:'Hesap Sahibi', bankColIban:'IBAN',
+    bankEditTitle:'Banka Hesabını Düzenle', bankAddTitle:'Banka Hesabı Ekle',
+    bankNameField:'Banka Adı', bankHolderField:'Hesap Sahibi', bankIbanField:'IBAN',
+    bankSortField:'Görüntüleme Sırası', bankActiveField:'Aktif',
+    bankSaved:'Hesap kaydedildi ✅', bankDeleted:'Hesap silindi',
+    bankRequired:'Tüm alanlar zorunludur', bankConfirmDelete:'Bu hesap silinsin mi?',
+    noBankAccounts:'Henüz hesap tanımlanmadı',
     custId:'Müşteri ID', custName:'Ad', custEmail:'E-posta', custMobile:'Telefon',
     custRegBy:'Kayıt Yöntemi', custLang:'Dil', custStatus:'Durum', custJoined:'Üyelik Tarihi',
     custRegEmail:'E-posta', custRegMobile:'Telefon',
@@ -1018,7 +1297,7 @@ const LANGS = {
     ordersEmpty:'Sipariş bulunamadı', ordersLoading:'Yükleniyor...', ordersLoadError:'Yükleme hatası',
     orderDetails:'Detaylar', orderClose:'✕', orderDetailTitle:'Sipariş Detayları',
     orderCustomerLbl:'Müşteri', orderMobileLbl:'Telefon', orderItemsLbl:'Sipariş Kalemleri',
-    orderAddrLbl:'Teslimat Adresi', orderNoteLbl:'Not', orderTotalLbl:'Toplam',
+    orderAddrLbl:'Teslimat Adresi', orderNoAddr:'Adres kaydedilmedi', orderNoteLbl:'Not', orderTotalLbl:'Toplam',
     orderActionPayment:'Ödeme Bilgisi Ekle',
     orderIbanLbl:'IBAN', orderBankLbl:'Banka Adı', orderHolderLbl:'Hesap Sahibi',
     orderBankPlh:'örn. Ziraat Bankası', orderHolderPlh:'Ad ve Soyad', orderIbanPlh:'TR...',
@@ -1147,12 +1426,13 @@ function showAdmin() {
   document.getElementById('login-overlay').classList.add('hidden');
   document.getElementById('admin-layout').classList.remove('hidden');
   showTab('products');
+  loadBankAccounts();
 }
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 function showTab(tab) {
   currentTab = tab;
-  ['products','categories','colors','sizes','customers','active-orders','orders'].forEach(t2 => {
+  ['products','categories','colors','sizes','customers','active-orders','orders','bank-accounts','reports'].forEach(t2 => {
     const el = document.getElementById(`tab-${t2}`);
     const nav = document.getElementById(`nav-${t2}`);
     if (el)  el.classList.add('hidden');
@@ -1160,13 +1440,15 @@ function showTab(tab) {
   });
   document.getElementById(`tab-${tab}`).classList.remove('hidden');
   document.getElementById(`nav-${tab}`).classList.add('active');
-  if (tab === 'products')      loadProducts();
-  if (tab === 'categories')    loadCategories();
-  if (tab === 'colors')        loadColors();
-  if (tab === 'sizes')         loadSizes();
-  if (tab === 'customers')     loadCustomers();
-  if (tab === 'active-orders') loadAdminOrders();
-  if (tab === 'orders')        loadAdminOrders();
+  if (tab === 'products')       loadProducts();
+  if (tab === 'categories')     loadCategories();
+  if (tab === 'colors')         loadColors();
+  if (tab === 'sizes')          loadSizes();
+  if (tab === 'customers')      loadCustomers();
+  if (tab === 'active-orders')  loadAdminOrders();
+  if (tab === 'orders')         loadAdminOrders();
+  if (tab === 'bank-accounts')  loadBankAccounts();
+  if (tab === 'reports')        initReports();
 }
 
 // ─── API helper ───────────────────────────────────────────────────────────────
@@ -2313,6 +2595,7 @@ function closeOrderDetail() {
 function renderOrderDetail() {
   const order = _selectedOrder;
   if (!order) return;
+  _selectedPaymentBankId = null;
   const titleEl = document.getElementById('order-detail-title');
   const bodyEl  = document.getElementById('order-detail-body');
   if (!titleEl || !bodyEl) return;
@@ -2344,6 +2627,10 @@ function renderOrderDetail() {
       ${esc(addr.recipient)} · <span style="direction:ltr;display:inline-block">${esc(addr.phone)}</span><br>
       ${esc(addr.city)}${addr.province ? ' — ' + esc(addr.province) : ''}<br>
       ${esc(addr.detail)}${addr.postal_code ? ' <span style="color:#6b7280">(' + esc(addr.postal_code) + ')</span>' : ''}
+    </div>`;
+  } else {
+    html += `<div style="background:#f9fafb;border-right:3px solid #d1d5db;border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:13px;color:#9ca3af">
+      <strong>${t('orderAddrLbl')}:</strong> ${t('orderNoAddr') || '—'}
     </div>`;
   }
 
@@ -2389,14 +2676,21 @@ function renderOrderDetail() {
   html += '<div id="order-action-area">';
 
   if (st === 'preorder') {
+    const bankOptions = _bankAccounts.length
+      ? _bankAccounts.filter(b => b.is_active).map(b =>
+          `<div class="bank-select-card" id="bsc-${b.id}" onclick="selectPaymentBank(${b.id})">
+            <div class="bank-select-radio" id="bsr-${b.id}"><div class="bank-select-dot"></div></div>
+            <div style="flex:1">
+              <span style="font-weight:700;font-size:14px;display:block">${esc(b.bank_name)}</span>
+              <span style="font-size:12px;color:#888;display:block">${esc(b.account_holder)}</span>
+              <span style="font-size:12px;color:#555;direction:ltr;display:block;font-family:monospace">${esc(b.iban)}</span>
+            </div>
+          </div>`
+        ).join('')
+      : `<div style="color:#aaa;font-size:13px;padding:10px 0">${t('noBankAccounts')}</div>`;
+
     html += `<div style="font-weight:700;font-size:14px;margin-bottom:10px">${t('orderActionPayment')}</div>
-    <div class="form-row">
-      <div class="form-field"><label>${t('orderIbanLbl')}</label><input id="act-iban" placeholder="${t('orderIbanPlh')}" style="direction:ltr" value="TR" oninput="enforceIbanPrefix(this)" onkeydown="return blockIbanLetters(event)"></div>
-      <div class="form-field"><label>${t('orderBankLbl')}</label><input id="act-bank" placeholder="${t('orderBankPlh')}" oninput="checkPaymentFields()"></div>
-    </div>
-    <div class="form-row cols-1">
-      <div class="form-field"><label>${t('orderHolderLbl')}</label><input id="act-holder" placeholder="${t('orderHolderPlh')}" oninput="checkPaymentFields()"></div>
-    </div>
+    <div id="bank-select-list" style="margin-bottom:14px">${bankOptions}</div>
     <div style="display:flex;gap:10px;margin-top:4px">
       <button id="btn-save-payment" class="btn btn-primary" onclick="adminSetPaymentInfo(${order.id})" disabled style="flex:1;opacity:.4;cursor:not-allowed">${t('orderSavePayment')}</button>
       <button class="btn btn-danger" onclick="adminShowPreorderRejectForm(${order.id})" style="flex:1">${t('orderRejectPreorder')}</button>
@@ -2501,33 +2795,18 @@ async function adminConfirmRejectPreorder(orderId) {
   closeOrderDetail();
 }
 
-function enforceIbanPrefix(input) {
-  var cursor = input.selectionStart;
-  var v = input.value.replace(/[^0-9]/g, '');
-  input.value = 'TR' + v;
-  var pos = Math.max(2, cursor);
-  input.setSelectionRange(pos, pos);
-  checkPaymentFields();
-}
+var _selectedPaymentBankId = null;
 
-function blockIbanLetters(e) {
-  // Allow: backspace, delete, arrows, tab, home, end
-  if ([8,9,35,36,37,38,39,40,46].indexOf(e.keyCode) !== -1) return true;
-  // Block if cursor is in TR prefix zone and it's a letter key
-  if (e.key && e.key.length === 1 && /[a-zA-Z]/.test(e.key)) return false;
-  return true;
-}
-
-function checkPaymentFields() {
-  var iban   = (document.getElementById('act-iban')?.value || '').trim();
-  var bank   = (document.getElementById('act-bank')?.value || '').trim();
-  var holder = (document.getElementById('act-holder')?.value || '').trim();
-  var btn    = document.getElementById('btn-save-payment');
-  if (!btn) return;
-  var valid  = iban.length > 2 && bank.length > 0 && holder.length > 0;
-  btn.disabled = !valid;
-  btn.style.opacity = valid ? '1' : '.4';
-  btn.style.cursor  = valid ? 'pointer' : 'not-allowed';
+function selectPaymentBank(bankId) {
+  _selectedPaymentBankId = bankId;
+  document.querySelectorAll('.bank-select-card').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('.bank-select-radio').forEach(r => r.classList.remove('selected'));
+  const card  = document.getElementById('bsc-' + bankId);
+  const radio = document.getElementById('bsr-' + bankId);
+  if (card)  card.classList.add('selected');
+  if (radio) radio.classList.add('selected');
+  const btn = document.getElementById('btn-save-payment');
+  if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
 }
 
 function openProductFromOrder(productId) {
@@ -2536,16 +2815,15 @@ function openProductFromOrder(productId) {
 }
 
 async function adminSetPaymentInfo(orderId) {
-  const iban           = document.getElementById('act-iban')?.value?.trim();
-  const bank_name      = document.getElementById('act-bank')?.value?.trim();
-  const account_holder = document.getElementById('act-holder')?.value?.trim();
-  if (!iban || !iban.toUpperCase().startsWith('TR')) { showToast(t('orderValidIban'), 'error'); return; }
+  const bank = _bankAccounts.find(b => b.id === _selectedPaymentBankId);
+  if (!bank) { showToast(t('noBankAccounts'), 'error'); return; }
   const res = await api(`/admin/orders/${orderId}/payment-info`, {
     method: 'PATCH',
-    body:   JSON.stringify({ iban, bank_name, account_holder }),
+    body:   JSON.stringify({ iban: bank.iban, bank_name: bank.bank_name, account_holder: bank.account_holder }),
   });
   if (res?.success) {
     showToast(t('orderPaymentSaved'));
+    _selectedPaymentBankId = null;
     _selectedOrder = res.data;
     renderOrderDetail();
     loadAdminOrders();
@@ -2600,6 +2878,498 @@ async function adminMarkDelivered(orderId) {
     renderOrderDetail();
     loadAdminOrders();
   } else showToast(res?.message || t('orderSaveError'), 'error');
+}
+
+// ─── Bank Accounts ─────────────────────────────────────────────────────────────
+let _bankAccounts = [];
+let _editingBankId = null;
+
+async function loadBankAccounts() {
+  const res = await api('/admin/bank-accounts');
+  if (!res) return;
+  _bankAccounts = res.data || [];
+  renderBankAccountsTable();
+}
+
+function renderBankAccountsTable() {
+  const tbody = document.getElementById('bank-accounts-tbody');
+  if (!_bankAccounts.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:#999">${t('noBankAccounts')}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = _bankAccounts.map(a => `
+    <tr>
+      <td><strong>${esc(a.bank_name)}</strong></td>
+      <td>${esc(a.account_holder)}</td>
+      <td><code style="direction:ltr;display:inline-block;font-size:13px">${esc(a.iban)}</code></td>
+      <td><span class="badge" style="background:${a.is_active ? '#dcfce7' : '#fee2e2'};color:${a.is_active ? '#16a34a' : '#dc2626'}">${a.is_active ? t('active') : t('inactive')}</span></td>
+      <td>
+        <button class="btn btn-sm btn-secondary" onclick="openBankAccountModal(${a.id})" style="margin-inline-end:6px">${t('edit')}</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteBankAccount(${a.id})">${t('del')}</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openBankAccountModal(id) {
+  _editingBankId = id || null;
+  const account = id ? _bankAccounts.find(a => a.id === id) : null;
+  document.getElementById('modal-title').textContent = id ? t('bankEditTitle') : t('bankAddTitle');
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-field" style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:5px">${t('bankNameField')}</label>
+      <input id="ba-bank-name" class="form-control" value="${esc(account?.bank_name || '')}">
+    </div>
+    <div class="form-field" style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:5px">${t('bankHolderField')}</label>
+      <input id="ba-account-holder" class="form-control" value="${esc(account?.account_holder || '')}">
+    </div>
+    <div class="form-field" style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:5px">${t('bankIbanField')}</label>
+      <input id="ba-iban" class="form-control" value="${esc(account?.iban || '')}" dir="ltr" style="font-family:monospace">
+    </div>
+    <div class="form-field" style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:5px">${t('bankSortField')}</label>
+      <input id="ba-sort-order" class="form-control" type="number" value="${account?.sort_order ?? 0}" style="width:100px">
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <input type="checkbox" id="ba-is-active" ${account ? (account.is_active ? 'checked' : '') : 'checked'}>
+      <label for="ba-is-active" style="font-size:13px;font-weight:600;cursor:pointer">${t('bankActiveField')}</label>
+    </div>
+  `;
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn btn-primary" onclick="saveBankAccount()">${t('saveChanges')}</button>
+    <button class="btn btn-secondary" onclick="closeModal()" style="margin-inline-start:8px">${t('cancel')}</button>
+  `;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+async function saveBankAccount() {
+  const bank_name      = document.getElementById('ba-bank-name')?.value?.trim();
+  const account_holder = document.getElementById('ba-account-holder')?.value?.trim();
+  const iban           = document.getElementById('ba-iban')?.value?.trim();
+  const sort_order     = Number(document.getElementById('ba-sort-order')?.value) || 0;
+  const is_active      = document.getElementById('ba-is-active')?.checked;
+
+  if (!bank_name || !account_holder || !iban) {
+    showToast(t('bankRequired'), 'error'); return;
+  }
+
+  const body = JSON.stringify({ bank_name, account_holder, iban, is_active, sort_order });
+  const res = _editingBankId
+    ? await api(`/admin/bank-accounts/${_editingBankId}`, { method: 'PUT',  body })
+    : await api('/admin/bank-accounts',                   { method: 'POST', body });
+
+  if (res?.success) {
+    showToast(t('bankSaved'));
+    closeModal();
+    loadBankAccounts();
+  } else showToast(res?.message || t('orderSaveError'), 'error');
+}
+
+async function deleteBankAccount(id) {
+  const account = _bankAccounts.find(a => a.id === id);
+  showConfirm(t('bankConfirmDelete'), async () => {
+    const res = await api(`/admin/bank-accounts/${id}`, { method: 'DELETE' });
+    if (res?.success) { showToast(t('bankDeleted')); loadBankAccounts(); }
+    else showToast(res?.message || t('orderSaveError'), 'error');
+  });
+}
+
+// ─── Reports ──────────────────────────────────────────────────────────────────
+
+var _reportPeriod = 'today';
+var _reportSubtab = 'sales';
+
+function initReports() {
+  _reportSubtab = 'sales';
+  switchReportSubtab('sales');
+}
+
+function switchReportSubtab(sub) {
+  _reportSubtab = sub;
+  ['sales','customers','financial'].forEach(function(s) {
+    document.getElementById('rpt-subtab-' + s).classList.toggle('active', s === sub);
+    document.getElementById('rpt-section-' + s).style.display = s === sub ? '' : 'none';
+  });
+  if (sub === 'sales')     setReportPeriod('today');
+  if (sub === 'customers') loadCustomerReports();
+  if (sub === 'financial') setFinPeriod('today');
+}
+
+async function loadCustomerReports() {
+  const res = await api('/admin/customer-reports');
+  if (!res?.success) return;
+  renderCustomerReports(res.data);
+}
+
+var _crtAllCustomers = [];
+var _crtSort = { col: 'orders', dir: 'desc' };
+
+function renderCustomerReports(data) {
+  document.getElementById('crt-total').textContent = data.totalCustomers;
+  document.getElementById('crt-month').textContent = data.newThisMonth;
+  document.getElementById('crt-week').textContent  = data.newThisWeek;
+  document.getElementById('crt-today').textContent = data.newToday;
+  _crtAllCustomers = data.topCustomers || [];
+  _crtSort = { col: 'orders', dir: 'desc' };
+  ['orders','spent'].forEach(function(c) {
+    var th = document.getElementById('crt-th-' + c);
+    if (th) { th.classList.remove('asc','desc'); if (c === 'orders') th.classList.add('desc'); }
+  });
+  var searchEl = document.getElementById('crt-search');
+  if (searchEl) searchEl.value = '';
+  renderCrtRows(applyCrtSort(_crtAllCustomers));
+}
+
+function filterCrtTable() {
+  var q = (document.getElementById('crt-search')?.value || '').trim().toLowerCase();
+  var filtered = q
+    ? _crtAllCustomers.filter(function(c) {
+        return (c.email  || '').toLowerCase().includes(q) ||
+               (c.mobile || '').toLowerCase().includes(q);
+      })
+    : _crtAllCustomers;
+  renderCrtRows(applyCrtSort(filtered));
+}
+
+function sortCrtTable(col) {
+  if (_crtSort.col === col) {
+    _crtSort.dir = _crtSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    _crtSort.col = col;
+    _crtSort.dir = 'desc';
+  }
+  ['orders','spent'].forEach(function(c) {
+    var th = document.getElementById('crt-th-' + c);
+    if (!th) return;
+    th.classList.toggle('asc',  c === _crtSort.col && _crtSort.dir === 'asc');
+    th.classList.toggle('desc', c === _crtSort.col && _crtSort.dir === 'desc');
+  });
+  filterCrtTable();
+}
+
+function applyCrtSort(list) {
+  var col = _crtSort.col, dir = _crtSort.dir;
+  return list.slice().sort(function(a, b) {
+    var av = col === 'spent' ? Number(a.totalSpent) : Number(a.orderCount);
+    var bv = col === 'spent' ? Number(b.totalSpent) : Number(b.orderCount);
+    return dir === 'asc' ? av - bv : bv - av;
+  });
+}
+
+function renderCrtRows(list) {
+  var medals = ['🥇','🥈','🥉'];
+  var rows = list.map(function(c, i) {
+    return '<tr>' +
+      '<td style="font-size:18px;text-align:center">' + (medals[i] || (i + 1)) + '</td>' +
+      '<td style="font-weight:600">' + esc(c.full_name) + '</td>' +
+      '<td style="font-size:12px;color:var(--text-muted)">' + esc(c.email || c.mobile || '—') + '</td>' +
+      '<td style="font-weight:700;color:var(--primary);text-align:center">' + c.orderCount + '</td>' +
+      '<td style="font-family:monospace;font-size:13px;text-align:center">' + Number(c.totalSpent).toLocaleString('tr-TR') + ' ₺</td>' +
+    '</tr>';
+  }).join('');
+  var tbody = document.getElementById('crt-tbody');
+  if (tbody) tbody.innerHTML = rows || '<tr><td colspan="5" style="text-align:center;padding:40px;color:#aaa">—</td></tr>';
+}
+
+function clearCustomPeriod() {
+  var fromEl = document.getElementById('rpt-from');
+  var toEl   = document.getElementById('rpt-to');
+  if (fromEl) fromEl.value = '';
+  if (toEl)   toEl.value   = '';
+  loadReports();
+}
+
+function setReportPeriod(period) {
+  _reportPeriod = period;
+  ['today','week','month','custom'].forEach(function(p) {
+    var btn = document.getElementById('rpt-btn-' + p);
+    if (btn) btn.classList.toggle('active', p === period);
+  });
+  var customRange = document.getElementById('rpt-custom-range');
+  if (customRange) customRange.style.display = (period === 'custom') ? 'flex' : 'none';
+  if (period === 'custom') {
+    var fromEl = document.getElementById('rpt-from');
+    var toEl   = document.getElementById('rpt-to');
+    if (fromEl) fromEl.value = '';
+    if (toEl)   toEl.value   = '';
+  }
+  loadReports();
+}
+
+function getReportDateRange() {
+  var now = new Date();
+  if (_reportPeriod === 'today') {
+    var start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    return { from: start.toISOString(), to: new Date(now.getTime() + 1000).toISOString() };
+  }
+  if (_reportPeriod === 'week') {
+    var day = now.getDay();
+    var diff = (day === 0 ? -6 : 1 - day);
+    var mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff, 0, 0, 0, 0);
+    return { from: mon.toISOString(), to: new Date(now.getTime() + 1000).toISOString() };
+  }
+  if (_reportPeriod === 'month') {
+    var start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    return { from: start.toISOString(), to: new Date(now.getTime() + 1000).toISOString() };
+  }
+  if (_reportPeriod === 'custom') {
+    var from = document.getElementById('rpt-from')?.value;
+    var to   = document.getElementById('rpt-to')?.value;
+    return {
+      from: from ? new Date(from + 'T00:00:00').toISOString() : null,
+      to:   to   ? new Date(to   + 'T23:59:59').toISOString() : null,
+    };
+  }
+  return {};
+}
+
+async function loadReports() {
+  var range = getReportDateRange();
+  var params = new URLSearchParams();
+  if (range.from) params.set('from', range.from);
+  if (range.to)   params.set('to',   range.to);
+  var res = await api('/admin/reports?' + params.toString());
+  if (!res?.success) return;
+  renderReports(res.data);
+}
+
+function renderReports(data) {
+  var lang = currentLang;
+
+  // KPI cards
+  document.getElementById('rpt-total').textContent     = data.orders.total;
+  document.getElementById('rpt-delivered').textContent = data.orders.delivered;
+  document.getElementById('rpt-active').textContent    = data.orders.active;
+  document.getElementById('rpt-rejected').textContent  = data.orders.rejected;
+  document.getElementById('rpt-cancelled').textContent = data.orders.cancelled;
+  document.getElementById('rpt-revenue').textContent   = formatRptPrice(data.revenue.total);
+  document.getElementById('rpt-avg').textContent       = data.orders.delivered > 0 ? formatRptPrice(data.revenue.avg) : '—';
+  document.getElementById('rpt-customers').textContent = data.customers.new;
+
+  // Donut chart
+  // Always show exactly these 5 statuses in the legend
+  var STATUS_LABELS = [
+    { key:'preorder',       fa:'پیش‌سفارش',        en:'Preorder',    tr:'Ön Sipariş',  color:'#6b7280' },
+    { key:'payment_needed', fa:'در انتظار پرداخت', en:'Awaiting Pay',tr:'Ödeme Bekl.', color:'#f59e0b' },
+    { key:'delivered',      fa:'تحویل شده',         en:'Delivered',   tr:'Teslim Edildi',color:'#22c55e' },
+    { key:'rejected',       fa:'رد شده',            en:'Rejected',    tr:'Reddedildi',  color:'#ef4444' },
+    { key:'cancelled',      fa:'لغو شده',           en:'Cancelled',   tr:'İptal Edildi',color:'#9ca3af' },
+  ];
+  var byStatus = data.orders.byStatus || {};
+  var allSlices = STATUS_LABELS.map(function(lbl) {
+    return { key: lbl.key, lbl: lbl, count: byStatus[lbl.key] || 0 };
+  });
+  var drawSlices = allSlices.filter(function(s) { return s.count > 0; });
+  var totalSlices = drawSlices.reduce(function(s, x) { return s + x.count; }, 0) || 1;
+
+  var cx = 60, cy = 60, R = 50, r = 30;
+  var angle = -Math.PI / 2;
+  var paths = drawSlices.map(function(s) {
+    var sweep = (s.count / totalSlices) * 2 * Math.PI;
+    if (sweep >= 2 * Math.PI) sweep = 2 * Math.PI - 0.001;
+    var x1 = cx + R * Math.cos(angle), y1 = cy + R * Math.sin(angle);
+    var x2 = cx + R * Math.cos(angle + sweep), y2 = cy + R * Math.sin(angle + sweep);
+    var ix1 = cx + r * Math.cos(angle), iy1 = cy + r * Math.sin(angle);
+    var ix2 = cx + r * Math.cos(angle + sweep), iy2 = cy + r * Math.sin(angle + sweep);
+    var large = sweep > Math.PI ? 1 : 0;
+    var d = 'M ' + x1 + ' ' + y1 +
+            ' A ' + R + ' ' + R + ' 0 ' + large + ' 1 ' + x2 + ' ' + y2 +
+            ' L ' + ix2 + ' ' + iy2 +
+            ' A ' + r + ' ' + r + ' 0 ' + large + ' 0 ' + ix1 + ' ' + iy1 + ' Z';
+    angle += sweep;
+    return '<path d="' + d + '" fill="' + s.lbl.color + '" stroke="#fff" stroke-width="1.5"><title>' + (s.lbl[lang]||s.lbl.en) + ': ' + s.count + '</title></path>';
+  }).join('');
+  var totalLabel = '<text x="60" y="56" text-anchor="middle" font-size="16" font-weight="800" fill="var(--text)">' + data.orders.total + '</text>' +
+                   '<text x="60" y="70" text-anchor="middle" font-size="9" fill="var(--text-muted)">total</text>';
+  var svgEl = document.getElementById('rpt-donut-svg');
+  if (svgEl) svgEl.innerHTML = (drawSlices.length ? paths : '<circle cx="60" cy="60" r="50" fill="#f0f0f0"/>') + totalLabel;
+
+  // Legend always shows all 5 statuses
+  var legendHtml = allSlices.map(function(s) {
+    var pct = s.count > 0 ? Math.round((s.count / totalSlices) * 100) : 0;
+    return '<div style="display:flex;align-items:center;gap:7px' + (s.count === 0 ? ';opacity:.4' : '') + '">' +
+      '<span style="width:10px;height:10px;border-radius:50%;background:' + s.lbl.color + ';flex-shrink:0"></span>' +
+      '<span style="font-size:12px;flex:1;color:var(--text-muted)">' + (s.lbl[lang]||s.lbl.en) + '</span>' +
+      '<span style="font-size:12px;font-weight:700">' + s.count + '</span>' +
+      '<span style="font-size:11px;color:#aaa;width:32px;text-align:end">' + (s.count > 0 ? pct + '%' : '') + '</span>' +
+    '</div>';
+  }).join('');
+  var legendEl = document.getElementById('rpt-donut-legend');
+  if (legendEl) legendEl.innerHTML = legendHtml;
+
+  // Top products
+  var medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+  var topHtml = (data.topProducts || []).map(function(p, i) {
+    var name = (lang === 'en' ? p.name_en : lang === 'tr' ? p.name_tr : p.name_fa) || p.name_fa || '—';
+    return '<div class="rpt-top-row">' +
+      '<div class="rpt-top-rank">' + (medals[i] || (i+1)) + '</div>' +
+      '<div class="rpt-top-name">' + esc(name) + (p.code ? '<br><span class="rpt-top-code">' + esc(p.code) + '</span>' : '') + '</div>' +
+      '<div class="rpt-top-qty">' + p.qty + ' ' + t('rptQtySold') + '</div>' +
+    '</div>';
+  }).join('');
+  document.getElementById('rpt-top-products').innerHTML = topHtml || '<div style="color:#aaa;font-size:13px">—</div>';
+}
+
+function formatRptPrice(n) {
+  if (!n) return '0';
+  return Number(n).toLocaleString('tr-TR') + ' ₺';
+}
+
+// ─── Financial Report ─────────────────────────────────────────────────────────
+
+var _finPeriod = 'today';
+var _finAllOrders = [];
+var _finSort = { col: 'date', dir: 'desc' };
+
+function setFinPeriod(period) {
+  _finPeriod = period;
+  ['today','week','month','custom'].forEach(function(p) {
+    var btn = document.getElementById('fin-btn-' + p);
+    if (btn) btn.classList.toggle('active', p === period);
+  });
+  var cr = document.getElementById('fin-custom-range');
+  if (cr) cr.style.display = period === 'custom' ? 'flex' : 'none';
+  if (period === 'custom') {
+    var f = document.getElementById('fin-from'); if (f) f.value = '';
+    var tt = document.getElementById('fin-to');  if (tt) tt.value = '';
+  }
+  loadFinancialReport();
+}
+
+function clearFinPeriod() {
+  var f = document.getElementById('fin-from'); if (f) f.value = '';
+  var tt = document.getElementById('fin-to');  if (tt) tt.value = '';
+  loadFinancialReport();
+}
+
+function getFinDateRange() {
+  var now = new Date();
+  if (_finPeriod === 'today') {
+    var s = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return { from: s.toISOString(), to: new Date(now.getTime() + 1000).toISOString() };
+  }
+  if (_finPeriod === 'week') {
+    var d = now.getDay(), diff = d === 0 ? -6 : 1 - d;
+    var mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
+    return { from: mon.toISOString(), to: new Date(now.getTime() + 1000).toISOString() };
+  }
+  if (_finPeriod === 'month') {
+    var s = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { from: s.toISOString(), to: new Date(now.getTime() + 1000).toISOString() };
+  }
+  if (_finPeriod === 'custom') {
+    var fv = document.getElementById('fin-from')?.value;
+    var tv = document.getElementById('fin-to')?.value;
+    return {
+      from: fv ? new Date(fv + 'T00:00:00').toISOString() : null,
+      to:   tv ? new Date(tv + 'T23:59:59').toISOString() : null,
+    };
+  }
+  return {};
+}
+
+async function loadFinancialReport() {
+  var range = getFinDateRange();
+  var params = new URLSearchParams();
+  if (range.from) params.set('from', range.from);
+  if (range.to)   params.set('to',   range.to);
+  var res = await api('/admin/financial-report?' + params.toString());
+  if (!res?.success) return;
+  renderFinancialReport(res.data);
+}
+
+function renderFinancialReport(data) {
+  var s = data.summary;
+  document.getElementById('fin-total').textContent = formatRptPrice(s.totalRevenue);
+  document.getElementById('fin-count').textContent = s.orderCount;
+  document.getElementById('fin-avg').textContent   = formatRptPrice(s.avgOrder);
+  document.getElementById('fin-max').textContent   = formatRptPrice(s.maxOrder);
+  document.getElementById('fin-min').textContent   = s.orderCount > 0 ? formatRptPrice(s.minOrder) : '—';
+
+  // Per-bank breakdown
+  var bankHtml = (data.byBank || []).map(function(b) {
+    var pct = s.totalRevenue > 0 ? Math.round((b.totalAmount / s.totalRevenue) * 100) : 0;
+    return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-weight:700;font-size:14px">' + esc(b.bank_name) + '</div>' +
+        '<div style="font-size:12px;color:#888">' + esc(b.account_holder) + '</div>' +
+        '<div style="font-size:11px;color:#aaa;direction:ltr;font-family:monospace">' + esc(b.iban) + '</div>' +
+      '</div>' +
+      '<div style="text-align:end;flex-shrink:0">' +
+        '<div style="font-weight:800;font-size:15px;color:var(--primary)">' + formatRptPrice(b.totalAmount) + '</div>' +
+        '<div style="font-size:12px;color:#888">' + b.orderCount + ' سفارش · ' + pct + '%</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  document.getElementById('fin-by-bank').innerHTML = bankHtml ||
+    '<div style="color:#aaa;font-size:13px;padding:12px 0">—</div>';
+
+  // Orders table — cache then sort
+  _finAllOrders = data.orders || [];
+  _finSort = { col: 'date', dir: 'desc' };
+  ['date','bank','amount'].forEach(function(c) {
+    var th = document.getElementById('fin-th-' + c);
+    if (th) { th.classList.remove('asc','desc'); if (c === 'date') th.classList.add('desc'); }
+  });
+  renderFinRows(_finAllOrders);
+}
+
+function sortFinTable(col) {
+  if (_finSort.col === col) {
+    _finSort.dir = _finSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    _finSort.col = col;
+    _finSort.dir = col === 'date' ? 'desc' : 'asc';
+  }
+  ['date','bank','amount'].forEach(function(c) {
+    var th = document.getElementById('fin-th-' + c);
+    if (!th) return;
+    th.classList.toggle('asc',  c === _finSort.col && _finSort.dir === 'asc');
+    th.classList.toggle('desc', c === _finSort.col && _finSort.dir === 'desc');
+  });
+  renderFinRows(_finAllOrders);
+}
+
+function renderFinRows(list) {
+  var col = _finSort.col, dir = _finSort.dir;
+  var sorted = list.slice().sort(function(a, b) {
+    if (col === 'date') {
+      var av = new Date(a.created_at).getTime(), bv = new Date(b.created_at).getTime();
+      return dir === 'asc' ? av - bv : bv - av;
+    }
+    if (col === 'bank') {
+      var av = (a.bank_name || '').toLowerCase(), bv = (b.bank_name || '').toLowerCase();
+      return dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    }
+    if (col === 'amount') {
+      return dir === 'asc' ? a.total_amount - b.total_amount : b.total_amount - a.total_amount;
+    }
+    return 0;
+  });
+
+  var finLocale = currentLang === 'fa' ? 'fa-IR' : currentLang === 'tr' ? 'tr-TR' : 'en-US';
+  var rows = sorted.map(function(o) {
+    var dateStr = new Date(o.created_at).toLocaleDateString(finLocale, { year:'numeric', month:'2-digit', day:'2-digit' });
+    return '<tr>' +
+      '<td style="font-weight:600;color:var(--primary)">#' + o.id + '</td>' +
+      '<td style="font-size:12px;white-space:nowrap">' + dateStr + '</td>' +
+      '<td>' +
+        '<div style="font-weight:600;font-size:13px">' + esc(o.customer_name) + '</div>' +
+        '<div style="font-size:11px;color:#aaa">' + esc(o.customer_phone) + '</div>' +
+      '</td>' +
+      '<td>' +
+        (o.bank_name
+          ? '<div style="font-size:13px;font-weight:600">' + esc(o.bank_name) + '</div>' +
+            '<div style="font-size:11px;color:#888">' + esc(o.account_holder || '') + '</div>'
+          : '<span style="color:#aaa;font-size:12px">—</span>') +
+      '</td>' +
+      '<td style="font-weight:700;font-family:monospace;white-space:nowrap">' + formatRptPrice(o.total_amount) + '</td>' +
+    '</tr>';
+  }).join('');
+  var tbody = document.getElementById('fin-orders-tbody');
+  if (tbody) tbody.innerHTML = rows || '<tr><td colspan="5" style="text-align:center;padding:40px;color:#aaa">—</td></tr>';
 }
 </script>
 </body>

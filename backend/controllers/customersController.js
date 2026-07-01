@@ -93,10 +93,21 @@ async function login(req, res, next) {
       },
     });
 
+    const addresses = await prisma.addresses.findMany({
+      where: { customer_id: customer.id },
+      select: { id: true, recipient: true, phone: true, city: true, postal_code: true, detail: true, is_default: true },
+      orderBy: [{ is_default: 'desc' }, { id: 'asc' }],
+    });
+
     res.json({
       success: true,
       token: session.id,
-      customer: { id: customer.id, full_name: customer.full_name, email: customer.email, mobile: customer.mobile, registered_by: customer.registered_by },
+      customer: {
+        id: customer.id, full_name: customer.full_name, email: customer.email,
+        mobile: customer.mobile, registered_by: customer.registered_by,
+        preferred_lang: customer.preferred_lang,
+        addresses,
+      },
     });
   } catch (err) {
     next(err);

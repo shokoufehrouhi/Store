@@ -13,6 +13,8 @@ const allowedOrigins = [
   'http://localhost:5500',
   'http://127.0.0.1:5500',
   'http://localhost:3000',
+  'http://localhost:8080',
+  'http://127.0.0.1:8080',
 ].filter(Boolean);
 
 app.use(cors({
@@ -57,6 +59,19 @@ app.get('/api/categories', async (req, res, next) => {
       orderBy: { id: 'asc' },
     });
     res.json({ success: true, data: cats });
+  } catch (err) { next(err); }
+});
+
+// ─── Public bank accounts (no auth) ───────────────────────────────────────────
+app.get('/api/bank-accounts', async (req, res, next) => {
+  try {
+    const prisma = require('./prisma/client');
+    const accounts = await prisma.bank_accounts.findMany({
+      where: { is_active: true },
+      orderBy: [{ sort_order: 'asc' }, { id: 'asc' }],
+      select: { id: true, bank_name: true, account_holder: true, iban: true },
+    });
+    res.json({ success: true, data: accounts });
   } catch (err) { next(err); }
 });
 

@@ -62,4 +62,12 @@ router.patch('/orders/:id/reject-preorder', c.rejectPreorder);
 router.patch('/orders/:id/shipping',     c.setShipping);
 router.patch('/orders/:id/delivered',    c.markDelivered);
 
+router.get('/reports',              c.getReports);
+router.get('/financial-report',    c.getFinancialReport);
+router.get('/customer-reports',    c.getCustomerReports);
+router.get('/bank-accounts',        c.getBankAccounts);
+router.post('/bank-accounts',       c.createBankAccount);
+router.put('/bank-accounts/:id',    c.updateBankAccount);
+router.delete('/bank-accounts/:id', c.deleteBankAccount);
+
 module.exports = router;
