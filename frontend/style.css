@@ -3549,7 +3549,7 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .auth-modal-box  { padding: 28px 20px 24px; }
-  .auth-header-btn { display: none; }
+  .auth-header-btn { padding: 5px 10px; font-size: 12px; }
   .fav-grid { grid-template-columns: repeat(2, 1fr); }
   .fav-thumb { aspect-ratio: 1 / 1; }
   .address-form-grid { grid-template-columns: 1fr; }
