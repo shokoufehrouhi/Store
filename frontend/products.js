@@ -2,10 +2,10 @@
 // اطلاعات تماس
 // =====================================================
 const CONTACT = {
-  phone: '905392184323',
-  phoneDisplay:      '+۹۰ ۵۳۹ ۲۱۸ ۴۳۲۳',
-  phoneDisplayLatin: '+90 539 218 4323',
-  whatsapp: '905392184323',
+  phone: '905550401737',
+  phoneDisplay:      '+۹۰ ۵۵۵ ۰۴۰ ۱۷۳۷',
+  phoneDisplayLatin: '+90 555 040 1737',
+  whatsapp: '905550401737',
   telegram: 'akhgar_sport',
 };
 

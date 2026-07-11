@@ -18,11 +18,11 @@ async function getAll(req, res, next) {
         product_sizes:     true,
         product_media:     { orderBy: { sort_order: 'asc' } },
         product_inventory: { select: { color_id: true, size_label: true, quantity: true } },
-        _count:            { select: { order_items: true } },
+        _count:            { select: { order_items: true, customer_product_photos: { where: { is_approved: true } } } },
       },
       orderBy: { created_at: 'desc' },
     });
-    const products = rows.map(p => ({ ...p, sales: p._count.order_items, _count: undefined }));
+    const products = rows.map(p => ({ ...p, sales: p._count.order_items, has_customer_photos: p._count.customer_product_photos > 0, _count: undefined }));
     res.json({ success: true, data: products });
   } catch (err) {
     next(err);

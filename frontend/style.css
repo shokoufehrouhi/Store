@@ -1023,6 +1023,12 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   letter-spacing: 0.02em;
 }
 
+.product-camera-badge {
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
 .product-body {
   padding: 16px;
   display: flex;
@@ -1055,9 +1061,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .gender-female { background: #fce7f3; color: #be185d; }
 .gender-male   { background: #dbeafe; color: #1d4ed8; }
-.cat-clothing  { background: #ede9fe; color: #7c3aed; }
-.cat-shoes     { background: #dbeafe; color: #1d4ed8; }
+.cat-clothing    { background: #ede9fe; color: #7c3aed; }
+.cat-shoes       { background: #dbeafe; color: #1d4ed8; }
 .cat-accessories { background: #d1fae5; color: #065f46; }
+.cat-equipment   { background: #fef3c7; color: #92400e; }
 
 .product-name {
   font-size: 15px;
@@ -1467,33 +1474,34 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 /* ─── Floating Buttons ───────────────────────────────────────────────────── */
-.floating-buttons {
+.scroll-top-btn {
   position: fixed;
   left: 20px;
   bottom: 28px;
   z-index: 200;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.float-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 11px 18px;
-  border-radius: 30px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #fff;
+  justify-content: center;
   box-shadow: 0 4px 18px rgba(0,0,0,.22);
-  transition: transform .2s, box-shadow .2s;
-  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s, transform .25s;
+  transform: translateY(12px);
 }
-.float-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,.3); }
-.float-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
-.whatsapp-float { background: var(--wa-green); }
-.telegram-float { background: var(--tg-blue); }
-.float-label { font-size: 13px; }
+.scroll-top-btn.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.scroll-top-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,.3); }
+.scroll-top-btn svg { width: 20px; height: 20px; }
 
 /* ─── Language Switcher ──────────────────────────────────────────────────── */
 /* ─── Globe Language Switcher ───────────────────────────────────────────── */
@@ -1608,7 +1616,7 @@ html[dir="rtl"] body { direction: rtl; text-align: right; }
 html[dir="ltr"] body { direction: ltr; text-align: left;  }
 
 /* ─── LTR Overrides (English & Turkish) ─────────────────────────────────── */
-[dir="ltr"] .floating-buttons {
+[dir="ltr"] .scroll-top-btn {
   left: auto;
   right: 20px;
 }
@@ -1697,8 +1705,7 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   .footer-col { align-items: center; }
   .legal-modal-box { padding: 28px 20px 24px; border-radius: 12px; }
 
-  .float-label { display: none; }
-  .float-btn { padding: 13px; border-radius: 50%; }
+  .scroll-top-btn { width: 40px; height: 40px; bottom: 20px; left: 16px; }
 }
 
 @media (max-width: 420px) {
@@ -1746,10 +1753,11 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 
 /* Close */
 .modal-close {
-  position: absolute;
+  position: sticky;
   top: 14px;
-  left: 14px;
-  z-index: 10;
+  float: right;
+  margin: 14px 14px -48px 0;
+  z-index: 20;
   width: 34px;
   height: 34px;
   border-radius: 50%;

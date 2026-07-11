@@ -119,7 +119,8 @@ function mapApiProduct(p) {
     price:            Number(p.price) || 0,
     discounted_price: p.discounted_price != null ? Number(p.discounted_price) : null,
     stock:            p.stock || 0,
-    sales:     Number(p.sales) || 0,
+    sales:               Number(p.sales) || 0,
+    has_customer_photos: !!p.has_customer_photos,
     inventory: (p.product_inventory || []).map(function(i) {
       return { color_id: i.color_id, size_label: i.size_label, quantity: i.quantity };
     }),
@@ -158,12 +159,14 @@ function renderPriceHtml(p, cssClass) {
   if (!p.price) return '';
   var hasDiscount = p.discounted_price && p.discounted_price < p.price;
   if (hasDiscount) {
-    return '<div class="' + cls + ' price-has-discount">' +
+    return '<div class="' + cls + ' price-has-discount" dir="ltr">' +
       '<span class="price-original">' + formatPrice(p.price) + '</span>' +
       '<span class="price-discounted">' + formatPrice(p.discounted_price) + '</span>' +
       '</div>';
   }
-  return '<div class="' + cls + '">' + formatPrice(p.price) + '</div>';
+  return '<div class="' + cls + ' price-has-discount" dir="ltr">' +
+    '<span class="price-discounted">' + formatPrice(p.price) + '</span>' +
+    '</div>';
 }
 
 // ─── Cart Persistence ─────────────────────────────────────────────────────────
@@ -974,6 +977,10 @@ function renderProduct(p) {
     : PLACEHOLDER_SVG;
   var imgStyle = firstImg ? '' : 'style="background:' + p.gradient + '"';
 
+  var cameraTag = p.has_customer_photos
+    ? '<span class="product-camera-badge" title="' + (t.cphoto_customer_photos || 'عکس‌های خریداران') + '">📷</span>'
+    : '';
+
   return (
     '<div class="product-card" data-category="' + p.category + '" onclick="openModal(' + p.id + ')">' +
     '  <div class="product-image" ' + imgStyle + '>' +
@@ -983,8 +990,9 @@ function renderProduct(p) {
     '  </div>' +
     '  <div class="product-body">' +
     '    <div class="card-badges">' +
-    '      <span class="category-badge cat-' + p.category + '">' + cat + '</span>' +
+    '      <span class="category-badge cat-' + (p.category || '').toLowerCase() + '">' + cat + '</span>' +
     genderBadge +
+    cameraTag +
     '    </div>' +
     '    <h3 class="product-name">' + name + '</h3>' +
     (p.code ? '    <div class="product-code-badge"><span class="product-code-label">' + (t.product_code_label || 'کد محصول') + ':</span> ' + p.code + '</div>' : '') +
@@ -1387,7 +1395,7 @@ function applyLang(lang) {
   });
 
   var display = lang === 'fa' ? CONTACT.phoneDisplay : CONTACT.phoneDisplayLatin;
-  document.querySelectorAll('.js-phone').forEach(function(el) { el.textContent = display; });
+  document.querySelectorAll('.js-phone').forEach(function(el) { el.textContent = display; el.dir = 'ltr'; });
 
   if (cachedCategories.length) { buildSidebar(cachedCategories); buildMegaMenu(cachedCategories); }
 
@@ -1421,8 +1429,10 @@ function toggleSiteLangMenu(e) {
 // ─── Header Scroll ────────────────────────────────────────────────────────────
 function initHeaderScroll() {
   var header = document.getElementById('header');
+  var scrollTopBtn = document.getElementById('scroll-top-btn');
   window.addEventListener('scroll', function() {
     header.classList.toggle('scrolled', window.scrollY > 60);
+    if (scrollTopBtn) scrollTopBtn.classList.toggle('visible', window.scrollY > 300);
   });
 }
 
@@ -1435,6 +1445,7 @@ function toggleMenu() {
 function fillContactInfo() {
   document.querySelectorAll('.js-phone').forEach(function(el) {
     el.textContent = CONTACT.phoneDisplay;
+    el.dir = 'ltr';
   });
   document.querySelectorAll('.js-phone-link').forEach(function(el) {
     el.href = 'tel:+' + CONTACT.whatsapp;
@@ -1637,10 +1648,11 @@ function openModal(productId) {
     mainImgInner +
     '    </div>' +
     '    <div class="modal-thumbs" id="modal-thumbs">' + thumbsHtml + '</div>' +
+    '    <div id="modal-customer-photos" style="padding:32px 4px 4px"></div>' +
     '  </div>' +
     '  <div class="modal-info">' +
     '    <div class="card-badges">' +
-    '      <span class="category-badge cat-' + p.category + '">' + cat + '</span>' +
+    '      <span class="category-badge cat-' + (p.category || '').toLowerCase() + '">' + cat + '</span>' +
     modalGenderBadge +
     '    </div>' +
     '    <h2 class="modal-name">' + name + '</h2>' +
@@ -1659,11 +1671,10 @@ function openModal(productId) {
     '      </div>' +
     '      <div class="modal-phone-row">' +
     '        <span class="modal-or-call">' + t.modal_or_call + '</span>' +
-    '        <a href="tel:+' + CONTACT.whatsapp + '" class="modal-phone">' + phoneDisp + '</a>' +
+    '        <a href="tel:+' + CONTACT.whatsapp + '" class="modal-phone" dir="ltr">' + phoneDisp + '</a>' +
     '      </div>' +
     '    </div>' +
     '  </div>' +
-    '<div id="modal-customer-photos"></div>' +
     '</div>';
 
   document.getElementById('modal-overlay').classList.add('open');
