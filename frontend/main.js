@@ -2242,12 +2242,12 @@ function updateAuthUI() {
     var firstName   = displayName.split(' ')[0] || displayName;
     var avatarSrc   = user.id ? (localStorage.getItem('mf_avatar_' + user.id) || '') : '';
     if (avatarSrc) {
-      btn.innerHTML = '<img class="auth-header-avatar" src="' + avatarSrc + '" alt=""> ' + firstName;
+      btn.innerHTML = '<img class="auth-header-avatar" src="' + avatarSrc + '" alt=""><span class="auth-btn-text"> ' + firstName + '</span>';
     } else {
-      btn.innerHTML = makeInitialsAvatar(displayName, 28, 11) + ' ' + firstName;
+      btn.innerHTML = makeInitialsAvatar(displayName, 28, 11) + '<span class="auth-btn-text"> ' + firstName + '</span>';
     }
   } else {
-    btn.innerHTML = TRANSLATIONS[currentLang].auth_header_btn || '👤 ورود';
+    btn.innerHTML = '👤<span class="auth-btn-text"> ' + (TRANSLATIONS[currentLang].auth_header_btn_text || (currentLang === 'en' ? 'Login' : currentLang === 'tr' ? 'Giriş' : 'ورود')) + '</span>';
   }
 }
 
