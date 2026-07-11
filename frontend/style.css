@@ -1688,6 +1688,7 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   .nav-links, .order-btn { display: none; }
   .menu-toggle { display: block; }
   .logo { margin-left: auto; }
+  .logo-img { height: 38px; }
 
   .hero { min-height: auto; }
   .hero-content { padding: 24px 0; }
@@ -1706,11 +1707,35 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   .legal-modal-box { padding: 28px 20px 24px; border-radius: 12px; }
 
   .scroll-top-btn { width: 40px; height: 40px; bottom: 20px; left: 16px; }
+
+  /* cart panel full width */
+  .cart-panel { width: 100% !important; }
+
+  /* profile modal full width */
+  .profile-modal-box { width: 100% !important; max-width: 100% !important;
+    border-radius: 16px 16px 0 0 !important; margin-top: auto; }
+
+  /* orders table scroll */
+  .orders-table-wrap, .order-items-table { display: block; overflow-x: auto; }
+
+  /* return/order cards stack */
+  .order-card-row { flex-direction: column; gap: 8px; }
+
+  /* fav page */
+  .fav-page { width: 100% !important; }
+
+  /* filter drawer */
+  .filter-drawer { width: 100% !important; }
+
+  /* category subcategory sidebar */
+  .cat-sidebar { width: 100% !important; }
 }
 
 @media (max-width: 420px) {
   .products-grid { grid-template-columns: 1fr; }
   .hero-title { font-size: 22px; }
+  .logo-img { height: 32px; }
+  .product-card { font-size: 13px; }
 }
 
 /* ─── Product Card — clickable ───────────────────────────────────────────── */
