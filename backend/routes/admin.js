@@ -62,12 +62,71 @@ router.patch('/orders/:id/reject-preorder', c.rejectPreorder);
 router.patch('/orders/:id/shipping',     c.setShipping);
 router.patch('/orders/:id/delivered',    c.markDelivered);
 
+const cp = require('../controllers/couponsController');
+router.get('/coupons',          cp.listCoupons);
+router.post('/coupons',         cp.createCoupon);
+router.put('/coupons/:id',      cp.updateCoupon);
+router.delete('/coupons/:id',   cp.deleteCoupon);
+
+const m = require('../controllers/messagesController');
+router.get('/orders/messages/unread',    m.adminUnreadCount);
+router.get('/orders/:id/messages',       m.adminGetMessages);
+router.post('/orders/:id/messages',      m.adminReply);
+
+const rc = require('../controllers/returnsController');
+const { getReceiptUploadMiddleware } = require('../middleware/upload');
+router.get('/returns',                   rc.adminListReturns);
+router.get('/orders/:id/returns',        rc.adminGetOrderReturn);
+router.patch('/returns/:id/received',    rc.adminMarkReceived);
+router.post('/returns/:id/refund-receipt', function(req, res, next) {
+  const upload = getReceiptUploadMiddleware();
+  if (!upload) return res.status(503).json({ success: false, message: 'upload not available' });
+  upload.single('receipt')(req, res, function(err) {
+    if (err) return next(err);
+    rc.adminUploadRefundReceipt(req, res, next);
+  });
+});
+router.post('/returns/:id/reject', function(req, res, next) {
+  const upload = getReceiptUploadMiddleware();
+  if (!upload) return res.status(503).json({ success: false, message: 'upload not available' });
+  upload.single('photo')(req, res, function(err) {
+    if (err) return next(err);
+    rc.adminRejectRefund(req, res, next);
+  });
+});
+
 router.get('/reports',              c.getReports);
 router.get('/financial-report',    c.getFinancialReport);
 router.get('/customer-reports',    c.getCustomerReports);
+router.get('/coupon-report',       c.getCouponReport);
 router.get('/bank-accounts',        c.getBankAccounts);
 router.post('/bank-accounts',       c.createBankAccount);
 router.put('/bank-accounts/:id',    c.updateBankAccount);
 router.delete('/bank-accounts/:id', c.deleteBankAccount);
+
+const pp = require('../controllers/productPhotosController');
+router.get('/product-photos',           pp.adminListPhotos);
+router.patch('/product-photos/:id',     pp.adminToggleApproval);
+router.delete('/product-photos/:id',    pp.adminDeletePhoto);
+
+const sc = require('../controllers/suppliersController');
+router.get('/suppliers',       sc.listSuppliers);
+router.delete('/suppliers/:id', sc.deleteSupplier);
+router.post('/suppliers', function(req, res, next) {
+  const upload = getUploadMiddleware();
+  if (!upload) return res.status(503).json({ success: false, message: 'upload not available' });
+  upload.single('card_photo')(req, res, function(err) {
+    if (err) return next(err);
+    sc.createSupplier(req, res, next);
+  });
+});
+router.put('/suppliers/:id', function(req, res, next) {
+  const upload = getUploadMiddleware();
+  if (!upload) return res.status(503).json({ success: false, message: 'upload not available' });
+  upload.single('card_photo')(req, res, function(err) {
+    if (err) return next(err);
+    sc.updateSupplier(req, res, next);
+  });
+});
 
 module.exports = router;

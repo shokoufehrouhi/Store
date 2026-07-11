@@ -9,4 +9,7 @@ router.post('/',       adminAuth, c.create);
 router.put('/:id',    adminAuth, c.update);
 router.delete('/:id', adminAuth, c.remove);
 
+const pp = require('../controllers/productPhotosController');
+router.get('/:id/customer-photos', pp.getProductPhotos);
+
 module.exports = router;

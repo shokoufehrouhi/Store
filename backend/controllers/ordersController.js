@@ -13,6 +13,7 @@ const ORDER_INCLUDE = {
       colors: true,
     },
   },
+  order_returns: { orderBy: { requested_at: 'desc' }, take: 1 },
 };
 
 // ─── Session auth helper ──────────────────────────────────────────────────────
@@ -42,24 +43,89 @@ async function createPreorder(req, res, next) {
     const customerId = await getCustomerFromSession(req, res);
     if (!customerId) return;
 
-    const { items, note, lang, address_id } = req.body;
+    const { items, note, lang, address_id, coupon_code } = req.body;
     if (!items || !items.length) {
       return res.status(400).json({ success: false, message: 'items are required' });
     }
     const safeLang = ['fa', 'en', 'tr'].includes(lang) ? lang : 'fa';
 
-    const total = items.reduce(function(sum, i) { return sum + (Number(i.unit_price) * Number(i.qty)); }, 0);
+    // Block if customer already has an active preorder
+    const activePreorder = await prisma.orders.findFirst({
+      where: { customer_id: customerId, status: 'preorder' },
+      select: { id: true },
+    });
+    if (activePreorder) {
+      return res.status(409).json({ success: false, message: 'active_preorder_exists' });
+    }
+
+    const originalTotal = items.reduce(function(sum, i) { return sum + (Number(i.unit_price) * Number(i.qty)); }, 0);
+
+    // validate coupon — atomic: read eligibility, then increment inside transaction
+    let discountAmount = 0, appliedCode = null, appliedCouponId = null;
+    if (coupon_code) {
+      const now = new Date();
+      const coupon = await prisma.coupons.findFirst({
+        where: { code: coupon_code.trim().toUpperCase(), is_active: true,
+          OR: [{ starts_at: null }, { starts_at: { lte: now } }],
+          AND: [{ OR: [{ expires_at: null }, { expires_at: { gt: now } }] }] },
+        include: { coupon_assignments: { where: { customer_id: customerId } } },
+      });
+      if (coupon && (coupon.for_all || coupon.coupon_assignments.length > 0)) {
+        // per-customer single-use check for all coupon types
+        let blocked = false;
+        const prevUse = await prisma.orders.findFirst({
+          where: { customer_id: customerId, coupon_code: coupon.code, status: { notIn: ['cancelled', 'rejected'] } },
+          select: { id: true },
+        });
+        if (prevUse) blocked = true;
+        if (!blocked) {
+          discountAmount = coupon.type === 'percent'
+            ? Math.round(originalTotal * Number(coupon.value) / 100)
+            : Math.min(Math.round(Number(coupon.value)), originalTotal);
+          appliedCode     = coupon.code;
+          appliedCouponId = coupon.id;
+        }
+      }
+    }
+    const total = Math.max(0, originalTotal - discountAmount);
 
     const order = await prisma.$transaction(async (tx) => {
+      // Atomic increment — fails silently if limit already reached
+      if (appliedCouponId) {
+        const updated = await tx.$executeRaw`
+          UPDATE coupons
+          SET used_count = used_count + 1,
+              is_active  = CASE
+                WHEN max_uses IS NOT NULL AND (used_count + 1) >= max_uses THEN false
+                WHEN for_all = false AND (used_count + 1) >= (SELECT COUNT(*) FROM coupon_assignments WHERE coupon_id = ${appliedCouponId}) THEN false
+                ELSE is_active
+              END,
+              updated_at = NOW()
+          WHERE id = ${appliedCouponId}
+            AND is_active = true
+            AND (max_uses IS NULL OR used_count < max_uses)
+        `;
+        if (updated === 0) {
+          // limit reached between validate and now — clear discount
+          discountAmount  = 0;
+          appliedCode     = null;
+          appliedCouponId = null;
+        }
+      }
+
+      const finalTotal = Math.max(0, originalTotal - discountAmount);
       const created = await tx.orders.create({
         data: {
-          customer_id:    customerId,
-          address_id:     address_id ? Number(address_id) : null,
-          status:         'preorder',
-          channel:        'online',
-          note:           note || null,
-          lang:           safeLang,
-          total_amount:   total,
+          customer_id:     customerId,
+          address_id:      address_id ? Number(address_id) : null,
+          status:          'preorder',
+          channel:         'online',
+          note:            note || null,
+          lang:            safeLang,
+          total_amount:    finalTotal,
+          original_amount: discountAmount > 0 ? originalTotal : null,
+          discount_amount: discountAmount,
+          coupon_code:     appliedCode,
           order_items: {
             create: items.map(function(i) {
               return {
@@ -164,6 +230,20 @@ async function cancelOrder(req, res, next) {
             AND size_label  IS NOT DISTINCT FROM ${item.size_label}
         `;
       }
+      // refund coupon usage and re-activate if it was auto-deactivated
+      if (order.coupon_code && order.discount_amount > 0) {
+        await tx.$executeRaw`
+          UPDATE coupons
+          SET used_count = GREATEST(0, used_count - 1),
+              is_active  = CASE
+                WHEN is_active = false AND max_uses IS NOT NULL AND GREATEST(0, used_count - 1) < max_uses THEN true
+                WHEN is_active = false AND for_all = false AND GREATEST(0, used_count - 1) < (SELECT COUNT(*) FROM coupon_assignments WHERE coupon_id = id) THEN true
+                ELSE is_active
+              END,
+              updated_at = NOW()
+          WHERE code = ${order.coupon_code}
+        `;
+      }
     });
 
     if (fullOrder && fullOrder.customers) {
@@ -191,8 +271,8 @@ async function uploadReceipt(req, res, next) {
 
     if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
 
-    const okExt  = /\.(jpg|jpeg|png|pdf)$/i.test(req.file.originalname);
-    const okMime = ['image/jpeg', 'image/png', 'application/pdf'].includes(req.file.mimetype);
+    const okExt  = /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|pdf)$/i.test(req.file.originalname);
+    const okMime = /^image\//.test(req.file.mimetype) || req.file.mimetype === 'application/pdf';
     if (!okExt && !okMime) {
       fs.unlink(req.file.path, () => {});
       return res.status(400).json({ success: false, errorCode: 'invalid_file_type' });

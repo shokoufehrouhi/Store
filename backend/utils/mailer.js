@@ -369,4 +369,43 @@ function label(key, lang) {
   return l[key] || key;
 }
 
-module.exports = { sendOrderEmail, sendRawEmail, label };
+const REPLY_L = {
+  fa: { subject: 'پاسخ به پیام شما — Shilista #{{id}}', intro: 'پاسخ تیم پشتیبانی Shilista به پیام شما:' },
+  en: { subject: 'Reply to your message — Shilista #{{id}}', intro: 'Reply from Shilista support team to your message:' },
+  tr: { subject: 'Mesajınıza yanıt — Shilista #{{id}}', intro: 'Shilista destek ekibinden mesajınıza yanıt:' },
+};
+
+async function sendReplyEmail(customer, order, replyText) {
+  if (!customer.email) return;
+  const transporter = getTransporter();
+  if (!transporter) return;
+  const lang = (order.lang || customer.preferred_lang || 'fa').substring(0, 2);
+  const l    = REPLY_L[lang] || REPLY_L.fa;
+  const dir  = lang === 'fa' ? 'rtl' : 'ltr';
+  const subject = l.subject.replace('{{id}}', order.id);
+  const html = `<!DOCTYPE html>
+<html dir="${dir}" lang="${lang}">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,Tahoma,sans-serif;direction:${dir}">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0eb;padding:32px 0">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+      <tr><td style="background:#fff;padding:24px 32px 16px;border-bottom:2px solid #f0e8df;text-align:center">
+        <span style="font-size:24px;font-weight:700;color:#c0562a;letter-spacing:1px">Shilista</span>
+      </td></tr>
+      <tr><td style="background:linear-gradient(135deg,#c0562a,#e07a40);padding:16px 32px;text-align:center">
+        <p style="margin:0;font-size:16px;font-weight:700;color:#fff">${subject}</p>
+      </td></tr>
+      <tr><td style="padding:28px 32px">
+        <p style="margin:0 0 12px;font-size:14px;color:#555">${l.intro}</p>
+        <div style="background:#f9f5f2;border-left:4px solid #c0562a;padding:14px 18px;border-radius:6px;font-size:14px;color:#333;line-height:1.7;white-space:pre-wrap">${replyText}</div>
+        <p style="margin:20px 0 0;font-size:12px;color:#aaa">Shilista — shilista.com</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+  await transporter.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to: customer.email, subject, html });
+}
+
+module.exports = { sendOrderEmail, sendRawEmail, sendReplyEmail, label };

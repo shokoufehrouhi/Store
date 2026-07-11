@@ -230,6 +230,7 @@ async function createProduct(req, res, next) {
     const {
       category_id, subcategory_id, gender, code, name_fa, name_en, name_tr,
       desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price, stock, delivery_days,
+      brand, supplier_shop_name, product_link, supplier_code, supplier_note,
       colors, sizes, media, inventory,
     } = req.body;
 
@@ -260,8 +261,13 @@ async function createProduct(req, res, next) {
         tag:           tag       || null,
         price:            price     || 0,
         discounted_price: discounted_price != null && discounted_price !== '' ? Number(discounted_price) : null,
-        stock:            stock     || 0,
-        delivery_days:    delivery_days != null ? Number(delivery_days) : 5,
+        stock:              stock     || 0,
+        delivery_days:      delivery_days != null ? Number(delivery_days) : 5,
+        brand:              brand?.trim()              || null,
+        supplier_shop_name: supplier_shop_name?.trim() || null,
+        product_link:       product_link?.trim()       || null,
+        supplier_code:      supplier_code?.trim()      || null,
+        supplier_note:      supplier_note?.trim()      || null,
         product_colors: colors?.length ? {
           create: colors.map(c => ({ color_id: Number(c.id), is_available: c.is_available !== false })),
         } : undefined,
@@ -301,6 +307,7 @@ async function updateProduct(req, res, next) {
     const {
       category_id, subcategory_id, gender, name_fa, name_en, name_tr,
       desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price, stock, is_active, delivery_days,
+      brand, supplier_shop_name, product_link, supplier_code, supplier_note,
       colors, sizes, media, inventory,
     } = req.body;
 
@@ -327,9 +334,14 @@ async function updateProduct(req, res, next) {
         tag:           tag       || null,
         price:            price     || 0,
         discounted_price: discounted_price != null && discounted_price !== '' ? Number(discounted_price) : null,
-        stock:            stock     || 0,
-        delivery_days:    delivery_days != null ? Number(delivery_days) : 5,
-        is_active:        is_active !== undefined ? Boolean(is_active) : true,
+        stock:              stock     || 0,
+        delivery_days:      delivery_days != null ? Number(delivery_days) : 5,
+        is_active:          is_active !== undefined ? Boolean(is_active) : true,
+        brand:              brand?.trim()              || null,
+        supplier_shop_name: supplier_shop_name?.trim() || null,
+        product_link:       product_link?.trim()       || null,
+        supplier_code:      supplier_code?.trim()      || null,
+        supplier_note:      supplier_note?.trim()      || null,
         updated_at:    new Date(),
         product_colors: colors?.length ? {
           create: colors.map(c => ({ color_id: Number(c.id), is_available: c.is_available !== false })),
@@ -552,10 +564,27 @@ async function rejectPreorder(req, res, next) {
       return res.status(400).json({ success: false, message: 'Order must be in preorder status' });
     }
     const { reason } = req.body;
-    const updated = await prisma.orders.update({
-      where: { id },
-      data:  { status: 'rejected', payment_rejection_reason: reason || null, rejected_at: new Date(), updated_at: new Date() },
-      include: ADMIN_ORDER_INCLUDE,
+    const updated = await prisma.$transaction(async (tx) => {
+      const u = await tx.orders.update({
+        where: { id },
+        data:  { status: 'rejected', payment_rejection_reason: reason || null, rejected_at: new Date(), updated_at: new Date() },
+        include: ADMIN_ORDER_INCLUDE,
+      });
+      // refund coupon usage and re-activate if it was auto-deactivated
+      if (order.coupon_code && order.discount_amount > 0) {
+        await tx.$executeRaw`
+          UPDATE coupons
+          SET used_count = GREATEST(0, used_count - 1),
+              is_active  = CASE
+                WHEN is_active = false AND max_uses IS NOT NULL AND GREATEST(0, used_count - 1) < max_uses THEN true
+                WHEN is_active = false AND for_all = false AND GREATEST(0, used_count - 1) < (SELECT COUNT(*) FROM coupon_assignments WHERE coupon_id = id) THEN true
+                ELSE is_active
+              END,
+              updated_at = NOW()
+          WHERE code = ${order.coupon_code}
+        `;
+      }
+      return u;
     });
     if (updated.customers) {
       const ol = updated.lang || 'fa';
@@ -906,6 +935,80 @@ async function getCustomerReports(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// ─── Coupon Report ────────────────────────────────────────────────────────────
+async function getCouponReport(req, res, next) {
+  try {
+    const { from, to } = req.query;
+    const dateFilter = from && to
+      ? { created_at: { gte: new Date(from), lte: new Date(to + 'T23:59:59Z') } }
+      : {};
+
+    // All coupons with their used orders
+    const coupons = await prisma.coupons.findMany({
+      orderBy: { created_at: 'desc' },
+      include: {
+        coupon_assignments: {
+          include: { customers: { select: { id: true, full_name: true, email: true, mobile: true } } },
+        },
+      },
+    });
+
+    // Orders that used a coupon
+    const orders = await prisma.orders.findMany({
+      where: { coupon_code: { not: null }, ...dateFilter },
+      select: {
+        id: true, coupon_code: true, created_at: true,
+        total_amount: true, original_amount: true, discount_amount: true, status: true,
+        customers: { select: { id: true, full_name: true, email: true, mobile: true } },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    // Group orders by coupon_code
+    const ordersByCode = {};
+    for (const o of orders) {
+      const c = o.coupon_code;
+      if (!ordersByCode[c]) ordersByCode[c] = [];
+      ordersByCode[c].push(o);
+    }
+
+    const report = coupons.map((cp) => {
+      const cpOrders = ordersByCode[cp.code] || [];
+      const totalDiscount   = cpOrders.reduce((s, o) => s + Number(o.discount_amount), 0);
+      const totalFinal      = cpOrders.reduce((s, o) => s + Number(o.total_amount),    0);
+      const totalOriginal   = cpOrders.reduce((s, o) => s + Number(o.original_amount || o.total_amount), 0);
+      return {
+        id:          cp.id,
+        code:        cp.code,
+        type:        cp.type,
+        value:       Number(cp.value),
+        is_active:   cp.is_active,
+        for_all:     cp.for_all,
+        used_count:  cp.used_count,
+        max_uses:    cp.max_uses,
+        starts_at:   cp.starts_at,
+        expires_at:  cp.expires_at,
+        assignments: (cp.coupon_assignments || []).map((a) => a.customers),
+        orders:      cpOrders,
+        stats: {
+          order_count:    cpOrders.length,
+          total_original: totalOriginal,
+          total_discount: totalDiscount,
+          total_final:    totalFinal,
+        },
+      };
+    });
+
+    const globalStats = {
+      total_coupons_used: orders.length,
+      total_discount:     orders.reduce((s, o) => s + Number(o.discount_amount), 0),
+      total_revenue:      orders.reduce((s, o) => s + Number(o.total_amount),    0),
+    };
+
+    res.json({ success: true, data: { coupons: report, stats: globalStats } });
+  } catch (err) { next(err); }
+}
+
 module.exports = {
   login, uploadMedia, deleteMedia,
   getCategories, createCategory, updateCategory, deleteCategory,
@@ -916,5 +1019,5 @@ module.exports = {
   getProducts, createProduct, updateProduct, deleteProduct,
   getAdminOrders, setPaymentInfo, approvePayment, rejectPayment, rejectPreorder, setShipping, markDelivered,
   getBankAccounts, createBankAccount, updateBankAccount, deleteBankAccount,
-  getReports, getFinancialReport, getCustomerReports,
+  getReports, getFinancialReport, getCustomerReports, getCouponReport,
 };

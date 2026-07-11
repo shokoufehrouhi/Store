@@ -61,11 +61,14 @@ model customers {
   created_at          DateTime    @default(now()) @db.Timestamptz(6)
   updated_at          DateTime    @default(now()) @db.Timestamptz(6)
   registered_by       String?     @db.Char(1)
+  avatar              String?
   addresses           addresses[]
   orders              orders[]
   sessions            sessions[]
-  customer_favorites  customer_favorites[]
-  cart_items          cart_items[]
+  customer_favorites      customer_favorites[]
+  cart_items              cart_items[]
+  coupon_assignments      coupon_assignments[]
+  customer_product_photos customer_product_photos[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -108,13 +111,91 @@ model orders {
   shipped_at               DateTime?     @db.Timestamptz(6)
   delivered_at             DateTime?     @db.Timestamptz(6)
   rejected_at              DateTime?     @db.Timestamptz(6)
+  coupon_code              String?       @db.VarChar(50)
+  discount_amount          Decimal       @default(0) @db.Decimal(14, 0)
+  original_amount          Decimal?      @db.Decimal(14, 0)
   order_items              order_items[]
+  order_messages           order_messages[]
+  order_returns            order_returns[]
+  customer_product_photos  customer_product_photos[]
   addresses                addresses?    @relation(fields: [address_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   customers                customers     @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   payments                 payments[]
 
   @@index([customer_id], map: "idx_orders_customer")
   @@index([status], map: "idx_orders_status")
+}
+
+model order_messages {
+  id           Int      @id @default(autoincrement())
+  order_id     Int
+  sender       String   @db.VarChar(10)
+  message      String
+  order_status String   @db.VarChar(30)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  orders       orders   @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@index([order_id], map: "idx_order_messages_order")
+}
+
+model order_returns {
+  id                   Int       @id @default(autoincrement())
+  order_id             Int
+  type                 String    @default("return") @db.VarChar(20)
+  status               String    @default("requested") @db.VarChar(30)
+  return_code          String?   @unique @db.VarChar(20)
+  carrier_name         String?   @db.VarChar(60)
+  carrier_tracking     String?   @db.VarChar(80)
+  shipping_receipt_url String?   @db.VarChar(300)
+  shipped_at           DateTime? @db.Timestamptz(6)
+  deadline_at          DateTime? @db.Timestamptz(6)
+  received_at          DateTime? @db.Timestamptz(6)
+  refund_iban          String?   @db.VarChar(40)
+  refund_holder        String?   @db.VarChar(120)
+  refund_receipt_url   String?   @db.VarChar(300)
+  refund_sent_at       DateTime? @db.Timestamptz(6)
+  completed_at         DateTime? @db.Timestamptz(6)
+  defective_note       String?
+  defective_photo_url  String?   @db.VarChar(300)
+  rejection_reason     String?   @db.VarChar(30)
+  rejection_note       String?
+  rejection_photo_url  String?   @db.VarChar(300)
+  rejected_at          DateTime? @db.Timestamptz(6)
+  requested_at         DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime  @default(now()) @db.Timestamptz(6)
+  orders               orders    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@index([order_id], map: "idx_order_returns_order")
+}
+
+model coupons {
+  id             Int       @id @default(autoincrement())
+  code           String    @unique @db.VarChar(50)
+  type           String    @db.VarChar(10)
+  value          Decimal   @db.Decimal(10, 2)
+  for_all        Boolean   @default(true)
+  max_uses       Int?
+  used_count     Int       @default(0)
+  is_active      Boolean   @default(true)
+  show_banner    Boolean   @default(false)
+  banner_text_fa String?   @db.VarChar(200)
+  banner_text_en String?   @db.VarChar(200)
+  banner_text_tr String?   @db.VarChar(200)
+  starts_at      DateTime? @db.Timestamptz(6)
+  expires_at     DateTime? @db.Timestamptz(6)
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @db.Timestamptz(6)
+  coupon_assignments coupon_assignments[]
+}
+
+model coupon_assignments {
+  id          Int       @id @default(autoincrement())
+  coupon_id   Int
+  customer_id Int
+  coupons     coupons   @relation(fields: [coupon_id], references: [id], onDelete: Cascade)
+  customers   customers @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+
+  @@unique([coupon_id, customer_id])
 }
 
 model payments {
@@ -171,9 +252,14 @@ model products {
   is_active         Boolean             @default(true)
   created_at        DateTime            @default(now()) @db.Timestamptz(6)
   updated_at        DateTime            @default(now()) @db.Timestamptz(6)
-  delivery_days     Int                 @default(5)
-  code              String?             @unique @db.VarChar(40)
-  order_items       order_items[]
+  delivery_days       Int                 @default(5)
+  code                String?             @unique @db.VarChar(40)
+  brand               String?             @db.VarChar(120)
+  supplier_shop_name  String?             @db.VarChar(120)
+  product_link        String?             @db.VarChar(500)
+  supplier_code       String?             @db.VarChar(120)
+  supplier_note       String?
+  order_items         order_items[]
   product_colors    product_colors[]
   product_inventory product_inventory[]
   product_media     product_media[]
@@ -184,8 +270,9 @@ model products {
   @@index([is_active], map: "idx_products_active")
   @@index([category_id], map: "idx_products_category")
   @@index([subcategory_id], map: "idx_products_subcategory")
-  customer_favorites customer_favorites[]
-  cart_items         cart_items[]
+  customer_favorites       customer_favorites[]
+  cart_items               cart_items[]
+  customer_product_photos  customer_product_photos[]
 }
 
 model product_media {
@@ -322,4 +409,33 @@ enum payment_status {
 enum product_tag {
   bestseller
   new
+}
+
+model customer_product_photos {
+  id          Int       @id @default(autoincrement())
+  product_id  Int
+  customer_id Int
+  order_id    Int
+  photo_url   String    @db.VarChar(300)
+  is_approved Boolean   @default(true)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  products    products  @relation(fields: [product_id],  references: [id], onDelete: Cascade)
+  customers   customers @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  orders      orders    @relation(fields: [order_id],    references: [id], onDelete: Cascade)
+
+  @@index([product_id, is_approved], map: "idx_cpp_product")
+}
+
+model suppliers {
+  id             Int       @id @default(autoincrement())
+  shop_name      String    @db.VarChar(150)
+  supplier_name  String?   @db.VarChar(150)
+  phone          String?   @db.VarChar(30)
+  telegram       String?   @db.VarChar(120)
+  website        String?   @db.VarChar(300)
+  instagram      String?   @db.VarChar(120)
+  store_address  String?
+  card_photo_url String?   @db.VarChar(300)
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @db.Timestamptz(6)
 }

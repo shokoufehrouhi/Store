@@ -6,6 +6,7 @@ router.post('/login',            c.login);
 router.post('/logout',           c.logout);
 router.get('/profile',           c.getProfile);
 router.patch('/profile',         c.updateProfile);
+router.patch('/avatar',          c.updateAvatar);
 router.post('/forgot-password',  c.forgotPassword);
 router.post('/reset-password',   c.resetPassword);
 router.post('/addresses',        c.addAddress);

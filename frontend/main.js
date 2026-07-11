@@ -45,7 +45,7 @@ var PLACEHOLDER_SVG = '<svg class="img-placeholder" viewBox="0 0 22 28" fill="no
 var _isLocal    = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 var SERVER_BASE = _isLocal ? 'http://localhost:3001' : '';
 var API_BASE    = SERVER_BASE + '/api';
-var currentLang        = localStorage.getItem('lang') || 'fa';
+var currentLang        = localStorage.getItem('lang_v2') || 'en';
 var currentSearch      = '';
 var currentCategory    = 'all';
 var currentSubcategory = null;
@@ -60,6 +60,33 @@ var _qaProduct = null, _qaColor = null, _qaSize = null;
 var _pendingCart = null;
 var currentPreorder    = null;
 var _preorderPollTimer = null;
+
+function updateOrderStatusBtn() {
+  var btn = document.getElementById('order-status-btn');
+  var dot = document.getElementById('order-status-dot');
+  if (!btn || !dot) return;
+  if (!currentPreorder) {
+    btn.style.display = 'none';
+    btn.classList.remove('has-order');
+    dot.style.display = 'none';
+    return;
+  }
+  btn.style.display = 'flex';
+  btn.classList.add('has-order');
+  var statusColors = {
+    preorder:        '#f97316',
+    payment_needed:  '#ef4444',
+    approval_needed: '#3b82f6',
+    preparing:       '#8b5cf6',
+    delivery:        '#0ea5e9',
+    delivered:       '#22c55e',
+    rejected:        '#ef4444',
+    cancelled:       '#6b7280',
+  };
+  var color = statusColors[currentPreorder.status] || '#f97316';
+  dot.style.background = color;
+  dot.style.display = 'block';
+}
 
 // ─── API Product Mapper ───────────────────────────────────────────────────────
 function mapApiProduct(p) {
@@ -109,6 +136,15 @@ function toLatinNumbers(str) {
 }
 function localizeNumber(str) {
   return currentLang === 'fa' ? str : toLatinNumbers(str);
+}
+
+function copyProductCode(code) {
+  navigator.clipboard.writeText(code).then(function() {
+    var t = TRANSLATIONS[currentLang];
+    showToast((t.banner_copied || '✓ Copied!').replace('✓ ', '✓ ' + code + ' '));
+  }).catch(function() {
+    showToast(code);
+  });
 }
 
 function formatPrice(amount) {
@@ -258,7 +294,7 @@ function renderCart() {
       '<div class="cart-item-thumb" ' + thumbStyle + '>' + thumbInner + '</div>' +
       '<div class="cart-item-info">' +
       '<span class="cart-item-name">' + name + '</span>' +
-      (p.code ? '<span class="cart-item-code">' + p.code + '</span>' : '') +
+      (p.code ? '<span class="cart-item-code" onclick="copyProductCode(\'' + p.code + '\')" title="Copy">' + p.code + '</span>' : '') +
       (colorName
         ? '<span class="cart-item-meta"><span class="cart-item-color-dot" style="background:' + colorHex + '"></span>' + colorName + '</span>'
         : '') +
@@ -386,6 +422,7 @@ function registerPreorder() {
       cart = [];
       saveCart();
       renderCart();
+      updateOrderStatusBtn();
       closeCart();
       showToast(TRANSLATIONS[currentLang].preorder_registered || 'پیش‌سفارش ثبت شد');
       reloadProducts(true);
@@ -422,6 +459,7 @@ function loadActivePreorder() {
       localStorage.removeItem('mf_preorder_id');
       currentPreorder = null;
     }
+    updateOrderStatusBtn();
   }).catch(function() {});
 }
 
@@ -446,6 +484,7 @@ function _doCancelPreorder() {
       cart = [];
       saveCart();
       renderCart();
+      updateOrderStatusBtn();
       showToast(TRANSLATIONS[currentLang].preorder_cancelled || 'پیش‌سفارش لغو شد');
       reloadProducts(true);
     } else {
@@ -513,6 +552,7 @@ function pollPreorderStatus() {
     if (!found) return;
     if (found.status !== currentPreorder.status) {
       currentPreorder = found;
+      updateOrderStatusBtn();
       var ordersTab = document.getElementById('profile-tab-orders');
       if (ordersTab && ordersTab.style.display !== 'none') {
         _renderOrdersList(data.data);
@@ -708,6 +748,28 @@ function qaConfirm() {
   }
 }
 
+// ─── Filter state → URL hash ──────────────────────────────────────────────────
+function saveFilterToHash() {
+  var params = new URLSearchParams();
+  if (currentCategory    && currentCategory    !== 'all') params.set('cat', currentCategory);
+  if (currentGender      && currentGender      !== 'all') params.set('gender', currentGender);
+  if (currentSubcategory && currentSubcategory !== '')    params.set('sub', currentSubcategory);
+  var str = params.toString();
+  history.replaceState(null, '', str ? '#' + str : window.location.pathname);
+}
+
+function restoreFilterFromHash() {
+  var hash = window.location.hash.replace(/^#/, '');
+  if (!hash || hash.includes('reset_token')) return;
+  var params = new URLSearchParams(hash);
+  var cat    = params.get('cat')    || 'all';
+  var gender = params.get('gender') || 'all';
+  var sub    = params.get('sub')    || null;
+  currentCategory    = cat;
+  currentGender      = gender;
+  currentSubcategory = sub;
+}
+
 // ─── Shared Filter Handler ────────────────────────────────────────────────────
 function handleFilterClick(el, scrollToProducts) {
   currentCategory    = el.dataset.filter || 'all';
@@ -715,6 +777,7 @@ function handleFilterClick(el, scrollToProducts) {
   currentSubcategory = el.dataset.sub    || null;
   currentColors      = [];
   currentSizes       = [];
+  saveFilterToHash();
 
   // active state روی همه filter elements (sidebar + nav)
   var allFilterEls = document.querySelectorAll(
@@ -1287,7 +1350,7 @@ function renderGrid(skipFilterBar) {
 // ─── Language Switching ───────────────────────────────────────────────────────
 function applyLang(lang) {
   currentLang = lang;
-  localStorage.setItem('lang', lang);
+  localStorage.setItem('lang_v2', lang);
 
   var t   = TRANSLATIONS[lang];
   var doc = document.documentElement;
@@ -1330,6 +1393,7 @@ function applyLang(lang) {
 
   renderGrid();
   updateCartBadge();
+  renderBanner();
 }
 
 function initLangSwitcher() {
@@ -1581,7 +1645,7 @@ function openModal(productId) {
     '    </div>' +
     '    <h2 class="modal-name">' + name + '</h2>' +
     renderPriceHtml(p, 'modal-price') +
-    (p.code ? '    <div class="product-code-badge"><span class="product-code-label">' + (t.product_code_label || 'کد محصول') + ':</span> ' + p.code + '</div>' : '') +
+    (p.code ? '    <div class="product-code-badge copyable" onclick="copyProductCode(\'' + p.code + '\')" title="Copy code"><span class="product-code-label">' + (t.product_code_label || 'کد محصول') + ':</span> ' + p.code + '</div>' : '') +
     '    <p class="modal-desc">' + desc + '</p>' +
     colorsHtml +
     sizesHtml +
@@ -1599,10 +1663,14 @@ function openModal(productId) {
     '      </div>' +
     '    </div>' +
     '  </div>' +
+    '<div id="modal-customer-photos"></div>' +
     '</div>';
 
   document.getElementById('modal-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
+
+  var photoContainer = document.getElementById('modal-customer-photos');
+  if (photoContainer) loadProductPhotos(productId, photoContainer);
 }
 
 function addToCartFromModal() {
@@ -1876,6 +1944,20 @@ function doLogin() {
         : [];
       customer.favorites = [];
       customer.orders    = [];
+      // sync avatar: server → localStorage, or localStorage → server
+      if (customer.avatar) {
+        localStorage.setItem('mf_avatar_' + customer.id, customer.avatar);
+      } else {
+        var localAvatar = localStorage.getItem('mf_avatar_' + customer.id);
+        if (localAvatar) {
+          customer.avatar = localAvatar;
+          fetch(API_BASE + '/customers/avatar', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'x-session-token': r.data.token },
+            body: JSON.stringify({ avatar: localAvatar }),
+          }).catch(function() {});
+        }
+      }
       localStorage.setItem('mf_current_user', JSON.stringify(customer));
       closeAuthModal();
       updateAuthUI();
@@ -2124,6 +2206,22 @@ function updateFavBadge() {
   }
 }
 
+function makeInitialsAvatar(name, size, fontSize) {
+  var parts    = (name || '').trim().split(/\s+/);
+  var initials = parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : (parts[0] || '?')[0].toUpperCase();
+  var colors = ['#4a7fd4','#e05c7a','#2eaa72','#f0842c','#9b6bcf','#1a9da0'];
+  var idx    = (name || '').split('').reduce(function(s, c) { return s + c.charCodeAt(0); }, 0) % colors.length;
+  var bg     = colors[idx];
+  var s      = size   || 28;
+  var fs     = fontSize || 12;
+  return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 ' + s + ' ' + s + '" xmlns="http://www.w3.org/2000/svg">' +
+    '<circle cx="' + (s/2) + '" cy="' + (s/2) + '" r="' + (s/2) + '" fill="' + bg + '"/>' +
+    '<text x="' + (s/2) + '" y="' + (s/2) + '" text-anchor="middle" dominant-baseline="central" font-size="' + fs + '" font-weight="700" fill="#fff" font-family="inherit">' + initials + '</text>' +
+    '</svg>';
+}
+
 function updateAuthUI() {
   var user = getCurrentUser();
   var btn  = document.getElementById('auth-header-btn');
@@ -2135,7 +2233,7 @@ function updateAuthUI() {
     if (avatarSrc) {
       btn.innerHTML = '<img class="auth-header-avatar" src="' + avatarSrc + '" alt=""> ' + firstName;
     } else {
-      btn.innerHTML = '👤 ' + firstName;
+      btn.innerHTML = makeInitialsAvatar(displayName, 28, 11) + ' ' + firstName;
     }
   } else {
     btn.innerHTML = TRANSLATIONS[currentLang].auth_header_btn || '👤 ورود';
@@ -2166,12 +2264,17 @@ function openProfileModal() {
         }
         u.favorites = Array.isArray(u.favorites) ? u.favorites : (getCurrentUser().favorites || []);
         u.orders    = getCurrentUser().orders    || [];
+        // sync server avatar to localStorage
+        if (u.avatar) {
+          localStorage.setItem('mf_avatar_' + u.id, u.avatar);
+        }
         updateUser(u);
         updateFavBadge();
         renderGrid();
         renderProfileHeader();
         renderInfoTab();
         renderAddresses();
+        updateAuthUI();
       }
     }).catch(function() {});
   }
@@ -2189,7 +2292,7 @@ function renderProfileHeader() {
     var src = localStorage.getItem('mf_avatar_' + user.id) || '';
     avatarEl.innerHTML = src
       ? '<img src="' + src + '" alt="">'
-      : '👤';
+      : makeInitialsAvatar(user.full_name || user.name || '', 82, 32);
   }
 }
 function closeProfileModal() {
@@ -2264,7 +2367,7 @@ function renderInfoTab() {
     '<div class="info-avatar-ring">' +
     (src
       ? '<img src="' + src + '" alt="">'
-      : '<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#4a7fd4" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>') +
+      : makeInitialsAvatar(displayName, 68, 26)) +
     '</div>' +
     '<button class="info-avatar-upload-btn" onclick="triggerAvatarUpload()">' +
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
@@ -2314,7 +2417,6 @@ function handleAvatarChange(input) {
       canvas.width  = SIZE;
       canvas.height = SIZE;
       var ctx = canvas.getContext('2d');
-      // crop square from center
       var s = Math.min(img.width, img.height);
       var sx = (img.width  - s) / 2;
       var sy = (img.height - s) / 2;
@@ -2323,8 +2425,20 @@ function handleAvatarChange(input) {
       var user = getCurrentUser();
       if (!user) return;
       localStorage.setItem('mf_avatar_' + user.id, resized);
+      user.avatar = resized;
+      updateUser(user);
       renderProfileHeader();
       renderInfoTab();
+      updateAuthUI();
+      // sync to server
+      var token = getSession();
+      if (token) {
+        fetch(API_BASE + '/customers/avatar', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'x-session-token': token },
+          body: JSON.stringify({ avatar: resized }),
+        }).catch(function() {});
+      }
     };
     img.src = e.target.result;
   };
@@ -2336,8 +2450,19 @@ function removeAvatar() {
   var user = getCurrentUser();
   if (!user) return;
   localStorage.removeItem('mf_avatar_' + user.id);
+  user.avatar = null;
+  updateUser(user);
   renderProfileHeader();
   renderInfoTab();
+  updateAuthUI();
+  var token = getSession();
+  if (token) {
+    fetch(API_BASE + '/customers/avatar', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-session-token': token },
+      body: JSON.stringify({ avatar: null }),
+    }).catch(function() {});
+  }
 }
 
 function saveInfoAll() {
@@ -2711,6 +2836,20 @@ function _renderOrdersList(apiOrders) {
     var st    = order.status;
     var badgeColor = ORDER_COLORS[st] || '#6b7280';
     var badgeLabel = ORDER_LABELS[st] || st;
+
+    // Override badge if active return exists
+    var activeRet = order.order_returns && order.order_returns[0];
+    if (activeRet && !['expired', 'completed'].includes(activeRet.status)) {
+      var retBadgeMap = {
+        requested:          { label: t.ret_status_requested  || 'در انتظار ارسال مرجوعی', color: '#f59e0b' },
+        shipped:            { label: t.ret_status_shipped     || 'مرجوعی ارسال شد',        color: '#3b82f6' },
+        received:           { label: t.ret_status_received    || 'مرجوعی دریافت شد',       color: '#8b5cf6' },
+        refund_sent:        { label: t.ret_status_refund_sent || 'استرداد وجه',              color: '#10b981' },
+        refund_rejected:    { label: t.ret_status_rejected    || 'بازگشت رد شد',            color: '#ef4444' },
+      };
+      var rb = retBadgeMap[activeRet.status];
+      if (rb) { badgeColor = rb.color; badgeLabel = '↩ ' + rb.label; }
+    }
     var dateStr = new Date(order.created_at).toLocaleDateString(dateLocale);
     var isExpanded = (_profileExpandedId === order.id);
 
@@ -2726,7 +2865,7 @@ function _renderOrdersList(apiOrders) {
       var linePrice = oi.unit_price ? formatPrice(Number(oi.unit_price) * oi.qty) : '';
       return '<div class="order-item-row">' +
         '<span>' + colorDot + pname +
-          (pcode ? '<span style="font-size:11px;color:#9ca3af;font-family:monospace;margin-right:4px"> [' + pcode + ']</span>' : '') +
+          (pcode ? '<span onclick="copyProductCode(\'' + pcode + '\')" title="Copy" style="font-size:11px;color:#9ca3af;font-family:monospace;margin-right:4px;cursor:pointer"> [' + pcode + ']</span>' : '') +
           (colorName ? '<span style="font-size:11px;color:#9ca3af;margin-right:4px"> · ' + colorName + '</span>' : '') +
         '</span>' +
         (oi.size_label ? '<span>' + oi.size_label + '</span>' : '') +
@@ -2781,14 +2920,18 @@ function _renderOrdersList(apiOrders) {
         if (order.iban) {
           detailHtml += '<div class="order-payment-info-box">' +
             '<div class="order-payment-info-title">' + (t.payment_info_title || 'اطلاعات پرداخت') + '</div>' +
-            '<div class="order-payment-row"><span>' + (t.payment_iban || 'شبا') + ':</span><strong style="direction:ltr">' + order.iban + '</strong></div>' +
+            '<div class="order-payment-row"><span>' + (t.payment_iban || 'شبا') + ':</span><strong style="direction:ltr">' + order.iban + '</strong>' + copyBtn(order.iban) + '</div>' +
             (order.bank_name ? '<div class="order-payment-row"><span>' + (t.payment_bank || 'بانک') + ':</span>' + order.bank_name + '</div>' : '') +
-            (order.account_holder ? '<div class="order-payment-row"><span>' + (t.payment_holder || 'صاحب حساب') + ':</span>' + order.account_holder + '</div>' : '') +
+            (order.account_holder ? '<div class="order-payment-row"><span>' + (t.payment_holder || 'صاحب حساب') + ':</span>' + order.account_holder + copyBtn(order.account_holder) + '</div>' : '') +
+            '<div style="margin-top:10px;padding:8px 10px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e;line-height:1.5">' +
+              (t.payment_ref_note || '⚠️ شماره سفارش را در توضیحات درج کنید:') +
+              '<strong style="display:block;font-size:14px;margin-top:4px;letter-spacing:1px">#' + order.id + '</strong>' +
+            '</div>' +
             '</div>';
         }
         detailHtml += '<div class="order-upload-area">' +
           '<p style="font-size:13px;font-weight:600;margin-bottom:8px">' + (t.upload_receipt || 'آپلود رسید پرداخت') + '</p>' +
-          '<input type="file" id="prof-receipt-' + order.id + '" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" style="display:none" onchange="profileUploadReceipt(this,' + order.id + ')">' +
+          '<input type="file" id="prof-receipt-' + order.id + '" accept="image/*,.pdf,application/pdf" style="display:none" onchange="profileUploadReceipt(this,' + order.id + ')">' +
           '<button class="order-action-btn order-action-upload" onclick="document.getElementById(\'prof-receipt-' + order.id + '\').click()">' + (t.upload_receipt_btn || 'انتخاب و ارسال رسید') + '</button>' +
           '</div>';
         detailHtml += '<button class="order-action-btn order-action-cancel" onclick="profileCancelOrder(' + order.id + ')">' + (t.cancel_preorder || 'لغو') + '</button>';
@@ -2833,6 +2976,8 @@ function _renderOrdersList(apiOrders) {
           '<div class="order-payment-row"><span>' + (t.shipped_at_label || 'تاریخ ارسال') + ':</span><span style="direction:ltr">' + shippedStr2 + '</span></div>' +
           '<div class="order-payment-row"><span>' + (t.delivered_at_label || 'تاریخ تحویل') + ':</span><span style="direction:ltr">' + deliveredStr2 + '</span></div>' +
           '</div>';
+        detailHtml += '<div id="order-return-section-' + order.id + '"><div style="color:#aaa;font-size:12px;text-align:center;padding:6px"></div></div>';
+        detailHtml += buildProductPhotoUploadSection(order);
       }
 
       if (st === 'cancelled') {
@@ -2853,6 +2998,48 @@ function _renderOrdersList(apiOrders) {
             : '') +
           '</div>';
       }
+
+      // ─── Documents & Timeline ──────────────────────────────────────────────
+      var _cTlEvents = [];
+      _cTlEvents.push({ label: t.tl_order_created || 'Sabte sefaresh', dt: order.created_at, color: '#6b7280' });
+      if (order.rejected_at)  _cTlEvents.push({ label: t.tl_payment_rejected || 'Rad shod', dt: order.rejected_at,  color: '#ef4444' });
+      if (order.shipped_at)   _cTlEvents.push({ label: t.tl_order_shipped    || 'Ersal shod', dt: order.shipped_at,   color: '#3b82f6' });
+      if (order.delivered_at) _cTlEvents.push({ label: t.tl_order_delivered  || 'Taslim shod', dt: order.delivered_at, color: '#16a34a' });
+      var _cHasReceipt   = !!order.payment_receipt_url && st !== 'approval_needed';
+      var _cShowTimeline = _cTlEvents.length > 1;
+      if (_cHasReceipt || _cShowTimeline) {
+        detailHtml += '<div style="margin-top:14px;border-top:1.5px dashed #e5d8d0;padding-top:12px">';
+        if (_cHasReceipt) {
+          detailHtml += '<div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px">📎 ' + (t.docs_section_title || 'Madarak') + '</div>' +
+            '<a href="' + SERVER_BASE + order.payment_receipt_url + '" target="_blank" ' +
+              'style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:#f0f9ff;border:1px solid #bae6fd;color:#0284c7;font-size:12px;font-weight:600;text-decoration:none;margin-bottom:12px">' +
+              '💳 ' + (t.docs_payment_receipt || 'Resid Pardakht') + ' ↗' +
+            '</a>';
+        }
+        if (_cShowTimeline) {
+          detailHtml += '<div style="font-size:12px;font-weight:700;color:#888;margin-bottom:6px;margin-top:' + (_cHasReceipt ? '4px' : '0') + '">' +
+            '🕐 ' + (t.tl_section_title || 'Timeline') + '</div>' +
+            '<div style="display:flex;flex-direction:column;gap:4px">';
+          _cTlEvents.forEach(function(ev) {
+            detailHtml += '<div style="display:flex;gap:8px;font-size:12px;align-items:baseline">' +
+              '<span style="color:' + ev.color + ';font-weight:600;min-width:90px">' + ev.label + '</span>' +
+              '<span style="direction:ltr;color:#555">' + new Date(ev.dt).toLocaleString(dateLocale) + '</span>' +
+            '</div>';
+          });
+          detailHtml += '</div>';
+        }
+        detailHtml += '</div>';
+      }
+
+      // Messages section — always visible in expanded order
+      detailHtml += '<div class="order-messages-section" id="order-msgs-' + order.id + '">' +
+        '<div class="order-msgs-title">' + (t.msg_section_title || 'پیام‌ها') + '</div>' +
+        '<div class="order-msgs-list" id="order-msgs-list-' + order.id + '"><div style="color:#aaa;font-size:12px;text-align:center;padding:10px">' + (t.msg_empty || 'پیامی وجود ندارد') + '</div></div>' +
+        '<div class="order-msgs-compose">' +
+          '<textarea id="order-msg-input-' + order.id + '" class="order-msg-input" placeholder="' + (t.msg_placeholder || 'پیام خود را بنویسید...') + '" rows="2"></textarea>' +
+          '<button class="order-msg-send-btn" onclick="customerSendOrderMessage(' + order.id + ')">' + (t.msg_send || 'ارسال') + '</button>' +
+        '</div>' +
+      '</div>';
 
       detailHtml += '</div>';
     }
@@ -2927,6 +3114,11 @@ function _renderOrdersList(apiOrders) {
 function toggleProfileOrder(orderId) {
   _profileExpandedId = (_profileExpandedId === orderId) ? null : orderId;
   _renderOrdersList(_cachedApiOrders);
+  if (_profileExpandedId === orderId) {
+    loadOrderMessages(orderId);
+    var ord = (_cachedApiOrders || []).find(function(o) { return o.id === orderId; });
+    if (ord && ord.status === 'delivered') loadOrderReturn(orderId, ord);
+  }
 }
 
 function profileCancelOrder(orderId) {
@@ -2947,6 +3139,7 @@ function _doProfileCancelOrder(orderId) {
         currentPreorder = null;
         localStorage.removeItem('mf_preorder_id');
         renderCart();
+        updateOrderStatusBtn();
       }
       showToast(t.preorder_cancelled || 'پیش‌سفارش لغو شد');
       reloadProducts(true);
@@ -2963,8 +3156,8 @@ function profileUploadReceipt(input, orderId) {
   var file = input.files && input.files[0];
   if (!file) return;
   var t = TRANSLATIONS[currentLang];
-  var okExt  = /\.(jpg|jpeg|png|pdf)$/i.test(file.name);
-  var okMime = ['image/jpeg', 'image/png', 'application/pdf'].includes(file.type);
+  var okExt  = /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp|pdf)$/i.test(file.name);
+  var okMime = /^image\//.test(file.type) || file.type === 'application/pdf' || file.type === '';
   if (!okExt && !okMime) {
     showToast(t.receipt_invalid_type || 'نوع فایل پشتیبانی نمی‌شود', 'error');
     input.value = '';
@@ -2986,6 +3179,7 @@ function profileUploadReceipt(input, orderId) {
       if (currentPreorder && currentPreorder.id === orderId) {
         currentPreorder = data.data;
         renderCart();
+        updateOrderStatusBtn();
       }
       showToast(t.receipt_uploaded || 'رسید ارسال شد');
       renderOrders();
@@ -3001,6 +3195,403 @@ function profileUploadReceipt(input, orderId) {
     if (btn) { btn.disabled = false; }
   });
   input.value = '';
+}
+
+// ─── Order Messages ───────────────────────────────────────────────────────────
+function loadOrderMessages(orderId) {
+  var token = getSession(); if (!token) return;
+  fetch(API_BASE + '/orders/' + orderId + '/messages', { headers: { 'x-session-token': token } })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) renderOrderMessages(orderId, data.data);
+    }).catch(function() {});
+}
+
+function renderOrderMessages(orderId, messages) {
+  var listEl = document.getElementById('order-msgs-list-' + orderId);
+  if (!listEl) return;
+  var t = TRANSLATIONS[currentLang];
+  if (!messages || !messages.length) {
+    listEl.innerHTML = '<div style="color:#aaa;font-size:12px;text-align:center;padding:10px">' + (t.msg_empty || 'پیامی وجود ندارد') + '</div>';
+    return;
+  }
+  var statusLabels = {
+    preorder: t.preorder_status || 'Preorder', payment_needed: t.preorder_wait_payment || 'Payment Needed',
+    approval_needed: t.receipt_uploaded || 'Approval Needed', preparing: t.preparing_msg || 'Preparing',
+    delivery: t.status_delivery || 'Shipped', delivered: t.order_delivered || 'Delivered',
+    cancelled: t.status_cancelled || 'Cancelled', rejected: t.status_rejected || 'Rejected',
+  };
+  listEl.innerHTML = messages.map(function(msg) {
+    var isAdmin = msg.sender === 'admin';
+    var senderLabel = isAdmin ? (t.msg_support || 'Support') : (t.msg_you || 'You');
+    var statusLabel = statusLabels[msg.order_status] || msg.order_status;
+    var dateStr = new Date(msg.created_at).toLocaleString(currentLang === 'fa' ? 'fa-IR' : currentLang === 'tr' ? 'tr-TR' : 'en-GB', { dateStyle: 'short', timeStyle: 'short' });
+    return '<div class="order-msg-row ' + (isAdmin ? 'order-msg-admin' : 'order-msg-customer') + '">' +
+      '<div class="order-msg-bubble">' +
+        '<div class="order-msg-meta"><span class="order-msg-sender">' + senderLabel + '</span><span class="order-msg-time">' + dateStr + '</span></div>' +
+        '<div class="order-msg-text">' + msg.message.replace(/\n/g, '<br>') + '</div>' +
+        '<div class="order-msg-status">' + (t.msg_sent_at_status || 'At stage:') + ' ' + statusLabel + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  listEl.scrollTop = listEl.scrollHeight;
+}
+
+function customerSendOrderMessage(orderId) {
+  var token = getSession(); if (!token) { openAuthModal('login'); return; }
+  var input = document.getElementById('order-msg-input-' + orderId);
+  var text = (input ? input.value : '').trim();
+  if (!text) return;
+  fetch(API_BASE + '/orders/' + orderId + '/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-session-token': token },
+    body: JSON.stringify({ message: text }),
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.success) {
+      if (input) input.value = '';
+      loadOrderMessages(orderId);
+    } else {
+      showToast(data.message || 'خطا', 'error');
+    }
+  }).catch(function() { showToast('خطا در اتصال', 'error'); });
+}
+
+// ─── Order Returns ────────────────────────────────────────────────────────────
+var _returnPolicyAgreed = {};
+
+function addWorkingDaysJS(date, days) {
+  var d = new Date(date); var added = 0;
+  while (added < days) {
+    d.setDate(d.getDate() + 1);
+    var dow = d.getDay();
+    if (dow !== 0 && dow !== 6) added++;
+  }
+  return d;
+}
+
+function loadOrderReturn(orderId, order) {
+  var token = getSession(); if (!token) return;
+  var sect = document.getElementById('order-return-section-' + orderId);
+  if (!sect) return;
+  fetch(API_BASE + '/orders/' + orderId + '/returns', { headers: { 'x-session-token': token } })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      renderOrderReturn(orderId, order, data.success ? data.data : null);
+    }).catch(function() {});
+}
+
+function renderOrderReturn(orderId, order, ret) {
+  var sect = document.getElementById('order-return-section-' + orderId);
+  if (!sect) return;
+  var t = TRANSLATIONS[currentLang];
+  var user = getCurrentUser();
+  var dateLocale = currentLang === 'fa' ? 'fa-IR' : currentLang === 'tr' ? 'tr-TR' : 'en-GB';
+
+  // Check if return window still open (5 working days after delivery)
+  var deliveredAt = order.delivered_at ? new Date(order.delivered_at) : null;
+  var windowDeadline = deliveredAt ? addWorkingDaysJS(deliveredAt, 5) : null;
+  var windowOpen = windowDeadline && new Date() <= windowDeadline;
+
+  var html = '<div class="order-return-section">';
+  html += '<div class="order-return-title">↩ ' + (t.return_policy_title || 'مرجوعی') + '</div>';
+
+  if (!ret || ret.status === 'expired') {
+    // Show buttons if window is open
+    if (windowOpen && (!ret || ret.status === 'expired')) {
+      if (!_returnPolicyAgreed[orderId]) {
+        html += '<div class="return-policy-box">' +
+          '<div class="return-policy-text">' + (t.return_policy_text || '') + '</div>' +
+          '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">' +
+            '<button class="return-action-btn return-btn-primary" onclick="_returnPolicyAgreed[' + orderId + ']=true;renderOrderReturn(' + orderId + ',_cachedApiOrders.find(function(o){return o.id===' + orderId + ';}),' + (ret ? JSON.stringify(ret) : 'null') + ')">' + (t.return_confirm_policy || 'موافقم') + '</button>' +
+          '</div>' +
+        '</div>';
+      } else {
+        html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
+          '<button class="return-action-btn return-btn-primary" onclick="confirmRequestReturn(' + orderId + ')">' + (t.return_request_btn || 'درخواست مرجوعی') + '</button>' +
+        '</div>';
+      }
+    } else if (!windowOpen) {
+      if (ret && ret.status === 'expired') {
+        html += '<div style="color:#9ca3af;font-size:12px;margin-top:6px">⏱ ' + (t.ret_status_expired || 'منقضی') + ' — ' + (t.ret_window_closed || '') + '</div>';
+      } else {
+        html += '<div style="color:#9ca3af;font-size:12px;margin-top:6px">⏱ ' + (t.ret_window_closed || 'مهلت مرجوعی پایان یافته') + '</div>';
+      }
+    }
+  } else {
+    // Active return — show status timeline + actions
+    var statusColors = { requested:'#f59e0b', shipped:'#3b82f6', received:'#8b5cf6', refund_sent:'#10b981', completed:'#16a34a', expired:'#9ca3af', refund_rejected:'#ef4444', defective_reported:'#f59e0b' };
+    var statusLabels = {
+      requested: t.ret_status_requested, shipped: t.ret_status_shipped, received: t.ret_status_received,
+      refund_sent: t.ret_status_refund_sent, completed: t.ret_status_completed, expired: t.ret_status_expired,
+      refund_rejected: t.ret_status_rejected, defective_reported: t.ret_status_defective,
+    };
+    var sc = statusColors[ret.status] || '#aaa';
+    html += '<div class="return-policy-box">';
+    // Return code
+    if (ret.return_code) {
+      html += '<div style="background:#fff8f5;border:2px dashed var(--primary);border-radius:10px;padding:12px 16px;margin-bottom:12px;text-align:center">' +
+        '<div style="font-size:11px;color:#888;margin-bottom:4px">' + (t.return_code_label || 'کد مرجوعی') + '</div>' +
+        '<div style="font-size:22px;font-weight:800;letter-spacing:3px;color:var(--primary)">' + ret.return_code + '</div>' +
+        (user ? '<div style="font-size:11px;color:#555;margin-top:6px">' + (t.return_code_instr || '') + '</div>' +
+                '<div style="font-size:12px;color:#333;margin-top:4px"><strong>' + (user.full_name || '') + '</strong> · <span dir="ltr">' + (user.mobile || '') + '</span></div>'
+              : '') +
+      '</div>';
+    }
+    // Status badge
+    html += '<div style="display:inline-flex;align-items:center;gap:6px;background:' + sc + '20;color:' + sc + ';border:1px solid ' + sc + '60;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;margin-bottom:10px">' +
+      '● ' + (statusLabels[ret.status] || ret.status) + '</div>';
+    // Timeline timestamps
+    var times = [];
+    if (ret.requested_at)  times.push([t.ret_requested_at || 'درخواست', ret.requested_at]);
+    if (ret.shipped_at)    times.push([t.ret_shipped_at || 'ارسال', ret.shipped_at]);
+    if (ret.received_at)   times.push([t.ret_received_at || 'دریافت', ret.received_at]);
+    if (ret.rejected_at)   times.push([t.ret_rejected_at || 'رد درخواست', ret.rejected_at]);
+    if (ret.refund_sent_at) times.push([t.ret_refund_sent_at || 'واریز', ret.refund_sent_at]);
+    if (ret.completed_at)  times.push([t.ret_completed_at || 'تکمیل', ret.completed_at]);
+    if (times.length) {
+      html += '<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:10px">';
+      times.forEach(function(tp) {
+        html += '<div class="order-payment-row"><span>' + tp[0] + ':</span><span style="direction:ltr">' + new Date(tp[1]).toLocaleString(dateLocale) + '</span></div>';
+      });
+      html += '</div>';
+    }
+    // Rejection box
+    if (ret.status === 'refund_rejected' && ret.rejection_reason) {
+      var reasonMap = { defective: t.ret_reason_defective || 'معیوب', damaged: t.ret_reason_damaged || 'آسیب‌دیده', used: t.ret_reason_used || 'استفاده شده' };
+      html += '<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px 14px;margin-bottom:10px">' +
+        '<div style="color:#b91c1c;font-size:13px;font-weight:700;margin-bottom:6px">🚫 ' + (t.ret_status_rejected || 'بازگشت رد شد') + '</div>' +
+        '<div style="font-size:13px;margin-bottom:4px"><strong>' + (t.ret_rejection_reason || 'دلیل') + ':</strong> ' + (reasonMap[ret.rejection_reason] || ret.rejection_reason) + '</div>' +
+        (ret.rejection_note ? '<div style="font-size:12px;color:#555;white-space:pre-wrap;margin-bottom:4px">' + ret.rejection_note.replace(/</g,'&lt;') + '</div>' : '') +
+        (ret.rejection_photo_url ? '<a href="' + SERVER_BASE + ret.rejection_photo_url + '" target="_blank" style="font-size:12px;color:#ef4444">📷 ' + (t.ret_rejection_photo || 'عکس محصول') + ' ↗</a>' : '') +
+      '</div>';
+    }
+    // Carrier info
+    if (ret.carrier_name) {
+      html += '<div class="order-payment-row"><span>' + (t.return_carrier_label || 'باربری') + ':</span>' + ret.carrier_name + '</div>';
+    }
+    if (ret.carrier_tracking) {
+      html += '<div class="order-payment-row"><span>' + (t.return_tracking_label || 'کد رهگیری') + ':</span><strong style="direction:ltr">' + ret.carrier_tracking + '</strong></div>';
+    }
+    if (ret.shipping_receipt_url) {
+      html += '<a href="' + SERVER_BASE + ret.shipping_receipt_url + '" target="_blank" style="display:inline-block;font-size:12px;color:var(--primary);margin-bottom:8px">📄 ' + (t.return_receipt_label || 'رسید ارسال') + ' ↗</a>';
+    }
+    if (ret.refund_receipt_url) {
+      html += '<a href="' + SERVER_BASE + ret.refund_receipt_url + '" target="_blank" style="display:inline-block;font-size:12px;color:#16a34a;margin-bottom:8px">🧾 ' + (t.ret_status_refund_sent || 'رسید واریز') + ' ↗</a>';
+    }
+    // Deadline
+    if (ret.status === 'requested' && ret.deadline_at) {
+      var dlStr = new Date(ret.deadline_at).toLocaleString(dateLocale);
+      html += '<div style="font-size:12px;color:#f59e0b;margin-bottom:8px">⏱ ' + (t.return_deadline_label || 'مهلت:') + ' ' + dlStr + '</div>';
+    }
+    // Action: upload shipping receipt
+    if (ret.status === 'requested') {
+      html += '<div style="margin-top:8px">' +
+        '<input type="text" id="ret-carrier-' + ret.id + '" placeholder="' + (t.return_carrier_label || '') + '" class="order-msg-input" style="width:100%;box-sizing:border-box;margin-bottom:6px">' +
+        '<input type="text" id="ret-tracking-' + ret.id + '" placeholder="' + (t.return_tracking_label || 'کد رهگیری مرسوله') + '" class="order-msg-input" style="width:100%;box-sizing:border-box;margin-bottom:6px;direction:ltr">' +
+        '<label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px">' + (t.return_receipt_label || '') + '</label>' +
+        '<input type="file" id="ret-receipt-file-' + ret.id + '" accept="image/*,.pdf" style="display:none" onchange="submitReturnShipping(' + ret.id + ',' + orderId + ')">' +
+        '<button class="return-action-btn return-btn-primary" onclick="document.getElementById(\'ret-receipt-file-' + ret.id + '\').click()">' + (t.return_upload_btn || 'ثبت ارسال') + '</button>' +
+      '</div>';
+    }
+    // Action: IBAN form (shipped or received) — readonly if already saved
+    if (['shipped', 'received'].includes(ret.status)) {
+      html += '<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #e5d8d0">' +
+        '<div style="font-size:12px;font-weight:700;color:#555;margin-bottom:6px">💳 ' + (t.return_iban_label || '') + '</div>';
+      if (ret.refund_iban) {
+        html += '<div class="order-payment-row" style="direction:ltr;margin-bottom:4px"><span>IBAN:</span><strong>' + ret.refund_iban + '</strong>' + copyBtn(ret.refund_iban) + '</div>' +
+          '<div class="order-payment-row" style="margin-bottom:0"><span>' + (t.return_holder_label || '') + ':</span>' + ret.refund_holder + copyBtn(ret.refund_holder) + '</div>' +
+          '<div style="font-size:11px;color:#16a34a;margin-top:6px">✓ ' + (t.ret_iban_saved || 'ذخیره شد') + '</div>';
+      } else {
+        html += '<input type="text" id="ret-iban-' + ret.id + '" placeholder="TR000000000000000000000000" class="order-msg-input" style="width:100%;box-sizing:border-box;margin-bottom:6px;direction:ltr" oninput="formatIbanInput(this)" maxlength="26">' +
+          '<input type="text" id="ret-holder-' + ret.id + '" placeholder="' + (t.return_holder_label || '') + '" class="order-msg-input" style="width:100%;box-sizing:border-box;margin-bottom:6px">' +
+          '<button class="return-action-btn return-btn-primary" onclick="submitReturnIban(' + ret.id + ',' + orderId + ')">' + (t.return_iban_save_btn || 'ذخیره') + '</button>';
+      }
+      html += '</div>';
+    }
+    // Action: confirm refund
+    if (ret.status === 'refund_sent') {
+      html += '<button class="return-action-btn return-btn-success" style="margin-top:10px" onclick="confirmReturnRefund(' + ret.id + ',' + orderId + ')">' + (t.return_confirm_refund || 'تأیید دریافت وجه') + '</button>';
+    }
+    html += '</div>';
+  }
+
+  html += '</div>';
+  sect.innerHTML = html;
+}
+
+function confirmRequestReturn(orderId) {
+  var token = getSession(); if (!token) { openAuthModal('login'); return; }
+  fetch(API_BASE + '/orders/' + orderId + '/returns', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-session-token': token },
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.success) {
+      var ord = (_cachedApiOrders || []).find(function(o) { return o.id === orderId; });
+      renderOrderReturn(orderId, ord, data.data);
+    } else {
+      showToast(data.message || 'خطا', 'error');
+    }
+  }).catch(function() { showToast('خطا', 'error'); });
+}
+
+function submitReturnShipping(returnId, orderId) {
+  var token = getSession(); if (!token) { openAuthModal('login'); return; }
+  var carrierEl  = document.getElementById('ret-carrier-' + returnId);
+  var trackingEl = document.getElementById('ret-tracking-' + returnId);
+  var fileEl     = document.getElementById('ret-receipt-file-' + returnId);
+  var carrier  = carrierEl  ? carrierEl.value.trim()  : '';
+  var tracking = trackingEl ? trackingEl.value.trim() : '';
+  if (!carrier) { showToast(TRANSLATIONS[currentLang].return_carrier_label || 'نام باربری الزامی است', 'error'); return; }
+  if (!fileEl || !fileEl.files[0]) return;
+  var fd = new FormData();
+  fd.append('carrier_name', carrier);
+  if (tracking) fd.append('carrier_tracking', tracking);
+  fd.append('receipt', fileEl.files[0]);
+  fetch(API_BASE + '/orders/returns/' + returnId + '/shipping', {
+    method: 'POST', headers: { 'x-session-token': token }, body: fd,
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.success) {
+      var ord = (_cachedApiOrders || []).find(function(o) { return o.id === orderId; });
+      renderOrderReturn(orderId, ord, data.data);
+    } else {
+      showToast(data.message || 'خطا', 'error');
+    }
+  }).catch(function() { showToast('خطا', 'error'); });
+}
+
+// ─── Customer product photos ──────────────────────────────────────────────────
+var _uploadedPhotos = {}; // orderId_productId => true
+
+function buildProductPhotoUploadSection(order) {
+  var t = TRANSLATIONS[currentLang] || TRANSLATIONS['fa'];
+  var items = order.order_items || [];
+  if (!items.length) return '';
+  var nameKey = currentLang === 'fa' ? 'name_fa' : currentLang === 'tr' ? 'name_tr' : 'name_en';
+  var rows = items.map(function(oi) {
+    var pid   = oi.product_id || (oi.products && oi.products.id);
+    var pname = oi.products ? (oi.products[nameKey] || oi.products.name_fa || '') : '';
+    var key   = order.id + '_' + pid;
+    var already = _uploadedPhotos[key];
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f6">' +
+      '<span style="font-size:13px;color:#374151">' + pname + '</span>' +
+      (already
+        ? '<span style="font-size:12px;color:#16a34a">✓ ' + (t.cphoto_uploaded || 'ثبت شد') + '</span>'
+        : '<label style="cursor:pointer;background:var(--primary);color:#fff;font-size:12px;padding:4px 10px;border-radius:6px">' +
+            (t.cphoto_btn || '📷 آپلود') +
+            '<input type="file" accept="image/*" style="display:none" onchange="submitProductPhoto(this,' + order.id + ',' + pid + ')">' +
+          '</label>'
+      ) +
+    '</div>';
+  }).join('');
+  return '<div style="margin-top:12px;padding:12px 14px;background:#f8fafc;border:1px solid var(--border);border-radius:10px">' +
+    '<div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:4px">📷 ' + (t.cphoto_section || 'عکس واقعی محصول') + '</div>' +
+    '<div style="font-size:12px;color:#9ca3af;margin-bottom:10px">' + (t.cphoto_hint || '') + '</div>' +
+    rows +
+  '</div>';
+}
+
+function submitProductPhoto(inputEl, orderId, productId) {
+  var t     = TRANSLATIONS[currentLang] || TRANSLATIONS['fa'];
+  var token = getSession();
+  if (!token) { openAuthModal('login'); return; }
+  var file = inputEl.files[0];
+  if (!file) return;
+  var fd = new FormData();
+  fd.append('photo', file);
+  fd.append('product_id', productId);
+  fetch(API_BASE + '/orders/' + orderId + '/product-photos', {
+    method: 'POST', headers: { 'x-session-token': token }, body: fd,
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.success) {
+      _uploadedPhotos[orderId + '_' + productId] = true;
+      showToast(t.cphoto_uploaded || 'ثبت شد');
+      var label = inputEl.closest('label');
+      if (label) {
+        var span = document.createElement('span');
+        span.style.cssText = 'font-size:12px;color:#16a34a';
+        span.textContent = '✓ ' + (t.cphoto_uploaded || 'ثبت شد');
+        label.parentNode.replaceChild(span, label);
+      }
+    } else if (data.message === 'already_uploaded') {
+      showToast(t.cphoto_already || 'قبلاً آپلود کرده‌اید', 'error');
+    } else {
+      showToast(data.message || 'خطا', 'error');
+    }
+  }).catch(function() { showToast('خطا', 'error'); });
+}
+
+function loadProductPhotos(productId, containerEl) {
+  fetch(API_BASE + '/products/' + productId + '/customer-photos')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success || !data.data.length) { containerEl.remove(); return; }
+      var t = TRANSLATIONS[currentLang] || TRANSLATIONS['fa'];
+      var html = '<div style="margin-top:16px">' +
+        '<div style="font-size:13px;font-weight:700;color:#374151;margin-bottom:8px">📷 ' + (t.cphoto_customer_photos || 'عکس‌های خریداران') + ' (' + data.data.length + ')</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        data.data.map(function(p) {
+          return '<a href="' + SERVER_BASE + p.photo_url + '" target="_blank" style="display:block;flex-shrink:0">' +
+            '<img src="' + SERVER_BASE + p.photo_url + '" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb">' +
+          '</a>';
+        }).join('') +
+        '</div></div>';
+      containerEl.innerHTML = html;
+    }).catch(function() { containerEl.remove(); });
+}
+
+function copyVal(val) {
+  navigator.clipboard.writeText(val).then(function() {
+    showToast(TRANSLATIONS[currentLang].copied || 'Copied!');
+  }).catch(function() {
+    var ta = document.createElement('textarea');
+    ta.value = val; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast(TRANSLATIONS[currentLang].copied || 'Copied!');
+  });
+}
+function copyBtn(val) {
+  var safe = val.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  return '<button onclick="copyVal(\'' + safe + '\')" title="Copy" style="background:none;border:none;cursor:pointer;padding:2px 5px;color:#aaa;font-size:13px;vertical-align:middle;line-height:1" onmouseover="this.style.color=\'#f97316\'" onmouseout="this.style.color=\'#aaa\'">⧉</button>';
+}
+
+function formatIbanInput(el) {
+  var v = el.value.toUpperCase();
+  var result = '';
+  if (v.length > 0) result += (v[0] === 'T' ? 'T' : '');
+  if (v.length > 1) result += (v[1] === 'R' ? 'R' : '');
+  result += v.slice(result.length).replace(/\D/g, '');
+  el.value = result.slice(0, 26);
+}
+
+function submitReturnIban(returnId, orderId) {
+  var token = getSession(); if (!token) { openAuthModal('login'); return; }
+  var iban   = (document.getElementById('ret-iban-' + returnId) || {}).value || '';
+  var holder = (document.getElementById('ret-holder-' + returnId) || {}).value || '';
+  if (!iban.trim() || !holder.trim()) { showToast(TRANSLATIONS[currentLang].return_iban_label || 'اطلاعات ناقص', 'error'); return; }
+  if (!/^TR\d{24}$/.test(iban.trim())) { showToast(TRANSLATIONS[currentLang].ret_iban_invalid || 'IBAN invalid', 'error'); return; }
+  fetch(API_BASE + '/orders/returns/' + returnId + '/refund-info', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-session-token': token },
+    body: JSON.stringify({ refund_iban: iban.trim(), refund_holder: holder.trim() }),
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.success) {
+      showToast(TRANSLATIONS[currentLang].ret_iban_saved || 'ذخیره شد');
+      var ord = (_cachedApiOrders || []).find(function(o) { return o.id === orderId; });
+      renderOrderReturn(orderId, ord, data.data);
+    } else { showToast(data.message || 'خطا', 'error'); }
+  }).catch(function() { showToast('خطا', 'error'); });
+}
+
+function confirmReturnRefund(returnId, orderId) {
+  var token = getSession(); if (!token) { openAuthModal('login'); return; }
+  fetch(API_BASE + '/orders/returns/' + returnId + '/confirm', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-session-token': token },
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.success) {
+      var ord = (_cachedApiOrders || []).find(function(o) { return o.id === orderId; });
+      renderOrderReturn(orderId, ord, data.data);
+    } else { showToast(data.message || 'خطا', 'error'); }
+  }).catch(function() { showToast('خطا', 'error'); });
 }
 
 // ─── Favorites ────────────────────────────────────────────────────────────────
@@ -3065,6 +3656,114 @@ function openCheckout() {
 function closeCheckout() {
   document.getElementById('checkout-overlay').classList.remove('open');
   document.body.style.overflow = '';
+  _appliedCoupon = null;
+}
+
+// ─── Discount Coupon ──────────────────────────────────────────────────────────
+var _appliedCoupon = null;
+
+function applyCoupon() {
+  var code  = (document.getElementById('coupon-input')?.value || '').trim().toUpperCase();
+  var resEl = document.getElementById('coupon-result');
+  if (!code) return;
+  var token = getSession();
+  if (!token) { openAuthModal('login'); return; }
+
+  var cartTotal = cart.reduce(function(s, item) {
+    var p = products.find(function(pr){ return pr.id === item.id; });
+    if (!p) return s;
+    var u = p.discounted_price && p.discounted_price < p.price ? p.discounted_price : p.price;
+    return s + u * item.qty;
+  }, 0);
+
+  fetch(API_BASE + '/coupons/validate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-session-token': token },
+    body: JSON.stringify({ code: code, cart_total: cartTotal }),
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    resEl.style.display = '';
+    var tr = TRANSLATIONS[currentLang];
+    if (d.success) {
+      _appliedCoupon = d.data;
+      var label = d.data.type === 'percent'
+        ? d.data.value + '%'
+        : formatPrice(d.data.value);
+      resEl.innerHTML = '<span style="color:#2eaa72;font-weight:600">✓ ' + label + ' ' + (tr.coupon_applied || '') + '</span>';
+      document.getElementById('checkout-original-row').style.display = '';
+      document.getElementById('checkout-original-price').textContent = formatPrice(cartTotal);
+      document.getElementById('checkout-discount-row').style.display = '';
+      document.getElementById('checkout-discount-price').textContent = '- ' + formatPrice(d.data.discount_amount);
+      document.getElementById('checkout-total-price').textContent    = formatPrice(d.data.final_amount);
+    } else {
+      _appliedCoupon = null;
+      var msgs = { invalid_code: tr.coupon_invalid, not_eligible: tr.coupon_not_eligible, limit_reached: tr.coupon_limit_reached, already_used: tr.coupon_already_used };
+      resEl.innerHTML = '<span style="color:#ef4444">' + (msgs[d.message] || d.message || '?') + '</span>';
+      document.getElementById('checkout-original-row').style.display = 'none';
+      document.getElementById('checkout-discount-row').style.display = 'none';
+      var cartT = cart.reduce(function(s,item){ var p=products.find(function(pr){return pr.id===item.id;}); if(!p)return s; var u=p.discounted_price&&p.discounted_price<p.price?p.discounted_price:p.price; return s+u*item.qty; },0);
+      document.getElementById('checkout-total-price').textContent = formatPrice(cartT);
+    }
+  }).catch(function() {
+    var tr2 = TRANSLATIONS[currentLang];
+    resEl.style.display = '';
+    resEl.innerHTML = '<span style="color:#ef4444">' + (tr2.coupon_net_err || '!') + '</span>';
+  });
+}
+
+// ─── Banner ───────────────────────────────────────────────────────────────────
+var _bannerClosed = false;
+
+var _bannerData = null;
+
+function loadBanners() {
+  if (_bannerClosed) return;
+  fetch(API_BASE.replace('/api','') + '/api/banners')
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (!d.success || !d.data.length) return;
+      _bannerData = d.data[0];
+      renderBanner();
+    }).catch(function(){});
+}
+
+function renderBanner() {
+  if (!_bannerData || _bannerClosed) return;
+  var banner = _bannerData;
+  var T = TRANSLATIONS[currentLang] || TRANSLATIONS['fa'];
+  var text = banner['banner_text_' + currentLang] || banner.banner_text_fa || banner.banner_text_en || '';
+  if (!text && !banner.code) return;
+
+  document.getElementById('discount-banner-text').textContent = text;
+  document.getElementById('discount-banner-code').textContent = banner.code;
+  document.getElementById('discount-banner-copy-tip').textContent = T.banner_copied || '✓';
+
+  var expEl = document.getElementById('discount-banner-exp');
+  if (banner.expires_at) {
+    var locale = currentLang === 'fa' ? 'fa-IR' : currentLang === 'tr' ? 'tr-TR' : 'en-GB';
+    var dateStr = new Date(banner.expires_at).toLocaleDateString(locale, { day: 'numeric', month: 'long' });
+    expEl.textContent = (T.banner_until || 'تا') + ' ' + dateStr;
+    expEl.style.display = '';
+  } else {
+    expEl.textContent = '';
+    expEl.style.display = 'none';
+  }
+
+  document.getElementById('discount-banner').style.display = '';
+}
+
+function copyBannerCode() {
+  var code = document.getElementById('discount-banner-code')?.textContent;
+  if (!code) return;
+  navigator.clipboard.writeText(code).then(function() {
+    var tip = document.getElementById('discount-banner-copy-tip');
+    tip.style.opacity = '1';
+    setTimeout(function(){ tip.style.opacity = '0'; }, 1500);
+  }).catch(function() {});
+}
+
+function closeBanner() {
+  _bannerClosed = true;
+  document.getElementById('discount-banner').style.display = 'none';
 }
 
 function renderCheckout() {
@@ -3092,7 +3791,7 @@ function renderCheckout() {
       '<div class="checkout-item-thumb" style="background:' + p.gradient + '">' + thumb + '</div>' +
       '<div class="checkout-item-info">' +
         '<span class="checkout-item-name">' + name + '</span>' +
-        (p.code ? '<span class="checkout-item-code">' + p.code + '</span>' : '') +
+        (p.code ? '<span class="checkout-item-code" onclick="copyProductCode(\'' + p.code + '\')" title="Copy">' + p.code + '</span>' : '') +
         (metaParts.length ? '<span class="checkout-item-meta">' + metaParts.join(' · ') + '</span>' : '') +
       '</div>' +
       '<div class="checkout-item-right">' +
@@ -3112,6 +3811,12 @@ function renderCheckout() {
     var u = p.discounted_price && p.discounted_price < p.price ? p.discounted_price : p.price;
     return s + u * item.qty;
   }, 0);
+  // reset coupon UI when checkout re-renders
+  _appliedCoupon = null;
+  var ci = document.getElementById('coupon-input'); if (ci) ci.value = '';
+  var cr = document.getElementById('coupon-result'); if (cr) cr.style.display = 'none';
+  var orRow = document.getElementById('checkout-original-row'); if (orRow) orRow.style.display = 'none';
+  var disRow = document.getElementById('checkout-discount-row'); if (disRow) disRow.style.display = 'none';
   document.getElementById('checkout-total-price').textContent = formatPrice(total);
 
   // ── Addresses ──────────────────────────────────────────────────────────────
@@ -3275,8 +3980,10 @@ function submitCheckout() {
     return;
   }
 
-  var note  = (document.getElementById('checkout-note').value || '').trim();
-  var token = getSession();
+  var note         = (document.getElementById('checkout-note').value || '').trim();
+  var token        = getSession();
+  var couponResEl  = document.getElementById('coupon-result');
+  var couponInputVal = (document.getElementById('coupon-input')?.value || '').trim().toUpperCase();
   var items = cart.map(function(item) {
     var p = products.find(function(pr) { return pr.id === item.id; });
     var colorObj = p && item.colorKey ? p.colors.find(function(c) { return c.key === item.colorKey; }) : null;
@@ -3293,27 +4000,61 @@ function submitCheckout() {
   var btn = document.getElementById('checkout-submit-btn');
   btn.disabled = true;
 
-  fetch(API_BASE + '/orders', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-session-token': token },
-    body: JSON.stringify({ items: items, note: note, lang: currentLang, address_id: _checkoutAddrId || null }),
-  }).then(function(r) { return r.json(); }).then(function(data) {
-    if (data.success) {
-      currentPreorder = data.data;
-      localStorage.setItem('mf_preorder_id', String(data.data.id));
-      cart = [];
-      saveCart();
-      closeCheckout();
-      showToast(t.preorder_registered || 'پیش‌سفارش ثبت شد');
-      reloadProducts(true);
-      openProfileModal();
-      showProfileTab('orders');
-    } else {
-      errEl.textContent = data.message || t.network_error || 'خطا';
-    }
+  // If coupon input has text that hasn't been validated yet, validate first
+  var needsCouponValidation = couponInputVal && (!_appliedCoupon || _appliedCoupon.code !== couponInputVal);
+  var couponPromise = needsCouponValidation
+    ? fetch(API_BASE + '/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-session-token': token },
+        body: JSON.stringify({ code: couponInputVal, cart_total: cart.reduce(function(s, item) {
+          var p = products.find(function(pr){ return pr.id === item.id; });
+          if (!p) return s;
+          return s + (p.discounted_price && p.discounted_price < p.price ? p.discounted_price : p.price) * item.qty;
+        }, 0) }),
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (!d.success) {
+          var tr2 = TRANSLATIONS[currentLang];
+          var msgs = { invalid_code: tr2.coupon_invalid, not_eligible: tr2.coupon_not_eligible, limit_reached: tr2.coupon_limit_reached, already_used: tr2.coupon_already_used };
+          if (couponResEl) { couponResEl.style.display = ''; couponResEl.innerHTML = '<span style="color:#ef4444">' + (msgs[d.message] || d.message || '?') + '</span>'; }
+          btn.disabled = false;
+          return false; // stop submission
+        }
+        _appliedCoupon = d.data;
+        return true;
+      })
+    : Promise.resolve(true);
+
+  couponPromise.then(function(proceed) {
+    if (!proceed) return;
+    fetch(API_BASE + '/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-session-token': token },
+      body: JSON.stringify({ items: items, note: note, lang: currentLang, address_id: _checkoutAddrId || null, coupon_code: _appliedCoupon ? _appliedCoupon.code : null }),
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      if (data.success) {
+        currentPreorder = data.data;
+        localStorage.setItem('mf_preorder_id', String(data.data.id));
+        cart = [];
+        saveCart();
+        updateOrderStatusBtn();
+        closeCheckout();
+        showToast(t.preorder_registered || 'پیش‌سفارش ثبت شد');
+        reloadProducts(true);
+        openProfileModal();
+        showProfileTab('orders');
+      } else if (data.message === 'active_preorder_exists') {
+        if (couponResEl) { couponResEl.style.display = ''; couponResEl.innerHTML = '<span style="color:#ef4444">' + (t.active_preorder_exists || data.message) + '</span>'; }
+        else { errEl.textContent = t.active_preorder_exists || data.message; }
+      } else {
+        errEl.textContent = data.message || t.network_error || 'خطا';
+      }
+    }).catch(function() {
+      errEl.textContent = t.network_error || 'خطا در اتصال';
+    }).finally(function() {
+      btn.disabled = false;
+    });
   }).catch(function() {
     errEl.textContent = t.network_error || 'خطا در اتصال';
-  }).finally(function() {
     btn.disabled = false;
   });
 }
@@ -3432,9 +4173,24 @@ document.addEventListener('DOMContentLoaded', function() {
   applyLang(currentLang);
   updateCartBadge();
   updateAuthUI();
+  loadBanners();
   if (getCurrentUser()) {
     loadFavoritesFromServer();
     loadCartFromServer();
+    // sync avatar from server on every page load
+    var _initToken = getSession();
+    if (_initToken) {
+      fetch(API_BASE + '/customers/profile', { headers: { 'x-session-token': _initToken } })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          if (d.success && d.data && d.data.avatar) {
+            localStorage.setItem('mf_avatar_' + d.data.id, d.data.avatar);
+            var u = getCurrentUser();
+            if (u) { u.avatar = d.data.avatar; updateUser(u); }
+            updateAuthUI();
+          }
+        }).catch(function() {});
+    }
   } else {
     cart = [];
     localStorage.removeItem('cart');
@@ -3449,7 +4205,14 @@ document.addEventListener('DOMContentLoaded', function() {
     _resetToken = resetToken;
     window.history.replaceState({}, '', window.location.pathname);
     setTimeout(function() { openAuthModal('reset'); }, 300);
+  } else {
+    restoreFilterFromHash();
   }
+
+  // Save scroll position before unload
+  window.addEventListener('beforeunload', function() {
+    sessionStorage.setItem('mf_scroll', String(window.scrollY));
+  });
 
   Promise.all([
     fetch(API_BASE + '/categories').then(function(r) { return r.json(); }).catch(function() { return null; }),
@@ -3474,6 +4237,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     updateNavVisibility();
     renderGrid();
+
+    // Restore scroll after render
+    var savedScroll = sessionStorage.getItem('mf_scroll');
+    if (savedScroll) {
+      sessionStorage.removeItem('mf_scroll');
+      setTimeout(function() { window.scrollTo({ top: Number(savedScroll), behavior: 'instant' }); }, 80);
+    }
   });
 
   // Re-fetch products when tab becomes visible (e.g. after editing in admin)

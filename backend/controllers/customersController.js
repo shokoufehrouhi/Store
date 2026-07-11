@@ -105,7 +105,7 @@ async function login(req, res, next) {
       customer: {
         id: customer.id, full_name: customer.full_name, email: customer.email,
         mobile: customer.mobile, registered_by: customer.registered_by,
-        preferred_lang: customer.preferred_lang,
+        preferred_lang: customer.preferred_lang, avatar: customer.avatar || null,
         addresses,
       },
     });
@@ -149,7 +149,7 @@ async function getProfile(req, res, next) {
       where:  { id: session.customer_id },
       select: {
         id: true, full_name: true, email: true, mobile: true, registered_by: true,
-        preferred_lang: true, created_at: true,
+        preferred_lang: true, created_at: true, avatar: true,
         addresses: { select: { id: true, recipient: true, phone: true, city: true, postal_code: true, detail: true, is_default: true } },
         customer_favorites: { select: { product_id: true } },
       },
@@ -226,6 +226,33 @@ async function resolveSession(req, res) {
   if (!session) { res.status(401).json({ success: false, message: 'Session expired' }); return null; }
   if (!session.customers?.is_active) { res.status(403).json({ success: false, message: 'Account is deactivated' }); return null; }
   return session;
+}
+
+async function updateAvatar(req, res, next) {
+  try {
+    const token = req.headers['x-session-token'];
+    if (!token) return res.status(401).json({ success: false, message: 'No session' });
+    const session = await prisma.sessions.findFirst({
+      where: { id: token, is_active: true, expires_at: { gt: new Date() } },
+    });
+    if (!session) return res.status(401).json({ success: false, message: 'Session expired' });
+
+    const { avatar } = req.body;
+    // avatar must be a data URL or null (to remove)
+    if (avatar !== null && avatar !== undefined) {
+      if (typeof avatar !== 'string' || (!avatar.startsWith('data:image/') && avatar !== '')) {
+        return res.status(400).json({ success: false, message: 'Invalid avatar format' });
+      }
+      if (avatar.length > 200000) {
+        return res.status(400).json({ success: false, message: 'Avatar too large' });
+      }
+    }
+    await prisma.customers.update({
+      where: { id: session.customer_id },
+      data:  { avatar: avatar || null, updated_at: new Date() },
+    });
+    res.json({ success: true });
+  } catch (err) { next(err); }
 }
 
 async function addAddress(req, res, next) {
@@ -504,4 +531,4 @@ async function syncCart(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { register, login, logout, getProfile, updateProfile, addAddress, updateAddress, deleteAddress, forgotPassword, resetPassword, getFavorites, addFavorite, removeFavorite, getCart, syncCart };
+module.exports = { register, login, logout, getProfile, updateProfile, updateAvatar, addAddress, updateAddress, deleteAddress, forgotPassword, resetPassword, getFavorites, addFavorite, removeFavorite, getCart, syncCart };

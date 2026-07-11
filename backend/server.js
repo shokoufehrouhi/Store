@@ -50,6 +50,10 @@ app.use('/api/payments',                   require('./routes/payments'));
 app.use('/api/admin/login',                authLimiter);
 app.use('/api/admin',                      require('./routes/admin'));
 
+const cp = require('./controllers/couponsController');
+app.get('/api/banners',           cp.getBanners);
+app.post('/api/coupons/validate', cp.validateCoupon);
+
 // ─── Public categories (no auth) ──────────────────────────────────────────────
 app.get('/api/categories', async (req, res, next) => {
   try {

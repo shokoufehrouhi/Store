@@ -133,6 +133,12 @@
           </svg>
           <span class="fav-header-badge" id="fav-header-badge"></span>
         </button>
+        <button class="order-status-btn" id="order-status-btn" onclick="_ordersActiveOnly=true;openProfileModal();showProfileTab('orders')" aria-label="Active Order" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+          </svg>
+          <span class="order-status-dot" id="order-status-dot"></span>
+        </button>
         <button class="cart-btn" onclick="openCart()" id="cart-btn" aria-label="Cart">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
@@ -158,6 +164,16 @@
       </nav>
     </div>
   </header>
+
+  <!-- Discount Banner -->
+  <div id="discount-banner" style="display:none;background:linear-gradient(90deg,#FF5C00,#d94400,#FF5C00);background-size:200% auto;color:#fff;text-align:center;padding:9px 44px;font-size:13px;font-weight:600;position:sticky;top:64px;z-index:99;line-height:1.6">
+    <span id="discount-banner-text"></span>
+    <span style="margin-inline:8px;opacity:.4">·</span>
+    <span id="discount-banner-code" style="font-family:monospace;font-size:15px;font-weight:800;background:rgba(255,255,255,.22);padding:2px 12px;border-radius:6px;letter-spacing:2px;cursor:pointer;border:1.5px solid rgba(255,255,255,.4)" onclick="copyBannerCode()"></span>
+    <span id="discount-banner-exp" class="banner-exp"></span>
+    <span id="discount-banner-copy-tip" style="margin-inline-start:8px;font-size:11px;opacity:0;transition:opacity .4s"></span>
+    <button onclick="closeBanner()" style="position:absolute;inset-inline-end:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:#fff;font-size:20px;cursor:pointer;opacity:.6;line-height:1">×</button>
+  </div>
 
   <!-- هیرو -->
   <section class="hero">
@@ -383,12 +399,12 @@
         </div>
         <div class="form-field">
           <label data-i18n="auth_id_label">ایمیل یا شماره موبایل</label>
-          <input type="text" id="login-identifier" data-i18n-ph="auth_id_ph" placeholder="email@example.com یا ۰۹..." onkeydown="if(event.key==='Enter')doLogin()">
+          <input type="text" id="login-identifier" autocomplete="username" data-i18n-ph="auth_id_ph" placeholder="email@example.com یا ۰۹..." onkeydown="if(event.key==='Enter')doLogin()">
           <span class="auth-field-error" id="login-id-err"></span>
         </div>
         <div class="form-field">
           <label data-i18n="auth_pass_label">رمز عبور</label>
-          <div class="pass-wrap"><input type="password" id="login-password" data-i18n-ph="auth_pass_ph" placeholder="رمز عبور" onkeydown="if(event.key==='Enter')doLogin()"><button class="toggle-pass" onclick="togglePassVis('login-password',this)">👁</button></div>
+          <div class="pass-wrap"><input type="password" id="login-password" autocomplete="current-password" data-i18n-ph="auth_pass_ph" placeholder="رمز عبور" onkeydown="if(event.key==='Enter')doLogin()"><button class="toggle-pass" onclick="togglePassVis('login-password',this)">👁</button></div>
           <span class="auth-field-error" id="login-pass-err"></span>
         </div>
         <button class="auth-link-btn auth-forgot-link" onclick="showAuthView('forgot')" data-i18n="auth_forgot_link">فراموشی رمز عبور؟</button>
@@ -581,6 +597,23 @@
 
       <!-- Footer -->
       <div class="checkout-footer">
+        <!-- Coupon -->
+        <div style="margin-bottom:12px">
+          <div style="display:flex;gap:8px">
+            <input id="coupon-input" type="text" data-i18n-ph="coupon_ph" placeholder="کد تخفیف" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;text-transform:uppercase;outline:none">
+            <button onclick="applyCoupon()" id="coupon-apply-btn" data-i18n="coupon_apply" style="padding:9px 16px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">اعمال</button>
+          </div>
+          <div id="coupon-result" style="margin-top:6px;font-size:12px;display:none"></div>
+        </div>
+
+        <div class="checkout-total-row" id="checkout-original-row" style="display:none;color:#888;font-size:13px">
+          <span data-i18n="checkout_original">جمع اصلی</span>
+          <span id="checkout-original-price" style="text-decoration:line-through"></span>
+        </div>
+        <div class="checkout-total-row" id="checkout-discount-row" style="display:none;color:#2eaa72;font-size:13px">
+          <span data-i18n="checkout_discount">تخفیف</span>
+          <span id="checkout-discount-price"></span>
+        </div>
         <div class="checkout-total-row">
           <span data-i18n="checkout_total">جمع کل</span>
           <span class="checkout-total-price" id="checkout-total-price"></span>
