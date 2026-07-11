@@ -3549,11 +3549,10 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .auth-modal-box  { padding: 28px 20px 24px; }
-  .auth-header-btn { padding: 5px 8px; font-size: 13px; border-radius: 50%; width: 36px; height: 36px; justify-content: center; }
+  .auth-header-btn { padding: 5px 10px; font-size: 12px; }
   .auth-btn-text { display: none; }
-  header, .header { overflow: visible; }
+  .site-lang-wrap { display: none; }
   .header-inner { flex-wrap: nowrap; gap: 6px; }
-  .site-lang-wrap { flex-shrink: 0; }
   .fav-grid { grid-template-columns: repeat(2, 1fr); }
   .fav-thumb { aspect-ratio: 1 / 1; }
   .address-form-grid { grid-template-columns: 1fr; }
