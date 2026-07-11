@@ -1196,7 +1196,7 @@ const LANGS = {
     colId:'#', colMedia:'رسانه', colName:'نام محصول', colCategory:'دسته‌بندی', colPrice:'قیمت',
     colStock:'موجودی', colColors:'رنگ‌ها', colSizes:'سایزها', colStatus:'وضعیت', colActions:'عملیات',
     active:'فعال', inactive:'غیرفعال', edit:'✏️ ویرایش', del:'🗑️',
-    loading:'در حال بارگذاری...', noProducts:'هنوز محصولی ثبت نشده',
+    loading:'در حال بارگذاری...', noProducts:'هنوز محصولی ثبت نشده', noPhotos:'هنوز عکسی آپلود نشده',
     addProductTitle:'افزودن محصول جدید', editProductTitle:'ویرایش محصول',
     saveChanges:'ذخیره تغییرات', addItem:'➕ افزودن', cancel:'انصراف',
     basicInfo:'اطلاعات اصلی', categorization:'دسته‌بندی', priceStock:'قیمت و موجودی',
@@ -1364,7 +1364,7 @@ const LANGS = {
     colId:'#', colMedia:'Media', colName:'Product Name', colCategory:'Category', colPrice:'Price',
     colStock:'Stock', colColors:'Colors', colSizes:'Sizes', colStatus:'Status', colActions:'Actions',
     active:'Active', inactive:'Inactive', edit:'✏️ Edit', del:'🗑️',
-    loading:'Loading...', noProducts:'No products yet',
+    loading:'Loading...', noProducts:'No products yet', noPhotos:'No photos uploaded yet',
     addProductTitle:'Add New Product', editProductTitle:'Edit Product',
     saveChanges:'Save Changes', addItem:'➕ Add', cancel:'Cancel',
     basicInfo:'Basic Info', categorization:'Category', priceStock:'Price & Stock',
@@ -1532,7 +1532,7 @@ const LANGS = {
     colId:'#', colMedia:'Medya', colName:'Ürün Adı', colCategory:'Kategori', colPrice:'Fiyat',
     colStock:'Stok', colColors:'Renkler', colSizes:'Bedenler', colStatus:'Durum', colActions:'İşlemler',
     active:'Aktif', inactive:'Pasif', edit:'✏️ Düzenle', del:'🗑️',
-    loading:'Yükleniyor...', noProducts:'Henüz ürün yok',
+    loading:'Yükleniyor...', noProducts:'Henüz ürün yok', noPhotos:'Henüz fotoğraf yüklenmedi',
     addProductTitle:'Yeni Ürün Ekle', editProductTitle:'Ürünü Düzenle',
     saveChanges:'Değişiklikleri Kaydet', addItem:'➕ Ekle', cancel:'İptal',
     basicInfo:'Temel Bilgiler', categorization:'Kategori', priceStock:'Fiyat & Stok',
@@ -3777,7 +3777,7 @@ function renderProductPhotosAdmin() {
   const el = document.getElementById('product-photos-list');
   if (!el) return;
   if (!_allProductPhotos.length) {
-    el.innerHTML = `<div style="text-align:center;padding:40px;color:#999">هنوز عکسی آپلود نشده</div>`;
+    el.innerHTML = `<div style="text-align:center;padding:40px;color:#999">${t('noPhotos')}</div>`;
     return;
   }
   el.innerHTML = _allProductPhotos.map(p => `
