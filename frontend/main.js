@@ -16,6 +16,10 @@ function showConfirm(msg, onYes, yesLabel) {
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function showToast(msg, type) {
   var wrap = document.getElementById('app-toast');
   if (!wrap) return;
@@ -45,7 +49,7 @@ var PLACEHOLDER_SVG = '<svg class="img-placeholder" viewBox="0 0 22 28" fill="no
 var _isLocal    = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 var SERVER_BASE = _isLocal ? 'http://localhost:3001' : '';
 var API_BASE    = SERVER_BASE + '/api';
-var currentLang        = localStorage.getItem('lang_v2') || 'en';
+var currentLang        = localStorage.getItem('lang_v2') || 'tr';
 var currentSearch      = '';
 var currentCategory    = 'all';
 var currentSubcategory = null;
@@ -149,7 +153,7 @@ function copyProductCode(code) {
 }
 
 function formatPrice(amount) {
-  var num = Number(amount) || 0;
+  var num = Math.floor(Number(amount) * 100) / 100;
   return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL';
 }
 
@@ -508,6 +512,12 @@ function handleReceiptFileChange(input) {
     input.value = '';
     return;
   }
+  var maxSize = 10 * 1024 * 1024; // 10 MB
+  if (file.size > maxSize) {
+    showToast(t.receipt_too_large || 'حجم فایل نباید بیشتر از ۱۰ مگابایت باشد', 'error');
+    input.value = '';
+    return;
+  }
   uploadReceipt(file);
   input.value = '';
 }
@@ -816,19 +826,16 @@ function buildSidebar(categories) {
   var html = '<a class="sidebar-item active" href="#" data-filter="all" data-gender="all" data-sub="" data-i18n="menu_all">' + (t.menu_all || 'همه محصولات') + '</a>';
 
   categories.forEach(function(cat) {
-    var subs        = cat.subcategories || [];
-    var catLabel    = lbl(cat);
-    var visibleSubs = subs.filter(function(sub) {
-      return subcatHasProducts(sub.key, 'all');
-    });
+    var subs     = cat.subcategories || [];
+    var catLabel = lbl(cat);
 
-    if (visibleSubs.length) {
+    if (subs.length) {
       html += '<div class="sidebar-group">';
       html += '<a class="sidebar-item has-sub" href="#" data-filter="' + cat.key + '" data-gender="all" data-sub="">';
       html += '<span>' + catLabel + '</span><span class="sidebar-chevron">‹</span>';
       html += '</a>';
       html += '<div class="sidebar-dropdown">';
-      visibleSubs.forEach(function(sub) {
+      subs.forEach(function(sub) {
         html += '<a class="sidebar-sub-item" href="#" data-filter="' + cat.key + '" data-gender="all" data-sub="' + sub.key + '">' + lbl(sub) + '</a>';
       });
       html += '</div></div>';
@@ -875,14 +882,9 @@ function buildMegaMenu(categories) {
 
   var html = '';
   categories.forEach(function(cat) {
-    if (!catHasProducts(cat.key, 'all')) return;
-    var visibleSubs = (cat.subcategories || []).filter(function(sub) {
-      return subcatHasProducts(sub.key, 'all');
-    });
-
     html += '<div class="mega-col" data-cat="' + cat.key + '">';
     html += '<a class="mega-cat-title" href="#products" data-filter="' + cat.key + '" data-gender="all" data-sub="">' + lbl(cat) + '</a>';
-    visibleSubs.forEach(function(sub) {
+    (cat.subcategories || []).forEach(function(sub) {
       html += '<a class="mega-sub-item" href="#products" data-filter="' + cat.key + '" data-gender="all" data-sub="' + sub.key + '">' + lbl(sub) + '</a>';
     });
     html += '</div>';
@@ -1090,18 +1092,11 @@ function subcatHasProducts(subKey, genderFilter) {
 }
 
 function updateNavVisibility() {
-  // Hide subcategory items with no stock
   document.querySelectorAll('.nav-drop-item[data-sub]').forEach(function(el) {
-    var subKey = el.dataset.sub || '';
-    if (!subKey) return;
-    var gender = el.dataset.gender || 'all';
-    el.style.display = subcatHasProducts(subKey, gender) ? '' : 'none';
+    el.style.display = '';
   });
-  // Hide entire group if category has no stock for that gender
   document.querySelectorAll('.nav-drop-group').forEach(function(group) {
-    var catKey = group.dataset.cat || '';
-    var gender = group.dataset.gender || 'all';
-    group.style.display = catHasProducts(catKey, gender) ? '' : 'none';
+    group.style.display = '';
   });
 }
 
@@ -1546,6 +1541,7 @@ function openModal(productId) {
   var t         = TRANSLATIONS[currentLang];
   var name      = p.name[currentLang];
   var desc      = p.description[currentLang];
+  window._modalDescFull = desc || '';
   var cat       = t['cat_' + p.category] || p.category;
   var phoneDisp = currentLang === 'fa' ? CONTACT.phoneDisplay : CONTACT.phoneDisplayLatin;
   var variants   = getGradientVariants(p.gradient);
@@ -1644,8 +1640,13 @@ function openModal(productId) {
     '<button class="modal-close" onclick="closeModalBtn()">✕</button>' +
     '<div class="modal-body">' +
     '  <div class="modal-gallery">' +
-    '    <div class="modal-main-img" id="modal-main-img" ' + mainImgStyle + '>' +
+    '    <div class="modal-img-frame">' +
+    '      <div class="modal-main-img" id="modal-main-img" ' + mainImgStyle + '>' +
     mainImgInner +
+    '      </div>' +
+    (allMedia.length > 1 ?
+      '<button class="modal-arrow modal-arrow-prev" onclick="modalArrow(-1)">&#8249;</button>' +
+      '<button class="modal-arrow modal-arrow-next" onclick="modalArrow(1)">&#8250;</button>' : '') +
     '    </div>' +
     '    <div class="modal-thumbs" id="modal-thumbs">' + thumbsHtml + '</div>' +
     '    <div id="modal-customer-photos" style="padding:32px 4px 4px"></div>' +
@@ -1658,21 +1659,14 @@ function openModal(productId) {
     '    <h2 class="modal-name">' + name + '</h2>' +
     renderPriceHtml(p, 'modal-price') +
     (p.code ? '    <div class="product-code-badge copyable" onclick="copyProductCode(\'' + p.code + '\')" title="Copy code"><span class="product-code-label">' + (t.product_code_label || 'کد محصول') + ':</span> ' + p.code + '</div>' : '') +
-    '    <p class="modal-desc">' + desc + '</p>' +
+    '    <div class="modal-desc-wrap" id="modal-desc-wrap">' +
+    '      <p class="modal-desc" id="modal-desc-text">' + desc.replace(/\n/g,'<br>') + '</p>' +
+    '    </div>' +
     colorsHtml +
     sizesHtml +
     '    <div id="modal-stock-badge" class="modal-stock-badge-wrap"></div>' +
     '    <div class="modal-buy-section">' +
     '      <button class="modal-add-to-cart" id="modal-add-to-cart" onclick="addToCartFromModal()">🛒 ' + t.add_to_cart + '</button>' +
-    '      <div class="modal-divider">' + (currentLang === 'fa' ? 'یا سفارش مستقیم' : currentLang === 'tr' ? 'veya direkt sipariş' : 'or order directly') + '</div>' +
-    '      <div class="modal-buy-btns">' +
-    '        <a id="modal-wa-btn" href="' + waHref + '" target="_blank" class="modal-btn modal-wa-btn">' + WA_SVG + t.modal_wa_order + '</a>' +
-    '        <a id="modal-tg-btn" href="' + tgHref + '" target="_blank" class="modal-btn modal-tg-btn">' + TG_SVG + t.modal_tg_order + '</a>' +
-    '      </div>' +
-    '      <div class="modal-phone-row">' +
-    '        <span class="modal-or-call">' + t.modal_or_call + '</span>' +
-    '        <a href="tel:+' + CONTACT.whatsapp + '" class="modal-phone" dir="ltr">' + phoneDisp + '</a>' +
-    '      </div>' +
     '    </div>' +
     '  </div>' +
     '</div>';
@@ -1680,8 +1674,76 @@ function openModal(productId) {
   document.getElementById('modal-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 
+  setTimeout(function() {
+    var descEl   = document.getElementById('modal-desc-text');
+    if (!descEl) return;
+    var lh       = parseFloat(getComputedStyle(descEl).lineHeight) || 22;
+    var maxH     = Math.round(lh * 4);
+    var fullText = window._modalDescFull || '';
+    if (descEl.scrollHeight <= maxH + 2) return;
+    var moreTxt  = currentLang==='fa' ? ' بیشتر...' : currentLang==='tr' ? ' daha fazla...' : ' more...';
+    descEl.textContent  = fullText;
+    descEl.style.whiteSpace = 'pre-line';
+    descEl.style.maxHeight  = maxH + 'px';
+    descEl.style.overflow   = 'hidden';
+    var moreSpan = document.createElement('span');
+    moreSpan.className   = 'modal-desc-more';
+    moreSpan.id          = 'modal-desc-more';
+    moreSpan.textContent = moreTxt;
+    moreSpan.onclick     = toggleModalDesc;
+    descEl.appendChild(moreSpan);
+    var tn = descEl.firstChild;
+    while (descEl.scrollHeight > maxH + 2 && tn && tn.nodeType === 3 && tn.textContent.length > 1) {
+      tn.textContent = tn.textContent.slice(0, -1);
+    }
+    if (tn && tn.nodeType === 3) tn.textContent = tn.textContent.trimEnd();
+  }, 0);
+
   var photoContainer = document.getElementById('modal-customer-photos');
   if (photoContainer) loadProductPhotos(productId, photoContainer);
+}
+
+function toggleModalDesc() {
+  var descEl   = document.getElementById('modal-desc-text');
+  var descWrap = document.getElementById('modal-desc-wrap');
+  if (!descEl) return;
+  var fullText = window._modalDescFull || '';
+  var lh   = parseFloat(getComputedStyle(descEl).lineHeight) || 22;
+  var maxH = Math.round(lh * 4);
+
+  if (!descEl.classList.contains('expanded')) {
+    descEl.classList.add('expanded');
+    descEl.style.maxHeight  = '';
+    descEl.style.overflow   = '';
+    descEl.style.whiteSpace = 'pre-line';
+    descEl.textContent = fullText;
+    var lessSpan = document.createElement('span');
+    lessSpan.className   = 'modal-desc-more modal-desc-less';
+    lessSpan.id          = 'modal-desc-more';
+    lessSpan.textContent = currentLang==='fa'?' کمتر':currentLang==='tr'?' daha az':' less';
+    lessSpan.onclick     = toggleModalDesc;
+    if (descWrap) descWrap.appendChild(lessSpan);
+  } else {
+    descEl.classList.remove('expanded');
+    var old = document.getElementById('modal-desc-more');
+    if (old && old.parentNode === descWrap) old.remove();
+    descEl.textContent = fullText;
+    descEl.style.whiteSpace = 'pre-line';
+    descEl.style.maxHeight  = maxH + 'px';
+    descEl.style.overflow   = 'hidden';
+    var moreTxt  = currentLang==='fa' ? ' بیشتر...' : currentLang==='tr' ? ' daha fazla...' : ' more...';
+    var moreSpan = document.createElement('span');
+    moreSpan.className   = 'modal-desc-more';
+    moreSpan.id          = 'modal-desc-more';
+    moreSpan.textContent = moreTxt;
+    moreSpan.onclick     = toggleModalDesc;
+    descEl.appendChild(moreSpan);
+    var tn = descEl.firstChild;
+    while (descEl.scrollHeight > maxH + 2 && tn && tn.nodeType === 3 && tn.textContent.length > 1) {
+      tn.textContent = tn.textContent.slice(0, -1);
+    }
+    if (tn && tn.nodeType === 3) tn.textContent = tn.textContent.trimEnd();
+  }
 }
 
 function addToCartFromModal() {
@@ -1765,6 +1827,16 @@ function updateModalWALink() {
 function closeModalBtn() {
   document.getElementById('modal-overlay').classList.remove('open');
   document.body.style.overflow = '';
+}
+
+function modalArrow(dir) {
+  var thumbs = document.getElementById('modal-thumbs');
+  if (!thumbs) return;
+  var all    = Array.from(thumbs.querySelectorAll('.modal-thumb'));
+  var active = thumbs.querySelector('.modal-thumb.active');
+  var idx    = all.indexOf(active);
+  var next   = (idx + dir + all.length) % all.length;
+  switchThumb(all[next]);
 }
 
 function switchThumb(thumb) {
@@ -3708,7 +3780,7 @@ function applyCoupon() {
     } else {
       _appliedCoupon = null;
       var msgs = { invalid_code: tr.coupon_invalid, not_eligible: tr.coupon_not_eligible, limit_reached: tr.coupon_limit_reached, already_used: tr.coupon_already_used };
-      resEl.innerHTML = '<span style="color:#ef4444">' + (msgs[d.message] || d.message || '?') + '</span>';
+      resEl.innerHTML = '<span style="color:#ef4444">' + escapeHtml(msgs[d.message] || d.message || '?') + '</span>';
       document.getElementById('checkout-original-row').style.display = 'none';
       document.getElementById('checkout-discount-row').style.display = 'none';
       var cartT = cart.reduce(function(s,item){ var p=products.find(function(pr){return pr.id===item.id;}); if(!p)return s; var u=p.discounted_price&&p.discounted_price<p.price?p.discounted_price:p.price; return s+u*item.qty; },0);
@@ -4026,7 +4098,7 @@ function submitCheckout() {
         if (!d.success) {
           var tr2 = TRANSLATIONS[currentLang];
           var msgs = { invalid_code: tr2.coupon_invalid, not_eligible: tr2.coupon_not_eligible, limit_reached: tr2.coupon_limit_reached, already_used: tr2.coupon_already_used };
-          if (couponResEl) { couponResEl.style.display = ''; couponResEl.innerHTML = '<span style="color:#ef4444">' + (msgs[d.message] || d.message || '?') + '</span>'; }
+          if (couponResEl) { couponResEl.style.display = ''; couponResEl.innerHTML = '<span style="color:#ef4444">' + escapeHtml(msgs[d.message] || d.message || '?') + '</span>'; }
           btn.disabled = false;
           return false; // stop submission
         }
@@ -4054,7 +4126,7 @@ function submitCheckout() {
         openProfileModal();
         showProfileTab('orders');
       } else if (data.message === 'active_preorder_exists') {
-        if (couponResEl) { couponResEl.style.display = ''; couponResEl.innerHTML = '<span style="color:#ef4444">' + (t.active_preorder_exists || data.message) + '</span>'; }
+        if (couponResEl) { couponResEl.style.display = ''; couponResEl.innerHTML = '<span style="color:#ef4444">' + escapeHtml(t.active_preorder_exists || data.message) + '</span>'; }
         else { errEl.textContent = t.active_preorder_exists || data.message; }
       } else {
         errEl.textContent = data.message || t.network_error || 'خطا';
@@ -4233,7 +4305,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var prodData = results[1];
 
     // Products first so buildSidebar can filter by stock
-    if (prodData && prodData.success && prodData.data.length) {
+    if (prodData && prodData.success) {
       products = prodData.data.map(mapApiProduct);
     }
 

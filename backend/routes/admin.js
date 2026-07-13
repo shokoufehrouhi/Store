@@ -26,15 +26,17 @@ router.post('/upload', (req, res, next) => {
 
 router.delete('/media/:id',      c.deleteMedia);
 
-router.get('/categories',        c.getCategories);
-router.post('/categories',       c.createCategory);
-router.put('/categories/:id',    c.updateCategory);
-router.delete('/categories/:id', c.deleteCategory);
+router.get('/categories',                  c.getCategories);
+router.post('/categories',                 c.createCategory);
+router.put('/categories/:id',              c.updateCategory);
+router.patch('/categories/:id/toggle',     c.toggleCategory);
+router.delete('/categories/:id',           c.deleteCategory);
 
-router.get('/subcategories',       c.getSubcategories);
-router.post('/subcategories',      c.createSubcategory);
-router.put('/subcategories/:id',   c.updateSubcategory);
-router.delete('/subcategories/:id', c.deleteSubcategory);
+router.get('/subcategories',               c.getSubcategories);
+router.post('/subcategories',              c.createSubcategory);
+router.put('/subcategories/:id',           c.updateSubcategory);
+router.patch('/subcategories/:id/toggle',  c.toggleSubcategory);
+router.delete('/subcategories/:id',        c.deleteSubcategory);
 
 router.get('/colors',       c.getColors);
 router.post('/colors',      c.createColor);

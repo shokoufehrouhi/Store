@@ -46,6 +46,16 @@ async function updateCategory(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function toggleCategory(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const cur = await prisma.categories.findUnique({ where: { id }, select: { is_active: true } });
+    if (!cur) return res.status(404).json({ success: false });
+    const cat = await prisma.categories.update({ where: { id }, data: { is_active: !cur.is_active } });
+    res.json({ success: true, data: cat });
+  } catch (err) { next(err); }
+}
+
 async function deleteCategory(req, res, next) {
   try {
     await prisma.categories.delete({ where: { id: Number(req.params.id) } });
@@ -94,6 +104,16 @@ async function updateSubcategory(req, res, next) {
         label_tr: label_tr || label_fa,
       },
     });
+    res.json({ success: true, data: sub });
+  } catch (err) { next(err); }
+}
+
+async function toggleSubcategory(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const cur = await prisma.subcategories.findUnique({ where: { id }, select: { is_active: true } });
+    if (!cur) return res.status(404).json({ success: false });
+    const sub = await prisma.subcategories.update({ where: { id }, data: { is_active: !cur.is_active } });
     res.json({ success: true, data: sub });
   } catch (err) { next(err); }
 }
@@ -181,7 +201,8 @@ async function deleteSize(req, res, next) {
 
 async function uploadMedia(req, res) {
   if (!req.file) return res.status(400).json({ success: false, message: 'No file' });
-  const url = `/uploads/${req.file.filename}`;
+  const { compressUploadedImage } = require('../middleware/upload');
+  const url = await compressUploadedImage(req);
   res.json({ success: true, url });
 }
 
@@ -229,7 +250,7 @@ async function createProduct(req, res, next) {
   try {
     const {
       category_id, subcategory_id, gender, code, name_fa, name_en, name_tr,
-      desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price, stock, delivery_days,
+      desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price, cost_price, stock, delivery_days,
       brand, supplier_shop_name, product_link, supplier_code, supplier_note,
       colors, sizes, media, inventory,
     } = req.body;
@@ -261,6 +282,7 @@ async function createProduct(req, res, next) {
         tag:           tag       || null,
         price:            price     || 0,
         discounted_price: discounted_price != null && discounted_price !== '' ? Number(discounted_price) : null,
+        cost_price:       cost_price != null && cost_price !== '' ? Number(cost_price) : null,
         stock:              stock     || 0,
         delivery_days:      delivery_days != null ? Number(delivery_days) : 5,
         brand:              brand?.trim()              || null,
@@ -306,7 +328,7 @@ async function updateProduct(req, res, next) {
     const id = Number(req.params.id);
     const {
       category_id, subcategory_id, gender, name_fa, name_en, name_tr,
-      desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price, stock, is_active, delivery_days,
+      desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price, cost_price, stock, is_active, delivery_days,
       brand, supplier_shop_name, product_link, supplier_code, supplier_note,
       colors, sizes, media, inventory,
     } = req.body;
@@ -334,6 +356,7 @@ async function updateProduct(req, res, next) {
         tag:           tag       || null,
         price:            price     || 0,
         discounted_price: discounted_price != null && discounted_price !== '' ? Number(discounted_price) : null,
+        cost_price:       cost_price != null && cost_price !== '' ? Number(cost_price) : null,
         stock:              stock     || 0,
         delivery_days:      delivery_days != null ? Number(delivery_days) : 5,
         is_active:          is_active !== undefined ? Boolean(is_active) : true,
@@ -1011,8 +1034,8 @@ async function getCouponReport(req, res, next) {
 
 module.exports = {
   login, uploadMedia, deleteMedia,
-  getCategories, createCategory, updateCategory, deleteCategory,
-  getSubcategories, createSubcategory, updateSubcategory, deleteSubcategory,
+  getCategories, createCategory, updateCategory, toggleCategory, deleteCategory,
+  getSubcategories, createSubcategory, updateSubcategory, toggleSubcategory, deleteSubcategory,
   getColors, createColor, updateColor, deleteColor,
   getSizes, createSize, updateSize, deleteSize,
   getAdminCustomers, updateAdminCustomer,

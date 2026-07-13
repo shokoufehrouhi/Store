@@ -278,7 +278,8 @@ async function uploadReceipt(req, res, next) {
       return res.status(400).json({ success: false, errorCode: 'invalid_file_type' });
     }
 
-    const receiptUrl = '/uploads/' + req.file.filename;
+    const { compressUploadedImage } = require('../middleware/upload');
+    const receiptUrl = await compressUploadedImage(req);
 
     const updated = await prisma.orders.update({
       where: { id: order.id },

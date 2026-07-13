@@ -120,9 +120,11 @@ async function customerUploadShipping(req, res, next) {
       return res.status(400).json({ success: false, message: 'return_expired' });
     }
 
+    const { compressUploadedImage } = require('../middleware/upload');
+    const shippingUrl = await compressUploadedImage(req);
     const updated = await prisma.order_returns.update({
       where: { id: returnId },
-      data: { status: 'shipped', carrier_name: carrier_name.trim(), carrier_tracking: carrier_tracking ? carrier_tracking.trim() : null, shipping_receipt_url: '/uploads/' + req.file.filename, shipped_at: new Date(), updated_at: new Date() },
+      data: { status: 'shipped', carrier_name: carrier_name.trim(), carrier_tracking: carrier_tracking ? carrier_tracking.trim() : null, shipping_receipt_url: shippingUrl, shipped_at: new Date(), updated_at: new Date() },
     });
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
@@ -209,7 +211,7 @@ async function customerReportDefective(req, res, next) {
         type: 'defective',
         status: 'defective_reported',
         defective_note: defective_note.trim(),
-        defective_photo_url: req.file ? '/uploads/' + req.file.filename : null,
+        defective_photo_url: req.file ? await require('../middleware/upload').compressUploadedImage(req) : null,
       },
     });
     res.status(201).json({ success: true, data: ret });
@@ -280,9 +282,11 @@ async function adminUploadRefundReceipt(req, res, next) {
     if (!ret) return res.status(404).json({ success: false, message: 'not_found' });
     if (ret.status !== 'received') return res.status(400).json({ success: false, message: 'invalid_status' });
 
+    const { compressUploadedImage } = require('../middleware/upload');
+    const refundUrl = await compressUploadedImage(req);
     const updated = await prisma.order_returns.update({
       where: { id: returnId },
-      data: { status: 'refund_sent', refund_receipt_url: '/uploads/' + req.file.filename, refund_sent_at: new Date(), updated_at: new Date() },
+      data: { status: 'refund_sent', refund_receipt_url: refundUrl, refund_sent_at: new Date(), updated_at: new Date() },
     });
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
@@ -308,7 +312,7 @@ async function adminRejectRefund(req, res, next) {
         status:               'refund_rejected',
         rejection_reason:     rejection_reason.trim(),
         rejection_note:       rejection_note ? rejection_note.trim() : null,
-        rejection_photo_url:  req.file ? '/uploads/' + req.file.filename : null,
+        rejection_photo_url:  req.file ? await require('../middleware/upload').compressUploadedImage(req) : null,
         rejected_at:          new Date(),
         updated_at:           new Date(),
       },

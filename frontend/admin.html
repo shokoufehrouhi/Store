@@ -395,13 +395,26 @@
     .empty-state .icon { font-size: 44px; margin-bottom: 10px; }
 
     /* ── Category sections ──────────────────────── */
-    .cat-section { margin-bottom: 24px; }
+    .cat-section { margin-bottom: 24px; transition: opacity .2s; }
     .cat-section-header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 14px 16px; background: var(--bg); border-radius: 8px; margin-bottom: 10px;
     }
     .cat-section-header .cat-info { display: flex; align-items: center; gap: 10px; }
     .cat-section-header .cat-title { font-size: 15px; font-weight: 700; }
+    .vis-toggle { position: relative; display: inline-flex; align-items: center; cursor: pointer; flex-shrink: 0; }
+    .vis-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .vis-slider {
+      width: 36px; height: 20px; background: #ccc; border-radius: 20px;
+      transition: background .2s; position: relative; flex-shrink: 0;
+    }
+    .vis-slider::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 14px; height: 14px; background: #fff; border-radius: 50%;
+      transition: transform .2s;
+    }
+    .vis-toggle input:checked + .vis-slider { background: #22c55e; }
+    .vis-toggle input:checked + .vis-slider::after { transform: translateX(16px); }
     code {
       font-size: 12px; background: #f0f0f0; padding: 2px 7px;
       border-radius: 4px; font-family: monospace; color: #555;
@@ -1275,7 +1288,7 @@ const LANGS = {
     nameFa:'نام فارسی *', nameEn:'نام انگلیسی', nameTr:'نام ترکی', deliveryDaysLbl:'زمان تحویل (روز کاری)',
     categoryField:'دسته‌بندی *', subcategoryField:'زیردسته',
     genderField:'جنسیت', tagField:'برچسب',
-    priceField:'قیمت اصلی (TL)', discountedPriceField:'قیمت با تخفیف (TL)',
+    priceField:'قیمت اصلی (TL)', discountedPriceField:'قیمت با تخفیف (TL)', costPriceField:'قیمت خرید (TL)',
     gradient:'CSS Gradient',
     descFa:'توضیحات فارسی', descEn:'توضیحات انگلیسی', descTr:'توضیحات ترکی',
     activeProduct:'محصول فعال باشد',
@@ -1296,6 +1309,7 @@ const LANGS = {
     noCats:'هنوز دسته‌بندی ثبت نشده',
     addSubcat:'+ افزودن زیردسته', addSubcatForCat:'+ زیردسته جدید',
     noSubcats:'هنوز زیردسته‌ای ندارد',
+    visibleOnSite:'نمایش در سایت', hiddenFromSite:'مخفی از سایت',
     subKey:'کلید', subFa:'نام فارسی', subEn:'نام انگلیسی', subTr:'نام ترکی',
     addSubcatTitle:'افزودن زیردسته', editSubcatTitle:'ویرایش زیردسته',
     catField:'دسته‌بندی *', keyField:'کلید (key) *', keyPlaceholder:'مثال: tshirt',
@@ -1443,7 +1457,7 @@ const LANGS = {
     nameFa:'Farsi Name *', nameEn:'English Name', nameTr:'Turkish Name', deliveryDaysLbl:'Delivery Time (working days)',
     categoryField:'Category *', subcategoryField:'Subcategory',
     genderField:'Gender', tagField:'Tag',
-    priceField:'Original Price (TL)', discountedPriceField:'Discounted Price (TL)',
+    priceField:'Original Price (TL)', discountedPriceField:'Discounted Price (TL)', costPriceField:'Cost Price (TL)',
     gradient:'CSS Gradient',
     descFa:'Farsi Description', descEn:'English Description', descTr:'Turkish Description',
     activeProduct:'Product is active',
@@ -1464,6 +1478,7 @@ const LANGS = {
     noCats:'No categories yet',
     addSubcat:'+ Add Subcategory', addSubcatForCat:'+ New Subcategory',
     noSubcats:'No subcategories yet',
+    visibleOnSite:'Visible on site', hiddenFromSite:'Hidden from site',
     subKey:'Key', subFa:'Farsi Name', subEn:'English Name', subTr:'Turkish Name',
     addSubcatTitle:'Add Subcategory', editSubcatTitle:'Edit Subcategory',
     catField:'Category *', keyField:'Key *', keyPlaceholder:'e.g. tshirt',
@@ -1611,7 +1626,7 @@ const LANGS = {
     nameFa:'Farsça Ad *', nameEn:'İngilizce Ad', nameTr:'Türkçe Ad', deliveryDaysLbl:'Teslimat Süresi (iş günü)',
     categoryField:'Kategori *', subcategoryField:'Alt Kategori',
     genderField:'Cinsiyet', tagField:'Etiket',
-    priceField:'Asıl Fiyat (TL)', discountedPriceField:'İndirimli Fiyat (TL)',
+    priceField:'Asıl Fiyat (TL)', discountedPriceField:'İndirimli Fiyat (TL)', costPriceField:'Alış Fiyatı (TL)',
     gradient:'CSS Gradyan',
     descFa:'Farsça Açıklama', descEn:'İngilizce Açıklama', descTr:'Türkçe Açıklama',
     activeProduct:'Ürün aktif olsun',
@@ -1632,6 +1647,7 @@ const LANGS = {
     noCats:'Henüz kategori yok',
     addSubcat:'+ Alt Kategori Ekle', addSubcatForCat:'+ Yeni Alt Kategori',
     noSubcats:'Henüz alt kategori yok',
+    visibleOnSite:'Sitede göster', hiddenFromSite:'Siteden gizle',
     subKey:'Anahtar', subFa:'Farsça Ad', subEn:'İngilizce Ad', subTr:'Türkçe Ad',
     addSubcatTitle:'Alt Kategori Ekle', editSubcatTitle:'Alt Kategoriyi Düzenle',
     catField:'Kategori *', keyField:'Anahtar *', keyPlaceholder:'örn. tshirt',
@@ -2003,8 +2019,9 @@ function renderProductsTable(products) {
         ${p.subcategories ? `<span style="font-size:11px;color:#999;display:block;margin-top:2px">${p.subcategories.label_fa}</span>` : ''}
       </td>
       <td style="direction:ltr;text-align:right">
-        ${p.price ? Number(p.price).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' TL' : '—'}
-        ${p.discounted_price ? `<br><span style="color:#ef4444;font-size:11px;font-weight:700">${Number(p.discounted_price).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} TL</span>` : ''}
+        ${p.price ? (Math.floor(Number(p.price)*100)/100).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' TL' : '—'}
+        ${p.discounted_price ? `<br><span style="color:#ef4444;font-size:11px;font-weight:700">${(Math.floor(Number(p.discounted_price)*100)/100).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} TL</span>` : ''}
+        ${p.cost_price ? `<br><span style="color:#6b7280;font-size:11px">خرید: ${(Math.floor(Number(p.cost_price)*100)/100).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} TL</span>` : ''}
       </td>
       <td>${p.stock}</td>
       <td>${colorDots}</td>
@@ -2162,6 +2179,10 @@ async function openProductModal(id = null) {
       <div class="form-field">
         <label>${t('discountedPriceField')}</label>
         <input type="number" id="f-discounted-price" value="${product?.discounted_price||''}" min="0" placeholder="—" style="direction:ltr">
+      </div>
+      <div class="form-field">
+        <label>${t('costPriceField')}</label>
+        <input type="number" id="f-cost-price" value="${product?.cost_price||''}" min="0" placeholder="—" style="direction:ltr">
       </div>
     </div>
 
@@ -2381,6 +2402,7 @@ async function saveProduct(id) {
     tag:   document.getElementById('f-tag')?.value || null,
     price: Number(document.getElementById('f-price')?.value) || 0,
     discounted_price: document.getElementById('f-discounted-price')?.value !== '' ? Number(document.getElementById('f-discounted-price')?.value) || null : null,
+    cost_price: document.getElementById('f-cost-price')?.value !== '' ? Number(document.getElementById('f-cost-price')?.value) || null : null,
     stock: 0,
     colors,
     sizes,
@@ -2439,7 +2461,16 @@ function renderMediaGrid() {
 }
 
 async function handleMediaFiles(files) {
+  const IMAGE_MAX = 20 * 1024 * 1024;  // 20 MB (server will compress)
+  const VIDEO_MAX = 100 * 1024 * 1024; // 100 MB hard limit
   for (const file of files) {
+    const isVideo = file.type.startsWith('video/');
+    const limit   = isVideo ? VIDEO_MAX : IMAGE_MAX;
+    if (file.size > limit) {
+      const mb = Math.round(limit / 1024 / 1024);
+      showToast(`حجم فایل بیش از حد مجاز است (${mb} MB)`, 'error');
+      continue;
+    }
     const form = new FormData();
     form.append('file', file);
     try {
@@ -2513,13 +2544,19 @@ function renderCategoriesPage(cats) {
       ? `<div class="card" style="margin-top:8px"><div class="table-wrap"><table>
           <thead><tr>
             <th>${t('subKey')}</th><th>${t('subFa')}</th>
-            <th>${t('subEn')}</th><th>${t('subTr')}</th><th>${t('colActions')}</th>
+            <th>${t('subEn')}</th><th>${t('subTr')}</th><th>${t('colStatus')}</th><th>${t('colActions')}</th>
           </tr></thead>
           <tbody>${subs.map(s => `<tr>
             <td><code>${s.key}</code></td>
             <td>${s.label_fa}</td>
             <td style="direction:ltr">${s.label_en}</td>
             <td style="direction:ltr">${s.label_tr}</td>
+            <td>
+              <label class="vis-toggle" title="${s.is_active ? t('visibleOnSite') : t('hiddenFromSite')}">
+                <input type="checkbox" ${s.is_active ? 'checked' : ''} onchange="toggleSubVisibility(${s.id},this)">
+                <span class="vis-slider"></span>
+              </label>
+            </td>
             <td><div class="actions">
               <button class="btn btn-secondary btn-sm" onclick='openSubcategoryModal(${JSON.stringify(s).replace(/'/g,"\\'")})'>${t('edit')}</button>
               <button class="btn btn-danger btn-sm" onclick="confirmDeleteSubcategory(${s.id},'${s.label_fa.replace(/'/g,"\\'")}')">${t('del')}</button>
@@ -2527,14 +2564,18 @@ function renderCategoriesPage(cats) {
           </tr>`).join('')}</tbody>
         </table></div></div>`
       : `<div style="padding:12px 16px;color:#999;font-size:13px">${t('noSubcats')}</div>`;
-    return `<div class="cat-section">
+    return `<div class="cat-section" style="${cat.is_active ? '' : 'opacity:0.6'}">
       <div class="cat-section-header">
         <div class="cat-info">
           <span class="cat-title">${cat.label_fa}</span>
           <span style="font-size:12px;color:#aaa">${cat.label_en} / ${cat.label_tr}</span>
           <code>${cat.key}</code>
         </div>
-        <div class="actions">
+        <div class="actions" style="align-items:center;gap:12px">
+          <label class="vis-toggle" title="${cat.is_active ? t('visibleOnSite') : t('hiddenFromSite')}">
+            <input type="checkbox" ${cat.is_active ? 'checked' : ''} onchange="toggleCatVisibility(${cat.id},this)">
+            <span class="vis-slider"></span>
+          </label>
           <button class="btn btn-secondary btn-sm" onclick="openCategoryModal(${cat.id})">${t('edit')}</button>
           <button class="btn btn-primary btn-sm" onclick="openSubcategoryModal(null,${cat.id})">${t('addSubcatForCat')}</button>
           <button class="btn btn-danger btn-sm" onclick="confirmDeleteCategory(${cat.id},'${cat.label_fa.replace(/'/g,"\\'")}')">${t('del')}</button>
@@ -2586,6 +2627,20 @@ async function saveCategory(id) {
     : await api('/admin/categories',        { method:'POST', body:JSON.stringify(payload) });
   if (res?.success) { closeModal(); showToast(id ? t('savedCat') : t('addedCat')); loadCategories(); }
   else showToast(res?.message || t('saveError'), 'error');
+}
+
+async function toggleCatVisibility(id, checkbox) {
+  const res = await api(`/admin/categories/${id}/toggle`, { method:'PATCH' });
+  if (!res?.success) { checkbox.checked = !checkbox.checked; showToast(t('saveError'), 'error'); return; }
+  const section = checkbox.closest('.cat-section');
+  if (section) section.style.opacity = res.data.is_active ? '' : '0.6';
+  checkbox.closest('.vis-toggle').title = res.data.is_active ? t('visibleOnSite') : t('hiddenFromSite');
+}
+
+async function toggleSubVisibility(id, checkbox) {
+  const res = await api(`/admin/subcategories/${id}/toggle`, { method:'PATCH' });
+  if (!res?.success) { checkbox.checked = !checkbox.checked; showToast(t('saveError'), 'error'); return; }
+  checkbox.closest('.vis-toggle').title = res.data.is_active ? t('visibleOnSite') : t('hiddenFromSite');
 }
 
 async function confirmDeleteCategory(id, name) {
@@ -3011,7 +3066,7 @@ function _renderOrderRows(tbodyId, orders) {
     const color  = ORDER_STATUS_COLORS[order.status] || '#6b7280';
     const label  = orderStatusLabel(order.status);
     const cust   = order.customers ? esc(order.customers.full_name) : '-';
-    const total  = Number(order.total_amount).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' TL';
+    const total  = (Math.floor(Number(order.total_amount)*100)/100).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' TL';
     const date   = new Date(order.created_at).toLocaleDateString(dateLocale);
     const items  = order.order_items || [];
     const productLinks = items.map(item => {

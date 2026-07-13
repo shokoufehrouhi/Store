@@ -59,12 +59,14 @@ async function uploadProductPhoto(req, res, next) {
       return res.status(409).json({ success: false, message: 'already_uploaded' });
     }
 
+    const { compressUploadedImage } = require('../middleware/upload');
+    const photoUrl = await compressUploadedImage(req);
     const photo = await prisma.customer_product_photos.create({
       data: {
         product_id:  Number(product_id),
         customer_id: customerId,
         order_id:    orderId,
-        photo_url:   '/uploads/' + req.file.filename,
+        photo_url:   photoUrl,
       },
     });
     res.status(201).json({ success: true, data: photo });

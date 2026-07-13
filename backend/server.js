@@ -59,7 +59,8 @@ app.get('/api/categories', async (req, res, next) => {
   try {
     const prisma = require('./prisma/client');
     const cats = await prisma.categories.findMany({
-      include: { subcategories: { orderBy: { id: 'asc' } } },
+      where: { is_active: true },
+      include: { subcategories: { where: { is_active: true }, orderBy: { id: 'asc' } } },
       orderBy: { id: 'asc' },
     });
     res.json({ success: true, data: cats });

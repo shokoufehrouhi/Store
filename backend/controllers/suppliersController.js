@@ -20,7 +20,7 @@ async function createSupplier(req, res, next) {
         website:       website?.trim()       || null,
         instagram:     instagram?.trim()     || null,
         store_address: store_address?.trim() || null,
-        card_photo_url: req.file ? '/uploads/' + req.file.filename : null,
+        card_photo_url: req.file ? await require('../middleware/upload').compressUploadedImage(req) : null,
       },
     });
     res.status(201).json({ success: true, data: row });
@@ -44,7 +44,7 @@ async function updateSupplier(req, res, next) {
       store_address: store_address?.trim() || null,
       updated_at:    new Date(),
     };
-    if (req.file) data.card_photo_url = '/uploads/' + req.file.filename;
+    if (req.file) data.card_photo_url = await require('../middleware/upload').compressUploadedImage(req);
     const row = await prisma.suppliers.update({ where: { id }, data });
     res.json({ success: true, data: row });
   } catch (err) { next(err); }

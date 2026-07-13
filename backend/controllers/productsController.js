@@ -22,7 +22,7 @@ async function getAll(req, res, next) {
       },
       orderBy: { created_at: 'desc' },
     });
-    const products = rows.map(p => ({ ...p, sales: p._count.order_items, has_customer_photos: p._count.customer_product_photos > 0, _count: undefined }));
+    const products = rows.map(p => ({ ...p, cost_price: undefined, sales: p._count.order_items, has_customer_photos: p._count.customer_product_photos > 0, _count: undefined }));
     res.json({ success: true, data: products });
   } catch (err) {
     next(err);
@@ -43,7 +43,7 @@ async function getOne(req, res, next) {
       },
     });
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
-    res.json({ success: true, data: product });
+    res.json({ success: true, data: { ...product, cost_price: undefined } });
   } catch (err) {
     next(err);
   }
