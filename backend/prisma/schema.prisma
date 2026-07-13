@@ -80,7 +80,7 @@ model order_items {
   color_id   Int?
   size_label String?  @db.VarChar(10)
   qty        Int      @default(1) @db.SmallInt
-  unit_price Decimal  @default(0) @db.Decimal(12, 0)
+  unit_price Decimal  @default(0) @db.Decimal(12, 2)
   colors     colors?  @relation(fields: [color_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   orders     orders   @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   products   products @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -247,9 +247,9 @@ model products {
   emoji             String?             @db.VarChar(10)
   gradient          String?             @db.VarChar(200)
   tag               product_tag?
-  price             Decimal             @default(0) @db.Decimal(12, 0)
-  discounted_price  Decimal?            @db.Decimal(12, 0)
-  cost_price        Decimal?            @db.Decimal(12, 0)
+  price             Decimal             @default(0) @db.Decimal(12, 2)
+  discounted_price  Decimal?            @db.Decimal(12, 2)
+  cost_price        Decimal?            @db.Decimal(12, 2)
   stock             Int                 @default(0)
   is_active         Boolean             @default(true)
   created_at        DateTime            @default(now()) @db.Timestamptz(6)
