@@ -1,0 +1,10 @@
+# uploaded files — never delete these with git clean
+backend/public/uploads/*
+!backend/public/uploads/.gitkeep
+
+# OS
+.DS_Store
+
+# env
+.env
+*.env.local
