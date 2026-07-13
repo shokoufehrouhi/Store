@@ -4,12 +4,13 @@ const path = require('path');
 let sharp;
 try { sharp = require('sharp'); } catch { sharp = null; }
 
-// Max dimension and quality for compressed images
-const MAX_DIMENSION = 1280;
-const JPEG_QUALITY  = 82;
+// Output size for product images and JPEG quality
+const CROP_SIZE    = 800;
+const JPEG_QUALITY = 85;
 
-// Compress an image file in-place. Non-image files are left untouched.
-// Returns { compressed: bool, originalSize, finalSize }.
+// Resize + center-crop an image file in-place to CROP_SIZE × CROP_SIZE.
+// Non-image files are left untouched.
+// Returns { compressed: bool, originalSize, finalSize, newPath? }.
 async function compressImageFile(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.bmp'];
@@ -19,16 +20,12 @@ async function compressImageFile(filePath) {
   const originalSize = fs.statSync(filePath).size;
 
   try {
-    const img      = sharp(filePath).rotate(); // .rotate() auto-applies EXIF orientation
-    const meta     = await img.metadata();
-    const needsResize = (meta.width > MAX_DIMENSION || meta.height > MAX_DIMENSION);
+    // auto-orient from EXIF, then center-crop to CROP_SIZE × CROP_SIZE
+    const pipeline = sharp(filePath)
+      .rotate()
+      .resize(CROP_SIZE, CROP_SIZE, { fit: 'cover', position: 'centre' });
 
-    let pipeline = img;
-    if (needsResize) {
-      pipeline = pipeline.resize(MAX_DIMENSION, MAX_DIMENSION, { fit: 'inside', withoutEnlargement: true });
-    }
-
-    // Convert everything to JPEG for maximum compression (except webp → keep as webp)
+    // Always output as JPEG (webp stays webp)
     const outputExt  = ext === '.webp' ? '.webp' : '.jpg';
     const outputPath = filePath.replace(/\.[^.]+$/, outputExt);
 
@@ -38,10 +35,8 @@ async function compressImageFile(filePath) {
       await pipeline.jpeg({ quality: JPEG_QUALITY, progressive: true }).toFile(outputPath + '.tmp');
     }
 
-    // Rename temp → final (atomic swap)
     fs.renameSync(outputPath + '.tmp', outputPath);
 
-    // If extension changed (e.g. .png → .jpg), delete the original
     if (outputPath !== filePath && fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
@@ -49,7 +44,6 @@ async function compressImageFile(filePath) {
     const finalSize = fs.statSync(outputPath).size;
     return { compressed: true, originalSize, finalSize, newPath: outputPath };
   } catch (err) {
-    // If compression fails, keep the original untouched
     console.error('[compressImage] failed for', filePath, err.message);
     return { compressed: false };
   }

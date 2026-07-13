@@ -991,9 +991,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .product-real-img {
-  width: 100%; height: 100%; object-fit: contain;
+  width: 100%; height: 100%; object-fit: cover;
   position: absolute; inset: 0;
-  padding: 8px;
 }
 .product-image {
   position: relative;
@@ -2002,14 +2001,20 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 
 /* Size picker */
 .modal-sizes-section { }
+.modal-sizes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 9px;
+}
 .modal-label {
   font-size: 12px;
   font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: .06em;
-  margin-bottom: 9px;
   display: block;
+  margin-bottom: 0;
 }
 .modal-sizes-row {
   display: flex;
