@@ -131,4 +131,7 @@ router.put('/suppliers/:id', function(req, res, next) {
   });
 });
 
+const rf = require('../controllers/referralController');
+router.get('/leads', rf.adminListLeads);
+
 module.exports = router;

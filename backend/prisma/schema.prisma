@@ -70,6 +70,7 @@ model customers {
   cart_items              cart_items[]
   coupon_assignments      coupon_assignments[]
   customer_product_photos customer_product_photos[]
+  leads                   leads[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -178,6 +179,7 @@ model coupons {
   max_uses       Int?
   used_count     Int       @default(0)
   is_active      Boolean   @default(true)
+  is_protected   Boolean   @default(false)
   show_banner    Boolean   @default(false)
   banner_text_fa String?   @db.VarChar(200)
   banner_text_en String?   @db.VarChar(200)
@@ -187,6 +189,20 @@ model coupons {
   created_at     DateTime  @default(now()) @db.Timestamptz(6)
   updated_at     DateTime  @default(now()) @db.Timestamptz(6)
   coupon_assignments coupon_assignments[]
+}
+
+model leads {
+  id                      Int       @id @default(autoincrement())
+  name                    String?   @db.VarChar(100)
+  email                   String    @db.VarChar(200)
+  phone                   String?   @db.VarChar(30)
+  referred_by_customer_id Int?
+  referred_by_order_id    Int?
+  status                  String    @default("pending") @db.VarChar(20)
+  tracking_token          String    @unique @db.VarChar(64)
+  coupon_assigned         Boolean   @default(false)
+  created_at              DateTime  @default(now()) @db.Timestamptz(6)
+  customers               customers? @relation(fields: [referred_by_customer_id], references: [id])
 }
 
 model coupon_assignments {

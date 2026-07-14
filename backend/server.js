@@ -80,6 +80,11 @@ app.get('/api/bank-accounts', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ─── Referral ─────────────────────────────────────────────────────────────────
+const rf = require('./controllers/referralController');
+app.post('/api/refer',              rf.submitReferral);
+app.get('/api/refer/track/:token',  rf.trackOpen);
+
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
 

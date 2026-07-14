@@ -126,7 +126,10 @@ async function updateCoupon(req, res, next) {
 // ─── Admin: delete coupon ─────────────────────────────────────────────────────
 async function deleteCoupon(req, res, next) {
   try {
-    await prisma.coupons.delete({ where: { id: Number(req.params.id) } });
+    const coupon = await prisma.coupons.findUnique({ where: { id: Number(req.params.id) } });
+    if (!coupon) return res.status(404).json({ success: false, message: 'not_found' });
+    if (coupon.is_protected) return res.status(403).json({ success: false, message: 'protected_coupon' });
+    await prisma.coupons.delete({ where: { id: coupon.id } });
     res.json({ success: true });
   } catch (err) { next(err); }
 }

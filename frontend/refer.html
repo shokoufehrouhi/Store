@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Shilista — Refer a Friend</title>
+  <link rel="icon" href="/images/favicon.png" type="image/png">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{min-height:100vh;display:flex;align-items:center;justify-content:center;
+         background:#f5f0eb;font-family:Arial,Tahoma,sans-serif;padding:24px}
+    .card{background:#fff;border-radius:18px;box-shadow:0 8px 40px rgba(0,0,0,.10);
+          width:100%;max-width:440px;overflow:hidden}
+    .card-header{background:linear-gradient(135deg,#c0562a,#e07a40);padding:28px 32px;text-align:center}
+    .logo{font-size:24px;font-weight:800;color:#fff;letter-spacing:1px;margin-bottom:6px}
+    .card-header h2{font-size:18px;font-weight:700;color:#fff;margin:0}
+    .card-header p{font-size:13px;color:rgba(255,255,255,.85);margin:8px 0 0;line-height:1.6}
+    .card-body{padding:28px 32px}
+    label{display:block;font-size:13px;font-weight:600;color:#666;margin-bottom:5px}
+    input{width:100%;padding:10px 13px;border:1.5px solid #e0d4cc;border-radius:8px;
+          font-size:14px;color:#333;outline:none;transition:border .2s;margin-bottom:14px}
+    input:focus{border-color:#c0562a}
+    .hint{font-size:12px;color:#aaa;margin-top:-10px;margin-bottom:14px}
+    .btn{width:100%;padding:12px;background:#c0562a;color:#fff;border:none;border-radius:9px;
+         font-size:15px;font-weight:700;cursor:pointer;transition:background .2s;margin-top:4px}
+    .btn:hover{background:#a8481f}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .success{text-align:center;padding:20px 0}
+    .success .icon{font-size:52px;margin-bottom:12px}
+    .success h3{font-size:18px;font-weight:700;color:#c0562a;margin-bottom:8px}
+    .success p{font-size:14px;color:#666;line-height:1.6}
+    .err{color:#e04040;font-size:13px;margin-bottom:10px;text-align:center}
+    .already{background:#fdf5ed;border:1px solid #f0c8a0;border-radius:8px;
+              padding:14px;text-align:center;font-size:13px;color:#a07050}
+    [dir=rtl] *{font-family:Arial,Tahoma,'Segoe UI',sans-serif}
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="card-header">
+    <div class="logo">Shilista</div>
+    <h2 id="hd-title">Refer a Friend</h2>
+    <p id="hd-sub">Share Shilista with someone you love and they'll receive an exclusive discount on their first order!</p>
+  </div>
+  <div class="card-body">
+    <div id="form-wrap">
+      <div class="err" id="err-msg" style="display:none"></div>
+      <label id="lbl-name" for="inp-name">Name</label>
+      <input type="text" id="inp-name" autocomplete="name">
+      <label id="lbl-email" for="inp-email">Email *</label>
+      <input type="email" id="inp-email" autocomplete="email">
+      <label id="lbl-phone" for="inp-phone">Phone</label>
+      <input type="tel" id="inp-phone" autocomplete="tel">
+      <p class="hint" id="lbl-phone-hint">Optional</p>
+      <button class="btn" id="submit-btn" onclick="submitForm()">Send</button>
+    </div>
+    <div id="success-wrap" class="success" style="display:none">
+      <div class="icon">🎉</div>
+      <h3 id="succ-title">Done!</h3>
+      <p id="succ-body">Your friend will receive an email with a special discount code.</p>
+    </div>
+    <div id="already-wrap" class="already" style="display:none" id="already-wrap">
+      <span id="already-msg">This email has already been referred.</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const T = {
+  fa: {
+    dir:'rtl', lang:'fa',
+    hd_title:'دعوت از دوست', hd_sub:'Shilista را با کسی که دوستش دارید به اشتراک بگذارید تا تخفیف ویژه‌ای برای اولین خریدشان دریافت کنند!',
+    lbl_name:'نام', lbl_email:'ایمیل *', lbl_phone:'شماره تماس', phone_hint:'اختیاری',
+    btn:'ارسال', succ_title:'ممنون!', succ_body:'دوستتان ایمیلی با کد تخفیف ویژه دریافت خواهد کرد.',
+    already:'این ایمیل قبلاً ثبت شده است.', err_email:'لطفاً ایمیل معتبر وارد کنید.', err_token:'لینک دعوت نامعتبر است.',
+  },
+  en: {
+    dir:'ltr', lang:'en',
+    hd_title:'Refer a Friend', hd_sub:"Share Shilista with someone you love and they'll receive an exclusive discount on their first order!",
+    lbl_name:'Name', lbl_email:'Email *', lbl_phone:'Phone', phone_hint:'Optional',
+    btn:'Send', succ_title:'Done!', succ_body:'Your friend will receive an email with a special discount code.',
+    already:'This email has already been referred.', err_email:'Please enter a valid email.', err_token:'The referral link is invalid.',
+  },
+  tr: {
+    dir:'ltr', lang:'tr',
+    hd_title:'Arkadaşını Davet Et', hd_sub:"Shilista'yı sevdiğiniz biriyle paylaşın, ilk siparişlerinde özel bir indirim kodu alsınlar!",
+    lbl_name:'Ad', lbl_email:'E-posta *', lbl_phone:'Telefon', phone_hint:'İsteğe bağlı',
+    btn:'Gönder', succ_title:'Tamamlandı!', succ_body:'Arkadaşınız özel bir indirim kodu içeren bir e-posta alacak.',
+    already:'Bu e-posta zaten kaydedildi.', err_email:'Lütfen geçerli bir e-posta girin.', err_token:'Davet bağlantısı geçersiz.',
+  },
+};
+
+const params = new URLSearchParams(location.search);
+const token  = params.get('t') || '';
+const langParam = params.get('lang') || navigator.language.substring(0,2);
+const t = T[langParam] || T.en;
+
+document.documentElement.dir  = t.dir;
+document.documentElement.lang = t.lang;
+document.getElementById('hd-title').textContent    = t.hd_title;
+document.getElementById('hd-sub').textContent      = t.hd_sub;
+document.getElementById('lbl-name').textContent    = t.lbl_name;
+document.getElementById('lbl-email').textContent   = t.lbl_email;
+document.getElementById('lbl-phone').textContent   = t.lbl_phone;
+document.getElementById('lbl-phone-hint').textContent = t.phone_hint;
+document.getElementById('submit-btn').textContent  = t.btn;
+document.getElementById('succ-title').textContent  = t.succ_title;
+document.getElementById('succ-body').textContent   = t.succ_body;
+document.getElementById('already-msg').textContent = t.already;
+document.title = 'Shilista — ' + t.hd_title;
+
+if (!token) {
+  document.getElementById('err-msg').textContent = t.err_token;
+  document.getElementById('err-msg').style.display = 'block';
+  document.getElementById('submit-btn').disabled = true;
+}
+
+async function submitForm() {
+  const name  = document.getElementById('inp-name').value.trim();
+  const email = document.getElementById('inp-email').value.trim();
+  const phone = document.getElementById('inp-phone').value.trim();
+  const errEl = document.getElementById('err-msg');
+  const btn   = document.getElementById('submit-btn');
+
+  errEl.style.display = 'none';
+  if (!email || !email.includes('@')) {
+    errEl.textContent = t.err_email;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '...';
+
+  try {
+    const res  = await fetch('/api/refer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, name, email, phone }),
+    });
+    const data = await res.json();
+
+    if (data.already) {
+      document.getElementById('form-wrap').style.display   = 'none';
+      document.getElementById('already-wrap').style.display = 'block';
+    } else if (data.success) {
+      document.getElementById('form-wrap').style.display   = 'none';
+      document.getElementById('success-wrap').style.display = 'block';
+    } else {
+      errEl.textContent = data.message || 'Error';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = t.btn;
+    }
+  } catch {
+    errEl.textContent = t.err_token;
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = t.btn;
+  }
+}
+
+document.getElementById('inp-email').addEventListener('keydown', e => { if (e.key === 'Enter') submitForm(); });
+</script>
+</body>
+</html>

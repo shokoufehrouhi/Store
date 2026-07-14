@@ -237,6 +237,48 @@ function buildInfoBlock(items) {
   </table>`;
 }
 
+// ─── Referral section labels ──────────────────────────────────────────────────
+const REFER = {
+  fa: {
+    heading: '🎁 دوستانتان را به Shilista دعوت کنید!',
+    body:    'اگر دوستی دارید که عاشق ورزش است، ایمیل او را با ما در میان بگذارید. ما یک کد تخفیف ویژه برای خرید اول او ارسال می‌کنیم!',
+    btn:     'دعوت از دوست',
+  },
+  en: {
+    heading: '🎁 Share Shilista with a friend!',
+    body:    'Know someone who loves sports? Share their email with us and we\'ll send them an exclusive discount code for their first purchase!',
+    btn:     'Refer a Friend',
+  },
+  tr: {
+    heading: '🎁 Arkadaşını Shilista\'ya davet et!',
+    body:    'Sporu seven bir arkadaşın var mı? E-postasını bizimle paylaş, ilk alışverişi için özel bir indirim kodu gönderelim!',
+    btn:     'Arkadaşını Davet Et',
+  },
+};
+
+function buildReferralBlock(lang, referralUrl, dir) {
+  const r = REFER[lang] || REFER.en;
+  return `
+<tr>
+  <td style="padding:0 32px 28px">
+    <table width="100%" cellpadding="0" cellspacing="0"
+      style="background:linear-gradient(135deg,#fff8f3,#fdeee3);border:1.5px solid #f0c8a0;border-radius:12px;padding:22px 24px">
+      <tr>
+        <td style="text-align:center">
+          <p style="margin:0 0 8px;font-size:17px;font-weight:700;color:#c0562a">${r.heading}</p>
+          <p style="margin:0 0 18px;font-size:13px;color:#666;line-height:1.7;direction:${dir}">${r.body}</p>
+          <a href="${referralUrl}"
+            style="display:inline-block;background:#c0562a;color:#fff;font-size:14px;font-weight:700;
+                   padding:11px 28px;border-radius:8px;text-decoration:none;letter-spacing:.3px">
+            ${r.btn}
+          </a>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>`;
+}
+
 // ─── Build full HTML email ─────────────────────────────────────────────────────
 function buildHtml(type, order, customer, extraInfo) {
   const lang = (order.lang || customer.preferred_lang || 'fa').substring(0, 2);
@@ -253,6 +295,14 @@ function buildHtml(type, order, customer, extraInfo) {
   const itemsTable  = buildItemsTable(order, lang, l);
   const infoBlock   = buildInfoBlock(extraInfo);
   const totalAmount = fmt(order.total_amount);
+
+  let referralBlock = '';
+  if (type === 'delivered' && process.env.SITE_URL) {
+    const { signReferralToken } = require('../controllers/referralController');
+    const refToken = signReferralToken(customer.id, order.id);
+    const referralUrl = `${process.env.SITE_URL}/refer.html?t=${refToken}`;
+    referralBlock = buildReferralBlock(lang, referralUrl, dir);
+  }
 
   const html = `<!DOCTYPE html>
 <html dir="${dir}" lang="${lang}">
@@ -314,6 +364,9 @@ function buildHtml(type, order, customer, extraInfo) {
         </td>
       </tr>
 
+      <!-- Referral block (delivered only) -->
+      ${referralBlock}
+
       <!-- Footer -->
       <tr>
         <td style="background:#fdf5ed;padding:20px 32px;border-top:1px solid #f0e8df;text-align:center">
@@ -350,6 +403,134 @@ async function sendOrderEmail(customer, order, type, extraInfo, attachFiles) {
     subject,
     html,
     attachments,
+  });
+}
+
+// ─── Friend invite email (BESTIE5 referral) ───────────────────────────────────
+const INVITE = {
+  fa: {
+    subject: 'یک هدیه ویژه برای شما از طرف {{referrer}} — Shilista',
+    title:   '🎁 یک هدیه ویژه منتظر شماست!',
+    body1:   '{{referrer}} شما را به Shilista دعوت کرده است.',
+    body2:   'Shilista مقصد شما برای تجهیزات ورزشی با کیفیت است. همین حالا ثبت‌نام کنید و از کد تخفیف اختصاصی خود برای اولین خرید لذت ببرید!',
+    code_label: 'کد تخفیف اختصاصی شما:',
+    body3:   'این کد فقط یک‌بار قابل استفاده است. عجله کنید و از تخفیف خود استفاده کنید!',
+    btn:     'خرید کنید',
+    footer:  'اگر به این ایمیل اهمیت نمی‌دهید، آن را نادیده بگیرید.',
+    dir:     'rtl',
+  },
+  en: {
+    subject: 'A special gift for you from {{referrer}} — Shilista',
+    title:   '🎁 You\'ve got a special gift!',
+    body1:   '{{referrer}} thought you\'d love Shilista.',
+    body2:   'Shilista is your destination for premium sports gear. Sign up now and enjoy an exclusive discount on your first purchase!',
+    code_label: 'Your exclusive discount code:',
+    body3:   'This code can be used only once. Don\'t miss out!',
+    btn:     'Shop Now',
+    footer:  'If you didn\'t expect this email, you can safely ignore it.',
+    dir:     'ltr',
+  },
+  tr: {
+    subject: '{{referrer}} sana özel bir hediye gönderdi — Shilista',
+    title:   '🎁 Sana özel bir hediye var!',
+    body1:   '{{referrer}}, seni Shilista ile tanıştırmak istedi.',
+    body2:   'Shilista, kaliteli spor ekipmanları için doğru adresiniz. Hemen üye olun ve ilk alışverişinizde özel indirim kodunuzun keyfini çıkarın!',
+    code_label: 'Özel indirim kodunuz:',
+    body3:   'Bu kod yalnızca bir kez kullanılabilir. Kaçırmayın!',
+    btn:     'Alışverişe Başla',
+    footer:  'Bu e-postayı beklemediyseniz dikkate almayabilirsiniz.',
+    dir:     'ltr',
+  },
+};
+
+async function sendFriendInviteEmail({ toName, toEmail, referrerName, lang, trackingToken, couponValue, couponType }) {
+  const transporter = getTransporter();
+  if (!transporter) return;
+  const ll  = INVITE[lang] || INVITE.en;
+  const dir = ll.dir;
+  const ref = referrerName || 'A friend';
+  const discountText = couponType === 'percent'
+    ? `%${couponValue}`
+    : `${Number(couponValue).toFixed(2)} TL`;
+  const siteUrl = process.env.SITE_URL || 'https://shilista.com';
+  const trackPixel = trackingToken
+    ? `<img src="${siteUrl}/api/refer/track/${trackingToken}" width="1" height="1" style="display:block;border:0" alt="">`
+    : '';
+
+  const subject = ll.subject.replace('{{referrer}}', ref);
+  const body1   = ll.body1.replace('{{referrer}}', ref);
+
+  const html = `<!DOCTYPE html>
+<html dir="${dir}" lang="${lang}">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,Tahoma,sans-serif;direction:${dir}">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0eb;padding:32px 0">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0"
+      style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+
+      <tr>
+        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
+          <span style="font-size:26px;font-weight:700;color:#c0562a;letter-spacing:1px;font-family:Arial,sans-serif">Shilista</span>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="background:linear-gradient(135deg,#c0562a,#e07a40);padding:22px 32px;text-align:center">
+          <p style="margin:0;font-size:20px;font-weight:700;color:#fff">${ll.title}</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding:32px 32px 0">
+          ${toName ? `<p style="margin:0 0 10px;font-size:15px;font-weight:700;color:#2d1a0e">${toName},</p>` : ''}
+          <p style="margin:0 0 12px;font-size:14px;color:#555;line-height:1.75">${body1}</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.75">${ll.body2}</p>
+
+          <table width="100%" cellpadding="0" cellspacing="0"
+            style="background:#fdf5ed;border:2px dashed #e07a40;border-radius:12px;margin-bottom:20px">
+            <tr>
+              <td style="padding:20px;text-align:center">
+                <p style="margin:0 0 10px;font-size:13px;color:#a07050;font-weight:600">${ll.code_label}</p>
+                <p style="margin:0 0 8px;font-size:32px;font-weight:800;color:#c0562a;letter-spacing:4px;font-family:monospace">BESTIE5</p>
+                <p style="margin:0;font-size:13px;color:#e07a40;font-weight:700">${discountText} ${lang === 'fa' ? 'تخفیف' : lang === 'tr' ? 'indirim' : 'off'}</p>
+              </td>
+            </tr>
+          </table>
+
+          <p style="margin:0 0 24px;font-size:13px;color:#888;line-height:1.6">${ll.body3}</p>
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px">
+            <tr>
+              <td style="text-align:center">
+                <a href="${siteUrl}"
+                  style="display:inline-block;background:#c0562a;color:#fff;font-size:15px;font-weight:700;
+                         padding:13px 36px;border-radius:9px;text-decoration:none;letter-spacing:.3px">
+                  ${ll.btn}
+                </a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="background:#fdf5ed;padding:18px 32px;border-top:1px solid #f0e8df;text-align:center">
+          <p style="margin:0;font-size:11px;color:#bbb">${ll.footer}</p>
+          ${trackPixel}
+        </td>
+      </tr>
+
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+
+  await transporter.sendMail({
+    from:    process.env.SMTP_FROM || process.env.SMTP_USER,
+    to:      toEmail,
+    subject,
+    html,
   });
 }
 
@@ -408,4 +589,4 @@ async function sendReplyEmail(customer, order, replyText) {
   await transporter.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to: customer.email, subject, html });
 }
 
-module.exports = { sendOrderEmail, sendRawEmail, sendReplyEmail, label };
+module.exports = { sendOrderEmail, sendRawEmail, sendReplyEmail, sendFriendInviteEmail, label };

@@ -343,12 +343,14 @@
     /* ── Modal ──────────────────────────────────── */
     #modal-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,.5);
-      display: flex; align-items: flex-start; justify-content: center;
-      z-index: 500; padding: 24px 16px; overflow-y: auto;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 500; padding: 24px 16px;
     }
     .modal-card {
       background: var(--white); border-radius: 14px; width: 100%; max-width: 700px;
-      box-shadow: 0 20px 60px rgba(0,0,0,.2); margin: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,.2);
+      display: flex; flex-direction: column;
+      max-height: calc(100vh - 48px);
     }
     .modal-header {
       display: flex; align-items: center; justify-content: space-between;
@@ -361,8 +363,8 @@
       color: var(--text-muted); flex-shrink: 0;
     }
     .modal-close:hover { background: var(--border); }
-    .modal-body { padding: 24px; }
-    .modal-footer { display: flex; gap: 10px; padding: 16px 24px; border-top: 1px solid var(--border); }
+    .modal-body { padding: 24px; overflow-y: auto; flex: 1; min-height: 0; }
+    .modal-footer { display: flex; gap: 10px; padding: 16px 24px; border-top: 1px solid var(--border); flex-shrink: 0; }
     .modal-footer .btn { flex: 1; justify-content: center; }
 
     /* ── Toast ──────────────────────────────────── */
@@ -578,6 +580,10 @@
 
       <button class="nav-item" onclick="showTab('coupons')" id="nav-coupons">
         <span class="nav-icon">🎟️</span><span data-i18n="navCoupons">کدهای تخفیف</span>
+      </button>
+
+      <button class="nav-item" onclick="showTab('leads')" id="nav-leads">
+        <span class="nav-icon">🧲</span><span data-i18n="navLeads">لیدها</span>
       </button>
 
       <div class="nav-section-label" data-i18n="navGroupAnalytics">آمار</div>
@@ -969,6 +975,18 @@
               <tr><td colspan="9" style="text-align:center;padding:40px;color:#aaa">—</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Leads Tab -->
+    <div id="tab-leads" class="hidden">
+      <div class="page-header">
+        <h2>🧲 <span data-i18n="navLeads">لیدها</span></h2>
+      </div>
+      <div class="page-body">
+        <div id="leads-table-wrap">
+          <p id="leads-loading" style="color:#aaa;text-align:center;padding:20px">Loading...</p>
         </div>
       </div>
     </div>
@@ -1867,7 +1885,7 @@ function showTab(tab) {
   currentTab = tab;
   localStorage.setItem('admin_tab', tab);
   if (window.innerWidth <= 768) closeSidebar();
-  ['products','categories','colors','sizes','customers','active-orders','orders','returns','product-photos','suppliers','bank-accounts','coupons','reports'].forEach(t2 => {
+  ['products','categories','colors','sizes','customers','active-orders','orders','returns','product-photos','suppliers','bank-accounts','coupons','leads','reports'].forEach(t2 => {
     const el = document.getElementById(`tab-${t2}`);
     const nav = document.getElementById(`nav-${t2}`);
     if (el)  el.classList.add('hidden');
@@ -1887,6 +1905,7 @@ function showTab(tab) {
   if (tab === 'suppliers')      loadSuppliers();
   if (tab === 'bank-accounts')  loadBankAccounts();
   if (tab === 'coupons')        initCoupons();
+  if (tab === 'leads')          loadLeads();
   if (tab === 'reports')        initReports();
 }
 
@@ -4500,7 +4519,8 @@ function renderCoupons() {
       '<td ' + CA + '>' + statusBadge + '</td>' +
       '<td style="white-space:nowrap"><div style="display:flex;gap:6px;justify-content:center">' +
         '<button onclick="editCoupon(' + c.id + ')" style="padding:4px 12px;border:1.5px solid var(--border);border-radius:6px;background:none;font-size:12px;cursor:pointer">' + t('cpEdit') + '</button>' +
-        '<button onclick="deleteCoupon(' + c.id + ')" style="padding:4px 12px;border:1.5px solid #fca5a5;border-radius:6px;background:none;color:#ef4444;font-size:12px;cursor:pointer">' + t('cpDelete') + '</button>' +
+        (c.is_protected ? '<span title="Protected" style="padding:4px 10px;font-size:12px;color:#aaa">🔒</span>' :
+          '<button onclick="deleteCoupon(' + c.id + ')" style="padding:4px 12px;border:1.5px solid #fca5a5;border-radius:6px;background:none;color:#ef4444;font-size:12px;cursor:pointer">' + t('cpDelete') + '</button>') +
       '</div></td>' +
     '</tr>';
   }).join('');
@@ -4671,6 +4691,45 @@ function deleteCoupon(id) {
     var res = await api('/admin/coupons/' + id, { method: 'DELETE' });
     if (res?.success) loadCoupons();
   });
+}
+
+// ─── Leads ────────────────────────────────────────────────────────────────────
+
+async function loadLeads() {
+  var wrap = document.getElementById('leads-table-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px">Loading...</p>';
+  var res = await api('/admin/leads');
+  if (!res?.success) { wrap.innerHTML = '<p style="color:red;text-align:center;padding:20px">Error loading leads</p>'; return; }
+  var leads = res.data;
+  if (!leads.length) { wrap.innerHTML = '<p style="color:#aaa;text-align:center;padding:40px">—</p>'; return; }
+
+  var statusColor = { pending:'#aaa', email_sent:'#4a7fd4', email_opened:'#e07a40', registered:'#2eaa72' };
+  var statusLabel = { pending:'Pending', email_sent:'Email Sent', email_opened:'Opened', registered:'Registered' };
+  var dateLocale  = currentLang === 'fa' ? 'fa-IR' : currentLang === 'tr' ? 'tr-TR' : 'en-GB';
+
+  var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">' +
+    '<thead><tr style="background:#fdf5ed">' +
+    ['Name','Email','Phone','Referred by','Status','Date'].map(function(h){
+      return '<th style="padding:10px 12px;text-align:left;color:#a07050;font-weight:600;white-space:nowrap">' + h + '</th>';
+    }).join('') +
+    '</tr></thead><tbody>' +
+    leads.map(function(l) {
+      var sc  = statusColor[l.status] || '#aaa';
+      var sl  = statusLabel[l.status] || l.status;
+      var ref = l.customers ? (l.customers.full_name + (l.customers.email ? ' <span style="color:#aaa;font-size:11px">(' + l.customers.email + ')</span>' : '')) : '—';
+      var date = new Date(l.created_at).toLocaleDateString(dateLocale);
+      return '<tr style="border-bottom:1px solid #f0e8df">' +
+        '<td style="padding:9px 12px">' + (l.name ? esc(l.name) : '—') + '</td>' +
+        '<td style="padding:9px 12px">' + esc(l.email) + '</td>' +
+        '<td style="padding:9px 12px;color:#666">' + (l.phone ? esc(l.phone) : '—') + '</td>' +
+        '<td style="padding:9px 12px">' + ref + '</td>' +
+        '<td style="padding:9px 12px"><span style="background:' + sc + '22;color:' + sc + ';font-size:11px;padding:2px 8px;border-radius:6px;font-weight:600">' + sl + '</span></td>' +
+        '<td style="padding:9px 12px;color:#888;font-size:12px">' + date + '</td>' +
+        '</tr>';
+    }).join('') +
+    '</tbody></table></div>';
+  wrap.innerHTML = html;
 }
 
 // ─── Coupon Report ────────────────────────────────────────────────────────────
