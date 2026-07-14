@@ -241,17 +241,17 @@ function buildInfoBlock(items) {
 const REFER = {
   fa: {
     heading: '🎁 دوستانتان را به Shilista دعوت کنید!',
-    body:    'اگر دوستی دارید که عاشق ورزش است، ایمیل او را با ما در میان بگذارید. ما یک کد تخفیف ویژه برای خرید اول او ارسال می‌کنیم!',
+    body:    'اگر دوستی دارید که دوست دارد از Shilista خرید کند، ایمیل او را با ما در میان بگذارید. ما یک کد تخفیف ویژه برای خرید اول او ارسال می‌کنیم!',
     btn:     'دعوت از دوست',
   },
   en: {
     heading: '🎁 Share Shilista with a friend!',
-    body:    'Know someone who loves sports? Share their email with us and we\'ll send them an exclusive discount code for their first purchase!',
+    body:    'Know someone who would love shopping at Shilista? Share their email with us and we\'ll send them an exclusive discount code for their first purchase!',
     btn:     'Refer a Friend',
   },
   tr: {
     heading: '🎁 Arkadaşını Shilista\'ya davet et!',
-    body:    'Sporu seven bir arkadaşın var mı? E-postasını bizimle paylaş, ilk alışverişi için özel bir indirim kodu gönderelim!',
+    body:    'Shilista\'dan alışveriş etmekten keyif alacak bir arkadaşın var mı? E-postasını bizimle paylaş, ilk alışverişi için özel bir indirim kodu gönderelim!',
     btn:     'Arkadaşını Davet Et',
   },
 };
@@ -412,7 +412,7 @@ const INVITE = {
     subject: 'یک هدیه ویژه برای شما از طرف {{referrer}} — Shilista',
     title:   '🎁 یک هدیه ویژه منتظر شماست!',
     body1:   '{{referrer}} شما را به Shilista دعوت کرده است.',
-    body2:   'Shilista مقصد شما برای تجهیزات ورزشی با کیفیت است. همین حالا ثبت‌نام کنید و از کد تخفیف اختصاصی خود برای اولین خرید لذت ببرید!',
+    body2:   'Shilista مقصد شما برای خرید محصولات باکیفیت است. همین حالا ثبت‌نام کنید و از کد تخفیف اختصاصی خود برای اولین خرید لذت ببرید!',
     code_label: 'کد تخفیف اختصاصی شما:',
     body3:   'این کد فقط یک‌بار قابل استفاده است. عجله کنید و از تخفیف خود استفاده کنید!',
     btn:     'خرید کنید',
@@ -423,7 +423,7 @@ const INVITE = {
     subject: 'A special gift for you from {{referrer}} — Shilista',
     title:   '🎁 You\'ve got a special gift!',
     body1:   '{{referrer}} thought you\'d love Shilista.',
-    body2:   'Shilista is your destination for premium sports gear. Sign up now and enjoy an exclusive discount on your first purchase!',
+    body2:   'Shilista is your destination for premium quality products. Sign up now and enjoy an exclusive discount on your first purchase!',
     code_label: 'Your exclusive discount code:',
     body3:   'This code can be used only once. Don\'t miss out!',
     btn:     'Shop Now',
@@ -434,7 +434,7 @@ const INVITE = {
     subject: '{{referrer}} sana özel bir hediye gönderdi — Shilista',
     title:   '🎁 Sana özel bir hediye var!',
     body1:   '{{referrer}}, seni Shilista ile tanıştırmak istedi.',
-    body2:   'Shilista, kaliteli spor ekipmanları için doğru adresiniz. Hemen üye olun ve ilk alışverişinizde özel indirim kodunuzun keyfini çıkarın!',
+    body2:   'Shilista, kaliteli ürünler için doğru adresiniz. Hemen üye olun ve ilk alışverişinizde özel indirim kodunuzun keyfini çıkarın!',
     code_label: 'Özel indirim kodunuz:',
     body3:   'Bu kod yalnızca bir kez kullanılabilir. Kaçırmayın!',
     btn:     'Alışverişe Başla',
