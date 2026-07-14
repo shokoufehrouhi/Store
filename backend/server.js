@@ -15,6 +15,10 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:8080',
   'http://127.0.0.1:8080',
+  'http://shilista.com',
+  'https://shilista.com',
+  'http://10.100.10.100',
+  'https://10.100.10.100',
 ].filter(Boolean);
 
 app.use(cors({
