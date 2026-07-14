@@ -110,7 +110,7 @@ document.getElementById('already-msg').textContent = t.already;
 document.title = 'Shilista — ' + t.hd_title;
 
 if (!token) {
-  document.getElementById('err-msg').textContent = t.err_token;
+  document.getElementById('err-msg').textContent = 'Link invalid (no token). URL: ' + location.href;
   document.getElementById('err-msg').style.display = 'block';
   document.getElementById('submit-btn').disabled = true;
 }
@@ -152,8 +152,8 @@ async function submitForm() {
       btn.disabled = false;
       btn.textContent = t.btn;
     }
-  } catch {
-    errEl.textContent = t.err_token;
+  } catch(e) {
+    errEl.textContent = 'Fetch error: ' + e.message;
     errEl.style.display = 'block';
     btn.disabled = false;
     btn.textContent = t.btn;
