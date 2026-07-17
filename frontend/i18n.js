@@ -2,7 +2,7 @@ const TRANSLATIONS = {
   fa: {
     dir: 'rtl',
     lang_attr: 'fa',
-    announcement:       '⚡ ارسال سریع به سراسر ایران | 🎁 تخفیف ویژه برای اولین خرید | 💬 مشاوره تخصصی رایگان',
+    announcement:       '⚡ Fast Nationwide Delivery | 🎁 Special Discount on First Order | 💬 Free Expert Consultation',
     hero_badge:         'برند ورزشی Shilista',
     hero_title_1:       'عملکرد بهتر،',
     hero_title_2:       'استایل قوی‌تر',
@@ -822,7 +822,7 @@ const TRANSLATIONS = {
   tr: {
     dir: 'ltr',
     lang_attr: 'tr',
-    announcement:       '⚡ Hızlı Teslimat | 🎁 İlk Siparişte Özel İndirim | 💬 Ücretsiz Uzman Danışmanlığı',
+    announcement:       '⚡ Fast Nationwide Delivery | 🎁 Special Discount on First Order | 💬 Free Expert Consultation',
     hero_badge:         'Shilista Spor Markası',
     hero_title_1:       'Daha İyi Performans,',
     hero_title_2:       'Daha Güçlü Stil',
