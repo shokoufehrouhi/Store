@@ -2501,6 +2501,86 @@ function showProfileTab(tab) {
   if (tab === 'favorites') renderFavoritesTab();
 }
 
+// ─── Loyalty Card ─────────────────────────────────────────────────────────────
+function renderLoyaltyCard(completedOrders) {
+  var n = completedOrders || 0;
+  var justCompleted = n > 0 && n % 6 === 0;
+  var filled = justCompleted ? 6 : (n % 6);
+  var cycleNum = justCompleted ? Math.floor(n / 6) : (Math.floor(n / 6) + 1);
+  var prize1Unlocked = filled >= 3;
+  var prize2Unlocked = filled >= 6;
+
+  var L = currentLang;
+  var cycleTxt = L === 'fa' ? ('دوره ' + toFaDigit(cycleNum)) : (L === 'tr' ? ('Devir ' + cycleNum) : ('Cycle ' + cycleNum));
+  var titleTxt = L === 'fa' ? '🎯 باشگاه خریداران' : (L === 'tr' ? '🎯 Sadakat Kulübü' : '🎯 Loyalty Club');
+  var p1Lbl    = L === 'fa' ? 'جایزه اول' : (L === 'tr' ? '1. Ödül' : 'Prize 1');
+  var p2Lbl    = L === 'fa' ? 'جایزه بزرگ' : (L === 'tr' ? 'Büyük Ödül' : 'Big Prize');
+  var claimTxt = L === 'fa' ? '🎉 دریافت کن!' : (L === 'tr' ? '🎉 Al!' : '🎉 Claim!');
+
+  function tip1() {
+    if (prize1Unlocked) return L === 'fa' ? 'جایزه آماده‌ست!' : (L === 'tr' ? 'Ödül hazır!' : 'Prize ready!');
+    var rem = 3 - filled;
+    return L === 'fa' ? (toFaDigit(rem) + ' خرید مانده — چی منتظرته؟ 👀') : (L === 'tr' ? rem + ' alışveriş kaldı 👀' : rem + ' more purchase' + (rem>1?'s':'') + ' — what awaits? 👀');
+  }
+  function tip2() {
+    if (prize2Unlocked) return L === 'fa' ? 'جایزه بزرگ آماده‌ست!' : (L === 'tr' ? 'Büyük ödül hazır!' : 'Big prize ready!');
+    var rem = 6 - filled;
+    return L === 'fa' ? (toFaDigit(rem) + ' خرید مانده — جایزه بزرگ رو از دست نده! 🔥') : (L === 'tr' ? rem + ' alışveriş kaldı 🔥' : rem + ' purchase' + (rem>1?'s':'') + ' left — don\'t miss the big prize! 🔥');
+  }
+
+  function footerTxt() {
+    if (prize2Unlocked) return L === 'fa' ? 'هر ۶ خرید یه جایزه جدید! 🎊' : (L === 'tr' ? 'Her 6 alışverişte yeni ödül! 🎊' : 'New prizes every 6 purchases! 🎊');
+    var next = prize1Unlocked ? (6 - filled) : (3 - filled);
+    var nextPrizeTxt = prize1Unlocked
+      ? (L === 'fa' ? 'جایزه بزرگ' : L === 'tr' ? 'büyük ödül' : 'big prize')
+      : (L === 'fa' ? 'جایزه اول' : L === 'tr' ? '1. ödül' : 'Prize 1');
+    return L === 'fa'
+      ? 'فقط <strong>' + toFaDigit(next) + ' خرید</strong> مانده تا ' + nextPrizeTxt
+      : (L === 'tr' ? '<strong>' + next + ' alışveriş</strong> daha ' + nextPrizeTxt + ' için' : '<strong>' + next + ' purchase' + (next>1?'s':'') + '</strong> away from ' + nextPrizeTxt);
+  }
+
+  function circle(i) {
+    var cls = i < filled ? 'lc-filled' : (i === filled ? 'lc-next' : 'lc-empty');
+    var inner = i < filled ? '✓' : '';
+    return '<div class="lc-circle ' + cls + '">' + inner + '</div>';
+  }
+
+  function prizeBox(unlocked, lblTxt, tooltipTxt) {
+    var state = unlocked ? 'lc-unlocked' : 'lc-locked';
+    var icon  = unlocked ? '🎁' : '🎁';
+    var q     = unlocked ? '' : '<span class="lc-prize-q">?</span>';
+    var lbl   = unlocked ? claimTxt : lblTxt;
+    return '<div class="lc-prize ' + state + '">' +
+      '<div class="lc-prize-box">' + icon + q + '</div>' +
+      '<div class="lc-prize-label">' + lbl + '</div>' +
+      '<div class="lc-tooltip">' + tooltipTxt + '</div>' +
+    '</div>';
+  }
+
+  return '<div class="lc-card">' +
+    '<div class="lc-header">' +
+      '<div><div class="lc-title">' + titleTxt + '</div>' +
+      '<div class="lc-subtitle">' + (n === 0 ? (L === 'fa' ? 'اولین خریدت رو ثبت کن!' : L === 'tr' ? 'İlk alışverişini yap!' : 'Make your first purchase!') : footerTxt()) + '</div></div>' +
+      '<div class="lc-cycle-badge">' + cycleTxt + '</div>' +
+    '</div>' +
+    '<div class="lc-row">' +
+      '<div class="lc-circles">' + circle(0) + circle(1) + circle(2) + '</div>' +
+      '<div class="lc-connector"></div>' +
+      prizeBox(prize1Unlocked, p1Lbl, tip1()) +
+    '</div>' +
+    '<div class="lc-row">' +
+      '<div class="lc-circles">' + circle(3) + circle(4) + circle(5) + '</div>' +
+      '<div class="lc-connector"></div>' +
+      prizeBox(prize2Unlocked, p2Lbl, tip2()) +
+    '</div>' +
+    (n > 0 ? '<div class="lc-footer">' + footerTxt() + '</div>' : '') +
+  '</div>';
+}
+
+function toFaDigit(n) {
+  return String(n).replace(/\d/g, function(d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; });
+}
+
 // ─── Info Tab ─────────────────────────────────────────────────────────────────
 function renderInfoTab() {
   var t    = TRANSLATIONS[currentLang];
@@ -2542,6 +2622,9 @@ function renderInfoTab() {
     : (currentLang === 'fa' ? 'موبایل' : currentLang === 'tr' ? 'Telefon' : 'Mobile');
 
   container.innerHTML =
+    // Loyalty card
+    renderLoyaltyCard(user.completed_orders) +
+
     // Customer ID badge
     (customerId
       ? '<div style="display:flex;align-items:center;gap:10px;background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:10px 16px;margin-bottom:20px">' +

@@ -164,16 +164,19 @@ async function getProfile(req, res, next) {
       data:  { last_activity: new Date(), expires_at: new Date(Date.now() + 30 * 60 * 1000) },
     });
 
-    const customer = await prisma.customers.findUnique({
-      where:  { id: session.customer_id },
-      select: {
-        id: true, full_name: true, email: true, mobile: true, registered_by: true,
-        preferred_lang: true, created_at: true, avatar: true,
-        addresses: { select: { id: true, recipient: true, phone: true, city: true, postal_code: true, detail: true, is_default: true } },
-        customer_favorites: { select: { product_id: true } },
-      },
-    });
-    const data = { ...customer, favorites: customer.customer_favorites.map(f => f.product_id) };
+    const [customer, completedOrders] = await Promise.all([
+      prisma.customers.findUnique({
+        where:  { id: session.customer_id },
+        select: {
+          id: true, full_name: true, email: true, mobile: true, registered_by: true,
+          preferred_lang: true, created_at: true, avatar: true,
+          addresses: { select: { id: true, recipient: true, phone: true, city: true, postal_code: true, detail: true, is_default: true } },
+          customer_favorites: { select: { product_id: true } },
+        },
+      }),
+      prisma.orders.count({ where: { customer_id: session.customer_id, status: 'delivered' } }),
+    ]);
+    const data = { ...customer, favorites: customer.customer_favorites.map(f => f.product_id), completed_orders: completedOrders };
     delete data.customer_favorites;
     res.json({ success: true, data });
   } catch (err) {
@@ -370,9 +373,7 @@ function buildResetEmail(lang, name, resetLink) {
     <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
       <tr>
         <td style="background:#fff;padding:24px 32px 16px;border-bottom:2px solid #f0e8df;text-align:center">
-          ${process.env.SITE_URL
-            ? `<img src="${process.env.SITE_URL}/images/shilista_6_light_full_transparent.png" alt="Shilista" height="48" style="height:48px;width:auto;display:inline-block">`
-            : `<span style="font-size:26px;font-weight:700;color:#c0562a;letter-spacing:1px;font-family:Arial,sans-serif">Shilista</span>`}
+          <img src="cid:logo@shilista" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
       <tr>
@@ -387,8 +388,8 @@ function buildResetEmail(lang, name, resetLink) {
         </td>
       </tr>
       <tr>
-        <td style="background:#fdf5ed;padding:16px 32px;border-top:1px solid #f0e8df;text-align:center">
-          <p style="margin:0;font-size:12px;color:#aaa">shilista.com</p>
+        <td style="background:#fff;padding:24px 32px 12px;border-top:1px solid #f0e8df;text-align:center">
+          <img src="cid:footer@shilista" alt="Shilista" width="480" style="width:480px;max-width:100%;height:auto;display:inline-block">
         </td>
       </tr>
     </table>
