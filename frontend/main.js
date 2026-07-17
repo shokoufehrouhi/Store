@@ -4691,6 +4691,8 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (_openParam === 'cart') {
       setTimeout(function() { openCart(); }, 400);
     }
+  } else if (location.pathname === '/checkout') {
+    setTimeout(function() { openCheckout(); }, 400);
   }
 
   // Save scroll position before unload
