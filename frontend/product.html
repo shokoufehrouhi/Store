@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="tr" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Shilista</title>
+  <link rel="icon" type="image/png" href="images/shilista_icon.png">
+  <link rel="apple-touch-icon" href="images/shilista_icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ── fix sticky on product page ── */
+    body { overflow-x: clip; }
+    .header { position: fixed !important; top: 0; left: 0; right: 0; }
+    .pd-back {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 13px; font-weight: 600; color: var(--text-light);
+      padding: 7px 14px; border-radius: var(--radius-sm);
+      background: var(--card); border: 1.5px solid var(--border);
+      text-decoration: none; transition: background .15s, color .15s;
+      margin-bottom: 16px;
+    }
+    .pd-back:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ── page body ── */
+    .pd-page { background: var(--bg); min-height: calc(100vh - 64px); padding: 24px 20px 80px; margin-top: 64px; }
+    .pd-wrap { max-width: 1000px; margin: 0 auto; }
+    .pd-card {
+      background: var(--card);
+      border-radius: 22px;
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    @media(max-width: 700px){
+      .pd-card { grid-template-columns: 1fr; }
+      .pd-gallery { border-inline-start: none !important; border-bottom: 1px solid var(--border); }
+    }
+
+    /* ── gallery ── */
+    .pd-gallery {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-inline-start: 1px solid var(--border);
+    }
+    .pd-img-frame { position: relative; }
+    .pd-main-img {
+      border-radius: 14px;
+      width: 100%;
+      aspect-ratio: 1/1;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f0f0f0;
+    }
+    .pd-main-img img, .pd-main-img video {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    .pd-arrow {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(0,0,0,.38); border: none; color: #fff;
+      font-size: 24px; cursor: pointer; display: flex;
+      align-items: center; justify-content: center;
+      transition: background .15s; z-index: 2;
+    }
+    .pd-arrow:hover { background: rgba(0,0,0,.65); }
+    .pd-arrow-prev { left: 10px; } .pd-arrow-next { right: 10px; }
+    .pd-thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pd-thumb {
+      width: 68px; height: 68px; border-radius: 10px; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; border: 2.5px solid transparent; opacity: .65;
+      transition: all .18s;
+    }
+    .pd-thumb img, .pd-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .pd-thumb:hover { opacity: .85; transform: translateY(-2px); }
+    .pd-thumb.active { border-color: var(--primary); opacity: 1; }
+
+    /* ── info ── */
+    .pd-info { padding: 32px 28px; display: flex; flex-direction: column; gap: 12px; }
+    .pd-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+    .pd-name { font-size: 21px; font-weight: 800; line-height: 1.35; color: var(--text); }
+    .pd-price {
+      font-size: 18px; font-weight: 700; color: var(--primary);
+      direction: ltr; text-align: right;
+    }
+    [dir="ltr"] .pd-price { text-align: left; }
+    .pd-price-orig { text-decoration: line-through; color: var(--text-muted); font-size: 14px; margin-inline-end: 8px; font-weight: 500; }
+    .pd-desc { font-size: 13.5px; color: var(--text-light); line-height: 1.6; white-space: pre-line; }
+    .pd-desc-more {
+      background: none; border: none; color: var(--primary); font-size: 13px;
+      font-family: inherit; line-height: 1.6; cursor: pointer; padding: 0; display: inline;
+    }
+    .pd-sec-label {
+      font-size: 12px; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: .06em; display: block; margin-bottom: 2px;
+    }
+    .pd-color-name { font-size: 13px; color: var(--primary); font-weight: 600; min-height: 18px; margin-top: 6px; }
+    .pd-colors-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+    .pd-sizes-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pd-stock { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; display: inline-block; }
+    .stock-in  { background: #d1fae5; color: #065f46; }
+    .stock-low { background: #fef3c7; color: #92400e; }
+    .stock-out { background: #fee2e2; color: #991b1b; }
+
+    /* ── buy section ── */
+    .pd-buy { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+    .pd-add-btn {
+      width: 100%; padding: 13px; background: var(--primary); color: #fff;
+      border: none; border-radius: 12px; font-size: 15px; font-weight: 700;
+      cursor: pointer; font-family: inherit; transition: background .2s;
+    }
+    .pd-add-btn:hover { background: var(--primary-dark); }
+    .pd-share-btn {
+      width: 100%; padding: 11px; background: transparent; color: var(--text-light);
+      border: 1.5px solid var(--border); border-radius: 12px; font-size: 14px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: border-color .15s, color .15s;
+    }
+    .pd-share-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .pd-contact-row { display: flex; gap: 8px; }
+    .pd-contact-btn {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      gap: 7px; padding: 10px; border-radius: 10px; font-size: 13px;
+      font-weight: 700; color: #fff; text-decoration: none;
+    }
+    .pd-wa { background: var(--wa-green); } .pd-wa:hover { background: var(--wa-dark); }
+    .pd-tg { background: var(--tg-blue); } .pd-tg:hover { background: var(--tg-dark); }
+
+    /* ── buyer photos ── */
+    .pd-cph-title { font-size: 13px; font-weight: 700; color: var(--text); margin: 14px 0 8px; }
+    .pd-cph-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pd-cph-img { width: 80px; height: 80px; object-fit: cover; border-radius: var(--radius-sm); cursor: pointer; }
+
+    /* ── states ── */
+    .pd-loading { text-align: center; padding: 100px 20px; color: var(--text-muted); font-size: 15px; }
+    .pd-err { text-align: center; padding: 100px 20px; color: #ef4444; font-size: 15px; }
+    .pd-toast {
+      position: fixed; bottom: 36px; left: 50%; transform: translateX(-50%);
+      background: #1f2937; color: #fff; padding: 12px 28px; border-radius: 100px;
+      font-size: 15px; font-weight: 600; z-index: 9999; opacity: 0; direction: ltr;
+      transition: opacity .25s; pointer-events: none; white-space: nowrap;
+      box-shadow: 0 8px 32px rgba(0,0,0,.35);
+    }
+    .pd-toast.show { opacity: 1; }
+
+    /* ── mini cart panel ── */
+    .pd-cart-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      z-index: 10000; display: flex; justify-content: flex-end;
+      transition: opacity .25s;
+    }
+    .pd-cart-overlay.hidden { display: none; }
+    .pd-cart-drawer {
+      width: 340px; max-width: 100vw; background: var(--card);
+      display: flex; flex-direction: column; height: 100%;
+      box-shadow: -4px 0 24px rgba(0,0,0,.15);
+      animation: slideInRight .22s ease;
+    }
+    @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+    .pd-cart-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 20px; border-bottom: 1px solid var(--border);
+    }
+    .pd-cart-head-title { font-size: 15px; font-weight: 700; color: var(--text); }
+    .pd-cart-close {
+      background: none; border: none; font-size: 22px; cursor: pointer;
+      color: var(--text-light); line-height: 1; padding: 0 4px;
+    }
+    .pd-cart-items { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+    .pd-cart-item {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 10px; border-radius: 10px; background: var(--bg);
+    }
+    .pd-cart-item-img {
+      width: 54px; height: 54px; object-fit: cover; border-radius: 8px;
+      background: var(--border); flex-shrink: 0;
+    }
+    .pd-cart-item-info { flex: 1; min-width: 0; }
+    .pd-cart-item-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pd-cart-item-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .pd-cart-item-price { font-size: 13px; font-weight: 700; color: var(--primary); margin-top: 4px; }
+    .pd-cart-empty { text-align: center; padding: 60px 20px; color: var(--text-muted); font-size: 14px; }
+    .pd-cart-foot {
+      padding: 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px;
+    }
+    .pd-cart-total { display: flex; justify-content: space-between; font-size: 14px; font-weight: 700; color: var(--text); padding: 0 2px 6px; }
+    .pd-cart-checkout-btn {
+      width: 100%; padding: 13px; background: var(--primary); color: #fff;
+      border: none; border-radius: 12px; font-size: 15px; font-weight: 700;
+      cursor: pointer; font-family: inherit; transition: background .2s;
+    }
+    .pd-cart-checkout-btn:hover { background: var(--primary-dark); }
+  </style>
+</head>
+<body>
+
+<!-- header -->
+<header class="header" id="header">
+  <div class="container">
+    <div class="header-inner">
+      <a href="/" class="logo">
+        <img src="images/shilista_logo.png" class="logo-img" alt="Shilista">
+      </a>
+      <nav class="nav-links">
+        <div class="nav-group">
+          <a class="nav-link has-drop" href="/">
+            <span data-i18n="menu_all">همه محصولات</span>
+            <svg class="nav-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 7L1 3h8z"/></svg>
+          </a>
+          <div class="nav-dropdown nav-mega"></div>
+        </div>
+        <div class="nav-group">
+          <a class="nav-link has-drop" href="/#gender=female">
+            <span data-i18n="menu_women">زنانه</span>
+            <svg class="nav-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 7L1 3h8z"/></svg>
+          </a>
+          <div class="nav-dropdown">
+            <div class="nav-drop-group">
+              <span class="nav-drop-cat-label" data-i18n="cat_clothing">لباس</span>
+              <a class="nav-drop-item" href="/#cat=clothing&gender=female&sub=tshirt"     data-i18n="sub_tshirt">تیشرت</a>
+              <a class="nav-drop-item" href="/#cat=clothing&gender=female&sub=leggings"   data-i18n="sub_leggings">تایت</a>
+              <a class="nav-drop-item" href="/#cat=clothing&gender=female&sub=sweatshirt" data-i18n="sub_sweatshirt">سوئیشرت</a>
+              <a class="nav-drop-item" href="/#cat=clothing&gender=female&sub=jacket"     data-i18n="sub_jacket">ژاکت</a>
+            </div>
+            <div class="nav-drop-group">
+              <span class="nav-drop-cat-label" data-i18n="cat_shoes">کفش</span>
+              <a class="nav-drop-item" href="/#cat=shoes&gender=female" data-i18n="sub_shoes">کفش ورزشی</a>
+            </div>
+          </div>
+        </div>
+        <div class="nav-group">
+          <a class="nav-link has-drop" href="/#gender=male">
+            <span data-i18n="menu_men">مردانه</span>
+            <svg class="nav-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 7L1 3h8z"/></svg>
+          </a>
+          <div class="nav-dropdown">
+            <div class="nav-drop-group">
+              <span class="nav-drop-cat-label" data-i18n="cat_clothing">لباس</span>
+              <a class="nav-drop-item" href="/#cat=clothing&gender=male&sub=tshirt"  data-i18n="sub_tshirt">تیشرت</a>
+              <a class="nav-drop-item" href="/#cat=clothing&gender=male&sub=shorts"  data-i18n="sub_shorts">شورت</a>
+              <a class="nav-drop-item" href="/#cat=clothing&gender=male&sub=pants"   data-i18n="sub_pants">شلوار</a>
+            </div>
+            <div class="nav-drop-group">
+              <span class="nav-drop-cat-label" data-i18n="cat_shoes">کفش</span>
+              <a class="nav-drop-item" href="/#cat=shoes&gender=male" data-i18n="sub_shoes">کفش ورزشی</a>
+            </div>
+          </div>
+        </div>
+        <div class="nav-group">
+          <a class="nav-link has-drop" href="/#cat=Sports">
+            <span data-i18n="menu_sports">ورزشی</span>
+            <svg class="nav-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 7L1 3h8z"/></svg>
+          </a>
+          <div class="nav-dropdown">
+            <div class="nav-drop-group">
+              <span class="nav-drop-cat-label" data-i18n="cat_sports">ورزشی</span>
+              <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20Bra"       data-i18n="sub_sports_bra">نیم‌تنه ورزشی</a>
+              <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20T-Shirts"  data-i18n="sub_sports_tshirts">تیشرت ورزشی</a>
+              <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20Leggings"  data-i18n="sub_sports_leggings">لگ ورزشی</a>
+              <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20Shorts"    data-i18n="sub_sports_shorts">شلوارک ورزشی</a>
+              <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20Set"       data-i18n="sub_sports_set">ست ورزشی</a>
+              <a class="nav-drop-item" href="/#cat=Sports&sub=Track%20Jacket"     data-i18n="sub_track_jacket">گرمکن ورزشی</a>
+              <a class="nav-drop-item" href="/#cat=Sports&sub=Track%20Pants"      data-i18n="sub_track_pants">شلوار گرمکن</a>
+              <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20Shoes"     data-i18n="sub_sports_shoes">کفش ورزشی</a>
+              <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20Gloves"    data-i18n="sub_sports_gloves">دستکش ورزشی</a>
+              <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20Cap"       data-i18n="sub_sports_cap">کلاه ورزشی</a>
+              <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20Equipment" data-i18n="sub_sports_equipment">لوازم ورزشی</a>
+            </div>
+          </div>
+        </div>
+        <div class="nav-group">
+          <a class="nav-link has-drop" href="/#cat=accessories">
+            <span data-i18n="menu_acc">اکسسوری</span>
+            <svg class="nav-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 7L1 3h8z"/></svg>
+          </a>
+          <div class="nav-dropdown">
+            <div class="nav-drop-group">
+              <span class="nav-drop-cat-label" data-i18n="cat_accessories">اکسسوری</span>
+              <a class="nav-drop-item" href="/#cat=accessories&sub=gloves"    data-i18n="sub_gloves">دستکش</a>
+              <a class="nav-drop-item" href="/#cat=accessories&sub=bag"       data-i18n="sub_bag">کیف و ساک</a>
+              <a class="nav-drop-item" href="/#cat=accessories&sub=headband"  data-i18n="sub_headband">هدبند</a>
+              <a class="nav-drop-item" href="/#cat=accessories&sub=socks"     data-i18n="sub_socks">جوراب</a>
+            </div>
+          </div>
+        </div>
+        <a href="/#contact" class="nav-link" data-i18n="nav_contact">تماس با ما</a>
+      </nav>
+      <div class="site-lang-wrap" id="site-lang-wrap">
+        <button class="site-lang-btn" onclick="pdToggleLang(event)">
+          <span class="site-lang-globe" id="site-lang-label">TR</span>
+        </button>
+        <div class="site-lang-menu hidden" id="site-lang-menu">
+          <button class="site-lang-opt" onclick="pdSetLang('fa')"><span class="opt-dot"></span>فارسی</button>
+          <button class="site-lang-opt" onclick="pdSetLang('en')"><span class="opt-dot"></span>English</button>
+          <button class="site-lang-opt" onclick="pdSetLang('tr')"><span class="opt-dot"></span>Türkçe</button>
+        </div>
+      </div>
+      <button class="auth-header-btn" id="auth-header-btn" onclick="pdHandleAuth()"></button>
+      <button class="fav-header-btn" id="fav-header-btn" onclick="window.location='/'" aria-label="Favorites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+        <span class="fav-header-badge" id="fav-header-badge"></span>
+      </button>
+      <button class="cart-btn" id="cart-btn" onclick="openPdCart()" aria-label="Cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        <span class="cart-badge" id="cart-badge"></span>
+      </button>
+      <button class="order-btn" onclick="window.location='/?open=checkout'" data-i18n="order_btn">ثبت سفارش</button>
+      <button class="menu-toggle" onclick="pdToggleMenu()">☰</button>
+    </div>
+    <nav class="mobile-menu" id="pd-mobile-menu">
+      <a href="/" data-i18n="menu_all">همه محصولات</a>
+      <a href="/#gender=female" data-i18n="menu_women">زنانه</a>
+      <a href="/#gender=male" data-i18n="menu_men">مردانه</a>
+      <a href="/#cat=Sports" data-i18n="menu_sports">ورزشی</a>
+      <a href="/#cat=accessories" data-i18n="menu_acc">اکسسوری</a>
+      <button class="mobile-order-btn" onclick="window.location='/?open=checkout'" data-i18n="order_btn">Sipariş Ver</button>
+      <div class="mobile-lang-wrap">
+        <button class="mobile-lang-opt" onclick="pdSetLang('fa')">FA</button>
+        <button class="mobile-lang-opt" onclick="pdSetLang('en')">EN</button>
+        <button class="mobile-lang-opt" onclick="pdSetLang('tr')">TR</button>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<!-- page -->
+<div class="pd-page">
+  <div class="pd-wrap">
+    <a class="pd-back" id="back-link" href="/">&#8592; <span id="back-txt">Geri</span></a>
+    <div id="pd-root"><div class="pd-loading">...</div></div>
+  </div>
+</div>
+
+<div class="pd-toast" id="pd-toast"></div>
+
+<!-- mini cart panel -->
+<div class="pd-cart-overlay hidden" id="pd-cart-overlay" onclick="if(event.target===this)closePdCart()">
+  <div class="pd-cart-drawer">
+    <div class="pd-cart-head">
+      <span class="pd-cart-head-title" id="pd-cart-head-title">Sepet</span>
+      <button class="pd-cart-close" onclick="closePdCart()">×</button>
+    </div>
+    <div class="pd-cart-items" id="pd-cart-items"></div>
+    <div class="pd-cart-foot" id="pd-cart-foot" style="display:none">
+      <div class="pd-cart-total">
+        <span id="pd-cart-total-label">Toplam</span>
+        <span id="pd-cart-total-val"></span>
+      </div>
+      <button class="pd-cart-checkout-btn" onclick="window.location='/?open=checkout'" id="pd-cart-checkout-btn">Sipariş Ver</button>
+    </div>
+  </div>
+</div>
+
+<script src="i18n.js?v=52"></script>
+<script>
+// ── lang ──────────────────────────────────────────────────────────────────────
+var _qp = new URLSearchParams(location.search);
+var _ql = _qp.get('lang');
+if(_ql && ['fa','tr','en'].includes(_ql)) localStorage.setItem('lang_v2', _ql);
+var CL  = localStorage.getItem('lang_v2') || 'tr';
+var T   = TRANSLATIONS[CL] || TRANSLATIONS.tr;
+var DIR = T.dir || 'ltr';
+document.documentElement.lang = CL;
+document.documentElement.dir  = DIR;
+document.body.setAttribute('dir', DIR);
+
+// ── header init ───────────────────────────────────────────────────────────────
+var _backLbl = {fa:'← بازگشت', tr:'← Geri', en:'← Back'};
+document.getElementById('back-txt').textContent = _backLbl[CL] || '← Geri';
+document.getElementById('back-link').href = '/?lang=' + CL;
+
+// lang label
+var _llabel = document.getElementById('site-lang-label');
+if(_llabel) _llabel.textContent = CL.toUpperCase();
+
+// cart badge
+function pdUpdateCartBadge(){
+  var c = JSON.parse(localStorage.getItem('cart')||'[]');
+  var n = c.reduce(function(s,i){return s+(i.qty||1);},0);
+  var b = document.getElementById('cart-badge');
+  if(b){ b.textContent = n||''; b.style.display = n?'flex':'none'; }
+}
+pdUpdateCartBadge();
+
+// initials avatar
+function pdMakeAvatar(name, size, fs){
+  var parts = (name||'').trim().split(/\s+/);
+  var init  = parts.length>=2 ? (parts[0][0]+parts[parts.length-1][0]).toUpperCase() : (parts[0]||'?')[0].toUpperCase();
+  var cols  = ['#4a7fd4','#e05c7a','#2eaa72','#f0842c','#9b6bcf','#1a9da0'];
+  var bg    = cols[(name||'').split('').reduce(function(s,c){return s+c.charCodeAt(0);},0)%cols.length];
+  var s=size||28, f=fs||12;
+  return '<svg width="'+s+'" height="'+s+'" viewBox="0 0 '+s+' '+s+'" xmlns="http://www.w3.org/2000/svg"><circle cx="'+(s/2)+'" cy="'+(s/2)+'" r="'+(s/2)+'" fill="'+bg+'"/><text x="'+(s/2)+'" y="'+(s/2)+'" text-anchor="middle" dominant-baseline="central" font-size="'+f+'" font-weight="700" fill="#fff" font-family="inherit">'+init+'</text></svg>';
+}
+
+// user display with avatar
+(function(){
+  var u = null;
+  try{ u = JSON.parse(localStorage.getItem('mf_current_user')||'null'); }catch(e){}
+  var btn = document.getElementById('auth-header-btn');
+  if(!btn) return;
+  if(u && (u.full_name||u.name)){
+    var name  = u.full_name || u.name || '';
+    var first = name.split(' ')[0];
+    var av    = u.id ? (localStorage.getItem('mf_avatar_'+u.id)||'') : '';
+    if(av){ btn.innerHTML = '<img class="auth-header-avatar" src="'+av+'" alt=""><span class="auth-btn-text"> '+first+'</span>'; }
+    else  { btn.innerHTML = pdMakeAvatar(name,28,11)+'<span class="auth-btn-text"> '+first+'</span>'; }
+  } else {
+    btn.innerHTML = '👤<span class="auth-btn-text"> '+(CL==='fa'?'ورود':CL==='tr'?'Giriş':'Login')+'</span>';
+  }
+})();
+
+function pdHandleAuth(){
+  var u=null; try{ u=JSON.parse(localStorage.getItem('mf_current_user')||'null'); }catch(e){}
+  window.location = u ? '/profile.html' : '/?login=1';
+}
+
+// ── mini cart panel ───────────────────────────────────────────────────────────
+var _pdCartCache = {};
+
+function openPdCart(){
+  var overlay = document.getElementById('pd-cart-overlay');
+  overlay.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  renderPdCart();
+}
+function closePdCart(){
+  document.getElementById('pd-cart-overlay').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function renderPdCart(){
+  var c    = getCart();
+  var body = document.getElementById('pd-cart-items');
+  var foot = document.getElementById('pd-cart-foot');
+  var t    = TRANSLATIONS[CL] || TRANSLATIONS.tr;
+
+  document.getElementById('pd-cart-head-title').textContent = t.cart_title || (CL==='fa'?'سبد خرید':CL==='tr'?'Sepet':'Cart');
+  document.getElementById('pd-cart-total-label').textContent = t.cart_total || (CL==='fa'?'جمع کل':CL==='tr'?'Toplam':'Total');
+  document.getElementById('pd-cart-checkout-btn').textContent = t.order_btn || (CL==='fa'?'ثبت سفارش':CL==='tr'?'Sipariş Ver':'Place Order');
+
+  if(!c.length){
+    body.innerHTML = '<div class="pd-cart-empty">'+(t.cart_empty||'Sepet boş')+'</div>';
+    foot.style.display = 'none';
+    return;
+  }
+
+  var ids = [...new Set(c.map(function(i){ return i.id; }))];
+  var needed = ids.filter(function(id){ return !_pdCartCache[id]; });
+
+  function drawItems(){
+    var total = 0;
+    body.innerHTML = c.map(function(item){
+      var p   = _pdCartCache[item.id] || {};
+      var nm  = p['name_'+CL] || p.name_fa || p.name_tr || p.name_en || ('ID '+item.id);
+      var pr  = item.price || (p.discounted_price && Number(p.discounted_price) < Number(p.price) ? Number(p.discounted_price) : Number(p.price||0));
+      var qty = item.qty || 1;
+      total  += pr * qty;
+      var img = (p.product_media && p.product_media[0]) ? (SRV + p.product_media[0].url) : '';
+      var meta = [item.colorKey, item.size].filter(Boolean).join(' / ');
+      return '<div class="pd-cart-item">'
+        + (img ? '<img class="pd-cart-item-img" src="'+img+'" alt="">' : '<div class="pd-cart-item-img"></div>')
+        + '<div class="pd-cart-item-info">'
+        +   '<div class="pd-cart-item-name">'+esc(nm)+'</div>'
+        +   (meta ? '<div class="pd-cart-item-meta">'+esc(meta)+'</div>' : '')
+        +   '<div class="pd-cart-item-meta">× '+qty+'</div>'
+        +   (pr ? '<div class="pd-cart-item-price">'+Number(pr*qty).toLocaleString('tr-TR')+'₺</div>' : '')
+        + '</div></div>';
+    }).join('');
+    if(total){
+      document.getElementById('pd-cart-total-val').textContent = Number(total).toLocaleString('tr-TR')+'₺';
+      foot.style.display = 'flex';
+    } else {
+      foot.style.display = 'flex';
+      document.getElementById('pd-cart-total-val').textContent = '';
+    }
+    foot.style.display = '';
+  }
+
+  if(!needed.length){ drawItems(); return; }
+
+  Promise.all(needed.map(function(id){
+    return fetch(API+'/products/'+id).then(function(r){return r.json();}).then(function(d){
+      if(d.success) _pdCartCache[id] = d.data;
+    }).catch(function(){});
+  })).then(drawItems);
+}
+
+// language switcher
+function pdToggleLang(e){
+  e.stopPropagation();
+  var m = document.getElementById('site-lang-menu');
+  if(m) m.classList.toggle('hidden');
+}
+function pdSetLang(l){
+  localStorage.setItem('lang_v2', l);
+  var u = new URL(location.href); u.searchParams.set('lang',l);
+  location.href = u.toString();
+}
+document.addEventListener('click', function(){ var m=document.getElementById('site-lang-menu'); if(m)m.classList.add('hidden'); });
+
+// mobile menu
+function pdToggleMenu(){
+  var m = document.getElementById('pd-mobile-menu');
+  if(m) m.classList.toggle('open');
+}
+
+// i18n for header links
+(function(){
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    var k = el.getAttribute('data-i18n');
+    var v = T[k];
+    if(v) el.textContent = v;
+  });
+})();
+
+// ── config ────────────────────────────────────────────────────────────────────
+var IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+var SRV = IS_LOCAL ? 'http://localhost:3001' : '';
+var API = SRV + '/api';
+var WA  = '905550401737';
+var TG  = 'akhgar_sport';
+
+// ── cart ──────────────────────────────────────────────────────────────────────
+function getCart(){ try{ return JSON.parse(localStorage.getItem('cart')||'[]'); }catch(e){ return []; } }
+function saveCart(c){ localStorage.setItem('cart', JSON.stringify(c)); }
+function getSession(){ return localStorage.getItem('mf_session_token'); }
+function cartAdd(pid, cKey, cId, sz){
+  var c = getCart();
+  var x = c.find(function(i){ return i.id===pid && i.colorKey===(cKey||null) && i.size===(sz||null); });
+  if(x){ x.qty = (x.qty||1)+1; } else { c.push({id:pid, colorKey:cKey||null, colorId:cId||null, size:sz||null, qty:1}); }
+  saveCart(c);
+  pdUpdateCartBadge();
+  if(document.getElementById('pd-cart-overlay') && !document.getElementById('pd-cart-overlay').classList.contains('hidden')) renderPdCart();
+  var tok = getSession();
+  if(tok){ fetch(API+'/customers/cart/sync',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':tok},body:JSON.stringify({items:c})}).catch(function(){}); }
+}
+
+// ── toast ─────────────────────────────────────────────────────────────────────
+function toast(msg){ var el=document.getElementById('pd-toast'); el.textContent=msg; el.classList.add('show'); setTimeout(function(){ el.classList.remove('show'); },2200); }
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+function catBadgeStyle(key){
+  var pl=[{bg:'#ede9fe',color:'#7c3aed'},{bg:'#dbeafe',color:'#1d4ed8'},{bg:'#d1fae5',color:'#065f46'},{bg:'#fef3c7',color:'#92400e'},{bg:'#fee2e2',color:'#991b1b'},{bg:'#ffedd5',color:'#9a3412'},{bg:'#e0f2fe',color:'#0369a1'},{bg:'#fce7f3',color:'#be185d'}];
+  var idx=(key||'').split('').reduce(function(s,c){return s+c.charCodeAt(0);},0)%pl.length;
+  return 'background:'+pl[idx].bg+';color:'+pl[idx].color;
+}
+function priceStr(n){ return Number(n).toLocaleString('tr-TR')+'₺'; }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function getInv(inv, cId, sz){
+  if(!inv||!inv.length) return null;
+  var e = inv.find(function(i){ return i.color_id===(cId===null?null:Number(cId)) && (i.size_label||null)===(sz||null); });
+  return e ? e.quantity : null;
+}
+function colorNoStock(inv, cId){
+  if(!inv||!inv.length) return false;
+  var rows = inv.filter(function(i){ return i.color_id===Number(cId); });
+  if(!rows.length) return false;
+  return rows.every(function(i){ return i.quantity===0; });
+}
+
+// ── state ─────────────────────────────────────────────────────────────────────
+var _p=null, _ck=null, _cid=null, _sz=null, _mi=0;
+
+// ── render ────────────────────────────────────────────────────────────────────
+function render(p){
+  _p = p;
+  var name = p['name_'+CL] || p.name_fa || '';
+  var desc = p['desc_'+CL] || '';
+  var inv    = p.product_inventory || [];
+  var colors = p.product_colors    || [];
+  var sizes  = p.product_sizes     || [];
+  var media  = p.product_media     || [];
+  document.title = name + ' — Shilista';
+
+  // price
+  var ph = '';
+  if(p.price){
+    var hasDis = p.discounted_price && Number(p.discounted_price) < Number(p.price);
+    ph = '<div class="pd-price">'
+       + (hasDis ? '<span class="pd-price-orig">'+priceStr(p.price)+'</span>' : '')
+       + '<strong>'+(hasDis ? priceStr(p.discounted_price) : priceStr(p.price))+'</strong>'
+       + '</div>';
+  }
+
+  // gallery
+  var mainContent = media.length
+    ? (media[0].type==='video'
+        ? '<video src="'+SRV+media[0].url+'" controls style="width:100%;height:100%;object-fit:cover"></video>'
+        : '<img src="'+SRV+media[0].url+'" alt="'+esc(name)+'">')
+    : '<span class="modal-big-emoji">⚡</span>';
+  var arrows = media.length > 1
+    ? '<button class="pd-arrow pd-arrow-prev" onclick="arrowNav(-1)">&#8249;</button>'
+    + '<button class="pd-arrow pd-arrow-next" onclick="arrowNav(1)">&#8250;</button>'
+    : '';
+  var thumbs = media.length > 1
+    ? '<div class="pd-thumbs">'
+      + media.map(function(m,i){
+          var inner = m.type==='video'
+            ? '<video src="'+SRV+m.url+'" style="width:100%;height:100%;object-fit:cover"></video>'
+            : '<img src="'+SRV+m.url+'">';
+          return '<div class="pd-thumb'+(i===0?' active':'')+'" onclick="switchMedia('+i+')">'+inner+'</div>';
+        }).join('')
+      + '</div>'
+    : '';
+
+  // category
+  var cat = p.categories ? (p.categories['label_'+CL] || p.categories.label_tr || '') : '';
+  var gBadge = '';
+  if(p.gender==='female') gBadge='<span class="gender-badge gender-female">'+(T.gender_female||'Kadın')+'</span>';
+  else if(p.gender==='male') gBadge='<span class="gender-badge gender-male">'+(T.gender_male||'Erkek')+'</span>';
+
+  // colors
+  var colH = '';
+  if(colors.length){
+    colH = '<div>'
+      + '<span class="pd-sec-label">'+(T.color_label||'Renk')+'</span>'
+      + '<div class="pd-colors-row" id="pd-cr">'
+      + colors.map(function(pc){
+          var c = pc.colors; if(!c) return '';
+          var unavail = !pc.is_available;
+          var nostock = !unavail && colorNoStock(inv, c.id);
+          var cls = 'color-swatch'+(unavail?' unavailable':'')+(nostock?' out-of-stock':'');
+          return '<button class="'+cls+'" data-ckey="'+(c.key||'')+'" data-cid="'+c.id+'"'
+            +(unavail||nostock?' disabled':'')
+            +' style="background:'+c.hex+'" title="'+esc(c['name_'+CL]||c.name_tr||'')+'" onclick="selColor(this)"></button>';
+        }).join('')
+      + '</div>'
+      + '<div class="pd-color-name" id="pd-cn">'+(T.select_color||'Renk seçin')+'</div>'
+      + '</div>';
+  }
+
+  // sizes
+  var szH = '';
+  if(sizes.length){
+    szH = '<div>'
+      + '<span class="pd-sec-label">'+(T.sizes_label||'Beden')+'</span>'
+      + '<div class="pd-sizes-row">'
+      + sizes.map(function(ps){
+          var unavail = !ps.is_available;
+          return '<button class="modal-size-chip'+(unavail?' unavailable':'')+'" data-sz="'+ps.size_label+'"'
+            +(unavail?' disabled':'')+' onclick="selSize(this)">'+esc(ps.size_label)+'</button>';
+        }).join('')
+      + '</div>'
+      + '</div>';
+  }
+
+  // contact
+  var waMsg = encodeURIComponent('Merhaba, '+name+' hakkında bilgi almak istiyorum.');
+  var WA_SVG='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>';
+  var TG_SVG='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>';
+
+  var addLbl = {fa:'🛒 افزودن به سبد', tr:'🛒 Sepete Ekle', en:'🛒 Add to Cart'};
+  var shareLbl = {fa:'🔗 کپی لینک', tr:'🔗 Linki kopyala', en:'🔗 Copy link'};
+
+  document.getElementById('pd-root').innerHTML =
+    '<div class="pd-card">'
+
+    // gallery
+    +'<div class="pd-gallery">'
+    +  '<div class="pd-img-frame">'
+    +    '<div class="pd-main-img" id="pd-frame">'+mainContent+'</div>'
+    +    arrows
+    +  '</div>'
+    +  thumbs
+    +  '<div id="pd-cph"></div>'
+    +'</div>'
+
+    // info
+    +'<div class="pd-info">'
+    +  '<div class="pd-badges">'
+    +    (cat ? '<span class="category-badge" style="'+catBadgeStyle(p.categories?p.categories.key:'')+'">'+esc(cat)+'</span>' : '')
+    +    gBadge
+    +  '</div>'
+    +  '<h1 class="pd-name">'+esc(name)+'</h1>'
+    +  ph
+    +  (p.code ? '<div class="product-code-badge copyable" onclick="copyCode()" title="Copy"><span class="product-code-label">'+(T.product_code_label||'Ürün Kodu')+':</span> '+esc(p.code)+'</div>' : '')
+    +  (desc ? '<div id="pd-desc-wrap"><p class="pd-desc" id="pd-desc-text">'+esc(desc)+'</p></div>' : '')
+    +  colH
+    +  szH
+    +  '<div id="pd-stock"></div>'
+    +  '<div class="pd-buy">'
+    +    '<button class="pd-add-btn" onclick="doAdd()">'+addLbl[CL]+'</button>'
+    +    '<button class="pd-share-btn" onclick="doShare()">'+shareLbl[CL]+'</button>'
+    +    '<div class="pd-contact-row">'
+    +      '<a class="pd-contact-btn pd-wa" href="https://wa.me/'+WA+'?text='+waMsg+'" target="_blank">'+WA_SVG+' WhatsApp</a>'
+    +      '<a class="pd-contact-btn pd-tg" href="https://t.me/'+TG+'" target="_blank">'+TG_SVG+' Telegram</a>'
+    +    '</div>'
+    +  '</div>'
+    +'</div>'
+    +'</div>';
+
+  loadCph(p.id);
+
+  // 4-line description truncation
+  setTimeout(function(){
+    var descEl = document.getElementById('pd-desc-text');
+    if(!descEl) return;
+    var fullText = descEl.textContent;
+    var lh   = parseFloat(getComputedStyle(descEl).lineHeight) || 22;
+    var maxH = Math.round(lh * 4);
+    if(descEl.scrollHeight <= maxH + 2) return;
+    var moreTxt = CL==='fa' ? ' بیشتر...' : CL==='tr' ? ' daha fazla...' : ' more...';
+    descEl.style.maxHeight  = maxH + 'px';
+    descEl.style.overflow   = 'hidden';
+    var moreSpan = document.createElement('span');
+    moreSpan.className   = 'pd-desc-more';
+    moreSpan.textContent = moreTxt;
+    moreSpan.onclick     = function(){ toggleDesc(descEl, moreSpan, maxH, fullText); };
+    descEl.appendChild(moreSpan);
+    var tn = descEl.firstChild;
+    while(descEl.scrollHeight > maxH + 2 && tn && tn.nodeType===3 && tn.textContent.length > 1){
+      tn.textContent = tn.textContent.slice(0,-1);
+    }
+    if(tn && tn.nodeType===3) tn.textContent = tn.textContent.trimEnd();
+  }, 0);
+}
+
+function toggleDesc(descEl, moreSpan, maxH, fullText){
+  if(!descEl.classList.contains('expanded')){
+    descEl.classList.add('expanded');
+    descEl.style.maxHeight = '';
+    descEl.style.overflow  = '';
+    descEl.firstChild.textContent = fullText;
+    moreSpan.textContent = CL==='fa' ? ' کمتر' : CL==='tr' ? ' daha az' : ' less';
+  } else {
+    descEl.classList.remove('expanded');
+    descEl.style.maxHeight = maxH + 'px';
+    descEl.style.overflow  = 'hidden';
+    descEl.firstChild.textContent = fullText;
+    var tn = descEl.firstChild;
+    while(descEl.scrollHeight > maxH + 2 && tn && tn.nodeType===3 && tn.textContent.length > 1){
+      tn.textContent = tn.textContent.slice(0,-1);
+    }
+    if(tn && tn.nodeType===3) tn.textContent = tn.textContent.trimEnd();
+    moreSpan.textContent = CL==='fa' ? ' بیشتر...' : CL==='tr' ? ' daha fazla...' : ' more...';
+  }
+}
+
+// ── gallery nav ───────────────────────────────────────────────────────────────
+function switchMedia(idx){
+  var media = _p.product_media; if(!media||!media.length) return;
+  _mi = idx;
+  var m = media[idx];
+  var frame = document.getElementById('pd-frame'); if(!frame) return;
+  var content = m.type==='video'
+    ? '<video src="'+SRV+m.url+'" controls style="width:100%;height:100%;object-fit:cover"></video>'
+    : '<img src="'+SRV+m.url+'">';
+  frame.innerHTML = content;
+  document.querySelectorAll('.pd-thumb').forEach(function(t,i){ t.classList.toggle('active', i===idx); });
+}
+function arrowNav(d){
+  var n = _p.product_media ? _p.product_media.length : 0; if(!n) return;
+  switchMedia((_mi+d+n)%n);
+}
+
+// ── color / size ──────────────────────────────────────────────────────────────
+function selColor(btn){
+  if(btn.disabled) return;
+  document.querySelectorAll('.color-swatch').forEach(function(b){ b.classList.remove('selected'); });
+  btn.classList.add('selected');
+  _ck  = btn.dataset.ckey;
+  _cid = Number(btn.dataset.cid);
+  var el = document.getElementById('pd-cn'); if(el) el.textContent = btn.title;
+  refreshSizes();
+  updateStock();
+}
+function selSize(btn){
+  if(btn.disabled) return;
+  document.querySelectorAll('.modal-size-chip').forEach(function(b){ b.classList.remove('selected'); });
+  btn.classList.add('selected');
+  _sz = btn.dataset.sz;
+  updateStock();
+}
+function refreshSizes(){
+  if(!_p||!_cid) return;
+  document.querySelectorAll('.modal-size-chip').forEach(function(btn){
+    var q = getInv(_p.product_inventory, _cid, btn.dataset.sz);
+    if(q!==null && q===0){ btn.classList.add('out-of-stock'); btn.disabled=true; }
+    else { btn.classList.remove('out-of-stock'); if(!btn.classList.contains('unavailable')) btn.disabled=false; }
+  });
+}
+function updateStock(){
+  var el = document.getElementById('pd-stock'); if(!el||!_p) return;
+  var q = getInv(_p.product_inventory, _cid, _sz);
+  if(q===null){ el.innerHTML=''; return; }
+  el.innerHTML = q===0
+    ? '<span class="pd-stock stock-out">'+(CL==='tr'?'Stokta yok':CL==='fa'?'ناموجود':'Out of stock')+'</span>'
+    : q<=3
+    ? '<span class="pd-stock stock-low">'+(CL==='tr'?'Az stok':CL==='fa'?'موجودی کم':'Low stock')+' ('+q+')</span>'
+    : '<span class="pd-stock stock-in">'+(CL==='tr'?'Mevcut':CL==='fa'?'موجود':'In stock')+'</span>';
+}
+
+// ── actions ───────────────────────────────────────────────────────────────────
+function doAdd(){
+  if(!_p) return;
+  if(_p.product_colors&&_p.product_colors.length&&!_ck){ toast(CL==='tr'?'Renk seçin':CL==='fa'?'رنگ انتخاب کنید':'Select a color'); return; }
+  if(_p.product_sizes&&_p.product_sizes.length&&!_sz){ toast(CL==='tr'?'Beden seçin':CL==='fa'?'سایز انتخاب کنید':'Select a size'); return; }
+  cartAdd(_p.id, _ck, _cid, _sz);
+  toast(CL==='tr'?'Sepete eklendi':CL==='fa'?'به سبد اضافه شد':'Added to cart');
+}
+function doShare(){
+  var url = location.href;
+  if(navigator.clipboard){ navigator.clipboard.writeText(url).then(function(){ toast(CL==='tr'?'Link kopyalandı':CL==='fa'?'لینک کپی شد':'Link copied'); }); }
+  else { var i=document.createElement('input'); i.value=url; document.body.appendChild(i); i.select(); document.execCommand('copy'); document.body.removeChild(i); toast('Kopyalandı'); }
+}
+function copyCode(){
+  if(!_p||!_p.code) return;
+  if(navigator.clipboard) navigator.clipboard.writeText(_p.code);
+  else { var ta=document.createElement('textarea'); ta.value=_p.code; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
+  var lbl = CL==='fa'?'کپی شد':CL==='tr'?'Kopyalandı':'Copied';
+  toast('✓  ' + lbl);
+}
+
+// ── buyer photos ──────────────────────────────────────────────────────────────
+function loadCph(pid){
+  fetch(API+'/products/'+pid+'/customer-photos').then(function(r){return r.json();}).then(function(d){
+    if(!d.success||!d.data||!d.data.length) return;
+    var lbl = CL==='fa'?'عکس‌های خریداران':CL==='tr'?'Alıcı Fotoğrafları':'Buyer Photos';
+    document.getElementById('pd-cph').innerHTML =
+      '<p class="pd-cph-title">📷 '+lbl+' ('+d.data.length+')</p>'
+      +'<div class="pd-cph-grid">'+d.data.map(function(ph){
+        return '<img class="pd-cph-img" src="'+SRV+ph.url+'" onclick="window.open(\''+SRV+ph.url+'\',\'_blank\')">';
+      }).join('')+'</div>';
+  }).catch(function(){});
+}
+
+// ── init ──────────────────────────────────────────────────────────────────────
+var pid = Number(new URLSearchParams(location.search).get('id'));
+if(!pid){
+  document.getElementById('pd-root').innerHTML='<div class="pd-err">'+(CL==='tr'?'Ürün bulunamadı':CL==='fa'?'محصول یافت نشد':'Product not found')+'</div>';
+} else {
+  fetch(API+'/products/'+pid).then(function(r){return r.json();}).then(function(d){
+    if(!d.success||!d.data) throw new Error('not found');
+    render(d.data);
+  }).catch(function(e){
+    document.getElementById('pd-root').innerHTML='<div class="pd-err">'+(CL==='tr'?'Ürün bulunamadı':CL==='fa'?'محصول یافت نشد':'Product not found')+'</div>';
+  });
+}
+</script>
+</body>
+</html>
