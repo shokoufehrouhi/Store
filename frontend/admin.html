@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin | Shilista</title>
+  <link rel="icon" type="image/png" href="images/shilista_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -493,7 +494,7 @@
 <div id="login-overlay">
   <div class="login-card">
     <div class="login-logo">
-      <img src="images/shilista_6_light_full_transparent.png" alt="Shilista">
+      <img src="images/shilista_logo.png" alt="Shilista">
       <p data-i18n="storeAdmin">پنل مدیریت فروشگاه</p>
     </div>
     <div class="login-lang">
@@ -522,7 +523,7 @@
   <aside id="sidebar">
     <div class="sidebar-logo">
       <div class="brand">
-        <img src="images/shilista_5_dark_full_transparent.png" alt="Shilista">
+        <img src="images/shilista_logo.png" alt="Shilista">
         <div class="sub" data-i18n="adminPanel">پنل مدیریت</div>
       </div>
       <div class="lang-globe-wrap">
@@ -555,6 +556,9 @@
       <button class="nav-item" onclick="showTab('customers')" id="nav-customers">
         <span class="nav-icon">👥</span><span data-i18n="navCustomers">مشتریان</span>
       </button>
+      <button class="nav-item" onclick="showTab('leads')" id="nav-leads">
+        <span class="nav-icon">🧲</span><span data-i18n="navLeads">لیدها</span>
+      </button>
 
       <div class="nav-section-label" data-i18n="navGroupOrders">سفارشات</div>
       <button class="nav-item" onclick="showTab('active-orders')" id="nav-active-orders">
@@ -580,10 +584,6 @@
 
       <button class="nav-item" onclick="showTab('coupons')" id="nav-coupons">
         <span class="nav-icon">🎟️</span><span data-i18n="navCoupons">کدهای تخفیف</span>
-      </button>
-
-      <button class="nav-item" onclick="showTab('leads')" id="nav-leads">
-        <span class="nav-icon">🧲</span><span data-i18n="navLeads">لیدها</span>
       </button>
 
       <div class="nav-section-label" data-i18n="navGroupAnalytics">آمار</div>
@@ -1256,7 +1256,10 @@ const LANGS = {
     loginBtn:'ورود به پنل', username:'نام کاربری', password:'رمز عبور',
     connecting:'در حال ورود...', connFail:'اتصال به سرور ناموفق بود',
     navGroupCatalog:'فروشگاه', navGroupConfig:'تنظیمات پایه', navGroupUsers:'کاربران',
-    navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navCustomers:'مشتریان', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navProductPhotos:'عکس‌های خریداران',
+    navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navCustomers:'مشتریان', navLeads:'لیدها', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navProductPhotos:'عکس‌های خریداران',
+    leadsColName:'نام', leadsColEmail:'ایمیل', leadsColPhone:'تلفن', leadsColReferredBy:'معرف', leadsColStatus:'وضعیت', leadsColDate:'تاریخ',
+    leadsStatusPending:'در انتظار', leadsStatusEmailSent:'ایمیل ارسال شد', leadsStatusOpened:'بازشده', leadsStatusRegistered:'ثبت‌نام کرد',
+    leadsEmpty:'هنوز لیدی وجود ندارد', leadsError:'خطا در بارگذاری',
     ppApproved:'تایید شده', ppHidden:'مخفی', ppToggleHide:'مخفی کن', ppToggleShow:'نمایش بده', ppDeleted:'حذف شد', ppConfirmDelete:'این عکس حذف شود؟',
     supAddBtn:'+ افزودن تامین‌کننده', supShopName:'نام فروشگاه', supSupplierName:'نام تامین‌کننده', supPhone:'شماره تماس', supTelegram:'آدرس تلگرام', supWebsite:'آدرس سایت', supInstagram:'آدرس اینستاگرام', supStoreAddress:'آدرس مغازه', supCardPhoto:'آپلود کارت ویزیت', supSaved:'ذخیره شد', supDeleted:'حذف شد', supConfirmDelete:'این تامین‌کننده حذف شود؟', supRequired:'نام فروشگاه الزامی است',
     prodBrand:'برند', prodSupplierShop:'فروشگاه تامین‌کننده', prodLink:'لینک محصول', prodSupplierCode:'کد محصول تامین‌کننده', prodSupplierNote:'توضیحات تامین‌کننده',
@@ -1425,7 +1428,10 @@ const LANGS = {
     loginBtn:'Login', username:'Username', password:'Password',
     connecting:'Logging in...', connFail:'Could not connect to server',
     navGroupCatalog:'Store', navGroupConfig:'Configuration', navGroupUsers:'Users',
-    navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navCustomers:'Customers', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navProductPhotos:'Buyer Photos',
+    navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navCustomers:'Customers', navLeads:'Leads', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navProductPhotos:'Buyer Photos',
+    leadsColName:'Name', leadsColEmail:'Email', leadsColPhone:'Phone', leadsColReferredBy:'Referred By', leadsColStatus:'Status', leadsColDate:'Date',
+    leadsStatusPending:'Pending', leadsStatusEmailSent:'Email Sent', leadsStatusOpened:'Opened', leadsStatusRegistered:'Registered',
+    leadsEmpty:'No leads yet', leadsError:'Error loading leads',
     ppApproved:'Approved', ppHidden:'Hidden', ppToggleHide:'Hide', ppToggleShow:'Show', ppDeleted:'Deleted', ppConfirmDelete:'Delete this photo?',
     supAddBtn:'+ Add Supplier', supShopName:'Shop Name', supSupplierName:'Supplier Name', supPhone:'Phone', supTelegram:'Telegram', supWebsite:'Website', supInstagram:'Instagram', supStoreAddress:'Store Address', supCardPhoto:'Upload Business Card', supSaved:'Saved', supDeleted:'Deleted', supConfirmDelete:'Delete this supplier?', supRequired:'Shop name is required',
     prodBrand:'Brand', prodSupplierShop:'Supplier Shop', prodLink:'Product Link', prodSupplierCode:'Supplier Code', prodSupplierNote:'Supplier Notes',
@@ -1594,7 +1600,10 @@ const LANGS = {
     loginBtn:'Giriş Yap', username:'Kullanıcı Adı', password:'Şifre',
     connecting:'Giriş yapılıyor...', connFail:'Sunucuya bağlanılamadı',
     navGroupCatalog:'Mağaza', navGroupConfig:'Yapılandırma', navGroupUsers:'Kullanıcılar',
-    navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navCustomers:'Müşteriler', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navProductPhotos:'Alıcı Fotoğrafları',
+    navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navCustomers:'Müşteriler', navLeads:'Adaylar', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navProductPhotos:'Alıcı Fotoğrafları',
+    leadsColName:'Ad', leadsColEmail:'E-posta', leadsColPhone:'Telefon', leadsColReferredBy:'Referans', leadsColStatus:'Durum', leadsColDate:'Tarih',
+    leadsStatusPending:'Beklemede', leadsStatusEmailSent:'E-posta Gönderildi', leadsStatusOpened:'Açıldı', leadsStatusRegistered:'Kayıt Oldu',
+    leadsEmpty:'Henüz aday yok', leadsError:'Yükleme hatası',
     ppApproved:'Onaylandı', ppHidden:'Gizli', ppToggleHide:'Gizle', ppToggleShow:'Göster', ppDeleted:'Silindi', ppConfirmDelete:'Bu fotoğraf silinsin mi?',
     supAddBtn:'+ Tedarikçi Ekle', supShopName:'Mağaza Adı', supSupplierName:'Tedarikçi Adı', supPhone:'Telefon', supTelegram:'Telegram', supWebsite:'Web Sitesi', supInstagram:'Instagram', supStoreAddress:'Mağaza Adresi', supCardPhoto:'Kartvizit Yükle', supSaved:'Kaydedildi', supDeleted:'Silindi', supConfirmDelete:'Bu tedarikçi silinsin mi?', supRequired:'Mağaza adı zorunludur',
     prodBrand:'Marka', prodSupplierShop:'Tedarikçi Mağazası', prodLink:'Ürün Linki', prodSupplierCode:'Tedarikçi Kodu', prodSupplierNote:'Tedarikçi Notları',
@@ -2170,6 +2179,8 @@ async function openProductModal(id = null) {
         <select id="f-subcategory"><option value="">${t('noSub')}</option></select>
       </div>
     </div>
+    <div id="extra-cats-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
+    <button type="button" onclick="addExtraCatRow()" style="padding:7px 14px;background:#f9f9f9;border:1.5px dashed #ccc;border-radius:8px;cursor:pointer;font-size:13px;color:#666;font-family:inherit;margin-bottom:4px">+ Category daha ekle</button>
     <div class="form-row">
       <div class="form-field">
         <label>${t('genderField')}</label>
@@ -2272,6 +2283,12 @@ async function openProductModal(id = null) {
   renderMediaGrid();
   renderInventoryMatrix();
   if (product?.category_id) loadSubcategoriesForCategory(product.category_id, product.subcategory_id);
+  // pre-load extra categories
+  if (product?.product_categories?.length) {
+    product.product_categories.forEach(function(ec) {
+      addExtraCatRow(ec.category_id, ec.subcategory_id);
+    });
+  }
 }
 
 function onColorToggle(cb) {
@@ -2368,6 +2385,51 @@ function loadSubcategoriesForCategory(catId, selectedSubId = null) {
     subs.map(s => `<option value="${s.id}" ${s.id===selectedSubId?'selected':''}>${s.label_fa} / ${s.label_en}</option>`).join('');
 }
 
+let _extraCatIdx = 0;
+function addExtraCatRow(catId=null, subId=null) {
+  const list = document.getElementById('extra-cats-list');
+  if (!list) return;
+  const idx = _extraCatIdx++;
+  const catOptions = allCategories.map(c =>
+    `<option value="${c.id}" ${catId && c.id===catId ? 'selected':''}>${c.label_fa} / ${c.label_en} / ${c.label_tr}</option>`
+  ).join('');
+  const row = document.createElement('div');
+  row.className = 'form-row';
+  row.dataset.extraIdx = idx;
+  row.style.cssText = 'align-items:flex-end;gap:8px';
+  row.innerHTML = `
+    <div class="form-field" style="flex:1">
+      <label style="font-size:12px;color:#999">Category</label>
+      <select class="extra-cat-sel" data-idx="${idx}" onchange="onExtraCatChange(this)">
+        <option value="">—</option>${catOptions}
+      </select>
+    </div>
+    <div class="form-field" style="flex:1">
+      <label style="font-size:12px;color:#999">Subcategory</label>
+      <select class="extra-sub-sel" data-idx="${idx}">
+        <option value="">—</option>
+      </select>
+    </div>
+    <button type="button" onclick="this.parentElement.remove()" style="padding:8px 10px;border:1.5px solid #fca5a5;border-radius:8px;background:#fff;color:#ef4444;cursor:pointer;flex-shrink:0;margin-bottom:1px">✕</button>`;
+  list.appendChild(row);
+  if (catId) loadSubsForExtraRow(idx, catId, subId);
+}
+
+function onExtraCatChange(sel) {
+  const idx = sel.dataset.idx;
+  const catId = Number(sel.value) || null;
+  loadSubsForExtraRow(idx, catId, null);
+}
+
+function loadSubsForExtraRow(idx, catId, selectedSubId) {
+  const subSel = document.querySelector(`.extra-sub-sel[data-idx="${idx}"]`);
+  if (!subSel) return;
+  const cat  = catId ? allCategories.find(c => c.id === catId) : null;
+  const subs = cat?.subcategories || [];
+  subSel.innerHTML = `<option value="">—</option>` +
+    subs.map(s => `<option value="${s.id}" ${s.id===selectedSubId?'selected':''}>${s.label_fa} / ${s.label_en}</option>`).join('');
+}
+
 function handleSizeInput(e) {
   if (e.key === 'Enter' || e.key === ',') {
     e.preventDefault();
@@ -2425,6 +2487,15 @@ async function saveProduct(id) {
     stock: 0,
     colors,
     sizes,
+    extra_categories: [...document.querySelectorAll('.extra-cat-sel')].reduce((acc, sel) => {
+      const catId = Number(sel.value) || null;
+      if (!catId) return acc;
+      const idx = sel.dataset.idx;
+      const subSel = document.querySelector(`.extra-sub-sel[data-idx="${idx}"]`);
+      const subId = subSel?.value ? Number(subSel.value) : null;
+      acc.push({ category_id: catId, subcategory_id: subId });
+      return acc;
+    }, []),
     media: buildMediaPayload(),
     inventory: [...document.querySelectorAll('.inv-qty-input')].map(inp => ({
       color_id:   inp.dataset.color ? Number(inp.dataset.color) : null,
@@ -3108,7 +3179,7 @@ function _renderOrderRows(tbodyId, orders) {
       : '';
     const _oc = `openOrderDetail(${order.id})`;
     return `<tr style="cursor:pointer">
-      <td style="font-family:monospace;font-weight:700" onclick="${_oc}">#${order.id}</td>
+      <td style="font-family:monospace;font-weight:700" onclick="${_oc}">ORD-${order.id}</td>
       <td onclick="${_oc}">${cust}<br><span style="font-size:12px;color:#888">${esc(order.customers?.mobile||'')}</span></td>
       <td><div onclick="${_oc}" style="cursor:pointer">${productLinks || '-'}</div></td>
       <td onclick="${_oc}"><span style="background:${color}20;color:${color};border:1px solid ${color}40;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700">${label}</span></td>
@@ -3305,7 +3376,7 @@ function renderReturnsTable() {
     const hasAction = ['shipped','received'].includes(r.status);
     return `<tr onclick="openReturnDetail(${r.id})" style="cursor:pointer" onmouseover="this.style.background='#fdf6f2'" onmouseout="this.style.background=''">
       <td style="vertical-align:middle">${r.id}</td>
-      <td style="vertical-align:middle;color:var(--primary);font-weight:700">#${r.orders?.id||'—'}</td>
+      <td style="vertical-align:middle;color:var(--primary);font-weight:700">ORD-${r.orders?.id||'—'}</td>
       <td style="vertical-align:middle">${cust ? `<strong>${cust.full_name}</strong><br><small style="color:#aaa;direction:ltr">${cust.mobile||''}</small>` : '—'}</td>
       <td style="vertical-align:middle">${r.type === 'defective' ? t('retTypeDefective') : t('retTypeReturn')}</td>
       <td style="vertical-align:middle"><span style="background:${sc}20;color:${sc};border:1px solid ${sc}60;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700">${sl}</span></td>
@@ -3385,7 +3456,7 @@ function renderReturnDetailPanel() {
   html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
     <span style="background:${sc}20;color:${sc};border:1px solid ${sc}60;border-radius:20px;padding:4px 14px;font-size:13px;font-weight:700">${sl}</span>
     <span style="font-size:12px;color:#888">${ret.type === 'defective' ? t('retTypeDefective') : t('retTypeReturn')}</span>
-    ${ret.orders?.id ? `<a href="#" onclick="closeReturnDetail();openOrderDetail(${ret.orders.id});return false" style="font-size:12px;color:var(--primary);font-weight:700">#${ret.orders.id}</a>` : ''}
+    ${ret.orders?.id ? `<a href="#" onclick="closeReturnDetail();openOrderDetail(${ret.orders.id});return false" style="font-size:12px;color:var(--primary);font-weight:700">ORD-${ret.orders.id}</a>` : ''}
   </div>`;
 
   // Customer
@@ -3574,7 +3645,7 @@ function renderOrderDetail() {
   const titleEl = document.getElementById('order-detail-title');
   const bodyEl  = document.getElementById('order-detail-body');
   if (!titleEl || !bodyEl) return;
-  titleEl.textContent = t('orderDetailTitle') + ' #' + order.id;
+  titleEl.textContent = t('orderDetailTitle') + ' ORD-' + order.id;
 
   const st    = order.status;
   const color = ORDER_STATUS_COLORS[st] || '#6b7280';
@@ -4594,7 +4665,13 @@ function renderCpSelected() {
 function resetCouponForm() {
   document.getElementById('coupon-edit-id').value = '';
   document.getElementById('coupon-form-title').textContent = t('cpNewTitle');
-  document.getElementById('cp-code').value    = '';
+
+  var codeEl = document.getElementById('cp-code');
+  codeEl.value    = '';
+  codeEl.disabled = false;
+  codeEl.style.opacity = '';
+  codeEl.style.cursor  = '';
+
   document.getElementById('cp-type').value    = 'percent';
   document.getElementById('cp-value').value   = '';
   document.getElementById('cp-max-uses').value = '';
@@ -4606,10 +4683,12 @@ function resetCouponForm() {
   document.getElementById('cp-banner-en').value = '';
   document.getElementById('cp-banner-tr').value = '';
   toggleBannerFields();
+  document.querySelectorAll('input[name="cp-for"]').forEach(function(r) { r.disabled = false; });
   document.querySelector('input[name="cp-for"][value="all"]').checked = true;
   document.getElementById('cp-customers-wrap').style.display = 'none';
   document.getElementById('cp-customer-results').innerHTML = '';
-  document.getElementById('cp-customer-search').value = '';
+  var srch = document.getElementById('cp-customer-search');
+  if (srch) { srch.value = ''; srch.style.display = ''; }
   _cpSelectedIds = [];
   renderCpSelected();
   document.getElementById('cp-form-err').style.display = 'none';
@@ -4620,7 +4699,13 @@ function editCoupon(id) {
   if (!c) return;
   document.getElementById('coupon-edit-id').value = id;
   document.getElementById('coupon-form-title').textContent = t('cpEditTitle');
-  document.getElementById('cp-code').value     = c.code;
+
+  var codeEl = document.getElementById('cp-code');
+  codeEl.value    = c.code;
+  codeEl.disabled = true;
+  codeEl.style.opacity = '.5';
+  codeEl.style.cursor  = 'not-allowed';
+
   document.getElementById('cp-type').value     = c.type;
   document.getElementById('cp-value').value    = Number(c.value);
   document.getElementById('cp-max-uses').value = c.max_uses || '';
@@ -4634,10 +4719,15 @@ function editCoupon(id) {
   toggleBannerFields();
 
   var forAll = c.for_all;
+  var forRadios = document.querySelectorAll('input[name="cp-for"]');
+  forRadios.forEach(function(r) { r.disabled = true; });
   document.querySelector('input[name="cp-for"][value="' + (forAll ? 'all' : 'specific') + '"]').checked = true;
   document.getElementById('cp-customers-wrap').style.display = forAll ? 'none' : '';
   _cpSelectedIds = (c.coupon_assignments || []).map(function(a){ return a.customer_id; });
   renderCpSelected();
+  // hide search box in edit mode — assignment is locked
+  var srch = document.getElementById('cp-customer-search');
+  if (srch) srch.style.display = 'none';
   document.getElementById('coupon-form-wrap').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
@@ -4653,26 +4743,39 @@ async function saveCoupon() {
   var expires = document.getElementById('cp-expires').value;
   var forAll  = document.querySelector('input[name="cp-for"]:checked')?.value === 'all';
 
-  if (!code || !value) { errEl.textContent = t('cpErrRequired'); errEl.style.display = ''; return; }
+  if (!id && !code) { errEl.textContent = t('cpErrRequired'); errEl.style.display = ''; return; }
+  if (!value) { errEl.textContent = t('cpErrRequired'); errEl.style.display = ''; return; }
   if (type === 'percent' && (Number(value) <= 0 || Number(value) > 100)) {
     errEl.textContent = t('cpErrPercent'); errEl.style.display = ''; return;
   }
-  if (!forAll && _cpSelectedIds.length === 0) {
+  if (!id && !forAll && _cpSelectedIds.length === 0) {
     errEl.textContent = t('cpErrNoCust'); errEl.style.display = ''; return;
   }
 
-  var body = {
-    code, type, value: Number(value), for_all: forAll,
-    max_uses:       maxUses ? Number(maxUses) : null,
-    starts_at:      starts  || null,
-    expires_at:     expires || null,
-    is_active:      document.getElementById('cp-active').checked,
-    show_banner:    document.getElementById('cp-show-banner').checked,
-    banner_text_fa: document.getElementById('cp-banner-fa').value.trim() || null,
-    banner_text_en: document.getElementById('cp-banner-en').value.trim() || null,
-    banner_text_tr: document.getElementById('cp-banner-tr').value.trim() || null,
-    customer_ids:   forAll ? [] : _cpSelectedIds,
-  };
+  var body = id
+    ? {
+        type, value: Number(value),
+        max_uses:       maxUses ? Number(maxUses) : null,
+        starts_at:      starts  || null,
+        expires_at:     expires || null,
+        is_active:      document.getElementById('cp-active').checked,
+        show_banner:    document.getElementById('cp-show-banner').checked,
+        banner_text_fa: document.getElementById('cp-banner-fa').value.trim() || null,
+        banner_text_en: document.getElementById('cp-banner-en').value.trim() || null,
+        banner_text_tr: document.getElementById('cp-banner-tr').value.trim() || null,
+      }
+    : {
+        code, type, value: Number(value), for_all: forAll,
+        max_uses:       maxUses ? Number(maxUses) : null,
+        starts_at:      starts  || null,
+        expires_at:     expires || null,
+        is_active:      document.getElementById('cp-active').checked,
+        show_banner:    document.getElementById('cp-show-banner').checked,
+        banner_text_fa: document.getElementById('cp-banner-fa').value.trim() || null,
+        banner_text_en: document.getElementById('cp-banner-en').value.trim() || null,
+        banner_text_tr: document.getElementById('cp-banner-tr').value.trim() || null,
+        customer_ids:   forAll ? [] : _cpSelectedIds,
+      };
 
   var res = id
     ? await api('/admin/coupons/' + id, { method: 'PUT',  body: JSON.stringify(body) })
@@ -4698,19 +4801,19 @@ function deleteCoupon(id) {
 async function loadLeads() {
   var wrap = document.getElementById('leads-table-wrap');
   if (!wrap) return;
-  wrap.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px">Loading...</p>';
+  wrap.innerHTML = '<p style="color:#aaa;text-align:center;padding:20px">' + t('loading') + '</p>';
   var res = await api('/admin/leads');
-  if (!res?.success) { wrap.innerHTML = '<p style="color:red;text-align:center;padding:20px">Error loading leads</p>'; return; }
+  if (!res?.success) { wrap.innerHTML = '<p style="color:red;text-align:center;padding:20px">' + t('leadsError') + '</p>'; return; }
   var leads = res.data;
-  if (!leads.length) { wrap.innerHTML = '<p style="color:#aaa;text-align:center;padding:40px">—</p>'; return; }
+  if (!leads.length) { wrap.innerHTML = '<p style="color:#aaa;text-align:center;padding:40px">' + t('leadsEmpty') + '</p>'; return; }
 
   var statusColor = { pending:'#aaa', email_sent:'#4a7fd4', email_opened:'#e07a40', registered:'#2eaa72' };
-  var statusLabel = { pending:'Pending', email_sent:'Email Sent', email_opened:'Opened', registered:'Registered' };
+  var statusLabel = { pending:t('leadsStatusPending'), email_sent:t('leadsStatusEmailSent'), email_opened:t('leadsStatusOpened'), registered:t('leadsStatusRegistered') };
   var dateLocale  = currentLang === 'fa' ? 'fa-IR' : currentLang === 'tr' ? 'tr-TR' : 'en-GB';
 
   var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">' +
     '<thead><tr style="background:#fdf5ed">' +
-    ['Name','Email','Phone','Referred by','Status','Date'].map(function(h){
+    [t('leadsColName'),t('leadsColEmail'),t('leadsColPhone'),t('leadsColReferredBy'),t('leadsColStatus'),t('leadsColDate')].map(function(h){
       return '<th style="padding:10px 12px;text-align:left;color:#a07050;font-weight:600;white-space:nowrap">' + h + '</th>';
     }).join('') +
     '</tr></thead><tbody>' +
