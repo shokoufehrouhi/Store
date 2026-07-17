@@ -166,18 +166,22 @@ function localizeNumber(str) {
 }
 
 function showCopyToast(code) {
-  var el = document.getElementById('code-copy-toast');
-  var codeEl = document.getElementById('code-copy-toast-code');
-  var labelEl = document.getElementById('code-copy-toast-label');
-  if (!el || !codeEl || !labelEl) return;
+  var old = document.getElementById('_cct2');
+  if (old) { clearTimeout(old._t2); old.remove(); }
   var label = (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang].code_copied) || 'Copied';
-  codeEl.textContent = code;
-  labelEl.textContent = label;
-  el.classList.remove('show');
-  void el.offsetHeight;
-  el.classList.add('show');
-  clearTimeout(el._t);
-  el._t = setTimeout(function() { el.classList.remove('show'); }, 2600);
+  var el = document.createElement('div');
+  el.id = '_cct2';
+  el.setAttribute('dir', 'ltr');
+  el.style.cssText = 'position:fixed;bottom:40px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:12px 28px;border-radius:100px;font-size:15px;font-weight:600;white-space:nowrap;pointer-events:none;z-index:2147483647;box-shadow:0 8px 32px rgba(0,0,0,.4);opacity:0;transition:opacity .22s ease';
+  el.textContent = '✓  ' + label;
+  document.body.appendChild(el);
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() { el.style.opacity = '1'; });
+  });
+  el._t2 = setTimeout(function() {
+    el.style.opacity = '0';
+    setTimeout(function() { if (el.parentNode) el.remove(); }, 300);
+  }, 2300);
 }
 function copyProductCode(code) {
   function done() { showCopyToast(code); }
