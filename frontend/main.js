@@ -2556,11 +2556,12 @@ function renderLoyaltyCard(completedOrders) {
 
   var dots = '<div class="lc-dot-gap"><span></span><span></span><span></span></div>';
 
-  function prizeBox(unlocked, lblTxt, tipTxt, icon) {
-    var state = unlocked ? 'lc-unlocked' : 'lc-locked';
-    var q     = unlocked ? '' : '<span class="lc-prize-q">?</span>';
-    var lbl   = unlocked ? claimTxt : lblTxt;
-    return '<div class="lc-prize ' + state + '">' +
+  function prizeBox(unlocked, lblTxt, tipTxt, icon, onclickFn) {
+    var state     = unlocked ? 'lc-unlocked' : 'lc-locked';
+    var q         = unlocked ? '' : '<span class="lc-prize-q">?</span>';
+    var lbl       = unlocked ? claimTxt : lblTxt;
+    var clickAttr = (unlocked && onclickFn) ? ' onclick="' + onclickFn + '"' : '';
+    return '<div class="lc-prize ' + state + '"' + clickAttr + '>' +
       '<div class="lc-prize-box"><span class="lc-prize-icon">' + icon + '</span>' + q + '</div>' +
       '<div class="lc-prize-lbl">' + lbl + '</div>' +
       '<div class="lc-tip">' + tipTxt + '</div>' +
@@ -2574,7 +2575,7 @@ function renderLoyaltyCard(completedOrders) {
     '</div>' +
     '<div class="lc-row">' +
       stamp(0) + dots + stamp(1) + dots + stamp(2) + dots +
-      prizeBox(prize1Unlocked, p1Lbl, tip1(), '🎁') +
+      prizeBox(prize1Unlocked, p1Lbl, tip1(), '🎁', 'showLoyaltyReward()') +
     '</div>' +
     '<div class="lc-divider"></div>' +
     '<div class="lc-row">' +
@@ -2587,6 +2588,47 @@ function renderLoyaltyCard(completedOrders) {
 
 function toFaDigit(n) {
   return String(n).replace(/\d/g, function(d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; });
+}
+
+function showLoyaltyReward() {
+  var token = localStorage.getItem('session_token');
+  var L = currentLang;
+  fetch('/api/coupons/reward', { headers: { 'x-session-token': token || '' } })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.success) return;
+      var data = d.data;
+      var discTxt = data.type === 'percent'
+        ? (L === 'fa' ? toFaDigit(data.value) + '٪ تخفیف' : (L === 'tr' ? '%' + data.value + ' indirim' : data.value + '% discount'))
+        : (L === 'fa' ? toFaDigit(data.value.toLocaleString()) + ' تومان تخفیف' : (L === 'tr' ? data.value.toLocaleString() + ' TL indirim' : data.value.toLocaleString() + ' off'));
+      var titleTxt  = L === 'fa' ? 'جایزه شما آماده‌ست!' : (L === 'tr' ? 'Ödülünüz hazır!' : 'Your Prize is Ready!');
+      var descTxt   = L === 'fa' ? 'کد تخفیف اختصاصی شما:' : (L === 'tr' ? 'Özel indirim kodunuz:' : 'Your exclusive discount code:');
+      var copyHint  = L === 'fa' ? 'برای کپی کلیک کنید' : (L === 'tr' ? 'Kopyalamak için tıklayın' : 'Click to copy');
+      var discLbl   = L === 'fa' ? 'ارزش: ' + discTxt : (L === 'tr' ? 'Değer: ' + discTxt : 'Value: ' + discTxt);
+
+      var overlay = document.createElement('div');
+      overlay.className = 'lp-overlay';
+      overlay.innerHTML =
+        '<div class="lp-card">' +
+          '<button class="lp-close" onclick="this.closest(\'.lp-overlay\').remove()">&#x2715;</button>' +
+          '<div class="lp-icon">🎁</div>' +
+          '<div class="lp-title">' + titleTxt + '</div>' +
+          '<div class="lp-desc">' + descTxt + '</div>' +
+          '<div class="lp-code-box" id="lp-code-click">' +
+            '<div class="lp-code">' + data.code + '</div>' +
+            '<div class="lp-copy-hint">' + copyHint + '</div>' +
+          '</div>' +
+          '<div class="lp-discount-val">' + discLbl + '</div>' +
+        '</div>';
+      document.body.appendChild(overlay);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+      document.getElementById('lp-code-click').addEventListener('click', function() {
+        navigator.clipboard.writeText(data.code).then(function() {
+          showToast(L === 'fa' ? 'کد کپی شد!' : (L === 'tr' ? 'Kod kopyalandı!' : 'Code copied!'));
+        });
+      });
+    })
+    .catch(function() {});
 }
 
 // ─── Info Tab ─────────────────────────────────────────────────────────────────
