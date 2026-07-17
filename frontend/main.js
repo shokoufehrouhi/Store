@@ -4151,14 +4151,14 @@ function checkoutChangeQty(idx, delta) {
   var newQty = cart[idx].qty + delta;
   if (newQty < 1) { checkoutRemoveItem(idx); return; }
   cart[idx].qty = newQty;
-  syncCart();
+  saveCart();
   _checkoutRefreshItems();
 }
 
 function checkoutRemoveItem(idx) {
   if (!cart[idx]) return;
   cart.splice(idx, 1);
-  syncCart();
+  saveCart();
   if (cart.length === 0) { closeCheckout(); return; }
   _checkoutRefreshItems();
 }
