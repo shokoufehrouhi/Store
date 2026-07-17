@@ -138,6 +138,12 @@
           </svg>
           <span class="fav-header-badge" id="fav-header-badge"></span>
         </button>
+        <button class="order-status-btn" id="order-status-btn" onclick="showProfileTab('orders')" aria-label="Active Order" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+          </svg>
+          <span class="order-status-dot" id="order-status-dot"></span>
+        </button>
         <button class="cart-btn" onclick="openCart()" id="cart-btn" aria-label="Cart">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
@@ -314,6 +320,6 @@
   <script src="i18n.js?v=53"></script>
   <script src="products.js?v=53"></script>
   <script>window.IS_PROFILE_PAGE = true;</script>
-  <script src="main.js?v=63"></script>
+  <script src="main.js?v=64"></script>
 </body>
 </html>

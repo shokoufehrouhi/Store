@@ -4211,7 +4211,7 @@ function loadFavoritesFromServer() {
       user.favorites = data.data || [];
       updateUser(user);
       updateFavBadge();
-      renderGrid();
+      if (!window.IS_PROFILE_PAGE) renderGrid();
     }
   }).catch(function() {});
 }
@@ -4318,9 +4318,18 @@ document.addEventListener('DOMContentLoaded', function() {
     if (getCurrentUser()) {
       loadCartFromServer();
       loadFavoritesFromServer();
+      loadActivePreorder();
       openProfileModal();
       var _pTab = new URLSearchParams(location.search).get('tab') || 'info';
       showProfileTab(_pTab);
+      // Fetch products so the favorites tab can render product cards
+      fetch(API_BASE + '/products').then(function(r) { return r.json(); }).then(function(data) {
+        if (data && data.success) {
+          products = data.data.map(mapApiProduct);
+          var favTabEl = document.getElementById('profile-tab-favorites');
+          if (favTabEl && favTabEl.style.display !== 'none') renderFavoritesTab();
+        }
+      }).catch(function() {});
     } else {
       openAuthModal('login');
     }
