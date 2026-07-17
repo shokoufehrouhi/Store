@@ -201,16 +201,14 @@ function showCopyToast(code) {
   el._t = setTimeout(function() { if (el.parentNode) el.remove(); }, 2500);
 }
 function copyProductCode(code) {
-  function done() { showCopyToast(code); }
+  showCopyToast(code);
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(code).then(done).catch(function() {
-        _clipboardFallback(code); done();
-      });
+      navigator.clipboard.writeText(code);
     } else {
-      _clipboardFallback(code); done();
+      _clipboardFallback(code);
     }
-  } catch(e) { done(); }
+  } catch(e) {}
 }
 function _clipboardFallback(text) {
   try {
