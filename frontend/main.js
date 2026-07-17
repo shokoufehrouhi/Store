@@ -165,13 +165,21 @@ function localizeNumber(str) {
   return currentLang === 'fa' ? str : toLatinNumbers(str);
 }
 
+function showCopyToast(code) {
+  var el    = document.getElementById('code-copy-toast');
+  var codeEl = document.getElementById('code-copy-toast-code');
+  var lblEl  = document.getElementById('code-copy-toast-label');
+  if (!el) return;
+  if (codeEl) codeEl.textContent = code;
+  if (lblEl)  lblEl.textContent  = TRANSLATIONS[currentLang].code_copied || 'کپی شد';
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(function() { el.classList.remove('show'); }, 2400);
+}
 function copyProductCode(code) {
-  navigator.clipboard.writeText(code).then(function() {
-    var t = TRANSLATIONS[currentLang];
-    showToast((t.banner_copied || '✓ Copied!').replace('✓ ', '✓ ' + code + ' '));
-  }).catch(function() {
-    showToast(code);
-  });
+  navigator.clipboard.writeText(code)
+    .then(function() { showCopyToast(code); })
+    .catch(function() { showCopyToast(code); });
 }
 
 function formatPrice(amount) {
