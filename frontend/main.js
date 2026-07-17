@@ -166,12 +166,21 @@ function localizeNumber(str) {
 }
 
 function showCopyToast(code) {
-  var el    = document.getElementById('code-copy-toast');
-  var codeEl = document.getElementById('code-copy-toast-code');
-  var lblEl  = document.getElementById('code-copy-toast-label');
-  if (!el) return;
-  if (codeEl) codeEl.textContent = code;
-  if (lblEl)  lblEl.textContent  = TRANSLATIONS[currentLang].code_copied || 'کپی شد';
+  var el = document.getElementById('code-copy-toast');
+  if (!el) {
+    if (!document.getElementById('_cct_style')) {
+      var s = document.createElement('style');
+      s.id = '_cct_style';
+      s.textContent = '#code-copy-toast{position:fixed;bottom:36px;left:50%;transform:translateX(-50%) translateY(16px);background:#1f2937;color:#fff;padding:11px 22px;border-radius:100px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:9px;opacity:0;pointer-events:none;z-index:999999;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,.28);transition:opacity .22s ease,transform .22s ease}#code-copy-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}#code-copy-toast svg{color:#4ade80;flex-shrink:0}#code-copy-toast-code{font-family:monospace;font-size:15px;color:#fb923c;letter-spacing:.04em}';
+      document.head.appendChild(s);
+    }
+    el = document.createElement('div');
+    el.id = 'code-copy-toast';
+    el.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span id="code-copy-toast-code"></span><span id="code-copy-toast-label"></span>';
+    document.body.appendChild(el);
+  }
+  document.getElementById('code-copy-toast-code').textContent = code;
+  document.getElementById('code-copy-toast-label').textContent = TRANSLATIONS[currentLang].code_copied || 'کپی شد';
   el.classList.add('show');
   clearTimeout(el._t);
   el._t = setTimeout(function() { el.classList.remove('show'); }, 2400);
