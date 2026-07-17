@@ -3981,7 +3981,10 @@ function openCheckout() {
   closeCart();
   var overlay = document.getElementById('checkout-overlay');
   var header = document.querySelector('.header');
-  overlay.style.top = (header ? header.getBoundingClientRect().bottom : 64) + 'px';
+  var headerBottom = header ? header.getBoundingClientRect().bottom : 64;
+  var bannerEl = document.getElementById('discount-banner');
+  var bannerH = (bannerEl && bannerEl.style.display !== 'none') ? bannerEl.getBoundingClientRect().height : 0;
+  overlay.style.top = (headerBottom + bannerH) + 'px';
   overlay.classList.add('open');
   document.body.style.overflow = 'hidden';
   if (location.pathname !== '/checkout') {
