@@ -32,7 +32,7 @@ async function listCoupons(req, res, next) {
 // ─── Admin: create coupon ─────────────────────────────────────────────────────
 async function createCoupon(req, res, next) {
   try {
-    const { code, type, value, for_all, max_uses, is_active, show_banner,
+    const { code, type, value, for_all, max_uses, min_orders, is_active, show_banner,
             banner_text_fa, banner_text_en, banner_text_tr, starts_at, expires_at, customer_ids } = req.body;
 
     if (!code || !type || value === undefined)
@@ -158,6 +158,35 @@ async function getBanners(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// ─── Customer: get loyalty reward code (if eligible) ─────────────────────────
+async function getRewardCode(req, res, next) {
+  try {
+    const token = req.headers['x-session-token'];
+    if (!token) return res.status(401).json({ success: false });
+    const session = await prisma.sessions.findFirst({
+      where: { id: token, is_active: true, expires_at: { gt: new Date() } },
+    });
+    if (!session) return res.status(401).json({ success: false });
+
+    const coupon = await prisma.coupons.findUnique({
+      where:  { code: 'LOYALTY' },
+      select: { code: true, type: true, value: true, min_orders: true, is_active: true },
+    });
+    if (!coupon || !coupon.is_active)
+      return res.status(404).json({ success: false, message: 'not_found' });
+
+    if (coupon.min_orders) {
+      const delivered = await prisma.orders.count({
+        where: { customer_id: session.customer_id, status: 'delivered' },
+      });
+      if (delivered < coupon.min_orders)
+        return res.status(403).json({ success: false, message: 'not_eligible' });
+    }
+
+    res.json({ success: true, data: { code: coupon.code, type: coupon.type, value: Number(coupon.value) } });
+  } catch (err) { next(err); }
+}
+
 // ─── Customer: validate coupon ────────────────────────────────────────────────
 async function validateCoupon(req, res, next) {
   try {
@@ -245,4 +274,4 @@ async function validateCoupon(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { listCoupons, createCoupon, updateCoupon, deleteCoupon, getBanners, validateCoupon };
+module.exports = { listCoupons, createCoupon, updateCoupon, deleteCoupon, getBanners, getRewardCode, validateCoupon };
