@@ -2591,7 +2591,7 @@ function toFaDigit(n) {
 }
 
 function showLoyaltyReward() {
-  var token = localStorage.getItem('session_token');
+  var token = getSession();
   var L = currentLang;
   fetch('/api/coupons/reward', { headers: { 'x-session-token': token || '' } })
     .then(function(r) { return r.json(); })
