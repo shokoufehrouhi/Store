@@ -1,3 +1,4 @@
+window._mfv = 74;
 // ─── Confirm Popup ────────────────────────────────────────────────────────────
 function showConfirm(msg, onYes, yesLabel) {
   var t   = TRANSLATIONS[currentLang];
@@ -201,6 +202,7 @@ function showCopyToast(code) {
   el._t = setTimeout(function() { if (el.parentNode) el.remove(); }, 2500);
 }
 function copyProductCode(code) {
+  console.log('[copy] copyProductCode called, v=' + window._mfv);
   showCopyToast(code);
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
