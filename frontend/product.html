@@ -543,7 +543,7 @@ function cartAdd(pid, cKey, cId, sz){
 }
 
 // ── toast ─────────────────────────────────────────────────────────────────────
-function toast(msg){ var el=document.getElementById('pd-toast'); el.textContent=msg; el.classList.add('show'); setTimeout(function(){ el.classList.remove('show'); },2200); }
+function toast(msg){ var el=document.getElementById('pd-toast'); el.innerHTML=msg; el.classList.add('show'); setTimeout(function(){ el.classList.remove('show'); },2200); }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 function catBadgeStyle(key){
@@ -816,7 +816,7 @@ function copyCode(){
   if(navigator.clipboard) navigator.clipboard.writeText(_p.code);
   else { var ta=document.createElement('textarea'); ta.value=_p.code; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
   var lbl = CL==='fa'?'کپی شد':CL==='tr'?'Kopyalandı':'Copied';
-  toast('✓  ' + lbl);
+  toast('<span style="color:#4ade80;font-weight:700">✓</span>  ' + lbl);
 }
 
 // ── buyer photos ──────────────────────────────────────────────────────────────
