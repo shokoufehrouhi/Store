@@ -49,7 +49,9 @@ var PLACEHOLDER_SVG = '<svg class="img-placeholder" viewBox="0 0 22 28" fill="no
 var _isLocal    = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 var SERVER_BASE = _isLocal ? 'http://localhost:3001' : '';
 var API_BASE    = SERVER_BASE + '/api';
-var currentLang        = localStorage.getItem('lang_v2') || 'tr';
+var _urlLang = new URLSearchParams(location.search).get('lang');
+if (_urlLang && ['fa','tr','en'].includes(_urlLang)) localStorage.setItem('lang_v2', _urlLang);
+var currentLang = localStorage.getItem('lang_v2') || 'tr';
 var currentSearch      = '';
 var currentCategory    = 'all';
 var currentSubcategory = null;
@@ -92,6 +94,23 @@ function updateOrderStatusBtn() {
   dot.style.display = 'block';
 }
 
+// ─── Category Badge Color (hash-based, works for any category key) ────────────
+function catBadgeStyle(key) {
+  var palette = [
+    { bg: '#ede9fe', color: '#7c3aed' },
+    { bg: '#dbeafe', color: '#1d4ed8' },
+    { bg: '#d1fae5', color: '#065f46' },
+    { bg: '#fef3c7', color: '#92400e' },
+    { bg: '#fee2e2', color: '#991b1b' },
+    { bg: '#ffedd5', color: '#9a3412' },
+    { bg: '#e0f2fe', color: '#0369a1' },
+    { bg: '#fce7f3', color: '#be185d' },
+  ];
+  var idx = (key || '').split('').reduce(function(s, c) { return s + c.charCodeAt(0); }, 0) % palette.length;
+  var p = palette[idx];
+  return 'background:' + p.bg + ';color:' + p.color;
+}
+
 // ─── API Product Mapper ───────────────────────────────────────────────────────
 function mapApiProduct(p) {
   var media  = p.product_media || [];
@@ -103,6 +122,9 @@ function mapApiProduct(p) {
     _fromApi:    true,
     category:    p.categories    ? p.categories.key    : '',
     subcategory: p.subcategories ? p.subcategories.key : null,
+    extra_categories: (p.product_categories || []).map(function(pc) {
+      return { category: pc.categories.key, subcategory: pc.subcategories ? pc.subcategories.key : null };
+    }),
     gender:      p.gender  || 'unisex',
     tag:         p.tag     || null,
     gradient:     p.gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -193,8 +215,21 @@ function loadCartFromServer() {
     headers: { 'x-session-token': tok },
   }).then(function(r) { return r.json(); }).then(function(data) {
     if (data.success && Array.isArray(data.data)) {
-      cart = data.data;
+      var serverCart = data.data;
+      var localCart  = JSON.parse(localStorage.getItem('cart') || '[]');
+      // merge: keep local items not yet synced to server
+      localCart.forEach(function(li) {
+        var exists = serverCart.find(function(si) {
+          return si.id === li.id && (si.colorKey||null) === (li.colorKey||null) && (si.size||null) === (li.size||null);
+        });
+        if (!exists) serverCart.push(li);
+      });
+      cart = serverCart;
       localStorage.setItem('cart', JSON.stringify(cart));
+      // sync merged cart back to server
+      if (cart.length) {
+        fetch(API_BASE + '/customers/cart/sync', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-session-token': tok }, body: JSON.stringify({ items: cart }) }).catch(function() {});
+      }
       updateCartBadge();
     }
   }).catch(function() {});
@@ -577,6 +612,8 @@ function pollPreorderStatus() {
 // ─── Quick Add Popup ──────────────────────────────────────────────────────────
 function quickAdd(event, productId) {
   event.stopPropagation();
+  window.location.href = '/product.html?id=' + productId + '&lang=' + currentLang;
+  return;
   var p = products.find(function(pr) { return pr.id === productId; });
   if (!p) return;
 
@@ -992,7 +1029,7 @@ function renderProduct(p) {
     '  </div>' +
     '  <div class="product-body">' +
     '    <div class="card-badges">' +
-    '      <span class="category-badge cat-' + (p.category || '').toLowerCase() + '">' + cat + '</span>' +
+    '      <span class="category-badge" style="' + catBadgeStyle(p.category) + '">' + cat + '</span>' +
     genderBadge +
     cameraTag +
     '    </div>' +
@@ -1072,7 +1109,8 @@ function getSubcatLabel(sub) {
 
 function catHasProducts(catKey, genderFilter) {
   return products.some(function(p) {
-    if (p.category !== catKey) return false;
+    var inCat = p.category === catKey || (p.extra_categories || []).some(function(ec) { return ec.category === catKey; });
+    if (!inCat) return false;
     if (genderFilter && genderFilter !== 'all') {
       if (p.gender !== genderFilter && p.gender !== 'unisex') return false;
     }
@@ -1083,7 +1121,8 @@ function catHasProducts(catKey, genderFilter) {
 function subcatHasProducts(subKey, genderFilter) {
   if (!subKey) return true;
   return products.some(function(p) {
-    if (p.subcategory !== subKey) return false;
+    var inSub = p.subcategory === subKey || (p.extra_categories || []).some(function(ec) { return ec.subcategory === subKey; });
+    if (!inSub) return false;
     if (genderFilter && genderFilter !== 'all') {
       if (p.gender !== genderFilter && p.gender !== 'unisex') return false;
     }
@@ -1269,7 +1308,11 @@ function renderGrid(skipFilterBar) {
   var t    = TRANSLATIONS[currentLang];
 
   var baseList = products.filter(function(p) {
-    if (currentCategory !== 'all' && p.category !== currentCategory) return false;
+    if (currentCategory !== 'all') {
+      var inCat = p.category === currentCategory ||
+        (p.extra_categories || []).some(function(ec) { return ec.category === currentCategory; });
+      if (!inCat) return false;
+    }
     if (currentGender !== 'all' && p.gender && p.gender !== currentGender) return false;
     return true;
   });
@@ -1305,7 +1348,10 @@ function renderGrid(skipFilterBar) {
   // Specific subcategory or all-categories → flat grid
   if (currentSubcategory || currentCategory === 'all') {
     var list = currentSubcategory
-      ? filteredList.filter(function(p) { return p.subcategory === currentSubcategory; })
+      ? filteredList.filter(function(p) {
+          return p.subcategory === currentSubcategory ||
+            (p.extra_categories || []).some(function(ec) { return ec.subcategory === currentSubcategory; });
+        })
       : filteredList;
     grid.innerHTML = list.length
       ? list.map(renderProduct).join('')
@@ -1332,7 +1378,10 @@ function renderGrid(skipFilterBar) {
   subs.forEach(function(sub) {
     var subKey   = sub.key;
     var subLabel = getSubcatLabel(sub);
-    var subProds = filteredList.filter(function(p) { return p.subcategory === subKey; });
+    var subProds = filteredList.filter(function(p) {
+      return p.subcategory === subKey ||
+        (p.extra_categories || []).some(function(ec) { return ec.subcategory === subKey; });
+    });
 
     if (!subProds.length) return;
 
@@ -1378,7 +1427,8 @@ function applyLang(lang) {
     if (activeTab) showProfileTab(activeTab.dataset.tab);
   }
   // اگه fav page باز بود دوباره رندر کن
-  if (document.getElementById('fav-page').classList.contains('open')) {
+  var _favPageEl = document.getElementById('fav-page');
+  if (_favPageEl && _favPageEl.classList.contains('open')) {
     renderFavPanel();
   }
 
@@ -1392,11 +1442,12 @@ function applyLang(lang) {
   var display = lang === 'fa' ? CONTACT.phoneDisplay : CONTACT.phoneDisplayLatin;
   document.querySelectorAll('.js-phone').forEach(function(el) { el.textContent = display; el.dir = 'ltr'; });
 
-  if (cachedCategories.length) { buildSidebar(cachedCategories); buildMegaMenu(cachedCategories); }
-
-  renderGrid();
+  if (!window.IS_PROFILE_PAGE) {
+    if (cachedCategories.length) { buildSidebar(cachedCategories); buildMegaMenu(cachedCategories); }
+    renderGrid();
+    renderBanner();
+  }
   updateCartBadge();
-  renderBanner();
 }
 
 function initLangSwitcher() {
@@ -1531,6 +1582,8 @@ function updateModalStockBadge() {
 }
 
 function openModal(productId) {
+  window.location.href = '/product.html?id=' + productId + '&lang=' + currentLang;
+  return;
   var p = products.find(function(pr) { return pr.id === productId; });
   if (!p) return;
 
@@ -1601,7 +1654,10 @@ function openModal(productId) {
   if (p.sizes && p.sizes.length) {
     sizesHtml =
       '<div class="modal-sizes-section">' +
+      '<div class="modal-sizes-header">' +
       '<span class="modal-label">' + t.sizes_label + '</span>' +
+      '<span id="modal-stock-badge" class="modal-stock-badge-wrap"></span>' +
+      '</div>' +
       '<div class="modal-sizes-row">' +
       p.sizes.map(function(s) {
         var isUnavail = p.unavailableSizes && p.unavailableSizes.indexOf(s) !== -1;
@@ -1653,7 +1709,7 @@ function openModal(productId) {
     '  </div>' +
     '  <div class="modal-info">' +
     '    <div class="card-badges">' +
-    '      <span class="category-badge cat-' + (p.category || '').toLowerCase() + '">' + cat + '</span>' +
+    '      <span class="category-badge" style="' + catBadgeStyle(p.category) + '">' + cat + '</span>' +
     modalGenderBadge +
     '    </div>' +
     '    <h2 class="modal-name">' + name + '</h2>' +
@@ -1664,7 +1720,6 @@ function openModal(productId) {
     '    </div>' +
     colorsHtml +
     sizesHtml +
-    '    <div id="modal-stock-badge" class="modal-stock-badge-wrap"></div>' +
     '    <div class="modal-buy-section">' +
     '      <button class="modal-add-to-cart" id="modal-add-to-cart" onclick="addToCartFromModal()">🛒 ' + t.add_to_cart + '</button>' +
     '    </div>' +
@@ -2194,7 +2249,7 @@ function doLogout() {
 
 // ─── Auth Header Button ───────────────────────────────────────────────────────
 function handleAuthBtnClick() {
-  if (getCurrentUser()) openProfileModal();
+  if (getCurrentUser()) window.location = '/profile.html';
   else openAuthModal('login');
 }
 
@@ -2328,7 +2383,7 @@ function openProfileModal() {
   var user = getCurrentUser();
   if (!user) { openAuthModal('login'); return; }
   document.getElementById('profile-modal').classList.add('open');
-  document.body.style.overflow = 'hidden';
+  if (!window.IS_PROFILE_PAGE) document.body.style.overflow = 'hidden';
   renderProfileHeader();
   showProfileTab('info');
   // Sync with DB — fetch fresh profile and update localStorage
@@ -2379,6 +2434,7 @@ function renderProfileHeader() {
   }
 }
 function closeProfileModal() {
+  if (window.IS_PROFILE_PAGE) { window.location = '/'; return; }
   document.getElementById('profile-modal').classList.remove('open');
   document.body.style.overflow = '';
 }
@@ -2389,6 +2445,9 @@ function showProfileTab(tab) {
     if (c) c.style.display = t === tab ? 'block' : 'none';
     if (b) b.classList.toggle('active', t === tab);
   });
+  if (window.IS_PROFILE_PAGE) {
+    history.replaceState({}, '', '/profile.html?tab=' + tab);
+  }
   if (tab === 'info')      renderInfoTab();
   if (tab === 'addresses') renderAddresses();
   if (tab === 'orders')    renderOrders();
@@ -3008,7 +3067,7 @@ function _renderOrdersList(apiOrders) {
             (order.account_holder ? '<div class="order-payment-row"><span>' + (t.payment_holder || 'صاحب حساب') + ':</span>' + order.account_holder + copyBtn(order.account_holder) + '</div>' : '') +
             '<div style="margin-top:10px;padding:8px 10px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e;line-height:1.5">' +
               (t.payment_ref_note || '⚠️ شماره سفارش را در توضیحات درج کنید:') +
-              '<strong style="display:block;font-size:14px;margin-top:4px;letter-spacing:1px">#' + order.id + '</strong>' +
+              '<strong style="display:block;font-size:14px;margin-top:4px;letter-spacing:1px">ORD-' + order.id + '</strong>' +
             '</div>' +
             '</div>';
         }
@@ -3130,7 +3189,7 @@ function _renderOrdersList(apiOrders) {
     var orderTotal = order.total_amount ? formatPrice(order.total_amount) : '';
     return '<div class="order-card" id="porder-' + order.id + '">' +
       '<div class="order-header order-header--clickable" onclick="toggleProfileOrder(' + order.id + ')">' +
-      '<span class="order-id"># ' + order.id + '</span>' +
+      '<span class="order-id">ORD-' + order.id + '</span>' +
       '<span style="background:' + badgeColor + '20;color:' + badgeColor + ';border:1px solid ' + badgeColor + '40;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700">' + badgeLabel + '</span>' +
       (orderTotal ? '<span class="order-total-badge">' + orderTotal + '</span>' : '') +
       '<span class="order-date">' + dateStr + '</span>' +
@@ -3149,7 +3208,7 @@ function _renderOrdersList(apiOrders) {
     } catch(e) {}
     return '<div class="order-card">' +
       '<div class="order-header">' +
-      '<span class="order-id"># ' + order.id.slice(-6).toUpperCase() + '</span>' +
+      '<span class="order-id">ORD-' + order.id + '</span>' +
       '<span style="background:#e5e7eb;color:#6b7280;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700">WA/TG</span>' +
       '<span class="order-date">' + dateStr + '</span>' +
       '</div>' +
@@ -4247,6 +4306,27 @@ function reloadProducts(forceRender) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  // ── Profile page: skip shop init ─────────────────────────────────────────
+  if (window.IS_PROFILE_PAGE) {
+    initLangSwitcher();
+    initNavDropdowns();
+    initHeaderScroll();
+    applyLang(currentLang);
+    updateCartBadge();
+    updateAuthUI();
+    updateFavBadge();
+    if (getCurrentUser()) {
+      loadCartFromServer();
+      loadFavoritesFromServer();
+      openProfileModal();
+      var _pTab = new URLSearchParams(location.search).get('tab') || 'info';
+      showProfileTab(_pTab);
+    } else {
+      openAuthModal('login');
+    }
+    return;
+  }
+  // ── Shop page init ────────────────────────────────────────────────────────
   fillContactInfo();
   initLangSwitcher();
   initNavDropdowns();
@@ -4290,6 +4370,17 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() { openAuthModal('reset'); }, 300);
   } else {
     restoreFilterFromHash();
+  }
+
+  // Auto-open cart or checkout when redirected from product page
+  var _openParam = new URLSearchParams(window.location.search).get('open');
+  if (_openParam) {
+    window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+    if (_openParam === 'checkout') {
+      setTimeout(function() { openCheckout(); }, 400);
+    } else if (_openParam === 'cart') {
+      setTimeout(function() { openCart(); }, 400);
+    }
   }
 
   // Save scroll position before unload

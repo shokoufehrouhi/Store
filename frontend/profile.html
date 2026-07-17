@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shilista — پروفایل</title>
+  <link rel="icon" type="image/png" href="images/shilista_icon.png">
+  <link rel="apple-touch-icon" href="images/shilista_icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { overflow-x: clip; }
+    /* Profile as page — not overlay */
+    .profile-page {
+      position: static !important;
+      transform: none !important;
+      height: auto !important;
+      min-height: calc(100vh - 64px);
+      display: flex !important;
+      margin-top: 64px;
+    }
+    .profile-back-btn { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header" id="header">
+    <div class="container">
+      <div class="header-inner">
+        <a href="/" class="logo">
+          <img src="images/shilista_logo.png" class="logo-img" alt="Shilista">
+        </a>
+
+        <nav class="nav-links">
+          <div class="nav-group">
+            <a class="nav-link has-drop" href="/">
+              <span data-i18n="menu_all">همه محصولات</span>
+              <svg class="nav-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 7L1 3h8z"/></svg>
+            </a>
+            <div class="nav-dropdown nav-mega" id="nav-mega-all"></div>
+          </div>
+          <div class="nav-group">
+            <a class="nav-link has-drop" href="/#gender=female">
+              <span data-i18n="menu_women">زنانه</span>
+              <svg class="nav-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 7L1 3h8z"/></svg>
+            </a>
+            <div class="nav-dropdown">
+              <div class="nav-drop-group">
+                <span class="nav-drop-cat-label" data-i18n="cat_clothing">لباس</span>
+                <a class="nav-drop-item" href="/#cat=clothing&gender=female&sub=tshirt"     data-i18n="sub_tshirt">تیشرت</a>
+                <a class="nav-drop-item" href="/#cat=clothing&gender=female&sub=leggings"   data-i18n="sub_leggings">تایت</a>
+                <a class="nav-drop-item" href="/#cat=clothing&gender=female&sub=sweatshirt" data-i18n="sub_sweatshirt">سوئیشرت</a>
+                <a class="nav-drop-item" href="/#cat=clothing&gender=female&sub=jacket"     data-i18n="sub_jacket">ژاکت</a>
+              </div>
+              <div class="nav-drop-group">
+                <span class="nav-drop-cat-label" data-i18n="cat_shoes">کفش</span>
+                <a class="nav-drop-item" href="/#cat=shoes&gender=female" data-i18n="sub_shoes">کفش ورزشی</a>
+              </div>
+            </div>
+          </div>
+          <div class="nav-group">
+            <a class="nav-link has-drop" href="/#gender=male">
+              <span data-i18n="menu_men">مردانه</span>
+              <svg class="nav-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 7L1 3h8z"/></svg>
+            </a>
+            <div class="nav-dropdown">
+              <div class="nav-drop-group">
+                <span class="nav-drop-cat-label" data-i18n="cat_clothing">لباس</span>
+                <a class="nav-drop-item" href="/#cat=clothing&gender=male&sub=tshirt"  data-i18n="sub_tshirt">تیشرت</a>
+                <a class="nav-drop-item" href="/#cat=clothing&gender=male&sub=shorts"  data-i18n="sub_shorts">شورت</a>
+                <a class="nav-drop-item" href="/#cat=clothing&gender=male&sub=pants"   data-i18n="sub_pants">شلوار</a>
+              </div>
+              <div class="nav-drop-group">
+                <span class="nav-drop-cat-label" data-i18n="cat_shoes">کفش</span>
+                <a class="nav-drop-item" href="/#cat=shoes&gender=male" data-i18n="sub_shoes">کفش ورزشی</a>
+              </div>
+            </div>
+          </div>
+          <div class="nav-group">
+            <a class="nav-link has-drop" href="/#cat=Sports">
+              <span data-i18n="menu_sports">ورزشی</span>
+              <svg class="nav-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 7L1 3h8z"/></svg>
+            </a>
+            <div class="nav-dropdown">
+              <div class="nav-drop-group">
+                <span class="nav-drop-cat-label" data-i18n="cat_sports">ورزشی</span>
+                <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20Bra"       data-i18n="sub_sports_bra">نیم‌تنه ورزشی</a>
+                <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20T-Shirts"  data-i18n="sub_sports_tshirts">تیشرت ورزشی</a>
+                <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20Leggings"  data-i18n="sub_sports_leggings">لگ ورزشی</a>
+                <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20Shorts"    data-i18n="sub_sports_shorts">شلوارک ورزشی</a>
+                <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20Set"       data-i18n="sub_sports_set">ست ورزشی</a>
+                <a class="nav-drop-item" href="/#cat=Sports&sub=Track%20Jacket"     data-i18n="sub_track_jacket">گرمکن ورزشی</a>
+                <a class="nav-drop-item" href="/#cat=Sports&sub=Track%20Pants"      data-i18n="sub_track_pants">شلوار گرمکن</a>
+                <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20Shoes"     data-i18n="sub_sports_shoes">کفش ورزشی</a>
+                <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20Gloves"    data-i18n="sub_sports_gloves">دستکش ورزشی</a>
+                <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20Cap"       data-i18n="sub_sports_cap">کلاه ورزشی</a>
+                <a class="nav-drop-item" href="/#cat=Sports&sub=Sports%20Equipment" data-i18n="sub_sports_equipment">لوازم ورزشی</a>
+              </div>
+            </div>
+          </div>
+          <div class="nav-group">
+            <a class="nav-link has-drop" href="/#cat=accessories">
+              <span data-i18n="menu_acc">اکسسوری</span>
+              <svg class="nav-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 7L1 3h8z"/></svg>
+            </a>
+            <div class="nav-dropdown">
+              <div class="nav-drop-group">
+                <span class="nav-drop-cat-label" data-i18n="cat_accessories">اکسسوری</span>
+                <a class="nav-drop-item" href="/#cat=accessories&sub=gloves"   data-i18n="sub_gloves">دستکش</a>
+                <a class="nav-drop-item" href="/#cat=accessories&sub=bag"      data-i18n="sub_bag">کیف و ساک</a>
+                <a class="nav-drop-item" href="/#cat=accessories&sub=headband" data-i18n="sub_headband">هدبند</a>
+                <a class="nav-drop-item" href="/#cat=accessories&sub=socks"    data-i18n="sub_socks">جوراب</a>
+              </div>
+            </div>
+          </div>
+          <a href="/#contact" class="nav-link" data-i18n="nav_contact">تماس با ما</a>
+        </nav>
+
+        <div class="site-lang-wrap" id="site-lang-wrap">
+          <button class="site-lang-btn" onclick="toggleSiteLangMenu(event)">
+            <span class="site-lang-globe" id="site-lang-label">FA</span>
+          </button>
+          <div class="site-lang-menu hidden" id="site-lang-menu">
+            <button class="site-lang-opt" data-lang="fa"><span class="opt-dot"></span>فارسی</button>
+            <button class="site-lang-opt" data-lang="en"><span class="opt-dot"></span>English</button>
+            <button class="site-lang-opt" data-lang="tr"><span class="opt-dot"></span>Türkçe</button>
+          </div>
+        </div>
+
+        <button class="auth-header-btn" id="auth-header-btn" onclick="handleAuthBtnClick()">👤 ورود</button>
+        <button class="order-btn" onclick="window.location='/?open=checkout'" data-i18n="order_btn">ثبت سفارش</button>
+        <button class="fav-header-btn" id="fav-header-btn" onclick="showProfileTab('favorites')" aria-label="Favorites">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+          </svg>
+          <span class="fav-header-badge" id="fav-header-badge"></span>
+        </button>
+        <button class="cart-btn" onclick="openCart()" id="cart-btn" aria-label="Cart">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+          </svg>
+          <span class="cart-badge" id="cart-badge"></span>
+        </button>
+        <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+      </div>
+
+      <nav class="mobile-menu" id="mobile-menu">
+        <a href="/" data-i18n="menu_all">همه محصولات</a>
+        <a href="/#gender=female" data-i18n="menu_women">زنانه</a>
+        <a href="/#gender=male"   data-i18n="menu_men">مردانه</a>
+        <a href="/#cat=Sports"    data-i18n="menu_sports">ورزشی</a>
+        <a href="/#cat=accessories" data-i18n="menu_acc">اکسسوری</a>
+        <a href="/#contact" data-i18n="nav_contact">تماس با ما</a>
+        <div class="mobile-lang-wrap">
+          <button class="mobile-lang-opt" data-lang="fa">FA</button>
+          <button class="mobile-lang-opt" data-lang="en">EN</button>
+          <button class="mobile-lang-opt" data-lang="tr">TR</button>
+        </div>
+        <button class="mobile-order-btn" onclick="window.location='/?open=checkout'" data-i18n="order_btn">ثبت سفارش</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Cart -->
+  <div class="cart-overlay" id="cart-overlay" onclick="closeCart()"></div>
+  <div class="cart-panel" id="cart-panel">
+    <div class="cart-header">
+      <h3 data-i18n="cart_title">سبد خرید</h3>
+      <button class="cart-close" onclick="closeCart()">✕</button>
+    </div>
+    <div class="cart-items" id="cart-items"></div>
+    <div class="cart-footer" id="cart-footer"></div>
+  </div>
+
+  <!-- Auth Modal -->
+  <div id="auth-modal" class="modal-backdrop" style="display:none" onclick="if(event.target===this)closeAuthModal()">
+    <div class="auth-modal-box">
+      <button class="auth-modal-close" onclick="closeAuthModal()">✕</button>
+      <div id="auth-view-login">
+        <div class="auth-modal-header">
+          <h2 data-i18n="auth_login_title">ورود به حساب</h2>
+          <p  data-i18n="auth_login_sub">خوش برگشتید!</p>
+        </div>
+        <div class="form-field">
+          <label data-i18n="auth_id_label">ایمیل یا شماره موبایل</label>
+          <input type="text" id="login-identifier" autocomplete="username" data-i18n-ph="auth_id_ph" placeholder="email@example.com" onkeydown="if(event.key==='Enter')doLogin()">
+          <span class="auth-field-error" id="login-id-err"></span>
+        </div>
+        <div class="form-field">
+          <label data-i18n="auth_pass_label">رمز عبور</label>
+          <div class="pass-wrap"><input type="password" id="login-password" autocomplete="current-password" data-i18n-ph="auth_pass_ph" placeholder="رمز عبور" onkeydown="if(event.key==='Enter')doLogin()"><button class="toggle-pass" onclick="togglePassVis('login-password',this)">👁</button></div>
+          <span class="auth-field-error" id="login-pass-err"></span>
+        </div>
+        <button class="auth-link-btn auth-forgot-link" onclick="showAuthView('forgot')" data-i18n="auth_forgot_link">فراموشی رمز عبور؟</button>
+        <button class="auth-submit-btn" onclick="doLogin()" data-i18n="auth_btn_login">ورود</button>
+        <p class="auth-switch-text"><span data-i18n="auth_no_account">حساب ندارید؟</span> <button class="auth-link-btn" onclick="showAuthView('signup')" data-i18n="auth_do_signup">ثبت‌نام کنید</button></p>
+      </div>
+      <div id="auth-view-signup" style="display:none">
+        <div class="auth-modal-header">
+          <h2 data-i18n="auth_signup_title">ثبت‌نام</h2>
+          <p  data-i18n="auth_signup_sub">حساب جدید بسازید</p>
+        </div>
+        <div class="form-field">
+          <label data-i18n="auth_name_label">نام و نام خانوادگی</label>
+          <input type="text" id="signup-name" data-i18n-ph="auth_name_ph" placeholder="نام کامل" onkeydown="if(event.key==='Enter')doSignup()">
+          <span class="auth-field-error" id="signup-name-err"></span>
+        </div>
+        <div class="form-field">
+          <label data-i18n="auth_id_label">ایمیل یا شماره موبایل</label>
+          <input type="text" id="signup-identifier" data-i18n-ph="auth_id_ph" placeholder="email@example.com" onkeydown="if(event.key==='Enter')doSignup()">
+          <span class="auth-field-error" id="signup-id-err"></span>
+        </div>
+        <div class="form-field">
+          <label data-i18n="auth_pass_label">رمز عبور</label>
+          <div class="pass-wrap"><input type="password" id="signup-password" data-i18n-ph="auth_signup_pass_ph" placeholder="حداقل ۸ کاراکتر" onkeydown="if(event.key==='Enter')doSignup()"><button class="toggle-pass" onclick="togglePassVis('signup-password',this)">👁</button></div>
+          <span class="auth-field-error" id="signup-pass-err"></span>
+        </div>
+        <div class="form-field">
+          <label data-i18n="auth_signup_conf_label">تکرار رمز عبور</label>
+          <div class="pass-wrap"><input type="password" id="signup-confirm" data-i18n-ph="auth_signup_conf_ph" placeholder="تکرار رمز عبور" onkeydown="if(event.key==='Enter')doSignup()"><button class="toggle-pass" onclick="togglePassVis('signup-confirm',this)">👁</button></div>
+          <span class="auth-field-error" id="signup-confirm-err"></span>
+        </div>
+        <button class="auth-submit-btn" onclick="doSignup()" data-i18n="auth_btn_signup">ثبت‌نام</button>
+        <p class="auth-switch-text"><span data-i18n="auth_have_account">حساب دارید؟</span> <button class="auth-link-btn" onclick="showAuthView('login')" data-i18n="auth_do_login">ورود کنید</button></p>
+      </div>
+      <div id="auth-view-forgot" style="display:none">
+        <div class="auth-modal-header">
+          <h2 data-i18n="auth_forgot_title">فراموشی رمز عبور</h2>
+          <p  data-i18n="auth_forgot_sub">ایمیل یا موبایل حساب خود را وارد کنید</p>
+        </div>
+        <div class="form-field">
+          <label data-i18n="auth_id_label">ایمیل یا شماره موبایل</label>
+          <input type="text" id="forgot-identifier" data-i18n-ph="auth_id_ph" placeholder="email@example.com" onkeydown="if(event.key==='Enter')doForgot()">
+          <span class="auth-field-error" id="forgot-id-err" style="display:block"></span>
+        </div>
+        <button class="auth-submit-btn" onclick="doForgot()" data-i18n="auth_btn_forgot">تأیید و ادامه</button>
+        <p class="auth-switch-text"><button class="auth-link-btn" onclick="showAuthView('login')" data-i18n="auth_back_login">← بازگشت به ورود</button></p>
+      </div>
+      <div id="auth-view-reset" style="display:none">
+        <div class="auth-modal-header">
+          <h2 data-i18n="auth_reset_title">تغییر رمز عبور</h2>
+          <p  data-i18n="auth_reset_sub">رمز عبور جدید را وارد کنید</p>
+        </div>
+        <div class="form-field">
+          <label data-i18n="auth_new_pass_label">رمز عبور جدید</label>
+          <div class="pass-wrap"><input type="password" id="reset-password" data-i18n-ph="auth_new_pass_ph" placeholder="حداقل ۸ کاراکتر" onkeydown="if(event.key==='Enter')doReset()"><button class="toggle-pass" onclick="togglePassVis('reset-password',this)">👁</button></div>
+          <span class="auth-field-error" id="reset-pass-err"></span>
+        </div>
+        <div class="form-field">
+          <label data-i18n="auth_conf_label">تکرار رمز عبور جدید</label>
+          <div class="pass-wrap"><input type="password" id="reset-confirm" data-i18n-ph="auth_conf_ph" placeholder="تکرار رمز عبور جدید" onkeydown="if(event.key==='Enter')doReset()"><button class="toggle-pass" onclick="togglePassVis('reset-confirm',this)">👁</button></div>
+          <span class="auth-field-error" id="reset-confirm-err"></span>
+        </div>
+        <span class="auth-field-success" id="reset-success-msg"></span>
+        <button class="auth-submit-btn" onclick="doReset()" data-i18n="auth_btn_reset">تغییر رمز عبور</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile Page -->
+  <div class="profile-page" id="profile-modal">
+    <div class="profile-page-sidebar">
+      <div class="profile-sidebar-hero">
+        <button class="profile-back-btn" onclick="window.location='/'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <button class="profile-avatar-wrap" id="profile-avatar-circle" onclick="triggerAvatarUpload()" title=""></button>
+        <div class="profile-hero-name" id="profile-user-name"></div>
+        <div class="profile-hero-contact" id="profile-user-contact"></div>
+      </div>
+      <nav class="profile-page-nav">
+        <button class="profile-page-nav-item active" data-tab="info"      onclick="showProfileTab('info')"      data-i18n="profile_tab_info">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          اطلاعات من
+        </button>
+        <button class="profile-page-nav-item" data-tab="addresses" onclick="showProfileTab('addresses')" data-i18n="profile_tab_addr">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+          آدرس‌ها
+        </button>
+        <button class="profile-page-nav-item" data-tab="orders" onclick="showProfileTab('orders')" data-i18n="profile_tab_orders">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+          سفارش‌ها
+        </button>
+        <button class="profile-page-nav-item" data-tab="favorites" onclick="showProfileTab('favorites')" data-i18n="profile_tab_favs">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          علاقه‌مندی‌ها
+        </button>
+      </nav>
+      <button class="profile-logout-btn" onclick="doLogout()" data-i18n="profile_logout">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        خروج از حساب
+      </button>
+    </div>
+    <div class="profile-page-content">
+      <div id="profile-tab-info"></div>
+      <div id="profile-tab-addresses" style="display:none"></div>
+      <div id="profile-tab-orders"    style="display:none"></div>
+      <div id="profile-tab-favorites" style="display:none"></div>
+    </div>
+  </div>
+
+  <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="handleAvatarChange(this)">
+
+  <div id="app-toast">
+    <div class="app-toast-card">
+      <div class="app-toast-check" id="app-toast-icon">✓</div>
+      <div id="app-toast-msg"></div>
+    </div>
+  </div>
+
+  <script src="i18n.js?v=53"></script>
+  <script src="products.js?v=53"></script>
+  <script>window.IS_PROFILE_PAGE = true;</script>
+  <script src="main.js?v=61"></script>
+</body>
+</html>
