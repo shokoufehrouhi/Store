@@ -307,7 +307,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
         <span class="fav-header-badge" id="fav-header-badge"></span>
       </button>
-      <button class="order-btn" onclick="window.location='/checkout'" data-i18n="order_btn">ثبت سفارش</button>
+      <button class="order-btn" onclick="sessionStorage.setItem('pd_open_checkout','1');window.location='/'" data-i18n="order_btn">ثبت سفارش</button>
       <button class="cart-btn" id="cart-btn" onclick="openPdCart()" aria-label="Cart">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
         <span class="cart-badge" id="cart-badge"></span>
@@ -320,7 +320,7 @@
       <a href="/#gender=male" data-i18n="menu_men">مردانه</a>
       <a href="/#cat=Sports" data-i18n="menu_sports">ورزشی</a>
       <a href="/#cat=accessories" data-i18n="menu_acc">اکسسوری</a>
-      <button class="mobile-order-btn" onclick="window.location='/checkout'" data-i18n="order_btn">Sipariş Ver</button>
+      <button class="mobile-order-btn" onclick="sessionStorage.setItem('pd_open_checkout','1');window.location='/'" data-i18n="order_btn">Sipariş Ver</button>
       <div class="mobile-lang-wrap">
         <button class="mobile-lang-opt" onclick="pdSetLang('fa')">FA</button>
         <button class="mobile-lang-opt" onclick="pdSetLang('en')">EN</button>
@@ -353,7 +353,7 @@
         <span id="pd-cart-total-label">Toplam</span>
         <span id="pd-cart-total-val"></span>
       </div>
-      <button class="pd-cart-checkout-btn" onclick="window.location='/checkout'" id="pd-cart-checkout-btn">Sipariş Ver</button>
+      <button class="pd-cart-checkout-btn" onclick="sessionStorage.setItem('pd_open_checkout','1');window.location='/'" id="pd-cart-checkout-btn">Sipariş Ver</button>
     </div>
   </div>
 </div>

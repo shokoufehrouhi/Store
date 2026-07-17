@@ -4684,6 +4684,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Auto-open cart or checkout when redirected from product page
   var _openParam = new URLSearchParams(window.location.search).get('open');
+  var _openFlag  = sessionStorage.getItem('pd_open_checkout');
+  if (_openFlag) sessionStorage.removeItem('pd_open_checkout');
   if (_openParam) {
     window.history.replaceState({}, '', window.location.pathname + window.location.hash);
     if (_openParam === 'checkout') {
@@ -4691,7 +4693,7 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (_openParam === 'cart') {
       setTimeout(function() { openCart(); }, 400);
     }
-  } else if (location.pathname === '/checkout') {
+  } else if (_openFlag) {
     setTimeout(function() { openCheckout(); }, 400);
   }
 
