@@ -4334,6 +4334,16 @@ document.addEventListener('DOMContentLoaded', function() {
   initSmoothScroll();
   initModal();
   applyLang(currentLang);
+
+  // Close fav panel when clicking outside it (lets the clicked action run normally)
+  document.addEventListener('click', function(e) {
+    var panel = document.getElementById('fav-page');
+    if (!panel || !panel.classList.contains('open')) return;
+    if (panel.contains(e.target)) return;
+    var favBtn = document.getElementById('fav-header-btn');
+    if (favBtn && favBtn.contains(e.target)) return;
+    closeFavPanel();
+  }, true);
   updateCartBadge();
   updateAuthUI();
   loadBanners();
