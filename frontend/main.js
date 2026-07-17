@@ -3115,10 +3115,22 @@ function renderOrders() {
   }
 }
 
-var _cachedApiOrders   = [];
-var _profileExpandedId = null;
-var _ordersActiveOnly  = false;
+var _cachedApiOrders      = [];
+var _profileExpandedId    = null;
+var _ordersActiveOnly     = false;
+var _pendingScrollOrderId = null;
 var ACTIVE_ORDER_STATUSES = ['preorder','payment_needed','approval_needed','preparing','delivery'];
+
+function openActiveOrder() {
+  if (!currentPreorder) return;
+  var id = currentPreorder.id;
+  _profileExpandedId    = id;
+  _pendingScrollOrderId = id;
+  if (!window.IS_PROFILE_PAGE) {
+    openProfileModal();
+  }
+  showProfileTab('orders');
+}
 
 function toggleOrdersActiveFilter() {
   _ordersActiveOnly = !_ordersActiveOnly;
@@ -3431,6 +3443,19 @@ function _renderOrdersList(apiOrders) {
     return;
   }
   container.innerHTML = filterBar + combined;
+
+  if (_pendingScrollOrderId) {
+    var sid = _pendingScrollOrderId;
+    _pendingScrollOrderId = null;
+    setTimeout(function() {
+      var el = document.getElementById('porder-' + sid);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('order-card--highlighted');
+        setTimeout(function() { el.classList.remove('order-card--highlighted'); }, 2000);
+      }
+    }, 80);
+  }
 }
 
 function toggleProfileOrder(orderId) {

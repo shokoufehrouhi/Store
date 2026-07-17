@@ -4302,6 +4302,15 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   line-height: 1.7;
 }
 .lc-footer strong { color: #FF5C00; font-weight: 700; }
+/* Active order highlight flash */
+.order-card--highlighted {
+  animation: order-highlight-flash 2s ease forwards;
+}
+@keyframes order-highlight-flash {
+  0%   { box-shadow: 0 0 0 3px rgba(59,130,246,.7), 0 4px 20px rgba(59,130,246,.25); }
+  60%  { box-shadow: 0 0 0 2px rgba(59,130,246,.3), 0 4px 12px rgba(59,130,246,.1); }
+  100% { box-shadow: none; }
+}
 /* ─── Loyalty reward popup ─────────────────────────────────────────────────── */
 .lp-overlay {
   position: fixed; inset: 0;
