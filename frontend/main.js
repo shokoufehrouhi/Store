@@ -167,24 +167,15 @@ function localizeNumber(str) {
 
 function showCopyToast(code) {
   var el = document.getElementById('code-copy-toast');
-  if (!el) {
-    if (!document.getElementById('_cct_style')) {
-      var s = document.createElement('style');
-      s.id = '_cct_style';
-      s.textContent = '#code-copy-toast{display:none;position:fixed;bottom:36px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:12px 24px;border-radius:100px;font-size:14px;font-weight:600;align-items:center;gap:10px;pointer-events:none;z-index:999999;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,.35)}#code-copy-toast.show{display:flex;animation:cct-in .25s ease forwards}@keyframes cct-in{from{opacity:0;transform:translateX(-50%) translateY(14px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}';
-      document.head.appendChild(s);
-    }
-    el = document.createElement('div');
-    el.id = 'code-copy-toast';
-    document.body.appendChild(el);
-  }
+  var codeEl = document.getElementById('code-copy-toast-code');
+  var labelEl = document.getElementById('code-copy-toast-label');
+  if (!el || !codeEl || !labelEl) return;
   var label = (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang].code_copied) || 'Copied';
+  codeEl.textContent = code;
+  labelEl.textContent = label;
   el.classList.remove('show');
-  el.innerHTML =
-    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' +
-    '<span style="font-family:monospace;font-size:15px;color:#fb923c;letter-spacing:.04em">' + code + '</span>' +
-    '<span style="margin-inline-start:2px">' + label + '</span>';
-  requestAnimationFrame(function() { el.classList.add('show'); });
+  void el.offsetHeight;
+  el.classList.add('show');
   clearTimeout(el._t);
   el._t = setTimeout(function() { el.classList.remove('show'); }, 2600);
 }

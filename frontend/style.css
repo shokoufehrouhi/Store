@@ -3775,6 +3775,7 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   z-index: 999999;
   white-space: nowrap;
   box-shadow: 0 8px 32px rgba(0,0,0,.35);
+  direction: ltr;
 }
 #code-copy-toast.show {
   display: flex;
@@ -3790,6 +3791,9 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   font-size: 15px;
   color: #fb923c;
   letter-spacing: .04em;
+}
+#code-copy-toast-label {
+  color: #ffffff;
 }
 
 /* ─── Confirm Popup ──────────────────────────────────────────────────────── */
