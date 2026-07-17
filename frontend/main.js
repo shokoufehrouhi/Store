@@ -3979,7 +3979,10 @@ function openCheckout() {
   if (!user) { openAuthModal('login'); return; }
   if (!cart.length) { openCart(); return; }
   closeCart();
-  document.getElementById('checkout-overlay').classList.add('open');
+  var overlay = document.getElementById('checkout-overlay');
+  var header = document.querySelector('.header');
+  overlay.style.top = (header ? header.getBoundingClientRect().bottom : 64) + 'px';
+  overlay.classList.add('open');
   document.body.style.overflow = 'hidden';
   if (location.pathname !== '/checkout') {
     history.pushState({ page: 'checkout' }, '', '/checkout');

@@ -3863,7 +3863,8 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 
 /* ─── Checkout Page ───────────────────────────────────────────────────────────── */
 .checkout-overlay {
-  position: fixed; inset: 0; z-index: 1200;
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 90;
   background: var(--bg);
   display: none;
   flex-direction: column;
