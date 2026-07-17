@@ -4146,6 +4146,42 @@ function closeBanner() {
   document.getElementById('discount-banner').style.display = 'none';
 }
 
+function _buildCheckoutItemHtml(item, idx) {
+  var p = products.find(function(pr) { return pr.id === item.id; });
+  if (!p) return '';
+  var name      = p.name[currentLang] || p.name.fa;
+  var colorObj  = item.colorKey && COLORS[item.colorKey] ? COLORS[item.colorKey] : null;
+  var colorName = colorObj ? (colorObj.name[currentLang] || colorObj.name.fa) : '';
+  var colorHex  = colorObj ? colorObj.hex : '';
+  var metaParts = [];
+  if (colorName) metaParts.push('<span class="cart-item-color-dot" style="background:' + colorHex + ';width:8px;height:8px;border-radius:50%;display:inline-block;margin-inline-end:4px"></span>' + colorName);
+  if (item.size) metaParts.push(item.size);
+  var unitPrice = p.discounted_price && p.discounted_price < p.price ? p.discounted_price : p.price;
+  var firstImg  = p.images && p.images.length ? p.images[0] : null;
+  var thumb     = firstImg
+    ? '<img src="' + SERVER_BASE + firstImg.url + '" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">'
+    : (p.emoji ? '<span style="font-size:26px">' + p.emoji + '</span>' : PLACEHOLDER_SVG);
+  return '<div class="checkout-item">' +
+    '<div class="checkout-item-thumb" style="background:' + p.gradient + '">' + thumb + '</div>' +
+    '<div class="checkout-item-info">' +
+      '<span class="checkout-item-name">' + name + '</span>' +
+      (p.code ? '<span class="checkout-item-code" onclick="copyProductCode(\'' + p.code + '\')" title="Copy">' + p.code + '</span>' : '') +
+      (metaParts.length ? '<span class="checkout-item-meta">' + metaParts.join(' · ') + '</span>' : '') +
+      '<div class="co-qty-ctrl">' +
+        '<button class="co-qty-btn" onclick="checkoutChangeQty(' + idx + ',-1)">−</button>' +
+        '<span class="co-qty-num">' + item.qty + '</span>' +
+        '<button class="co-qty-btn" onclick="checkoutChangeQty(' + idx + ',1)">+</button>' +
+        '<button class="co-qty-remove" onclick="checkoutRemoveItem(' + idx + ')" title="حذف">×</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="checkout-item-right">' +
+      (p.discounted_price && p.discounted_price < p.price
+        ? '<div class="checkout-item-price-orig">' + formatPrice(p.price * item.qty) + '</div><div class="checkout-item-price">' + formatPrice(unitPrice * item.qty) + '</div>'
+        : '<div class="checkout-item-price">' + formatPrice(unitPrice * item.qty) + '</div>') +
+    '</div>' +
+  '</div>';
+}
+
 function checkoutChangeQty(idx, delta) {
   if (!cart[idx]) return;
   var newQty = cart[idx].qty + delta;
@@ -4164,51 +4200,14 @@ function checkoutRemoveItem(idx) {
 }
 
 function _checkoutRefreshItems() {
-  // reset coupon on cart change
   _appliedCoupon = null;
   var ci = document.getElementById('coupon-input'); if (ci) ci.value = '';
   var cr = document.getElementById('coupon-result'); if (cr) cr.style.display = 'none';
   var orRow = document.getElementById('checkout-original-row'); if (orRow) orRow.style.display = 'none';
   var disRow = document.getElementById('checkout-discount-row'); if (disRow) disRow.style.display = 'none';
 
-  // re-render items
-  var t = TRANSLATIONS[currentLang];
-  var L = currentLang;
-  var itemsHtml = cart.map(function(item, idx) {
-    var p = products.find(function(pr) { return pr.id === item.id; });
-    if (!p) return '';
-    var unitPrice = p.discounted_price && p.discounted_price < p.price ? p.discounted_price : p.price;
-    var thumb = p.image_url ? '<img src="' + p.image_url + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px">' : '';
-    var name = L === 'fa' ? (p.name_fa || p.name) : (p.name_en || p.name);
-    var metaParts = [];
-    if (item.colorKey && p.colors) {
-      var col = p.colors.find(function(c) { return c.key === item.colorKey; });
-      if (col) metaParts.push(L === 'fa' ? (col.label_fa || col.key) : (col.label_en || col.key));
-    }
-    if (item.size) metaParts.push(item.size);
-    return '<div class="checkout-item">' +
-      '<div class="checkout-item-thumb" style="background:' + p.gradient + '">' + thumb + '</div>' +
-      '<div class="checkout-item-info">' +
-        '<span class="checkout-item-name">' + name + '</span>' +
-        (p.code ? '<span class="checkout-item-code" onclick="copyProductCode(\'' + p.code + '\')" title="Copy">' + p.code + '</span>' : '') +
-        (metaParts.length ? '<span class="checkout-item-meta">' + metaParts.join(' · ') + '</span>' : '') +
-        '<div class="co-qty-ctrl">' +
-          '<button class="co-qty-btn" onclick="checkoutChangeQty(' + idx + ',-1)">−</button>' +
-          '<span class="co-qty-num">' + item.qty + '</span>' +
-          '<button class="co-qty-btn" onclick="checkoutChangeQty(' + idx + ',1)">+</button>' +
-          '<button class="co-qty-remove" onclick="checkoutRemoveItem(' + idx + ')" title="حذف">×</button>' +
-        '</div>' +
-      '</div>' +
-      '<div class="checkout-item-right">' +
-        (p.discounted_price && p.discounted_price < p.price
-          ? '<div class="checkout-item-price-orig">' + formatPrice(p.price * item.qty) + '</div><div class="checkout-item-price">' + formatPrice(unitPrice * item.qty) + '</div>'
-          : '<div class="checkout-item-price">' + formatPrice(unitPrice * item.qty) + '</div>') +
-      '</div>' +
-    '</div>';
-  }).join('');
-  document.getElementById('checkout-items-list').innerHTML = itemsHtml;
+  document.getElementById('checkout-items-list').innerHTML = cart.map(_buildCheckoutItemHtml).join('');
 
-  // update total
   var total = cart.reduce(function(s, item) {
     var p = products.find(function(pr) { return pr.id === item.id; });
     if (!p) return s;
@@ -4225,43 +4224,7 @@ function renderCheckout() {
   if (!user) return;
 
   // ── Items ──────────────────────────────────────────────────────────────────
-  var itemsHtml = cart.map(function(item) {
-    var p = products.find(function(pr) { return pr.id === item.id; });
-    if (!p) return '';
-    var name      = p.name[currentLang] || p.name.fa;
-    var colorObj  = item.colorKey && COLORS[item.colorKey] ? COLORS[item.colorKey] : null;
-    var colorName = colorObj ? (colorObj.name[currentLang] || colorObj.name.fa) : '';
-    var colorHex  = colorObj ? colorObj.hex : '';
-    var metaParts = [];
-    if (colorName) metaParts.push('<span class="cart-item-color-dot" style="background:' + colorHex + ';width:8px;height:8px;border-radius:50%;display:inline-block;margin-inline-end:4px"></span>' + colorName);
-    if (item.size) metaParts.push(item.size);
-    var unitPrice = p.discounted_price && p.discounted_price < p.price ? p.discounted_price : p.price;
-    var firstImg = p.images && p.images.length ? p.images[0] : null;
-    var thumb = firstImg
-      ? '<img src="' + SERVER_BASE + firstImg.url + '" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">'
-      : (p.emoji ? '<span style="font-size:26px">' + p.emoji + '</span>' : PLACEHOLDER_SVG);
-    var idx = cart.indexOf(item);
-    return '<div class="checkout-item">' +
-      '<div class="checkout-item-thumb" style="background:' + p.gradient + '">' + thumb + '</div>' +
-      '<div class="checkout-item-info">' +
-        '<span class="checkout-item-name">' + name + '</span>' +
-        (p.code ? '<span class="checkout-item-code" onclick="copyProductCode(\'' + p.code + '\')" title="Copy">' + p.code + '</span>' : '') +
-        (metaParts.length ? '<span class="checkout-item-meta">' + metaParts.join(' · ') + '</span>' : '') +
-        '<div class="co-qty-ctrl">' +
-          '<button class="co-qty-btn" onclick="checkoutChangeQty(' + idx + ',-1)">−</button>' +
-          '<span class="co-qty-num">' + item.qty + '</span>' +
-          '<button class="co-qty-btn" onclick="checkoutChangeQty(' + idx + ',1)">+</button>' +
-          '<button class="co-qty-remove" onclick="checkoutRemoveItem(' + idx + ')" title="حذف">×</button>' +
-        '</div>' +
-      '</div>' +
-      '<div class="checkout-item-right">' +
-        (p.discounted_price && p.discounted_price < p.price
-          ? '<div class="checkout-item-price-orig">' + formatPrice(p.price * item.qty) + '</div><div class="checkout-item-price">' + formatPrice(unitPrice * item.qty) + '</div>'
-          : '<div class="checkout-item-price">' + formatPrice(unitPrice * item.qty) + '</div>') +
-      '</div>' +
-    '</div>';
-  }).join('');
-  document.getElementById('checkout-items-list').innerHTML = itemsHtml;
+  document.getElementById('checkout-items-list').innerHTML = cart.map(_buildCheckoutItemHtml).join('');
 
   // ── Total ──────────────────────────────────────────────────────────────────
   var total = cart.reduce(function(s, item) {
