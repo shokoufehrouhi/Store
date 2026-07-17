@@ -90,7 +90,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .logo-img--footer {
-  height: 46px;
+  height: 52px;
 }
 
 .nav-links {
@@ -1704,7 +1704,7 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   .nav-links, .order-btn { display: none; }
   .menu-toggle { display: block; }
   .logo { margin-left: auto; }
-  .logo-img { height: 38px; }
+  .logo-img { height: 44px; }
 
   .hero { min-height: auto; }
   .hero-content { padding: 24px 0; }
@@ -1750,7 +1750,7 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 @media (max-width: 420px) {
   .products-grid { grid-template-columns: 1fr; }
   .hero-title { font-size: 22px; }
-  .logo-img { height: 32px; }
+  .logo-img { height: 38px; }
   .product-card { font-size: 13px; }
 }
 
@@ -2252,9 +2252,12 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 /* ─── Favorites Full Page ─────────────────────────────────────────────────── */
 .fav-page {
   position: fixed;
-  inset: 0;
+  top: 64px;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: var(--bg);
-  z-index: 900;
+  z-index: 90;
   display: flex;
   flex-direction: column;
   transform: translateY(100%);

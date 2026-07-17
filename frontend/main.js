@@ -2256,13 +2256,13 @@ function handleAuthBtnClick() {
 function openFavoritesPanel() {
   var user = getCurrentUser();
   if (!user) { openAuthModal('login'); return; }
+  var panel = document.getElementById('fav-page');
+  if (panel.classList.contains('open')) { closeFavPanel(); return; }
   renderFavPanel();
-  document.getElementById('fav-page').classList.add('open');
-  document.body.style.overflow = 'hidden';
+  panel.classList.add('open');
 }
 function closeFavPanel() {
   document.getElementById('fav-page').classList.remove('open');
-  document.body.style.overflow = '';
 }
 function renderFavPanel() {
   var t         = TRANSLATIONS[currentLang];
