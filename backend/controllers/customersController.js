@@ -169,7 +169,7 @@ async function getProfile(req, res, next) {
         where:  { id: session.customer_id },
         select: {
           id: true, full_name: true, email: true, mobile: true, registered_by: true,
-          preferred_lang: true, created_at: true, avatar: true,
+          preferred_lang: true, created_at: true, avatar: true, birth_date: true,
           addresses: { select: { id: true, recipient: true, phone: true, city: true, postal_code: true, detail: true, is_default: true } },
           customer_favorites: { select: { product_id: true } },
         },
@@ -197,12 +197,12 @@ async function updateProfile(req, res, next) {
     const customer = await prisma.customers.findUnique({ where: { id: session.customer_id } });
     if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
 
-    const { email, full_name } = req.body;
+    const { email, full_name, birth_date } = req.body;
     const hasMobileKey = Object.prototype.hasOwnProperty.call(req.body, 'mobile');
     const mobileRaw = hasMobileKey ? (req.body.mobile || null) : undefined;
 
-    if (!email && !hasMobileKey && !full_name) {
-      return res.status(400).json({ success: false, message: 'email, mobile, or full_name is required' });
+    if (!email && !hasMobileKey && !full_name && birth_date === undefined) {
+      return res.status(400).json({ success: false, message: 'email, mobile, full_name, or birth_date is required' });
     }
 
     if (email && email !== customer.email) {
@@ -219,6 +219,7 @@ async function updateProfile(req, res, next) {
     const dataUpdate = { updated_at: new Date() };
     if (full_name) dataUpdate.full_name = full_name;
     if (email) dataUpdate.email = email;
+    if (birth_date !== undefined) dataUpdate.birth_date = birth_date ? new Date(birth_date) : null;
     if (mobileRaw) {
       dataUpdate.mobile = mobileRaw;
     } else if (hasMobileKey && mobileRaw === null && customer.registered_by !== 'm') {
@@ -228,7 +229,7 @@ async function updateProfile(req, res, next) {
     const updated = await prisma.customers.update({
       where: { id: customer.id },
       data: dataUpdate,
-      select: { id: true, full_name: true, email: true, mobile: true, registered_by: true },
+      select: { id: true, full_name: true, email: true, mobile: true, registered_by: true, birth_date: true },
     });
 
     res.json({ success: true, data: updated });

@@ -2721,6 +2721,11 @@ function renderInfoTab() {
     mobileField +
     '</div>' +
 
+    '<div class="form-field">' +
+    '<label>' + t.profile_info_birth_label + '</label>' +
+    '<input id="info-birth-input" type="date" dir="ltr" value="' + (user.birth_date ? user.birth_date.split('T')[0] : '') + '" style="font-family:monospace;letter-spacing:.5px">' +
+    '</div>' +
+
     '<span class="auth-field-success" id="info-save-success"></span>' +
     '<button id="info-save-btn" class="auth-submit-btn" onclick="saveInfoAll()">' + t.profile_info_save + '</button>';
 }
@@ -2798,6 +2803,7 @@ function saveInfoAll() {
   var nameInp   = document.getElementById('info-name-input');
   var emailInp  = document.getElementById('info-email-input');
   var mobileInp = document.getElementById('info-mobile-input');
+  var birthInp  = document.getElementById('info-birth-input');
   var nameErr   = document.getElementById('info-name-err');
   var emailErr  = document.getElementById('info-email-err');
   var mobileErr = document.getElementById('info-mobile-err');
@@ -2810,6 +2816,7 @@ function saveInfoAll() {
   var nameVal   = nameInp   ? nameInp.value.trim()   : (user.full_name || user.name || '');
   var emailVal  = emailInp  ? emailInp.value.trim()  : '';
   var mobileVal = mobileInp ? mobileInp.value.trim() : '';
+  var birthVal  = birthInp  ? birthInp.value         : '';
 
   var valid = true;
   if (!nameVal) {
@@ -2832,6 +2839,8 @@ function saveInfoAll() {
     if (mobileVal && mobileVal !== user.mobile) body.mobile = mobileVal;
     else if (!mobileVal && user.mobile) body.mobile = null;
   }
+  var currentBirth = user.birth_date ? user.birth_date.split('T')[0] : '';
+  if (birthVal !== currentBirth) body.birth_date = birthVal || null;
 
   var btn = document.getElementById('info-save-btn');
   if (btn) { btn.disabled = true; btn.style.opacity = '.7'; }
@@ -2849,6 +2858,7 @@ function saveInfoAll() {
       u.full_name    = r.data.data.full_name;
       u.email        = r.data.data.email;
       u.mobile       = r.data.data.mobile;
+      u.birth_date   = r.data.data.birth_date || null;
       if (r.data.data.registered_by) u.registered_by = r.data.data.registered_by;
       updateUser(u);
       renderProfileHeader();

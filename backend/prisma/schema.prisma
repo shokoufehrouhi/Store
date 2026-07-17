@@ -64,6 +64,7 @@ model customers {
   updated_at          DateTime    @default(now()) @db.Timestamptz(6)
   registered_by       String?     @db.Char(1)
   avatar              String?
+  birth_date          DateTime?   @db.Date
   addresses           addresses[]
   orders              orders[]
   sessions            sessions[]
