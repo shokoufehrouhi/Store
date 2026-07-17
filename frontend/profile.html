@@ -142,7 +142,7 @@
           </svg>
           <span class="fav-header-badge" id="fav-header-badge"></span>
         </button>
-        <button class="order-btn" onclick="window.location='/checkout'" data-i18n="order_btn">ثبت سفارش</button>
+        <button class="order-btn" onclick="openCheckout()" data-i18n="order_btn">ثبت سفارش</button>
         <button class="order-status-btn" id="order-status-btn" onclick="openActiveOrder()" aria-label="Active Order" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
@@ -170,7 +170,7 @@
           <button class="mobile-lang-opt" data-lang="en">EN</button>
           <button class="mobile-lang-opt" data-lang="tr">TR</button>
         </div>
-        <button class="mobile-order-btn" onclick="window.location='/?open=checkout'" data-i18n="order_btn">ثبت سفارش</button>
+        <button class="mobile-order-btn" onclick="openCheckout();closeMenu()" data-i18n="order_btn">ثبت سفارش</button>
       </nav>
     </div>
   </header>
