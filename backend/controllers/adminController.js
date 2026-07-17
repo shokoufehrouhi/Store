@@ -1,7 +1,7 @@
 const prisma  = require('../prisma/client');
 const path    = require('path');
 const fs      = require('fs');
-const { sendOrderEmail, label } = require('../utils/mailer');
+const { sendOrderEmail, sendLoyaltyEmail, label } = require('../utils/mailer');
 
 // ─── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -233,12 +233,13 @@ async function getProducts(req, res, next) {
   try {
     const products = await prisma.products.findMany({
       include: {
-        categories:        { select: { key: true, label_fa: true } },
-        subcategories:     { select: { key: true, label_fa: true } },
-        product_colors:    { include: { colors: true } },
-        product_sizes:     true,
-        product_media:     { orderBy: { sort_order: 'asc' } },
-        product_inventory: { include: { colors: { select: { id: true, hex: true, name_fa: true, name_en: true } } }, orderBy: [{ color_id: 'asc' }, { size_label: 'asc' }] },
+        categories:         { select: { key: true, label_fa: true, label_en: true, label_tr: true } },
+        subcategories:      { select: { key: true, label_fa: true, label_en: true, label_tr: true } },
+        product_colors:     { include: { colors: true } },
+        product_sizes:      true,
+        product_media:      { orderBy: { sort_order: 'asc' } },
+        product_inventory:  { include: { colors: { select: { id: true, hex: true, name_fa: true, name_en: true } } }, orderBy: [{ color_id: 'asc' }, { size_label: 'asc' }] },
+        product_categories: { include: { categories: true, subcategories: true } },
       },
       orderBy: { created_at: 'desc' },
     });
@@ -252,7 +253,7 @@ async function createProduct(req, res, next) {
       category_id, subcategory_id, gender, code, name_fa, name_en, name_tr,
       desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price, cost_price, stock, delivery_days,
       brand, supplier_shop_name, product_link, supplier_code, supplier_note,
-      colors, sizes, media, inventory,
+      colors, sizes, media, inventory, extra_categories,
     } = req.body;
 
     let finalCode = code?.trim() || null;
@@ -301,11 +302,13 @@ async function createProduct(req, res, next) {
         } : undefined,
       },
       include: {
-        categories:        { select: { key: true, label_fa: true } },
-        product_colors:    { include: { colors: true } },
-        product_sizes:     true,
-        product_media:     { orderBy: { sort_order: 'asc' } },
-        product_inventory: true,
+        categories:         { select: { key: true, label_fa: true, label_en: true, label_tr: true } },
+        subcategories:      { select: { key: true, label_fa: true, label_en: true, label_tr: true } },
+        product_colors:     { include: { colors: true } },
+        product_sizes:      true,
+        product_media:      { orderBy: { sort_order: 'asc' } },
+        product_inventory:  true,
+        product_categories: { include: { categories: true, subcategories: true } },
       },
     });
     if (inventory?.length) {
@@ -315,6 +318,16 @@ async function createProduct(req, res, next) {
           color_id:   i.color_id ? Number(i.color_id) : null,
           size_label: i.size_label || null,
           quantity:   Number(i.quantity) || 0,
+        })),
+        skipDuplicates: true,
+      });
+    }
+    if (extra_categories?.length) {
+      await prisma.product_categories.createMany({
+        data: extra_categories.map(ec => ({
+          product_id:     product.id,
+          category_id:    Number(ec.category_id),
+          subcategory_id: ec.subcategory_id ? Number(ec.subcategory_id) : null,
         })),
         skipDuplicates: true,
       });
@@ -330,12 +343,13 @@ async function updateProduct(req, res, next) {
       category_id, subcategory_id, gender, name_fa, name_en, name_tr,
       desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price, cost_price, stock, is_active, delivery_days,
       brand, supplier_shop_name, product_link, supplier_code, supplier_note,
-      colors, sizes, media, inventory,
+      colors, sizes, media, inventory, extra_categories,
     } = req.body;
 
     await prisma.product_colors.deleteMany({ where: { product_id: id } });
     await prisma.product_sizes.deleteMany({ where:  { product_id: id } });
     await prisma.product_inventory.deleteMany({ where: { product_id: id } });
+    await prisma.product_categories.deleteMany({ where: { product_id: id } });
 
     const existingMedia = await prisma.product_media.findMany({ where: { product_id: id }, orderBy: { sort_order: 'asc' } });
     const existingCount = existingMedia.length;
@@ -377,11 +391,13 @@ async function updateProduct(req, res, next) {
         } : undefined,
       },
       include: {
-        categories:        { select: { key: true, label_fa: true } },
-        product_colors:    { include: { colors: true } },
-        product_sizes:     true,
-        product_media:     { orderBy: { sort_order: 'asc' } },
-        product_inventory: true,
+        categories:         { select: { key: true, label_fa: true, label_en: true, label_tr: true } },
+        subcategories:      { select: { key: true, label_fa: true, label_en: true, label_tr: true } },
+        product_colors:     { include: { colors: true } },
+        product_sizes:      true,
+        product_media:      { orderBy: { sort_order: 'asc' } },
+        product_inventory:  true,
+        product_categories: { include: { categories: true, subcategories: true } },
       },
     });
     if (inventory?.length) {
@@ -391,6 +407,16 @@ async function updateProduct(req, res, next) {
           color_id:   i.color_id ? Number(i.color_id) : null,
           size_label: i.size_label || null,
           quantity:   Number(i.quantity) || 0,
+        })),
+        skipDuplicates: true,
+      });
+    }
+    if (extra_categories?.length) {
+      await prisma.product_categories.createMany({
+        data: extra_categories.map(ec => ({
+          product_id:     id,
+          category_id:    Number(ec.category_id),
+          subcategory_id: ec.subcategory_id ? Number(ec.subcategory_id) : null,
         })),
         skipDuplicates: true,
       });
@@ -659,6 +685,13 @@ async function markDelivered(req, res, next) {
     });
     if (updated.customers) {
       sendOrderEmail(updated.customers, updated, 'delivered').catch(() => {});
+      const deliveredCount = await prisma.orders.count({
+        where: { customer_id: updated.customer_id, status: 'delivered' },
+      });
+      const isMilestone = deliveredCount % 6 === 3 || (deliveredCount % 6 === 0 && deliveredCount > 0);
+      if (isMilestone) {
+        sendLoyaltyEmail(updated.customers, deliveredCount).catch(e => console.error('[loyalty email]', e.message));
+      }
     }
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
