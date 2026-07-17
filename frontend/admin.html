@@ -888,10 +888,15 @@
     <!-- Coupons Tab -->
     <div id="tab-coupons" class="hidden">
       <div class="card" style="padding:24px;margin-bottom:20px">
-        <h2 style="margin:0 0 20px;font-size:17px;font-weight:700">🎟️ <span data-i18n="navCoupons">کدهای تخفیف</span></h2>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <h2 style="margin:0;font-size:17px;font-weight:700">🎟️ <span data-i18n="navCoupons">کدهای تخفیف</span></h2>
+          <button onclick="openCouponForm()" id="coupon-add-btn" class="btn btn-primary" style="padding:8px 18px;font-size:13px;display:flex;align-items:center;gap:6px">
+            <span style="font-size:16px;line-height:1">+</span> <span data-i18n="cpAddBtn">کد جدید</span>
+          </button>
+        </div>
 
         <!-- Create/Edit Form -->
-        <div id="coupon-form-wrap" style="background:var(--bg);border-radius:12px;padding:20px;margin-bottom:24px;border:1.5px solid var(--border)">
+        <div id="coupon-form-wrap" style="display:none;background:var(--bg);border-radius:12px;padding:20px;margin-bottom:24px;border:1.5px solid var(--border)">
           <div style="font-weight:700;font-size:14px;margin-bottom:16px" id="coupon-form-title" data-i18n="cpNewTitle">➕ کد تخفیف جدید</div>
           <input type="hidden" id="coupon-edit-id">
           <div style="display:grid;grid-template-columns:1.4fr 1.2fr 0.7fr 0.9fr 1fr 1fr;gap:8px;margin-bottom:14px">
@@ -1263,7 +1268,7 @@ const LANGS = {
     ppApproved:'تایید شده', ppHidden:'مخفی', ppToggleHide:'مخفی کن', ppToggleShow:'نمایش بده', ppDeleted:'حذف شد', ppConfirmDelete:'این عکس حذف شود؟',
     supAddBtn:'+ افزودن تامین‌کننده', supShopName:'نام فروشگاه', supSupplierName:'نام تامین‌کننده', supPhone:'شماره تماس', supTelegram:'آدرس تلگرام', supWebsite:'آدرس سایت', supInstagram:'آدرس اینستاگرام', supStoreAddress:'آدرس مغازه', supCardPhoto:'آپلود کارت ویزیت', supSaved:'ذخیره شد', supDeleted:'حذف شد', supConfirmDelete:'این تامین‌کننده حذف شود؟', supRequired:'نام فروشگاه الزامی است',
     prodBrand:'برند', prodSupplierShop:'فروشگاه تامین‌کننده', prodLink:'لینک محصول', prodSupplierCode:'کد محصول تامین‌کننده', prodSupplierNote:'توضیحات تامین‌کننده',
-    cpNewTitle:'➕ کد تخفیف جدید', cpEditTitle:'✏️ ویرایش کد تخفیف',
+    cpAddBtn:'+ کد جدید', cpNewTitle:'➕ کد تخفیف جدید', cpEditTitle:'✏️ ویرایش کد تخفیف',
     cpCode:'کد تخفیف', cpType:'نوع تخفیف', cpValue:'مقدار', cpMaxUses:'حداکثر استفاده', cpStarts:'تاریخ شروع', cpExpires:'تاریخ انقضا',
     cpUnlimited:'بدون محدودیت', cpTypePercent:'درصد (%)', cpTypeFixed:'مقدار ثابت (₺)',
     cpForLabel:'قابل استفاده توسط', cpForAll:'همه مشتریان', cpForSpecific:'مشتریان خاص',
@@ -1435,7 +1440,7 @@ const LANGS = {
     ppApproved:'Approved', ppHidden:'Hidden', ppToggleHide:'Hide', ppToggleShow:'Show', ppDeleted:'Deleted', ppConfirmDelete:'Delete this photo?',
     supAddBtn:'+ Add Supplier', supShopName:'Shop Name', supSupplierName:'Supplier Name', supPhone:'Phone', supTelegram:'Telegram', supWebsite:'Website', supInstagram:'Instagram', supStoreAddress:'Store Address', supCardPhoto:'Upload Business Card', supSaved:'Saved', supDeleted:'Deleted', supConfirmDelete:'Delete this supplier?', supRequired:'Shop name is required',
     prodBrand:'Brand', prodSupplierShop:'Supplier Shop', prodLink:'Product Link', prodSupplierCode:'Supplier Code', prodSupplierNote:'Supplier Notes',
-    cpNewTitle:'➕ New Discount Code', cpEditTitle:'✏️ Edit Discount Code',
+    cpAddBtn:'+ New Code', cpNewTitle:'➕ New Discount Code', cpEditTitle:'✏️ Edit Discount Code',
     cpCode:'Coupon Code', cpType:'Discount Type', cpValue:'Value', cpMaxUses:'Max Uses', cpStarts:'Start Date', cpExpires:'Expiry Date',
     cpUnlimited:'Unlimited', cpTypePercent:'Percent (%)', cpTypeFixed:'Fixed Amount (₺)',
     cpForLabel:'Applicable To', cpForAll:'All Customers', cpForSpecific:'Specific Customers',
@@ -1607,7 +1612,7 @@ const LANGS = {
     ppApproved:'Onaylandı', ppHidden:'Gizli', ppToggleHide:'Gizle', ppToggleShow:'Göster', ppDeleted:'Silindi', ppConfirmDelete:'Bu fotoğraf silinsin mi?',
     supAddBtn:'+ Tedarikçi Ekle', supShopName:'Mağaza Adı', supSupplierName:'Tedarikçi Adı', supPhone:'Telefon', supTelegram:'Telegram', supWebsite:'Web Sitesi', supInstagram:'Instagram', supStoreAddress:'Mağaza Adresi', supCardPhoto:'Kartvizit Yükle', supSaved:'Kaydedildi', supDeleted:'Silindi', supConfirmDelete:'Bu tedarikçi silinsin mi?', supRequired:'Mağaza adı zorunludur',
     prodBrand:'Marka', prodSupplierShop:'Tedarikçi Mağazası', prodLink:'Ürün Linki', prodSupplierCode:'Tedarikçi Kodu', prodSupplierNote:'Tedarikçi Notları',
-    cpNewTitle:'➕ Yeni İndirim Kodu', cpEditTitle:'✏️ İndirim Kodunu Düzenle',
+    cpAddBtn:'+ Yeni Kod', cpNewTitle:'➕ Yeni İndirim Kodu', cpEditTitle:'✏️ İndirim Kodunu Düzenle',
     cpCode:'Kupon Kodu', cpType:'İndirim Türü', cpValue:'Değer', cpMaxUses:'Maks. Kullanım', cpStarts:'Başlangıç Tarihi', cpExpires:'Son Kullanma Tarihi',
     cpUnlimited:'Sınırsız', cpTypePercent:'Yüzde (%)', cpTypeFixed:'Sabit Tutar (₺)',
     cpForLabel:'Uygulanabilir Kişiler', cpForAll:'Tüm Müşteriler', cpForSpecific:'Belirli Müşteriler',
@@ -4697,6 +4702,14 @@ function resetCouponForm() {
   _cpSelectedIds = [];
   renderCpSelected();
   document.getElementById('cp-form-err').style.display = 'none';
+  document.getElementById('coupon-form-wrap').style.display = 'none';
+}
+
+function openCouponForm() {
+  resetCouponForm();
+  var wrap = document.getElementById('coupon-form-wrap');
+  wrap.style.display = '';
+  wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function editCoupon(id) {
@@ -4751,7 +4764,9 @@ function editCoupon(id) {
   renderCpSelected();
   var srch = document.getElementById('cp-customer-search');
   if (srch) srch.style.display = 'none';
-  document.getElementById('coupon-form-wrap').scrollIntoView({ behavior:'smooth', block:'start' });
+  var wrap = document.getElementById('coupon-form-wrap');
+  wrap.style.display = '';
+  wrap.scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 async function saveCoupon() {
