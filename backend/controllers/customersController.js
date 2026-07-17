@@ -56,13 +56,13 @@ async function register(req, res, next) {
       },
     });
 
-    // assign BESTIE5 if this email was referred
+    // assign BESTIE if this email was referred
     if (email) {
       const lead = await prisma.leads.findFirst({
         where: { email: email.trim().toLowerCase(), coupon_assigned: false },
       });
       if (lead) {
-        const coupon = await prisma.coupons.findUnique({ where: { code: 'BESTIE5' } });
+        const coupon = await prisma.coupons.findUnique({ where: { code: 'BESTIE' } });
         if (coupon) {
           await prisma.coupon_assignments.create({
             data: { coupon_id: coupon.id, customer_id: customer.id },

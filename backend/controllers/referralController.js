@@ -58,7 +58,7 @@ async function submitReferral(req, res, next) {
     });
 
     const coupon = await prisma.coupons.findUnique({
-      where:  { code: 'BESTIE5' },
+      where:  { code: 'BESTIE' },
       select: { value: true, type: true },
     });
 
@@ -67,7 +67,7 @@ async function submitReferral(req, res, next) {
       toName:        name?.trim() || '',
       toEmail:       emailLc,
       referrerName:  referrer?.full_name || '',
-      lang:          referrer?.preferred_lang || 'en',
+      lang:          'tr',
       trackingToken,
       couponValue:   coupon?.value   || 5,
       couponType:    coupon?.type    || 'percent',

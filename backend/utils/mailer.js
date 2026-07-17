@@ -1,5 +1,13 @@
 const nodemailer = require('nodemailer');
 
+const path          = require('path');
+const EMAIL_LOGO_PATH   = path.join(__dirname, '../../frontend/images/shilista_email_logo.jpg');
+const EMAIL_FOOTER_PATH = path.join(__dirname, '../../frontend/images/shilista_email_footer.jpg');
+const EMAIL_IMG_ATTACHMENTS = [
+  { filename: 'logo.jpg',   path: EMAIL_LOGO_PATH,   cid: 'logo@shilista'   },
+  { filename: 'footer.jpg', path: EMAIL_FOOTER_PATH, cid: 'footer@shilista' },
+];
+
 function getTransporter() {
   if (!process.env.SMTP_HOST) return null;
   return nodemailer.createTransport({
@@ -315,9 +323,7 @@ function buildHtml(type, order, customer, extraInfo) {
       <!-- Header -->
       <tr>
         <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
-          ${process.env.SITE_URL
-            ? `<img src="${process.env.SITE_URL}/images/shilista_6_light_full_transparent.png" alt="Shilista" height="52" style="height:52px;width:auto;display:inline-block">`
-            : `<span style="font-size:26px;font-weight:700;color:#c0562a;letter-spacing:1px;font-family:Arial,sans-serif">Shilista</span>`}
+          <img src="cid:logo@shilista" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
 
@@ -369,8 +375,8 @@ function buildHtml(type, order, customer, extraInfo) {
 
       <!-- Footer -->
       <tr>
-        <td style="background:#fdf5ed;padding:20px 32px;border-top:1px solid #f0e8df;text-align:center">
-          <p style="margin:0;font-size:12px;color:#aaa">${l.thanks} — shilista.com</p>
+        <td style="background:#fff;padding:24px 32px 12px;border-top:1px solid #f0e8df;text-align:center">
+          <img src="cid:footer@shilista" alt="Shilista" width="480" style="width:480px;max-width:100%;height:auto;display:inline-block">
         </td>
       </tr>
 
@@ -390,7 +396,7 @@ async function sendOrderEmail(customer, order, type, extraInfo, attachFiles) {
 
   const { subject, html } = buildHtml(type, order, customer, extraInfo);
 
-  const attachments = [];
+  const attachments = [...EMAIL_IMG_ATTACHMENTS];
   if (attachFiles && attachFiles.length) {
     for (const f of attachFiles) {
       attachments.push(f);
@@ -492,7 +498,7 @@ async function sendFriendInviteEmail({ toName, toEmail, referrerName, lang, trac
             <tr>
               <td style="padding:20px;text-align:center">
                 <p style="margin:0 0 10px;font-size:13px;color:#a07050;font-weight:600">${ll.code_label}</p>
-                <p style="margin:0 0 8px;font-size:32px;font-weight:800;color:#c0562a;letter-spacing:4px;font-family:monospace">BESTIE5</p>
+                <p style="margin:0 0 8px;font-size:32px;font-weight:800;color:#c0562a;letter-spacing:4px;font-family:monospace">BESTIE</p>
                 <p style="margin:0;font-size:13px;color:#e07a40;font-weight:700">${discountText} ${lang === 'fa' ? 'تخفیف' : lang === 'tr' ? 'indirim' : 'off'}</p>
               </td>
             </tr>
@@ -503,7 +509,7 @@ async function sendFriendInviteEmail({ toName, toEmail, referrerName, lang, trac
           <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px">
             <tr>
               <td style="text-align:center">
-                <a href="${siteUrl}"
+                <a href="${siteUrl}?lang=tr"
                   style="display:inline-block;background:#c0562a;color:#fff;font-size:15px;font-weight:700;
                          padding:13px 36px;border-radius:9px;text-decoration:none;letter-spacing:.3px">
                   ${ll.btn}
@@ -515,8 +521,8 @@ async function sendFriendInviteEmail({ toName, toEmail, referrerName, lang, trac
       </tr>
 
       <tr>
-        <td style="background:#fdf5ed;padding:18px 32px;border-top:1px solid #f0e8df;text-align:center">
-          <p style="margin:0;font-size:11px;color:#bbb">${ll.footer}</p>
+        <td style="background:#fff;padding:24px 32px 12px;border-top:1px solid #f0e8df;text-align:center">
+          <img src="cid:footer@shilista" alt="Shilista" width="480" style="width:480px;max-width:100%;height:auto;display:inline-block">
           ${trackPixel}
         </td>
       </tr>
@@ -527,10 +533,11 @@ async function sendFriendInviteEmail({ toName, toEmail, referrerName, lang, trac
 </body></html>`;
 
   await transporter.sendMail({
-    from:    process.env.SMTP_FROM || process.env.SMTP_USER,
-    to:      toEmail,
+    from:        process.env.SMTP_FROM || process.env.SMTP_USER,
+    to:          toEmail,
     subject,
     html,
+    attachments: EMAIL_IMG_ATTACHMENTS,
   });
 }
 
@@ -572,7 +579,7 @@ async function sendReplyEmail(customer, order, replyText) {
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
       <tr><td style="background:#fff;padding:24px 32px 16px;border-bottom:2px solid #f0e8df;text-align:center">
-        <span style="font-size:24px;font-weight:700;color:#c0562a;letter-spacing:1px">Shilista</span>
+        <img src="cid:logo@shilista" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
       </td></tr>
       <tr><td style="background:linear-gradient(135deg,#c0562a,#e07a40);padding:16px 32px;text-align:center">
         <p style="margin:0;font-size:16px;font-weight:700;color:#fff">${subject}</p>
@@ -580,13 +587,13 @@ async function sendReplyEmail(customer, order, replyText) {
       <tr><td style="padding:28px 32px">
         <p style="margin:0 0 12px;font-size:14px;color:#555">${l.intro}</p>
         <div style="background:#f9f5f2;border-left:4px solid #c0562a;padding:14px 18px;border-radius:6px;font-size:14px;color:#333;line-height:1.7;white-space:pre-wrap">${replyText}</div>
-        <p style="margin:20px 0 0;font-size:12px;color:#aaa">Shilista — shilista.com</p>
+        <img src="cid:footer@shilista" alt="Shilista" width="480" style="width:480px;max-width:100%;height:auto;display:inline-block;margin-top:20px">
       </td></tr>
     </table>
   </td></tr>
 </table>
 </body></html>`;
-  await transporter.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to: customer.email, subject, html });
+  await transporter.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to: customer.email, subject, html, attachments: EMAIL_IMG_ATTACHMENTS });
 }
 
 module.exports = { sendOrderEmail, sendRawEmail, sendReplyEmail, sendFriendInviteEmail, label };
