@@ -2509,71 +2509,81 @@ function renderLoyaltyCard(completedOrders) {
   var cycleNum = justCompleted ? Math.floor(n / 6) : (Math.floor(n / 6) + 1);
   var prize1Unlocked = filled >= 3;
   var prize2Unlocked = filled >= 6;
-
   var L = currentLang;
+
   var cycleTxt = L === 'fa' ? ('دوره ' + toFaDigit(cycleNum)) : (L === 'tr' ? ('Devir ' + cycleNum) : ('Cycle ' + cycleNum));
-  var titleTxt = L === 'fa' ? '🎯 باشگاه خریداران' : (L === 'tr' ? '🎯 Sadakat Kulübü' : '🎯 Loyalty Club');
+  var brandTxt = 'SHILISTA CLUB';
+  var titleTxt = L === 'fa' ? 'باشگاه وفاداری' : (L === 'tr' ? 'Sadakat Kulübü' : 'Loyalty Club');
   var p1Lbl    = L === 'fa' ? 'جایزه اول' : (L === 'tr' ? '1. Ödül' : 'Prize 1');
-  var p2Lbl    = L === 'fa' ? 'جایزه بزرگ' : (L === 'tr' ? 'Büyük Ödül' : 'Big Prize');
-  var claimTxt = L === 'fa' ? '🎉 دریافت کن!' : (L === 'tr' ? '🎉 Al!' : '🎉 Claim!');
+  var p2Lbl    = L === 'fa' ? 'جایزه ویژه' : (L === 'tr' ? 'Özel Ödül' : 'Special Prize');
+  var claimTxt = L === 'fa' ? '🎉 دریافت!' : (L === 'tr' ? '🎉 Al!' : '🎉 Claim!');
 
   function tip1() {
-    if (prize1Unlocked) return L === 'fa' ? 'جایزه آماده‌ست!' : (L === 'tr' ? 'Ödül hazır!' : 'Prize ready!');
+    if (prize1Unlocked) return L === 'fa' ? '✨ جایزه آماده‌ست!' : (L === 'tr' ? '✨ Ödül hazır!' : '✨ Prize ready!');
     var rem = 3 - filled;
-    return L === 'fa' ? (toFaDigit(rem) + ' خرید مانده — چی منتظرته؟ 👀') : (L === 'tr' ? rem + ' alışveriş kaldı 👀' : rem + ' more purchase' + (rem>1?'s':'') + ' — what awaits? 👀');
+    return L === 'fa' ? (toFaDigit(rem) + ' خرید مانده — چی منتظرته؟ 👀') : (L === 'tr' ? rem + ' alışveriş kaldı 👀' : rem + ' purchase' + (rem>1?'s':'') + ' — what's waiting? 👀');
   }
   function tip2() {
-    if (prize2Unlocked) return L === 'fa' ? 'جایزه بزرگ آماده‌ست!' : (L === 'tr' ? 'Büyük ödül hazır!' : 'Big prize ready!');
+    if (prize2Unlocked) return L === 'fa' ? '🏆 جایزه ویژه آماده‌ست!' : (L === 'tr' ? '🏆 Özel ödül hazır!' : '🏆 Special prize ready!');
     var rem = 6 - filled;
-    return L === 'fa' ? (toFaDigit(rem) + ' خرید مانده — جایزه بزرگ رو از دست نده! 🔥') : (L === 'tr' ? rem + ' alışveriş kaldı 🔥' : rem + ' purchase' + (rem>1?'s':'') + ' left — don\'t miss the big prize! 🔥');
+    return L === 'fa' ? (toFaDigit(rem) + ' خرید مانده — جایزه ویژه رو از دست نده! 🔥') : (L === 'tr' ? rem + ' alışveriş kaldı 🔥' : rem + ' left — don\'t miss the big prize! 🔥');
   }
-
   function footerTxt() {
-    if (prize2Unlocked) return L === 'fa' ? 'هر ۶ خرید یه جایزه جدید! 🎊' : (L === 'tr' ? 'Her 6 alışverişte yeni ödül! 🎊' : 'New prizes every 6 purchases! 🎊');
+    if (n === 0) return L === 'fa' ? 'اولین خریدت رو ثبت کن و شروع کن!' : (L === 'tr' ? 'İlk alışverişini yap ve başla!' : 'Make your first purchase and start!');
+    if (prize2Unlocked) return L === 'fa' ? 'هر ۶ خرید = جوایز جدید! 🎊' : (L === 'tr' ? 'Her 6 alışveriş = yeni ödüller! 🎊' : 'Every 6 purchases = new prizes! 🎊');
     var next = prize1Unlocked ? (6 - filled) : (3 - filled);
-    var nextPrizeTxt = prize1Unlocked
-      ? (L === 'fa' ? 'جایزه بزرگ' : L === 'tr' ? 'büyük ödül' : 'big prize')
-      : (L === 'fa' ? 'جایزه اول' : L === 'tr' ? '1. ödül' : 'Prize 1');
+    var nextLbl = prize1Unlocked
+      ? (L === 'fa' ? 'جایزه ویژه' : L === 'tr' ? 'özel ödül' : 'special prize')
+      : (L === 'fa' ? 'جایزه اول' : L === 'tr' ? '1. ödül' : 'your first prize');
     return L === 'fa'
-      ? 'فقط <strong>' + toFaDigit(next) + ' خرید</strong> مانده تا ' + nextPrizeTxt
-      : (L === 'tr' ? '<strong>' + next + ' alışveriş</strong> daha ' + nextPrizeTxt + ' için' : '<strong>' + next + ' purchase' + (next>1?'s':'') + '</strong> away from ' + nextPrizeTxt);
+      ? 'فقط <strong>' + toFaDigit(next) + ' خرید</strong> تا ' + nextLbl
+      : (L === 'tr' ? '<strong>' + next + ' alışveriş</strong> daha ' + nextLbl + ' için' : 'Just <strong>' + next + ' purchase' + (next>1?'s':'') + '</strong> until ' + nextLbl);
   }
 
-  function circle(i) {
-    var cls = i < filled ? 'lc-filled' : (i === filled ? 'lc-next' : 'lc-empty');
-    var inner = i < filled ? '✓' : '';
-    return '<div class="lc-circle ' + cls + '">' + inner + '</div>';
+  // SVG star — filled/empty/next
+  function star(state) {
+    var fill   = state === 'filled' ? '#FFD34E' : 'none';
+    var stroke = state === 'filled' ? '#FFA500' : state === 'next' ? 'rgba(255,92,0,.75)' : 'rgba(255,255,255,.18)';
+    return '<svg viewBox="0 0 24 24" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.6" stroke-linejoin="round">' +
+      '<polygon points="12,2.5 14.8,9 22,9.8 16.8,14.6 18.4,21.5 12,17.8 5.6,21.5 7.2,14.6 2,9.8 9.2,9"/>' +
+      '</svg>';
   }
 
-  function prizeBox(unlocked, lblTxt, tooltipTxt) {
+  function stamp(i) {
+    var state = i < filled ? 'filled' : (i === filled && !prize2Unlocked ? 'next' : 'empty');
+    return '<div class="lc-stamp lc-' + state + '">' + star(state) + '</div>';
+  }
+
+  var dots = '<div class="lc-dot-gap"><span></span><span></span><span></span></div>';
+
+  function prizeBox(unlocked, lblTxt, tipTxt, icon) {
     var state = unlocked ? 'lc-unlocked' : 'lc-locked';
-    var icon  = unlocked ? '🎁' : '🎁';
     var q     = unlocked ? '' : '<span class="lc-prize-q">?</span>';
     var lbl   = unlocked ? claimTxt : lblTxt;
     return '<div class="lc-prize ' + state + '">' +
-      '<div class="lc-prize-box">' + icon + q + '</div>' +
-      '<div class="lc-prize-label">' + lbl + '</div>' +
-      '<div class="lc-tooltip">' + tooltipTxt + '</div>' +
+      '<div class="lc-prize-box"><span class="lc-prize-icon">' + icon + '</span>' + q + '</div>' +
+      '<div class="lc-prize-lbl">' + lbl + '</div>' +
+      '<div class="lc-tip">' + tipTxt + '</div>' +
     '</div>';
   }
 
   return '<div class="lc-card">' +
     '<div class="lc-header">' +
-      '<div><div class="lc-title">' + titleTxt + '</div>' +
-      '<div class="lc-subtitle">' + (n === 0 ? (L === 'fa' ? 'اولین خریدت رو ثبت کن!' : L === 'tr' ? 'İlk alışverişini yap!' : 'Make your first purchase!') : footerTxt()) + '</div></div>' +
+      '<div><div class="lc-brand">' + brandTxt + '</div><div class="lc-title">' + titleTxt + '</div></div>' +
       '<div class="lc-cycle-badge">' + cycleTxt + '</div>' +
     '</div>' +
     '<div class="lc-row">' +
-      '<div class="lc-circles">' + circle(0) + circle(1) + circle(2) + '</div>' +
-      '<div class="lc-connector"></div>' +
-      prizeBox(prize1Unlocked, p1Lbl, tip1()) +
+      '<div class="lc-stamps">' + stamp(0) + dots + stamp(1) + dots + stamp(2) + '</div>' +
+      '<div class="lc-arrow-gap">›</div>' +
+      prizeBox(prize1Unlocked, p1Lbl, tip1(), '🎁') +
     '</div>' +
+    '<div class="lc-divider"></div>' +
     '<div class="lc-row">' +
-      '<div class="lc-circles">' + circle(3) + circle(4) + circle(5) + '</div>' +
-      '<div class="lc-connector"></div>' +
-      prizeBox(prize2Unlocked, p2Lbl, tip2()) +
+      '<div class="lc-stamps">' + stamp(3) + dots + stamp(4) + dots + stamp(5) + '</div>' +
+      '<div class="lc-arrow-gap">›</div>' +
+      prizeBox(prize2Unlocked, p2Lbl, tip2(), '🏆') +
     '</div>' +
-    (n > 0 ? '<div class="lc-footer">' + footerTxt() + '</div>' : '') +
+    '<div class="lc-footer">' + footerTxt() + '</div>' +
   '</div>';
 }
 
