@@ -4694,7 +4694,19 @@ document.addEventListener('DOMContentLoaded', function() {
       setTimeout(function() { openCart(); }, 400);
     }
   } else if (_openFlag) {
-    setTimeout(function() { openCheckout(); }, 400);
+    // Show overlay shell immediately so main page never flashes
+    var _autoOverlay = document.getElementById('checkout-overlay');
+    if (_autoOverlay) {
+      var _autoHeader = document.querySelector('.header');
+      var _autoTop    = _autoHeader ? _autoHeader.getBoundingClientRect().bottom : 64;
+      _autoOverlay.style.top      = _autoTop + 'px';
+      _autoOverlay.style.transition = 'none';
+      _autoOverlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      history.pushState({ page: 'checkout' }, '', '/checkout');
+      setTimeout(function() { _autoOverlay.style.transition = ''; }, 50);
+    }
+    window._pendingAutoCheckout = true;
   }
 
   // Save scroll position before unload
@@ -4725,6 +4737,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     updateNavVisibility();
     renderGrid();
+
+    // If redirected from product/profile page, open checkout now that products are ready
+    if (window._pendingAutoCheckout) {
+      window._pendingAutoCheckout = false;
+      openCheckout();
+    }
 
     // Restore scroll after render
     var savedScroll = sessionStorage.getItem('mf_scroll');
