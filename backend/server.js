@@ -56,6 +56,7 @@ app.use('/api/admin',                      require('./routes/admin'));
 
 const cp = require('./controllers/couponsController');
 app.get('/api/banners',           cp.getBanners);
+app.get('/api/coupons/reward',    cp.getRewardCode);
 app.post('/api/coupons/validate', cp.validateCoupon);
 
 // ─── Public categories (no auth) ──────────────────────────────────────────────
