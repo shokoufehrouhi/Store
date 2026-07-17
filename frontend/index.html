@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=60">
+  <link rel="stylesheet" href="style.css?v=61">
 </head>
 <body>
 
@@ -583,77 +583,73 @@
         <h2 class="checkout-title" data-i18n="checkout_title">تایید و ثبت سفارش</h2>
       </div>
 
-      <!-- Two-column body -->
-      <div class="checkout-columns">
+      <!-- Body -->
+      <div class="checkout-body">
 
-        <!-- Right col: Address + Note + Coupon/Total/Submit -->
-        <div class="checkout-col-form">
+        <!-- 1. Items -->
+        <section class="checkout-section">
+          <h3 class="checkout-section-title" data-i18n="checkout_items">محصولات</h3>
+          <div id="checkout-items-list"></div>
+        </section>
 
-          <!-- Address -->
-          <section class="checkout-section">
-            <h3 class="checkout-section-title" data-i18n="checkout_address">آدرس تحویل</h3>
-            <div id="checkout-addr-selected"></div>
-            <div id="checkout-addr-list" style="display:none"></div>
-            <button class="checkout-add-addr-btn" onclick="checkoutAddAddress()" id="checkout-add-addr-btn" style="display:none" data-i18n="checkout_add_addr">+ افزودن آدرس جدید</button>
-            <div id="checkout-addr-form" style="display:none">
-              <div class="address-form-grid" style="margin-top:12px">
-                <div class="form-field"><label data-i18n="addr_name_label">نام گیرنده</label><input id="co-addr-name"><span class="auth-field-error" id="co-addr-name-err"></span></div>
-                <div class="form-field"><label data-i18n="addr_phone_label">شماره تماس</label><input id="co-addr-phone"><span class="auth-field-error" id="co-addr-phone-err"></span></div>
-                <div class="form-field"><label data-i18n="addr_city_label">شهر</label><input id="co-addr-city"><span class="auth-field-error" id="co-addr-city-err"></span></div>
-                <div class="form-field"><label data-i18n="addr_postal_label">کد پستی</label><input id="co-addr-postal"></div>
-              </div>
-              <div class="form-field"><label data-i18n="addr_detail_label">آدرس کامل</label><textarea id="co-addr-detail" rows="2"></textarea><span class="auth-field-error" id="co-addr-detail-err"></span></div>
-              <div class="addr-form-actions">
-                <button class="auth-submit-btn" onclick="checkoutSaveAddress()" data-i18n="addr_save_btn">ذخیره آدرس</button>
-                <button class="addr-cancel-btn" onclick="checkoutCancelAddress()" data-i18n="addr_cancel_btn">انصراف</button>
-              </div>
+        <!-- 2. Address -->
+        <section class="checkout-section">
+          <h3 class="checkout-section-title" data-i18n="checkout_address">آدرس تحویل</h3>
+          <div id="checkout-addr-selected"></div>
+          <div id="checkout-addr-list" style="display:none"></div>
+          <button class="checkout-add-addr-btn" onclick="checkoutAddAddress()" id="checkout-add-addr-btn" style="display:none" data-i18n="checkout_add_addr">+ افزودن آدرس جدید</button>
+          <div id="checkout-addr-form" style="display:none">
+            <div class="address-form-grid" style="margin-top:12px">
+              <div class="form-field"><label data-i18n="addr_name_label">نام گیرنده</label><input id="co-addr-name"><span class="auth-field-error" id="co-addr-name-err"></span></div>
+              <div class="form-field"><label data-i18n="addr_phone_label">شماره تماس</label><input id="co-addr-phone"><span class="auth-field-error" id="co-addr-phone-err"></span></div>
+              <div class="form-field"><label data-i18n="addr_city_label">شهر</label><input id="co-addr-city"><span class="auth-field-error" id="co-addr-city-err"></span></div>
+              <div class="form-field"><label data-i18n="addr_postal_label">کد پستی</label><input id="co-addr-postal"></div>
             </div>
-          </section>
-
-          <!-- Note -->
-          <section class="checkout-section">
-            <h3 class="checkout-section-title" data-i18n="checkout_note">توضیحات</h3>
-            <textarea class="checkout-note-input" id="checkout-note" rows="3" data-i18n-ph="checkout_note_ph" placeholder="توضیح سفارش، درخواست خاص..."></textarea>
-          </section>
-
-          <!-- Coupon + Total + Submit -->
-          <div class="checkout-footer">
-            <div style="margin-bottom:12px">
-              <div style="display:flex;gap:8px">
-                <input id="coupon-input" type="text" data-i18n-ph="coupon_ph" placeholder="کد تخفیف" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;text-transform:uppercase;outline:none">
-                <button onclick="applyCoupon()" id="coupon-apply-btn" data-i18n="coupon_apply" style="padding:9px 16px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">اعمال</button>
-              </div>
-              <div id="coupon-result" style="margin-top:6px;font-size:12px;display:none"></div>
+            <div class="form-field"><label data-i18n="addr_detail_label">آدرس کامل</label><textarea id="co-addr-detail" rows="2"></textarea><span class="auth-field-error" id="co-addr-detail-err"></span></div>
+            <div class="addr-form-actions">
+              <button class="auth-submit-btn" onclick="checkoutSaveAddress()" data-i18n="addr_save_btn">ذخیره آدرس</button>
+              <button class="addr-cancel-btn" onclick="checkoutCancelAddress()" data-i18n="addr_cancel_btn">انصراف</button>
             </div>
-            <div class="checkout-total-row" id="checkout-original-row" style="display:none;color:#888;font-size:13px">
-              <span data-i18n="checkout_original">جمع اصلی</span>
-              <span id="checkout-original-price" style="text-decoration:line-through"></span>
-            </div>
-            <div class="checkout-total-row" id="checkout-discount-row" style="display:none;color:#2eaa72;font-size:13px">
-              <span data-i18n="checkout_discount">تخفیف</span>
-              <span id="checkout-discount-price"></span>
-            </div>
-            <div class="checkout-total-row">
-              <span data-i18n="checkout_total">جمع کل</span>
-              <span class="checkout-total-price" id="checkout-total-price"></span>
-            </div>
-            <button class="checkout-submit-btn" id="checkout-submit-btn" onclick="submitCheckout()">
-              <span data-i18n="checkout_submit">ثبت پیش‌سفارش</span>
-            </button>
-            <div class="checkout-err" id="checkout-err"></div>
           </div>
+        </section>
 
-        </div><!-- /checkout-col-form -->
-
-        <!-- Left col: Product list -->
-        <div class="checkout-col-items">
-          <section class="checkout-section">
-            <h3 class="checkout-section-title" data-i18n="checkout_items">محصولات</h3>
-            <div id="checkout-items-list"></div>
+        <!-- 3. Note + Coupon side by side -->
+        <div class="checkout-note-coupon-row">
+          <section class="checkout-section checkout-section--note">
+            <h3 class="checkout-section-title" data-i18n="checkout_note">توضیحات</h3>
+            <textarea class="checkout-note-input" id="checkout-note" rows="4" data-i18n-ph="checkout_note_ph" placeholder="توضیح سفارش، درخواست خاص..."></textarea>
           </section>
-        </div><!-- /checkout-col-items -->
+          <section class="checkout-section checkout-section--coupon">
+            <h3 class="checkout-section-title" data-i18n="coupon_ph">کد تخفیف</h3>
+            <div style="display:flex;gap:8px;margin-bottom:8px">
+              <input id="coupon-input" type="text" data-i18n-ph="coupon_ph" placeholder="کد تخفیف" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;text-transform:uppercase;outline:none">
+              <button onclick="applyCoupon()" id="coupon-apply-btn" data-i18n="coupon_apply" style="padding:9px 16px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">اعمال</button>
+            </div>
+            <div id="coupon-result" style="font-size:12px;display:none"></div>
+          </section>
+        </div>
 
-      </div><!-- /checkout-columns -->
+        <!-- 4. Total + Submit -->
+        <div class="checkout-footer">
+          <div class="checkout-total-row" id="checkout-original-row" style="display:none;color:#888;font-size:13px">
+            <span data-i18n="checkout_original">جمع اصلی</span>
+            <span id="checkout-original-price" style="text-decoration:line-through"></span>
+          </div>
+          <div class="checkout-total-row" id="checkout-discount-row" style="display:none;color:#2eaa72;font-size:13px">
+            <span data-i18n="checkout_discount">تخفیف</span>
+            <span id="checkout-discount-price"></span>
+          </div>
+          <div class="checkout-total-row">
+            <span data-i18n="checkout_total">جمع کل</span>
+            <span class="checkout-total-price" id="checkout-total-price"></span>
+          </div>
+          <button class="checkout-submit-btn" id="checkout-submit-btn" onclick="submitCheckout()">
+            <span data-i18n="checkout_submit">ثبت پیش‌سفارش</span>
+          </button>
+          <div class="checkout-err" id="checkout-err"></div>
+        </div>
+
+      </div><!-- /checkout-body -->
 
     </div>
   </div>

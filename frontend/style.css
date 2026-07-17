@@ -3867,14 +3867,13 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   background: var(--bg);
   display: none;
   flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow-y: auto; overflow-x: hidden;
 }
 .checkout-overlay.open { display: flex; }
 
 .checkout-page {
   display: flex; flex-direction: column;
-  max-width: 1080px; width: 100%; margin: 0 auto;
+  max-width: 780px; width: 100%; margin: 0 auto;
   min-height: 100%;
 }
 
@@ -3895,21 +3894,19 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   font-size: 17px; font-weight: 700; color: #111; margin: 0; flex: 1; text-align: center;
 }
 
-/* Two-column layout */
-.checkout-columns {
-  display: grid;
-  grid-template-columns: 1fr 1.5fr;
-  gap: 20px;
-  padding: 20px 18px 40px;
-  align-items: start;
-  flex: 1;
+.checkout-body {
+  flex: 1; overflow-y: auto; padding: 16px 18px 32px;
+  display: flex; flex-direction: column; gap: 14px;
 }
-.checkout-col-form  { display: flex; flex-direction: column; gap: 14px; }
-.checkout-col-items { display: flex; flex-direction: column; gap: 14px; }
 
-@media (max-width: 767px) {
-  .checkout-columns { grid-template-columns: 1fr; padding: 14px 12px 32px; }
-  .checkout-col-items { order: -1; }
+/* Note + Coupon side by side */
+.checkout-note-coupon-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 600px) {
+  .checkout-note-coupon-row { grid-template-columns: 1fr; }
 }
 
 .checkout-section {
