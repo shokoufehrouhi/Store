@@ -4126,15 +4126,10 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 .lc-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 0;
   margin-bottom: 6px;
   min-height: 58px;
-}
-.lc-stamps {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex: 1;
 }
 .lc-stamp {
   width: 46px; height: 46px;

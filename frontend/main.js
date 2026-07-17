@@ -2573,14 +2573,12 @@ function renderLoyaltyCard(completedOrders) {
       '<div class="lc-cycle-badge">' + cycleTxt + '</div>' +
     '</div>' +
     '<div class="lc-row">' +
-      '<div class="lc-stamps">' + stamp(0) + dots + stamp(1) + dots + stamp(2) + '</div>' +
-      '<div class="lc-arrow-gap">›</div>' +
+      stamp(0) + dots + stamp(1) + dots + stamp(2) + dots +
       prizeBox(prize1Unlocked, p1Lbl, tip1(), '🎁') +
     '</div>' +
     '<div class="lc-divider"></div>' +
     '<div class="lc-row">' +
-      '<div class="lc-stamps">' + stamp(3) + dots + stamp(4) + dots + stamp(5) + '</div>' +
-      '<div class="lc-arrow-gap">›</div>' +
+      stamp(3) + dots + stamp(4) + dots + stamp(5) + dots +
       prizeBox(prize2Unlocked, p2Lbl, tip2(), '🏆') +
     '</div>' +
     '<div class="lc-footer">' + footerTxt() + '</div>' +
