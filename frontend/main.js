@@ -188,9 +188,24 @@ function showCopyToast(code) {
   el._t = setTimeout(function() { el.classList.remove('show'); }, 2400);
 }
 function copyProductCode(code) {
-  navigator.clipboard.writeText(code)
-    .then(function() { showCopyToast(code); })
-    .catch(function() { showCopyToast(code); });
+  function done() { showCopyToast(code); }
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).then(done).catch(function() {
+        _clipboardFallback(code); done();
+      });
+    } else {
+      _clipboardFallback(code); done();
+    }
+  } catch(e) { done(); }
+}
+function _clipboardFallback(text) {
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+  } catch(e) {}
 }
 
 function formatPrice(amount) {
