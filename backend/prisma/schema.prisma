@@ -180,9 +180,10 @@ model coupons {
   max_uses       Int?
   used_count     Int       @default(0)
   is_active      Boolean   @default(true)
-  is_protected   Boolean   @default(false)
-  min_orders     Int?
-  show_banner    Boolean   @default(false)
+  is_protected      Boolean   @default(false)
+  min_orders        Int?
+  first_order_only  Boolean   @default(false)
+  show_banner       Boolean   @default(false)
   banner_text_fa String?   @db.VarChar(200)
   banner_text_en String?   @db.VarChar(200)
   banner_text_tr String?   @db.VarChar(200)

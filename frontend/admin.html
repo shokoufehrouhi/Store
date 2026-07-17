@@ -963,6 +963,9 @@
             <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
               <input type="checkbox" id="cp-active" checked> <span data-i18n="cpActive">فعال</span>
             </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+              <input type="checkbox" id="cp-first-order"> <span data-i18n="cpFirstOrder">فقط اولین خرید</span>
+            </label>
             <div style="flex:1"></div>
             <button onclick="resetCouponForm()" style="padding:9px 18px;border:1.5px solid var(--border);border-radius:8px;background:none;font-size:13px;cursor:pointer;font-family:inherit" data-i18n="cpCancel">انصراف</button>
             <button onclick="saveCoupon()" class="btn btn-primary" style="padding:9px 22px;font-size:13px" data-i18n="cpSave">ذخیره</button>
@@ -4678,7 +4681,7 @@ function resetCouponForm() {
   codeEl.style.cursor  = '';
 
   document.getElementById('cp-type').value    = 'percent';
-  ['cp-type','cp-value','cp-max-uses','cp-starts','cp-expires','cp-active','cp-show-banner'].forEach(function(id) {
+  ['cp-type','cp-value','cp-max-uses','cp-starts','cp-expires','cp-active','cp-first-order','cp-show-banner'].forEach(function(id) {
     var el = document.getElementById(id);
     if (!el) return;
     el.disabled = false; el.style.opacity = ''; el.style.cursor = '';
@@ -4688,6 +4691,7 @@ function resetCouponForm() {
   document.getElementById('cp-starts').value   = '';
   document.getElementById('cp-expires').value  = '';
   document.getElementById('cp-active').checked = true;
+  document.getElementById('cp-first-order').checked = false;
   document.getElementById('cp-show-banner').checked = false;
   document.getElementById('cp-banner-fa').value = '';
   document.getElementById('cp-banner-en').value = '';
@@ -4749,6 +4753,7 @@ function editCoupon(id) {
   document.getElementById('cp-starts').value   = c.starts_at  ? c.starts_at.slice(0,10)  : '';
   document.getElementById('cp-expires').value  = c.expires_at ? c.expires_at.slice(0,10) : '';
   document.getElementById('cp-active').checked = c.is_active;
+  document.getElementById('cp-first-order').checked = !!c.first_order_only;
   document.getElementById('cp-show-banner').checked = c.show_banner;
   document.getElementById('cp-banner-fa').value = c.banner_text_fa || '';
   document.getElementById('cp-banner-en').value = c.banner_text_en || '';
@@ -4796,27 +4801,29 @@ async function saveCoupon() {
         ? { value: Number(value) }
         : {
             type, value: Number(value),
-            max_uses:       maxUses ? Number(maxUses) : null,
-            starts_at:      starts  || null,
-            expires_at:     expires || null,
-            is_active:      document.getElementById('cp-active').checked,
-            show_banner:    document.getElementById('cp-show-banner').checked,
-            banner_text_fa: document.getElementById('cp-banner-fa').value.trim() || null,
-            banner_text_en: document.getElementById('cp-banner-en').value.trim() || null,
-            banner_text_tr: document.getElementById('cp-banner-tr').value.trim() || null,
+            max_uses:         maxUses ? Number(maxUses) : null,
+            starts_at:        starts  || null,
+            expires_at:       expires || null,
+            is_active:        document.getElementById('cp-active').checked,
+            first_order_only: document.getElementById('cp-first-order').checked,
+            show_banner:      document.getElementById('cp-show-banner').checked,
+            banner_text_fa:   document.getElementById('cp-banner-fa').value.trim() || null,
+            banner_text_en:   document.getElementById('cp-banner-en').value.trim() || null,
+            banner_text_tr:   document.getElementById('cp-banner-tr').value.trim() || null,
           })
 
     : {
         code, type, value: Number(value), for_all: forAll,
-        max_uses:       maxUses ? Number(maxUses) : null,
-        starts_at:      starts  || null,
-        expires_at:     expires || null,
-        is_active:      document.getElementById('cp-active').checked,
-        show_banner:    document.getElementById('cp-show-banner').checked,
-        banner_text_fa: document.getElementById('cp-banner-fa').value.trim() || null,
-        banner_text_en: document.getElementById('cp-banner-en').value.trim() || null,
-        banner_text_tr: document.getElementById('cp-banner-tr').value.trim() || null,
-        customer_ids:   forAll ? [] : _cpSelectedIds,
+        max_uses:         maxUses ? Number(maxUses) : null,
+        starts_at:        starts  || null,
+        expires_at:       expires || null,
+        is_active:        document.getElementById('cp-active').checked,
+        first_order_only: document.getElementById('cp-first-order').checked,
+        show_banner:      document.getElementById('cp-show-banner').checked,
+        banner_text_fa:   document.getElementById('cp-banner-fa').value.trim() || null,
+        banner_text_en:   document.getElementById('cp-banner-en').value.trim() || null,
+        banner_text_tr:   document.getElementById('cp-banner-tr').value.trim() || null,
+        customer_ids:     forAll ? [] : _cpSelectedIds,
       };
 
   var res = id

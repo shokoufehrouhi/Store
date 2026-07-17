@@ -4018,15 +4018,19 @@ function applyCoupon() {
       document.getElementById('checkout-total-price').textContent    = formatPrice(d.data.final_amount);
     } else {
       _appliedCoupon = null;
-      var minOrdersMsg = d.message === 'min_orders_required'
+      var specialMsg = d.message === 'min_orders_required'
         ? (currentLang === 'fa'
             ? 'این کد نیاز به حداقل ' + d.min_orders + ' خرید تحویل‌شده دارد (شما ' + d.current_orders + ' خرید دارید)'
             : currentLang === 'tr'
             ? 'Bu kod en az ' + d.min_orders + ' teslim edilmiş sipariş gerektirir (' + d.current_orders + ' siparişiniz var)'
             : 'This code requires at least ' + d.min_orders + ' delivered orders (you have ' + d.current_orders + ')')
+        : d.message === 'first_order_only'
+        ? (currentLang === 'fa' ? 'این کد فقط برای اولین خرید قابل استفاده است'
+            : currentLang === 'tr' ? 'Bu kod yalnızca ilk siparişte geçerlidir'
+            : 'This code is only valid for your first order')
         : null;
       var msgs = { invalid_code: tr.coupon_invalid, not_eligible: tr.coupon_not_eligible, limit_reached: tr.coupon_limit_reached, already_used: tr.coupon_already_used };
-      resEl.innerHTML = '<span style="color:#ef4444">' + escapeHtml(minOrdersMsg || msgs[d.message] || d.message || '?') + '</span>';
+      resEl.innerHTML = '<span style="color:#ef4444">' + escapeHtml(specialMsg || msgs[d.message] || d.message || '?') + '</span>';
       document.getElementById('checkout-original-row').style.display = 'none';
       document.getElementById('checkout-discount-row').style.display = 'none';
       var cartT = cart.reduce(function(s,item){ var p=products.find(function(pr){return pr.id===item.id;}); if(!p)return s; var u=p.discounted_price&&p.discounted_price<p.price?p.discounted_price:p.price; return s+u*item.qty; },0);
@@ -4343,15 +4347,19 @@ function submitCheckout() {
       }).then(function(r) { return r.json(); }).then(function(d) {
         if (!d.success) {
           var tr2 = TRANSLATIONS[currentLang];
-          var minOrdersMsg2 = d.message === 'min_orders_required'
+          var specialMsg2 = d.message === 'min_orders_required'
             ? (currentLang === 'fa'
                 ? 'این کد نیاز به حداقل ' + d.min_orders + ' خرید تحویل‌شده دارد (شما ' + d.current_orders + ' خرید دارید)'
                 : currentLang === 'tr'
                 ? 'Bu kod en az ' + d.min_orders + ' teslim edilmiş sipariş gerektirir (' + d.current_orders + ' siparişiniz var)'
                 : 'This code requires at least ' + d.min_orders + ' delivered orders (you have ' + d.current_orders + ')')
+            : d.message === 'first_order_only'
+            ? (currentLang === 'fa' ? 'این کد فقط برای اولین خرید قابل استفاده است'
+                : currentLang === 'tr' ? 'Bu kod yalnızca ilk siparişte geçerlidir'
+                : 'This code is only valid for your first order')
             : null;
           var msgs = { invalid_code: tr2.coupon_invalid, not_eligible: tr2.coupon_not_eligible, limit_reached: tr2.coupon_limit_reached, already_used: tr2.coupon_already_used };
-          if (couponResEl) { couponResEl.style.display = ''; couponResEl.innerHTML = '<span style="color:#ef4444">' + escapeHtml(minOrdersMsg2 || msgs[d.message] || d.message || '?') + '</span>'; }
+          if (couponResEl) { couponResEl.style.display = ''; couponResEl.innerHTML = '<span style="color:#ef4444">' + escapeHtml(specialMsg2 || msgs[d.message] || d.message || '?') + '</span>'; }
           btn.disabled = false;
           return false; // stop submission
         }

@@ -32,7 +32,7 @@ async function listCoupons(req, res, next) {
 // ─── Admin: create coupon ─────────────────────────────────────────────────────
 async function createCoupon(req, res, next) {
   try {
-    const { code, type, value, for_all, max_uses, min_orders, is_active, show_banner,
+    const { code, type, value, for_all, max_uses, min_orders, first_order_only, is_active, show_banner,
             banner_text_fa, banner_text_en, banner_text_tr, starts_at, expires_at, customer_ids } = req.body;
 
     if (!code || !type || value === undefined)
@@ -45,14 +45,15 @@ async function createCoupon(req, res, next) {
     const coupon = await prisma.$transaction(async (tx) => {
       const c = await tx.coupons.create({
         data: {
-          code:           code.trim().toUpperCase(),
+          code:             code.trim().toUpperCase(),
           type,
-          value:          Number(value),
-          for_all:        for_all !== false,
-          max_uses:       max_uses ? Number(max_uses) : null,
-          min_orders:     min_orders ? Number(min_orders) : null,
-          is_active:      is_active !== false,
-          show_banner:    !!show_banner,
+          value:            Number(value),
+          for_all:          for_all !== false,
+          max_uses:         max_uses ? Number(max_uses) : null,
+          min_orders:       min_orders ? Number(min_orders) : null,
+          first_order_only: !!first_order_only,
+          is_active:        is_active !== false,
+          show_banner:      !!show_banner,
           banner_text_fa: banner_text_fa || null,
           banner_text_en: banner_text_en || null,
           banner_text_tr: banner_text_tr || null,
@@ -80,7 +81,7 @@ async function createCoupon(req, res, next) {
 async function updateCoupon(req, res, next) {
   try {
     const id = Number(req.params.id);
-    const { code, type, value, for_all, max_uses, min_orders, is_active, show_banner,
+    const { code, type, value, for_all, max_uses, min_orders, first_order_only, is_active, show_banner,
             banner_text_fa, banner_text_en, banner_text_tr, starts_at, expires_at, customer_ids } = req.body;
 
     const coupon = await prisma.$transaction(async (tx) => {
@@ -92,7 +93,8 @@ async function updateCoupon(req, res, next) {
           ...(value     !== undefined && { value: Number(value) }),
           ...(for_all   !== undefined && { for_all }),
           ...(max_uses  !== undefined && { max_uses: max_uses ? Number(max_uses) : null }),
-          ...(min_orders !== undefined && { min_orders: min_orders ? Number(min_orders) : null }),
+          ...(min_orders        !== undefined && { min_orders: min_orders ? Number(min_orders) : null }),
+          ...(first_order_only !== undefined && { first_order_only: !!first_order_only }),
           ...(is_active !== undefined && { is_active }),
           ...(show_banner !== undefined && { show_banner }),
           ...(banner_text_fa !== undefined && { banner_text_fa: banner_text_fa || null }),
@@ -252,6 +254,15 @@ async function validateCoupon(req, res, next) {
           min_orders: coupon.min_orders,
           current_orders: deliveredCount,
         });
+    }
+
+    // check first-order-only restriction
+    if (coupon.first_order_only) {
+      const prevOrders = await prisma.orders.count({
+        where: { customer_id: session.customer_id, status: { notIn: ['cancelled', 'rejected'] } },
+      });
+      if (prevOrders > 0)
+        return res.status(403).json({ success: false, message: 'first_order_only' });
     }
 
     const total        = Number(cart_total) || 0;
