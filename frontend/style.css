@@ -3758,31 +3758,33 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 
 /* ─── Code Copy Snackbar ─────────────────────────────────────────────────── */
 #code-copy-toast {
+  display: none;
   position: fixed;
   bottom: 36px;
   left: 50%;
-  transform: translateX(-50%) translateY(16px);
+  transform: translateX(-50%);
   background: #1f2937;
   color: #fff;
-  padding: 11px 22px;
+  padding: 12px 24px;
   border-radius: 100px;
   font-size: 14px;
   font-weight: 600;
-  display: flex;
   align-items: center;
-  gap: 9px;
-  opacity: 0;
+  gap: 10px;
   pointer-events: none;
   z-index: 999999;
   white-space: nowrap;
-  box-shadow: 0 8px 32px rgba(0,0,0,.28);
-  transition: opacity .22s ease, transform .22s ease;
+  box-shadow: 0 8px 32px rgba(0,0,0,.35);
 }
 #code-copy-toast.show {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  display: flex;
+  animation: cct-in .25s ease forwards;
 }
-#code-copy-toast svg { color: #4ade80; flex-shrink: 0; }
+@keyframes cct-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(14px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0);    }
+}
+#code-copy-toast svg { flex-shrink: 0; }
 #code-copy-toast-code {
   font-family: monospace;
   font-size: 15px;

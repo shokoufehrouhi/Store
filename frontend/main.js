@@ -171,7 +171,7 @@ function showCopyToast(code) {
     if (!document.getElementById('_cct_style')) {
       var s = document.createElement('style');
       s.id = '_cct_style';
-      s.textContent = '#code-copy-toast{position:fixed;bottom:36px;left:50%;transform:translateX(-50%) translateY(16px);background:#1f2937;color:#fff;padding:11px 22px;border-radius:100px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:9px;opacity:0;pointer-events:none;z-index:999999;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,.28);transition:opacity .22s ease,transform .22s ease}#code-copy-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}';
+      s.textContent = '#code-copy-toast{display:none;position:fixed;bottom:36px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:12px 24px;border-radius:100px;font-size:14px;font-weight:600;align-items:center;gap:10px;pointer-events:none;z-index:999999;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,.35)}#code-copy-toast.show{display:flex;animation:cct-in .25s ease forwards}@keyframes cct-in{from{opacity:0;transform:translateX(-50%) translateY(14px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}';
       document.head.appendChild(s);
     }
     el = document.createElement('div');
@@ -179,13 +179,14 @@ function showCopyToast(code) {
     document.body.appendChild(el);
   }
   var label = (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang].code_copied) || 'Copied';
+  el.classList.remove('show');
   el.innerHTML =
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' +
     '<span style="font-family:monospace;font-size:15px;color:#fb923c;letter-spacing:.04em">' + code + '</span>' +
-    '<span style="color:#d1d5db">' + label + '</span>';
-  el.classList.add('show');
+    '<span style="margin-inline-start:2px">' + label + '</span>';
+  requestAnimationFrame(function() { el.classList.add('show'); });
   clearTimeout(el._t);
-  el._t = setTimeout(function() { el.classList.remove('show'); }, 2400);
+  el._t = setTimeout(function() { el.classList.remove('show'); }, 2600);
 }
 function copyProductCode(code) {
   function done() { showCopyToast(code); }
