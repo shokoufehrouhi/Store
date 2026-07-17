@@ -4673,6 +4673,11 @@ function resetCouponForm() {
   codeEl.style.cursor  = '';
 
   document.getElementById('cp-type').value    = 'percent';
+  ['cp-type','cp-value','cp-max-uses','cp-starts','cp-expires','cp-active','cp-show-banner'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.disabled = false; el.style.opacity = ''; el.style.cursor = '';
+  });
   document.getElementById('cp-value').value   = '';
   document.getElementById('cp-max-uses').value = '';
   document.getElementById('cp-starts').value   = '';
@@ -4706,6 +4711,25 @@ function editCoupon(id) {
   codeEl.style.opacity = '.5';
   codeEl.style.cursor  = 'not-allowed';
 
+  var lockAll = !!c.is_protected;
+
+  function lockField(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.disabled = true;
+    el.style.opacity = '.4';
+    el.style.cursor = 'not-allowed';
+  }
+
+  if (lockAll) {
+    lockField('cp-type');
+    lockField('cp-max-uses');
+    lockField('cp-starts');
+    lockField('cp-expires');
+    lockField('cp-active');
+    lockField('cp-show-banner');
+  }
+
   document.getElementById('cp-type').value     = c.type;
   document.getElementById('cp-value').value    = Number(c.value);
   document.getElementById('cp-max-uses').value = c.max_uses || '';
@@ -4725,7 +4749,6 @@ function editCoupon(id) {
   document.getElementById('cp-customers-wrap').style.display = forAll ? 'none' : '';
   _cpSelectedIds = (c.coupon_assignments || []).map(function(a){ return a.customer_id; });
   renderCpSelected();
-  // hide search box in edit mode — assignment is locked
   var srch = document.getElementById('cp-customer-search');
   if (srch) srch.style.display = 'none';
   document.getElementById('coupon-form-wrap').scrollIntoView({ behavior:'smooth', block:'start' });
@@ -4752,18 +4775,22 @@ async function saveCoupon() {
     errEl.textContent = t('cpErrNoCust'); errEl.style.display = ''; return;
   }
 
+  var editingCoupon = id ? _allCoupons.find(function(c) { return String(c.id) === String(id); }) : null;
   var body = id
-    ? {
-        type, value: Number(value),
-        max_uses:       maxUses ? Number(maxUses) : null,
-        starts_at:      starts  || null,
-        expires_at:     expires || null,
-        is_active:      document.getElementById('cp-active').checked,
-        show_banner:    document.getElementById('cp-show-banner').checked,
-        banner_text_fa: document.getElementById('cp-banner-fa').value.trim() || null,
-        banner_text_en: document.getElementById('cp-banner-en').value.trim() || null,
-        banner_text_tr: document.getElementById('cp-banner-tr').value.trim() || null,
-      }
+    ? (editingCoupon && editingCoupon.is_protected
+        ? { value: Number(value) }
+        : {
+            type, value: Number(value),
+            max_uses:       maxUses ? Number(maxUses) : null,
+            starts_at:      starts  || null,
+            expires_at:     expires || null,
+            is_active:      document.getElementById('cp-active').checked,
+            show_banner:    document.getElementById('cp-show-banner').checked,
+            banner_text_fa: document.getElementById('cp-banner-fa').value.trim() || null,
+            banner_text_en: document.getElementById('cp-banner-en').value.trim() || null,
+            banner_text_tr: document.getElementById('cp-banner-tr').value.trim() || null,
+          })
+
     : {
         code, type, value: Number(value), for_all: forAll,
         max_uses:       maxUses ? Number(maxUses) : null,
