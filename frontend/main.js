@@ -2521,7 +2521,7 @@ function renderLoyaltyCard(completedOrders) {
   function tip1() {
     if (prize1Unlocked) return L === 'fa' ? '✨ جایزه آماده‌ست!' : (L === 'tr' ? '✨ Ödül hazır!' : '✨ Prize ready!');
     var rem = 3 - filled;
-    return L === 'fa' ? (toFaDigit(rem) + ' خرید مانده — چی منتظرته؟ 👀') : (L === 'tr' ? rem + ' alışveriş kaldı 👀' : rem + ' purchase' + (rem>1?'s':'') + ' — what's waiting? 👀');
+    return L === 'fa' ? (toFaDigit(rem) + ' خرید مانده — چی منتظرته؟ 👀') : (L === 'tr' ? rem + ' alışveriş kaldı 👀' : rem + ' purchase' + (rem>1?'s':'') + ' — what awaits? 👀');
   }
   function tip2() {
     if (prize2Unlocked) return L === 'fa' ? '🏆 جایزه ویژه آماده‌ست!' : (L === 'tr' ? '🏆 Özel ödül hazır!' : '🏆 Special prize ready!');
