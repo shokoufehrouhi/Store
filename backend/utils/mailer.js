@@ -596,4 +596,225 @@ async function sendReplyEmail(customer, order, replyText) {
   await transporter.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to: customer.email, subject, html, attachments: EMAIL_IMG_ATTACHMENTS });
 }
 
-module.exports = { sendOrderEmail, sendRawEmail, sendReplyEmail, sendFriendInviteEmail, label };
+// ─── Loyalty milestone email ────────────────────────────────────────────────────
+const LOYALTY_L = {
+  fa: {
+    dir: 'rtl',
+    prize1_subject: '🎁 جایزه اولت آماده‌ست! — Shilista',
+    prize1_title:   '🎁 جایزه اول باشگاه وفاداری فعال شد!',
+    prize1_body:    'به خاطر {{count}} خرید موفق در Shilista، جایزه اول دوره فعلی باشگاه وفاداری برای شما فعال شده است.\n\nبرای دریافت کد تخفیف اختصاصی‌تان وارد پروفایل خود شوید و روی دکمه «🎉 دریافت!» در کارت وفاداری کلیک کنید.',
+    prize2_subject: '🏆 جایزه ویژه‌ات آماده‌ست! — Shilista',
+    prize2_title:   '🏆 جایزه ویژه باشگاه وفاداری فعال شد!',
+    prize2_body:    'با تکمیل ۶ خرید موفق در این دوره، جایزه ویژه باشگاه وفاداری Shilista برای شما فعال شد!\n\nوارد پروفایل خود شوید تا جایزه ویژه‌تان را دریافت کنید.',
+    btn:            'مشاهده پروفایل',
+  },
+  en: {
+    dir: 'ltr',
+    prize1_subject: '🎁 Your Prize is Ready! — Shilista',
+    prize1_title:   '🎁 Loyalty Club Prize 1 Unlocked!',
+    prize1_body:    "You've completed {{count}} successful purchases at Shilista! Your first prize for this loyalty cycle is now ready to claim.\n\nVisit your profile and click \"🎉 Claim!\" on your loyalty card to get your exclusive discount code.",
+    prize2_subject: '🏆 Your Special Prize is Ready! — Shilista',
+    prize2_title:   '🏆 Loyalty Club Special Prize Unlocked!',
+    prize2_body:    "Amazing! You've completed 6 purchases in this loyalty cycle — your special prize is now ready!\n\nVisit your profile to claim your special reward.",
+    btn:            'View Profile',
+  },
+  tr: {
+    dir: 'ltr',
+    prize1_subject: '🎁 Ödülün Hazır! — Shilista',
+    prize1_title:   '🎁 Sadakat Kulübü 1. Ödül Açıldı!',
+    prize1_body:    "Shilista'da {{count}} başarılı alışveriş tamamladınız! Bu dönemin ilk ödülünüz hazır.\n\nProfilinize gidin ve sadakat kartınızdaki \"🎉 Al!\" düğmesine tıklayarak özel indirim kodunuzu alın.",
+    prize2_subject: '🏆 Özel Ödülün Hazır! — Shilista',
+    prize2_title:   '🏆 Sadakat Kulübü Özel Ödül Açıldı!',
+    prize2_body:    "Harika! Bu dönemde 6 alışveriş tamamladınız — özel ödülünüz hazır!\n\nÖzel ödülünüzü almak için profilinizi ziyaret edin.",
+    btn:            'Profile Git',
+  },
+};
+
+async function sendLoyaltyEmail(customer, deliveredCount) {
+  if (!customer.email) return;
+  const transporter = getTransporter();
+  if (!transporter) return;
+
+  const lang = (customer.preferred_lang || 'fa').substring(0, 2);
+  const ll   = LOYALTY_L[lang] || LOYALTY_L.fa;
+  const dir  = ll.dir;
+
+  const isPrize2   = deliveredCount % 6 === 0;
+  const subject    = isPrize2 ? ll.prize2_subject : ll.prize1_subject;
+  const title      = isPrize2 ? ll.prize2_title   : ll.prize1_title;
+  const body       = (isPrize2 ? ll.prize2_body : ll.prize1_body).replace('{{count}}', deliveredCount);
+  const siteUrl    = process.env.SITE_URL || 'https://shilista.com';
+  const profileUrl = `${siteUrl}/profile.html?tab=loyalty`;
+
+  const html = `<!DOCTYPE html>
+<html dir="${dir}" lang="${lang}">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,Tahoma,sans-serif;direction:${dir}">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0eb;padding:32px 0">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+
+      <tr>
+        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
+          <img src="cid:logo@shilista" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
+        </td>
+      </tr>
+
+      <tr>
+        <td style="background:linear-gradient(135deg,#c0562a,#e07a40);padding:20px 32px;text-align:center">
+          <p style="margin:0;font-size:20px;font-weight:700;color:#fff;letter-spacing:.5px">${title}</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding:32px 32px 24px">
+          <p style="margin:0 0 28px;font-size:15px;color:#444;line-height:1.9;white-space:pre-line">${body}</p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td align="center">
+                <a href="${profileUrl}"
+                  style="display:inline-block;background:#c0562a;color:#fff;font-size:15px;font-weight:700;
+                         padding:13px 36px;border-radius:8px;text-decoration:none;letter-spacing:.3px">
+                  ${ll.btn}
+                </a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="background:#fff;padding:24px 32px 12px;border-top:1px solid #f0e8df;text-align:center">
+          <img src="cid:footer@shilista" alt="Shilista" width="480" style="width:480px;max-width:100%;height:auto;display:inline-block">
+        </td>
+      </tr>
+
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+
+  await transporter.sendMail({
+    from:        process.env.SMTP_FROM || process.env.SMTP_USER,
+    to:          customer.email,
+    subject,
+    html,
+    attachments: EMAIL_IMG_ATTACHMENTS,
+  });
+}
+
+// ─── Birthday email ─────────────────────────────────────────────────────────────
+const BIRTHDAY_L = {
+  fa: {
+    dir:     'rtl',
+    subject: '🎂 Tavallodet Mobarak! — Shilista',
+    title:   '🎂 Tavallod-e Shad!',
+    body:    'Emruz rouze tavallode shomast va ma mikhaim in rouz ro baraye shoma khasstani tar konim!\n\nBa in kod takhfif 10% baraye kharideto hadye bede:',
+    code_label: 'Kod Takhfif:',
+    note:    'In kod ta akhare emsal etebare dare.',
+    btn:     'Kharid Kon',
+  },
+  en: {
+    dir:     'ltr',
+    subject: '🎂 Happy Birthday! — Shilista',
+    title:   '🎂 Happy Birthday!',
+    body:    "Today is your special day and we want to make it even better!\n\nEnjoy 10% off your next order with this exclusive birthday gift:",
+    code_label: 'Your Discount Code:',
+    note:    'Valid until the end of this year.',
+    btn:     'Shop Now',
+  },
+  tr: {
+    dir:     'ltr',
+    subject: '🎂 Doğum Günün Kutlu Olsun! — Shilista',
+    title:   '🎂 Doğum Günün Kutlu Olsun!',
+    body:    "Bugün senin özel günün ve biz de onu daha da güzel yapmak istiyoruz!\n\nBu özel doğum günü hediyeyle bir sonraki siparişinde %10 indirim kazan:",
+    code_label: 'İndirim Kodun:',
+    note:    'Bu yılın sonuna kadar geçerlidir.',
+    btn:     'Alışverişe Başla',
+  },
+};
+
+async function sendBirthdayEmail(customer) {
+  if (!customer.email) return;
+  const transporter = getTransporter();
+  if (!transporter) return;
+
+  const lang     = (customer.preferred_lang || 'fa').substring(0, 2);
+  const ll       = BIRTHDAY_L[lang] || BIRTHDAY_L.fa;
+  const dir      = ll.dir;
+  const siteUrl  = process.env.SITE_URL || 'https://shilista.com';
+  const name     = customer.full_name || '';
+
+  const html = `<!DOCTYPE html>
+<html dir="${dir}" lang="${lang}">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,Tahoma,sans-serif;direction:${dir}">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0eb;padding:32px 0">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+
+      <tr>
+        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
+          <img src="cid:logo@shilista" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
+        </td>
+      </tr>
+
+      <tr>
+        <td style="background:linear-gradient(135deg,#c0562a,#e07a40);padding:22px 32px;text-align:center">
+          <p style="margin:0 0 4px;font-size:28px">🎂🎉🎈</p>
+          <p style="margin:0;font-size:20px;font-weight:700;color:#fff;letter-spacing:.5px">${ll.title}</p>
+          ${name ? `<p style="margin:6px 0 0;font-size:14px;color:rgba(255,255,255,.85)">${name}</p>` : ''}
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding:32px 32px 24px">
+          <p style="margin:0 0 28px;font-size:15px;color:#444;line-height:1.9;white-space:pre-line">${ll.body}</p>
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px">
+            <tr>
+              <td style="text-align:center">
+                <p style="margin:0 0 10px;font-size:13px;color:#888">${ll.code_label}</p>
+                <div style="display:inline-block;background:#fdf5ed;border:2px dashed #c0562a;border-radius:10px;padding:14px 32px">
+                  <span style="font-family:monospace;font-size:26px;font-weight:800;color:#c0562a;letter-spacing:3px">BIRTHDAY</span>
+                </div>
+                <p style="margin:10px 0 0;font-size:12px;color:#aaa">${ll.note}</p>
+              </td>
+            </tr>
+          </table>
+
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td align="center">
+                <a href="${siteUrl}"
+                  style="display:inline-block;background:#c0562a;color:#fff;font-size:15px;font-weight:700;
+                         padding:13px 40px;border-radius:8px;text-decoration:none;letter-spacing:.3px">
+                  ${ll.btn}
+                </a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="background:#fff;padding:24px 32px 12px;border-top:1px solid #f0e8df;text-align:center">
+          <img src="cid:footer@shilista" alt="Shilista" width="480" style="width:480px;max-width:100%;height:auto;display:inline-block">
+        </td>
+      </tr>
+
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+
+  await transporter.sendMail({
+    from:        process.env.SMTP_FROM || process.env.SMTP_USER,
+    to:          customer.email,
+    subject:     ll.subject,
+    html,
+    attachments: EMAIL_IMG_ATTACHMENTS,
+  });
+}
+
+module.exports = { sendOrderEmail, sendRawEmail, sendReplyEmail, sendFriendInviteEmail, sendLoyaltyEmail, sendBirthdayEmail, label };
