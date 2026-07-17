@@ -166,22 +166,39 @@ function localizeNumber(str) {
 }
 
 function showCopyToast(code) {
-  var old = document.getElementById('_cct2');
-  if (old) { clearTimeout(old._t2); old.remove(); }
+  var old = document.getElementById('_cct');
+  if (old) { clearTimeout(old._t); old.remove(); }
   var label = (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang].code_copied) || 'Copied';
   var el = document.createElement('div');
-  el.id = '_cct2';
+  el.id = '_cct';
   el.setAttribute('dir', 'ltr');
-  el.style.cssText = 'position:fixed;bottom:40px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:12px 28px;border-radius:100px;font-size:15px;font-weight:600;white-space:nowrap;pointer-events:none;z-index:2147483647;box-shadow:0 8px 32px rgba(0,0,0,.4);opacity:0;transition:opacity .22s ease';
-  el.textContent = '✓  ' + label;
+  el.style.position = 'fixed';
+  el.style.bottom = '48px';
+  el.style.left = '50%';
+  el.style.transform = 'translateX(-50%)';
+  el.style.background = '#1f2937';
+  el.style.padding = '11px 24px';
+  el.style.borderRadius = '100px';
+  el.style.fontSize = '15px';
+  el.style.fontWeight = '600';
+  el.style.whiteSpace = 'nowrap';
+  el.style.pointerEvents = 'none';
+  el.style.zIndex = '2147483647';
+  el.style.boxShadow = '0 8px 32px rgba(0,0,0,.45)';
+  el.style.display = 'flex';
+  el.style.alignItems = 'center';
+  el.style.gap = '8px';
+  var icon = document.createElement('span');
+  icon.textContent = '✓';
+  icon.style.color = '#4ade80';
+  icon.style.fontWeight = '700';
+  var lbl = document.createElement('span');
+  lbl.textContent = label;
+  lbl.style.color = '#ffffff';
+  el.appendChild(icon);
+  el.appendChild(lbl);
   document.body.appendChild(el);
-  requestAnimationFrame(function() {
-    requestAnimationFrame(function() { el.style.opacity = '1'; });
-  });
-  el._t2 = setTimeout(function() {
-    el.style.opacity = '0';
-    setTimeout(function() { if (el.parentNode) el.remove(); }, 300);
-  }, 2300);
+  el._t = setTimeout(function() { if (el.parentNode) el.remove(); }, 2500);
 }
 function copyProductCode(code) {
   function done() { showCopyToast(code); }
