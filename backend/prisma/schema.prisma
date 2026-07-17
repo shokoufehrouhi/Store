@@ -32,8 +32,9 @@ model categories {
   label_tr      String          @db.VarChar(60)
   is_active     Boolean         @default(true)
   created_at    DateTime        @default(now()) @db.Timestamptz(6)
-  products      products[]
-  subcategories subcategories[]
+  products           products[]
+  subcategories      subcategories[]
+  product_categories product_categories[]
 }
 
 model colors {
@@ -180,6 +181,7 @@ model coupons {
   used_count     Int       @default(0)
   is_active      Boolean   @default(true)
   is_protected   Boolean   @default(false)
+  min_orders     Int?
   show_banner    Boolean   @default(false)
   banner_text_fa String?   @db.VarChar(200)
   banner_text_en String?   @db.VarChar(200)
@@ -278,12 +280,13 @@ model products {
   supplier_code       String?             @db.VarChar(120)
   supplier_note       String?
   order_items         order_items[]
-  product_colors    product_colors[]
-  product_inventory product_inventory[]
-  product_media     product_media[]
-  product_sizes     product_sizes[]
-  categories        categories          @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  subcategories     subcategories?      @relation(fields: [subcategory_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  product_colors     product_colors[]
+  product_inventory  product_inventory[]
+  product_media      product_media[]
+  product_sizes      product_sizes[]
+  product_categories product_categories[]
+  categories         categories          @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  subcategories      subcategories?      @relation(fields: [subcategory_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([is_active], map: "idx_products_active")
   @@index([category_id], map: "idx_products_category")
@@ -333,8 +336,9 @@ model subcategories {
   label_tr    String     @db.VarChar(60)
   is_active   Boolean    @default(true)
   created_at  DateTime   @default(now()) @db.Timestamptz(6)
-  products    products[]
-  categories  categories @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products           products[]
+  categories         categories @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  product_categories product_categories[]
 
   @@unique([category_id, key])
 }
@@ -457,4 +461,17 @@ model suppliers {
   card_photo_url String?   @db.VarChar(300)
   created_at     DateTime  @default(now()) @db.Timestamptz(6)
   updated_at     DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model product_categories {
+  id             Int            @id @default(autoincrement())
+  product_id     Int
+  category_id    Int
+  subcategory_id Int?
+  products       products       @relation(fields: [product_id],     references: [id], onDelete: Cascade)
+  categories     categories     @relation(fields: [category_id],    references: [id], onDelete: Cascade)
+  subcategories  subcategories? @relation(fields: [subcategory_id], references: [id], onDelete: Cascade)
+
+  @@unique([product_id, category_id, subcategory_id])
+  @@index([product_id], map: "idx_product_categories_product")
 }

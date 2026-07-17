@@ -50,6 +50,7 @@ async function createCoupon(req, res, next) {
           value:          Number(value),
           for_all:        for_all !== false,
           max_uses:       max_uses ? Number(max_uses) : null,
+          min_orders:     min_orders ? Number(min_orders) : null,
           is_active:      is_active !== false,
           show_banner:    !!show_banner,
           banner_text_fa: banner_text_fa || null,
@@ -79,7 +80,7 @@ async function createCoupon(req, res, next) {
 async function updateCoupon(req, res, next) {
   try {
     const id = Number(req.params.id);
-    const { code, type, value, for_all, max_uses, is_active, show_banner,
+    const { code, type, value, for_all, max_uses, min_orders, is_active, show_banner,
             banner_text_fa, banner_text_en, banner_text_tr, starts_at, expires_at, customer_ids } = req.body;
 
     const coupon = await prisma.$transaction(async (tx) => {
@@ -91,6 +92,7 @@ async function updateCoupon(req, res, next) {
           ...(value     !== undefined && { value: Number(value) }),
           ...(for_all   !== undefined && { for_all }),
           ...(max_uses  !== undefined && { max_uses: max_uses ? Number(max_uses) : null }),
+          ...(min_orders !== undefined && { min_orders: min_orders ? Number(min_orders) : null }),
           ...(is_active !== undefined && { is_active }),
           ...(show_banner !== undefined && { show_banner }),
           ...(banner_text_fa !== undefined && { banner_text_fa: banner_text_fa || null }),
@@ -208,6 +210,20 @@ async function validateCoupon(req, res, next) {
     // check customer eligibility
     if (!coupon.for_all && coupon.coupon_assignments.length === 0)
       return res.status(403).json({ success: false, message: 'not_eligible' });
+
+    // check minimum delivered orders requirement
+    if (coupon.min_orders) {
+      const deliveredCount = await prisma.orders.count({
+        where: { customer_id: session.customer_id, status: 'delivered' },
+      });
+      if (deliveredCount < coupon.min_orders)
+        return res.status(403).json({
+          success: false,
+          message: 'min_orders_required',
+          min_orders: coupon.min_orders,
+          current_orders: deliveredCount,
+        });
+    }
 
     const total        = Number(cart_total) || 0;
     const discountAmt  = coupon.type === 'percent'
