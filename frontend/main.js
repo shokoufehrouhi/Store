@@ -2593,10 +2593,13 @@ function toFaDigit(n) {
 function showLoyaltyReward() {
   var token = getSession();
   var L = currentLang;
-  fetch('/api/coupons/reward', { headers: { 'x-session-token': token || '' } })
+  fetch(API_BASE + '/coupons/reward', { headers: { 'x-session-token': token || '' } })
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      if (!d.success) return;
+      if (!d.success) {
+        showToast(L === 'fa' ? 'خطا در دریافت کد تخفیف' : 'Could not load reward code', 'error');
+        return;
+      }
       var data = d.data;
       var discTxt = data.type === 'percent'
         ? (L === 'fa' ? toFaDigit(data.value) + '٪ تخفیف' : (L === 'tr' ? '%' + data.value + ' indirim' : data.value + '% discount'))
@@ -2628,7 +2631,7 @@ function showLoyaltyReward() {
         });
       });
     })
-    .catch(function() {});
+    .catch(function() { showToast(L === 'fa' ? 'خطا در اتصال به سرور' : 'Network error', 'error'); });
 }
 
 // ─── Info Tab ─────────────────────────────────────────────────────────────────
