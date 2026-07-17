@@ -3981,6 +3981,9 @@ function openCheckout() {
   closeCart();
   document.getElementById('checkout-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
+  if (location.pathname !== '/checkout') {
+    history.pushState({ page: 'checkout' }, '', '/checkout');
+  }
   var profilePromise = fetch(API_BASE + '/customers/profile', { headers: { 'x-session-token': getSession() } })
     .then(function(r) { return r.json(); })
     .then(function(data) {
@@ -4007,7 +4010,17 @@ function closeCheckout() {
   document.getElementById('checkout-overlay').classList.remove('open');
   document.body.style.overflow = '';
   _appliedCoupon = null;
+  if (location.pathname === '/checkout') history.back();
 }
+
+window.addEventListener('popstate', function(e) {
+  var overlay = document.getElementById('checkout-overlay');
+  if (overlay && overlay.classList.contains('open')) {
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
+    _appliedCoupon = null;
+  }
+});
 
 // ─── Discount Coupon ──────────────────────────────────────────────────────────
 var _appliedCoupon = null;
