@@ -4143,6 +4143,79 @@ function closeBanner() {
   document.getElementById('discount-banner').style.display = 'none';
 }
 
+function checkoutChangeQty(idx, delta) {
+  if (!cart[idx]) return;
+  var newQty = cart[idx].qty + delta;
+  if (newQty < 1) { checkoutRemoveItem(idx); return; }
+  cart[idx].qty = newQty;
+  syncCart();
+  _checkoutRefreshItems();
+}
+
+function checkoutRemoveItem(idx) {
+  if (!cart[idx]) return;
+  cart.splice(idx, 1);
+  syncCart();
+  if (cart.length === 0) { closeCheckout(); return; }
+  _checkoutRefreshItems();
+}
+
+function _checkoutRefreshItems() {
+  // reset coupon on cart change
+  _appliedCoupon = null;
+  var ci = document.getElementById('coupon-input'); if (ci) ci.value = '';
+  var cr = document.getElementById('coupon-result'); if (cr) cr.style.display = 'none';
+  var orRow = document.getElementById('checkout-original-row'); if (orRow) orRow.style.display = 'none';
+  var disRow = document.getElementById('checkout-discount-row'); if (disRow) disRow.style.display = 'none';
+
+  // re-render items
+  var t = TRANSLATIONS[currentLang];
+  var L = currentLang;
+  var itemsHtml = cart.map(function(item, idx) {
+    var p = products.find(function(pr) { return pr.id === item.id; });
+    if (!p) return '';
+    var unitPrice = p.discounted_price && p.discounted_price < p.price ? p.discounted_price : p.price;
+    var thumb = p.image_url ? '<img src="' + p.image_url + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px">' : '';
+    var name = L === 'fa' ? (p.name_fa || p.name) : (p.name_en || p.name);
+    var metaParts = [];
+    if (item.colorKey && p.colors) {
+      var col = p.colors.find(function(c) { return c.key === item.colorKey; });
+      if (col) metaParts.push(L === 'fa' ? (col.label_fa || col.key) : (col.label_en || col.key));
+    }
+    if (item.size) metaParts.push(item.size);
+    return '<div class="checkout-item">' +
+      '<div class="checkout-item-thumb" style="background:' + p.gradient + '">' + thumb + '</div>' +
+      '<div class="checkout-item-info">' +
+        '<span class="checkout-item-name">' + name + '</span>' +
+        (p.code ? '<span class="checkout-item-code" onclick="copyProductCode(\'' + p.code + '\')" title="Copy">' + p.code + '</span>' : '') +
+        (metaParts.length ? '<span class="checkout-item-meta">' + metaParts.join(' · ') + '</span>' : '') +
+        '<div class="co-qty-ctrl">' +
+          '<button class="co-qty-btn" onclick="checkoutChangeQty(' + idx + ',-1)">−</button>' +
+          '<span class="co-qty-num">' + item.qty + '</span>' +
+          '<button class="co-qty-btn" onclick="checkoutChangeQty(' + idx + ',1)">+</button>' +
+          '<button class="co-qty-remove" onclick="checkoutRemoveItem(' + idx + ')" title="حذف">×</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="checkout-item-right">' +
+        (p.discounted_price && p.discounted_price < p.price
+          ? '<div class="checkout-item-price-orig">' + formatPrice(p.price * item.qty) + '</div><div class="checkout-item-price">' + formatPrice(unitPrice * item.qty) + '</div>'
+          : '<div class="checkout-item-price">' + formatPrice(unitPrice * item.qty) + '</div>') +
+      '</div>' +
+    '</div>';
+  }).join('');
+  document.getElementById('checkout-items-list').innerHTML = itemsHtml;
+
+  // update total
+  var total = cart.reduce(function(s, item) {
+    var p = products.find(function(pr) { return pr.id === item.id; });
+    if (!p) return s;
+    var u = p.discounted_price && p.discounted_price < p.price ? p.discounted_price : p.price;
+    return s + u * item.qty;
+  }, 0);
+  document.getElementById('checkout-total-price').textContent = formatPrice(total);
+  updateCartBadge();
+}
+
 function renderCheckout() {
   var t    = TRANSLATIONS[currentLang];
   var user = getCurrentUser();
@@ -4164,15 +4237,21 @@ function renderCheckout() {
     var thumb = firstImg
       ? '<img src="' + SERVER_BASE + firstImg.url + '" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">'
       : (p.emoji ? '<span style="font-size:26px">' + p.emoji + '</span>' : PLACEHOLDER_SVG);
+    var idx = cart.indexOf(item);
     return '<div class="checkout-item">' +
       '<div class="checkout-item-thumb" style="background:' + p.gradient + '">' + thumb + '</div>' +
       '<div class="checkout-item-info">' +
         '<span class="checkout-item-name">' + name + '</span>' +
         (p.code ? '<span class="checkout-item-code" onclick="copyProductCode(\'' + p.code + '\')" title="Copy">' + p.code + '</span>' : '') +
         (metaParts.length ? '<span class="checkout-item-meta">' + metaParts.join(' · ') + '</span>' : '') +
+        '<div class="co-qty-ctrl">' +
+          '<button class="co-qty-btn" onclick="checkoutChangeQty(' + idx + ',-1)">−</button>' +
+          '<span class="co-qty-num">' + item.qty + '</span>' +
+          '<button class="co-qty-btn" onclick="checkoutChangeQty(' + idx + ',1)">+</button>' +
+          '<button class="co-qty-remove" onclick="checkoutRemoveItem(' + idx + ')" title="حذف">×</button>' +
+        '</div>' +
       '</div>' +
       '<div class="checkout-item-right">' +
-        '<div class="checkout-item-qty">× ' + item.qty + '</div>' +
         (p.discounted_price && p.discounted_price < p.price
           ? '<div class="checkout-item-price-orig">' + formatPrice(p.price * item.qty) + '</div><div class="checkout-item-price">' + formatPrice(unitPrice * item.qty) + '</div>'
           : '<div class="checkout-item-price">' + formatPrice(unitPrice * item.qty) + '</div>') +
