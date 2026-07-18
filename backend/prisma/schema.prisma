@@ -66,6 +66,7 @@ model customers {
   avatar                  String?
   birth_date              DateTime?   @db.Date
   birthday_email_year     Int?
+  birthday_email_sent_at  DateTime?
   addresses           addresses[]
   orders              orders[]
   sessions            sessions[]

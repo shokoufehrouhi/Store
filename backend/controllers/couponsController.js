@@ -235,6 +235,57 @@ async function validateCoupon(req, res, next) {
     });
     if (!existing) return res.status(404).json({ success: false, message: 'invalid_code' });
 
+    // ── BIRTHDAY: special per-customer window check ───────────────────────────
+    if (upperCode === 'BIRTHDAY') {
+      const cust = await prisma.customers.findUnique({
+        where:  { id: session.customer_id },
+        select: { birth_date: true },
+      });
+      if (!cust?.birth_date)
+        return res.status(403).json({ success: false, message: 'no_birthday' });
+
+      const bd      = new Date(cust.birth_date);
+      const thisBd  = new Date(now.getFullYear(), bd.getMonth(), bd.getDate());
+      const validEnd = new Date(thisBd);
+      validEnd.setDate(validEnd.getDate() + 10);
+      validEnd.setHours(23, 59, 59, 999);
+
+      if (now < thisBd || now > validEnd)
+        return res.status(410).json({ success: false, message: 'coupon_expired' });
+
+      // Check if already used in this birthday window
+      const prevUse = await prisma.orders.findFirst({
+        where: {
+          customer_id: session.customer_id,
+          coupon_code: 'BIRTHDAY',
+          status:      { notIn: ['cancelled', 'rejected'] },
+          created_at:  { gte: thisBd, lte: validEnd },
+        },
+        select: { id: true },
+      });
+      if (prevUse) return res.status(409).json({ success: false, message: 'already_used' });
+
+      if (!existing.is_active)
+        return res.status(410).json({ success: false, message: 'limit_reached' });
+
+      const total       = Number(cart_total) || 0;
+      const discountAmt = existing.type === 'percent'
+        ? Math.round(total * Number(existing.value) / 100)
+        : Math.min(Math.round(Number(existing.value)), total);
+      return res.json({
+        success: true,
+        data: {
+          coupon_id:       existing.id,
+          code:            existing.code,
+          type:            existing.type,
+          value:           Number(existing.value),
+          discount_amount: discountAmt,
+          final_amount:    Math.max(0, total - discountAmt),
+        },
+      });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     // Code exists — check if customer already used it
     const prevUse = await prisma.orders.findFirst({
       where: { customer_id: session.customer_id, coupon_code: upperCode, status: { notIn: ['cancelled', 'rejected'] } },

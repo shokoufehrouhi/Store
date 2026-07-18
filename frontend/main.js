@@ -2723,7 +2723,9 @@ function renderInfoTab() {
 
     '<div class="form-field">' +
     '<label>' + t.profile_info_birth_label + '</label>' +
-    '<input id="info-birth-input" type="date" dir="ltr" value="' + (user.birth_date ? user.birth_date.split('T')[0] : '') + '" style="font-family:monospace;letter-spacing:.5px">' +
+    (user.birth_date
+      ? '<div style="padding:8px 0;font-family:monospace;letter-spacing:.5px;color:#555;direction:ltr">' + user.birth_date.split('T')[0] + '</div>'
+      : '<input id="info-birth-input" type="date" dir="ltr" value="" style="font-family:monospace;letter-spacing:.5px">') +
     '</div>' +
 
     '<span class="auth-field-success" id="info-save-success"></span>' +
@@ -2840,7 +2842,7 @@ function saveInfoAll() {
     else if (!mobileVal && user.mobile) body.mobile = null;
   }
   var currentBirth = user.birth_date ? user.birth_date.split('T')[0] : '';
-  if (birthVal !== currentBirth) body.birth_date = birthVal || null;
+  if (!user.birth_date && birthVal !== currentBirth) body.birth_date = birthVal || null;
 
   var btn = document.getElementById('info-save-btn');
   if (btn) { btn.disabled = true; btn.style.opacity = '.7'; }

@@ -219,7 +219,7 @@ async function updateProfile(req, res, next) {
     const dataUpdate = { updated_at: new Date() };
     if (full_name) dataUpdate.full_name = full_name;
     if (email) dataUpdate.email = email;
-    if (birth_date !== undefined) dataUpdate.birth_date = birth_date ? new Date(birth_date) : null;
+    if (birth_date !== undefined && !customer.birth_date) dataUpdate.birth_date = birth_date ? new Date(birth_date) : null;
     if (mobileRaw) {
       dataUpdate.mobile = mobileRaw;
     } else if (hasMobileKey && mobileRaw === null && customer.registered_by !== 'm') {

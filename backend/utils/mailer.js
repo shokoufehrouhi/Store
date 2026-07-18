@@ -706,44 +706,53 @@ async function sendLoyaltyEmail(customer, deliveredCount) {
 // ─── Birthday email ─────────────────────────────────────────────────────────────
 const BIRTHDAY_L = {
   fa: {
-    dir:     'rtl',
-    subject: '🎂 Tavallodet Mobarak! — Shilista',
-    title:   '🎂 Tavallod-e Shad!',
-    body:    'Emruz rouze tavallode shomast va ma mikhaim in rouz ro baraye shoma khasstani tar konim!\n\nBa in kod takhfif 10% baraye kharideto hadye bede:',
+    dir:        'rtl',
+    subject:    '🎂 Tavallodet Mobarak! — Shilista',
+    title:      '🎂 Tavallod-e Shad!',
+    body:       'Farda rouze tavallode shomast va ma mikhaim in rouz ro baraye shoma khasstani tar konim!\n\nBa in kod takhfif 10% baraye kharideto hadye bede:',
     code_label: 'Kod Takhfif:',
-    note:    'In kod ta akhare emsal etebare dare.',
-    btn:     'Kharid Kon',
+    note:       (from, to) => `In kod az ${from} ta ${to} etebare dare (10 rouz).`,
+    btn:        'Kharid Kon',
   },
   en: {
-    dir:     'ltr',
-    subject: '🎂 Happy Birthday! — Shilista',
-    title:   '🎂 Happy Birthday!',
-    body:    "Today is your special day and we want to make it even better!\n\nEnjoy 10% off your next order with this exclusive birthday gift:",
+    dir:        'ltr',
+    subject:    '🎂 Happy Birthday! — Shilista',
+    title:      '🎂 Happy Birthday!',
+    body:       "Tomorrow is your special day and we want to make it even better!\n\nEnjoy 10% off your next order with this exclusive birthday gift:",
     code_label: 'Your Discount Code:',
-    note:    'Valid until the end of this year.',
-    btn:     'Shop Now',
+    note:       (from, to) => `Valid from ${from} until ${to} (10 days).`,
+    btn:        'Shop Now',
   },
   tr: {
-    dir:     'ltr',
-    subject: '🎂 Doğum Günün Kutlu Olsun! — Shilista',
-    title:   '🎂 Doğum Günün Kutlu Olsun!',
-    body:    "Bugün senin özel günün ve biz de onu daha da güzel yapmak istiyoruz!\n\nBu özel doğum günü hediyeyle bir sonraki siparişinde %10 indirim kazan:",
+    dir:        'ltr',
+    subject:    '🎂 Doğum Günün Kutlu Olsun! — Shilista',
+    title:      '🎂 Doğum Günün Kutlu Olsun!',
+    body:       "Yarın senin özel günün ve biz de onu daha da güzel yapmak istiyoruz!\n\nBu özel doğum günü hediyeyle bir sonraki siparişinde %10 indirim kazan:",
     code_label: 'İndirim Kodun:',
-    note:    'Bu yılın sonuna kadar geçerlidir.',
-    btn:     'Alışverişe Başla',
+    note:       (from, to) => `${from} tarihinden ${to} tarihine kadar geçerlidir (10 gün).`,
+    btn:        'Alışverişe Başla',
   },
 };
 
-async function sendBirthdayEmail(customer) {
+function formatDate(date, lang) {
+  if (lang === 'fa') return date.toLocaleDateString('fa-IR');
+  if (lang === 'tr') return date.toLocaleDateString('tr-TR', { day:'numeric', month:'long', year:'numeric' });
+  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+async function sendBirthdayEmail(customer, birthdayDate, validUntil) {
   if (!customer.email) return;
   const transporter = getTransporter();
   if (!transporter) return;
 
-  const lang     = (customer.preferred_lang || 'fa').substring(0, 2);
-  const ll       = BIRTHDAY_L[lang] || BIRTHDAY_L.fa;
-  const dir      = ll.dir;
-  const siteUrl  = process.env.SITE_URL || 'https://shilista.com';
-  const name     = customer.full_name || '';
+  const lang       = (customer.preferred_lang || 'fa').substring(0, 2);
+  const ll         = BIRTHDAY_L[lang] || BIRTHDAY_L.fa;
+  const dir        = ll.dir;
+  const siteUrl    = process.env.SITE_URL || 'https://shilista.com';
+  const name       = customer.full_name || '';
+  const fromStr    = birthdayDate ? formatDate(birthdayDate, lang) : '';
+  const untilStr   = validUntil   ? formatDate(validUntil,   lang) : '';
+  const noteText   = typeof ll.note === 'function' ? ll.note(fromStr, untilStr) : ll.note;
 
   const html = `<!DOCTYPE html>
 <html dir="${dir}" lang="${lang}">
@@ -778,7 +787,7 @@ async function sendBirthdayEmail(customer) {
                 <div style="display:inline-block;background:#fdf5ed;border:2px dashed #c0562a;border-radius:10px;padding:14px 32px">
                   <span style="font-family:monospace;font-size:26px;font-weight:800;color:#c0562a;letter-spacing:3px">BIRTHDAY</span>
                 </div>
-                <p style="margin:10px 0 0;font-size:12px;color:#aaa">${ll.note}</p>
+                <p style="margin:10px 0 0;font-size:12px;color:#aaa">${noteText}</p>
               </td>
             </tr>
           </table>
