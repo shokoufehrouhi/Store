@@ -4623,7 +4623,6 @@ function renderCoupons() {
     var CA = 'style="text-align:center"';
     return '<tr>' +
       '<td><code style="font-size:13px;font-weight:700;color:var(--primary);letter-spacing:1px">' + esc(c.code) + '</code>' +
-        (c.description ? '<div style="font-size:11px;color:#aaa;margin-top:2px;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + esc(c.description) + '">📝 ' + esc(c.description) + '</div>' : '') +
       '</td>' +
       '<td ' + CA + ' style="font-size:12px;text-align:center">' + (c.type === 'percent' ? t('cpTypePLabel') : t('cpTypeFLabel')) + '</td>' +
       '<td ' + CA + ' style="font-weight:700;text-align:center">' + typeLabel + '</td>' +
