@@ -443,7 +443,7 @@ async function getAdminCustomers(req, res, next) {
       orderBy: { created_at: 'desc' },
       select: {
         id: true, full_name: true, email: true, mobile: true,
-        registered_by: true, preferred_lang: true, is_active: true, created_at: true,
+        registered_by: true, preferred_lang: true, is_active: true, created_at: true, birth_date: true,
       },
     });
     res.json({ success: true, data: customers });
@@ -453,7 +453,7 @@ async function getAdminCustomers(req, res, next) {
 async function updateAdminCustomer(req, res, next) {
   try {
     const id = Number(req.params.id);
-    const { full_name, email, mobile, is_active, preferred_lang } = req.body;
+    const { full_name, email, mobile, is_active, preferred_lang, birth_date } = req.body;
 
     if (email) {
       const taken = await prisma.customers.findFirst({ where: { email, NOT: { id } } });
@@ -473,11 +473,12 @@ async function updateAdminCustomer(req, res, next) {
     if (mobile         !== undefined) data.mobile         = mobile || null;
     if (is_active      !== undefined) data.is_active      = Boolean(is_active);
     if (preferred_lang !== undefined) data.preferred_lang = preferred_lang;
+    if (birth_date     !== undefined) data.birth_date     = birth_date ? new Date(birth_date) : null;
 
     const updated = await prisma.customers.update({
       where: { id },
       data,
-      select: { id: true, full_name: true, email: true, mobile: true, registered_by: true, preferred_lang: true, is_active: true, created_at: true },
+      select: { id: true, full_name: true, email: true, mobile: true, registered_by: true, preferred_lang: true, is_active: true, created_at: true, birth_date: true },
     });
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
