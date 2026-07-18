@@ -479,11 +479,28 @@
 
       /* top padding for hamburger */
       #main-content { padding-top: 60px; }
+
+      /* Reduce page-body padding */
+      .page-body { padding: 12px 14px !important; }
+
+      /* Header control rows: wrap on mobile */
+      .page-header > div { flex-wrap: wrap !important; }
+
+      /* Search inputs: remove fixed min-width */
+      #active-orders-search, #orders-search { min-width: 0 !important; width: 100%; }
+
+      /* Reports status+top-products: single column */
+      #rpt-breakdown-grid { grid-template-columns: 1fr !important; }
+
+      /* Coupon field grid: 2 columns instead of 6 */
+      #coupon-field-grid { grid-template-columns: 1fr 1fr !important; }
     }
 
     @media (max-width: 480px) {
       .btn { padding: 8px 12px; font-size: 13px; }
       .page-header h2 { font-size: 15px; }
+      /* Login card: fit small phones */
+      .login-card { width: calc(100vw - 32px); padding: 32px 22px; }
     }
   </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
@@ -899,7 +916,7 @@
         <div id="coupon-form-wrap" style="display:none;background:var(--bg);border-radius:12px;padding:20px;margin-bottom:24px;border:1.5px solid var(--border)">
           <div style="font-weight:700;font-size:14px;margin-bottom:16px" id="coupon-form-title" data-i18n="cpNewTitle">➕ کد تخفیف جدید</div>
           <input type="hidden" id="coupon-edit-id">
-          <div style="display:grid;grid-template-columns:1.4fr 1.2fr 0.7fr 0.9fr 1fr 1fr;gap:8px;margin-bottom:14px">
+          <div id="coupon-field-grid" style="display:grid;grid-template-columns:1.4fr 1.2fr 0.7fr 0.9fr 1fr 1fr;gap:8px;margin-bottom:14px">
             <div>
               <label style="font-size:11px;font-weight:600;color:#888;display:block;margin-bottom:3px" data-i18n="cpCode">کد تخفیف *</label>
               <input id="cp-code" type="text" placeholder="SUMMER20" style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;font-family:inherit;text-transform:uppercase;box-sizing:border-box">
@@ -957,6 +974,12 @@
               <input id="cp-banner-en" type="text" disabled data-i18n-ph="cpBannerEnPh" placeholder="English banner text (e.g. Summer Sale!)" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;opacity:.45;cursor:not-allowed">
               <input id="cp-banner-tr" type="text" disabled data-i18n-ph="cpBannerTrPh" placeholder="Türkçe banner metni (ör. Yaz İndirimi!)" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;opacity:.45;cursor:not-allowed">
             </div>
+          </div>
+
+          <!-- Internal note (admin-only, never sent to client) -->
+          <div style="margin-bottom:14px">
+            <label style="font-size:11px;font-weight:600;color:#888;display:block;margin-bottom:4px" data-i18n="cpDesc">📝 یادداشت داخلی (فقط برای ادمین)</label>
+            <textarea id="cp-desc" rows="2" data-i18n-ph="cpDescPh" placeholder="توضیح کوتاه برای یادآوری — برای مشتری ارسال نمی‌شود" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;background:#fffef8;color:#555"></textarea>
           </div>
 
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1046,7 +1069,7 @@
         </div>
 
         <!-- Status breakdown + Top products -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div id="rpt-breakdown-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
           <div class="card" style="padding:24px">
             <div style="font-weight:700;font-size:15px;margin-bottom:20px" data-i18n="rptStatusBreakdown">وضعیت سفارشات</div>
             <div id="rpt-donut-wrap" style="display:flex;gap:24px;align-items:center">
@@ -1368,7 +1391,7 @@ const LANGS = {
     bankRequired:'همه فیلدها الزامی است', bankConfirmDelete:'این حساب حذف شود؟', retIbanInvalid:'IBAN باید با TR شروع شده و ۲۴ رقم داشته باشد', copied:'کپی شد',
     noBankAccounts:'هیچ حسابی ثبت نشده',
     custId:'شناسه مشتری', custName:'نام', custEmail:'ایمیل', custMobile:'موبایل',
-    custRegBy:'نوع ثبت‌نام', custLang:'زبان', custStatus:'وضعیت', custJoined:'تاریخ عضویت',
+    custRegBy:'نوع ثبت‌نام', custLang:'زبان', custStatus:'وضعیت', custJoined:'تاریخ عضویت', custBirthDate:'تاریخ تولد',
     custRegEmail:'ایمیل', custRegMobile:'موبایل',
     noCustomers:'هنوز مشتری ثبت نشده', editCustomerTitle:'ویرایش اطلاعات مشتری',
     custActive:'فعال', custInactive:'غیرفعال', custActiveLabel:'حساب فعال باشد',
@@ -1540,7 +1563,7 @@ const LANGS = {
     bankRequired:'All fields are required', bankConfirmDelete:'Delete this account?', retIbanInvalid:'IBAN must start with TR followed by 24 digits', copied:'Copied!',
     noBankAccounts:'No accounts defined yet',
     custId:'Customer ID', custName:'Name', custEmail:'Email', custMobile:'Mobile',
-    custRegBy:'Registered Via', custLang:'Language', custStatus:'Status', custJoined:'Joined',
+    custRegBy:'Registered Via', custLang:'Language', custStatus:'Status', custJoined:'Joined', custBirthDate:'Birth Date',
     custRegEmail:'Email', custRegMobile:'Mobile',
     noCustomers:'No customers yet', editCustomerTitle:'Edit Customer',
     custActive:'Active', custInactive:'Inactive', custActiveLabel:'Account is active',
@@ -1712,7 +1735,7 @@ const LANGS = {
     bankRequired:'Tüm alanlar zorunludur', bankConfirmDelete:'Bu hesap silinsin mi?', retIbanInvalid:'IBAN, TR ile başlamalı ve 24 rakam içermelidir', copied:'Kopyalandı!',
     noBankAccounts:'Henüz hesap tanımlanmadı',
     custId:'Müşteri ID', custName:'Ad', custEmail:'E-posta', custMobile:'Telefon',
-    custRegBy:'Kayıt Yöntemi', custLang:'Dil', custStatus:'Durum', custJoined:'Üyelik Tarihi',
+    custRegBy:'Kayıt Yöntemi', custLang:'Dil', custStatus:'Durum', custJoined:'Üyelik Tarihi', custBirthDate:'Doğum Tarihi',
     custRegEmail:'E-posta', custRegMobile:'Telefon',
     noCustomers:'Henüz müşteri yok', editCustomerTitle:'Müşteriyi Düzenle',
     custActive:'Aktif', custInactive:'Pasif', custActiveLabel:'Hesap aktif olsun',
@@ -2926,7 +2949,7 @@ function renderCustomersTable(customers) {
     const joined = new Date(c.created_at).toLocaleDateString('fa-IR');
     return `<tr>
       <td>${idBadge}</td>
-      <td style="font-weight:600">${esc(c.full_name)}</td>
+      <td style="font-weight:600">${esc(c.full_name)}${c.birth_date ? '<div style="font-size:11px;color:#aaa;margin-top:2px">🎂 ' + new Date(c.birth_date).toLocaleDateString('fa-IR') + '</div>' : ''}</td>
       <td style="direction:ltr;font-size:13px">${esc(c.email) || '—'}</td>
       <td style="direction:ltr;font-size:13px">${esc(c.mobile) || '—'}</td>
       <td>${regBadge}</td>
@@ -2969,6 +2992,11 @@ function openCustomerModal(c) {
           <option value="tr" ${c.preferred_lang==='tr'?'selected':''}>Türkçe</option>
         </select>
       </div>
+      <div class="form-field"><label>🎂 ${t('custBirthDate')}</label>
+        <input type="date" id="cu-birth" value="${c.birth_date ? c.birth_date.slice(0,10) : ''}" style="direction:ltr">
+      </div>
+    </div>
+    <div class="form-row">
       <div class="form-field" style="justify-content:flex-end;padding-top:24px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600">
           <input type="checkbox" id="cu-active" ${c.is_active?'checked':''} style="width:16px;height:16px">
@@ -2991,6 +3019,7 @@ async function saveCustomer(id) {
     mobile:        document.getElementById('cu-mobile')?.value?.trim() || null,
     preferred_lang:document.getElementById('cu-lang')?.value || 'fa',
     is_active:     document.getElementById('cu-active')?.checked ?? true,
+    birth_date:    document.getElementById('cu-birth')?.value || null,
   };
   const res = await api(`/admin/customers/${id}`, { method:'PUT', body:JSON.stringify(payload) });
   if (res?.success) { closeModal(); showToast(t('savedCustomer')); loadCustomers(); }
@@ -4587,7 +4616,9 @@ function renderCoupons() {
       : '<span style="background:#fee2e2;color:#991b1b;font-size:11px;padding:2px 8px;border-radius:6px">' + t('cpInactive') + '</span>';
     var CA = 'style="text-align:center"';
     return '<tr>' +
-      '<td><code style="font-size:13px;font-weight:700;color:var(--primary);letter-spacing:1px">' + esc(c.code) + '</code></td>' +
+      '<td><code style="font-size:13px;font-weight:700;color:var(--primary);letter-spacing:1px">' + esc(c.code) + '</code>' +
+        (c.description ? '<div style="font-size:11px;color:#aaa;margin-top:2px;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + esc(c.description) + '">📝 ' + esc(c.description) + '</div>' : '') +
+      '</td>' +
       '<td ' + CA + ' style="font-size:12px;text-align:center">' + (c.type === 'percent' ? t('cpTypePLabel') : t('cpTypeFLabel')) + '</td>' +
       '<td ' + CA + ' style="font-weight:700;text-align:center">' + typeLabel + '</td>' +
       '<td ' + CA + '>' + forLabel + '</td>' +
@@ -4696,6 +4727,7 @@ function resetCouponForm() {
   document.getElementById('cp-banner-fa').value = '';
   document.getElementById('cp-banner-en').value = '';
   document.getElementById('cp-banner-tr').value = '';
+  document.getElementById('cp-desc').value = '';
   toggleBannerFields();
   document.querySelectorAll('input[name="cp-for"]').forEach(function(r) { r.disabled = false; });
   document.querySelector('input[name="cp-for"][value="all"]').checked = true;
@@ -4739,7 +4771,7 @@ function editCoupon(id) {
   }
 
   if (lockAll) {
-    lockField('cp-type');
+    // protected: only type + value are editable
     lockField('cp-max-uses');
     lockField('cp-starts');
     lockField('cp-expires');
@@ -4758,6 +4790,7 @@ function editCoupon(id) {
   document.getElementById('cp-banner-fa').value = c.banner_text_fa || '';
   document.getElementById('cp-banner-en').value = c.banner_text_en || '';
   document.getElementById('cp-banner-tr').value = c.banner_text_tr || '';
+  document.getElementById('cp-desc').value = c.description || '';
   toggleBannerFields();
 
   var forAll = c.for_all;
@@ -4798,7 +4831,7 @@ async function saveCoupon() {
   var editingCoupon = id ? _allCoupons.find(function(c) { return String(c.id) === String(id); }) : null;
   var body = id
     ? (editingCoupon && editingCoupon.is_protected
-        ? { value: Number(value) }
+        ? { type, value: Number(value), description: document.getElementById('cp-desc').value.trim() || null }
         : {
             type, value: Number(value),
             max_uses:         maxUses ? Number(maxUses) : null,
@@ -4810,6 +4843,7 @@ async function saveCoupon() {
             banner_text_fa:   document.getElementById('cp-banner-fa').value.trim() || null,
             banner_text_en:   document.getElementById('cp-banner-en').value.trim() || null,
             banner_text_tr:   document.getElementById('cp-banner-tr').value.trim() || null,
+            description:      document.getElementById('cp-desc').value.trim() || null,
           })
 
     : {
@@ -4823,6 +4857,7 @@ async function saveCoupon() {
         banner_text_fa:   document.getElementById('cp-banner-fa').value.trim() || null,
         banner_text_en:   document.getElementById('cp-banner-en').value.trim() || null,
         banner_text_tr:   document.getElementById('cp-banner-tr').value.trim() || null,
+        description:      document.getElementById('cp-desc').value.trim() || null,
         customer_ids:     forAll ? [] : _cpSelectedIds,
       };
 

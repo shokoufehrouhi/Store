@@ -33,7 +33,8 @@ async function listCoupons(req, res, next) {
 async function createCoupon(req, res, next) {
   try {
     const { code, type, value, for_all, max_uses, min_orders, first_order_only, is_active, show_banner,
-            banner_text_fa, banner_text_en, banner_text_tr, starts_at, expires_at, customer_ids } = req.body;
+            banner_text_fa, banner_text_en, banner_text_tr, starts_at, expires_at, customer_ids,
+            description } = req.body;
 
     if (!code || !type || value === undefined)
       return res.status(400).json({ success: false, message: 'code, type, value are required' });
@@ -54,11 +55,12 @@ async function createCoupon(req, res, next) {
           first_order_only: !!first_order_only,
           is_active:        is_active !== false,
           show_banner:      !!show_banner,
-          banner_text_fa: banner_text_fa || null,
-          banner_text_en: banner_text_en || null,
-          banner_text_tr: banner_text_tr || null,
-          starts_at:  parseDate(starts_at,  false),
-          expires_at: parseDate(expires_at, true),
+          banner_text_fa:   banner_text_fa || null,
+          banner_text_en:   banner_text_en || null,
+          banner_text_tr:   banner_text_tr || null,
+          starts_at:        parseDate(starts_at,  false),
+          expires_at:       parseDate(expires_at, true),
+          description:      description ? description.trim() : null,
         },
       });
       if (!for_all && Array.isArray(customer_ids) && customer_ids.length) {
@@ -81,27 +83,47 @@ async function createCoupon(req, res, next) {
 async function updateCoupon(req, res, next) {
   try {
     const id = Number(req.params.id);
+    const existing = await prisma.coupons.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ success: false, message: 'not_found' });
+
     const { code, type, value, for_all, max_uses, min_orders, first_order_only, is_active, show_banner,
-            banner_text_fa, banner_text_en, banner_text_tr, starts_at, expires_at, customer_ids } = req.body;
+            banner_text_fa, banner_text_en, banner_text_tr, starts_at, expires_at, customer_ids,
+            description } = req.body;
+
+    // Protected coupons: only type, value, and description may change
+    if (existing.is_protected) {
+      if (value === undefined) return res.status(400).json({ success: false, message: 'value required' });
+      const c = await prisma.coupons.update({
+        where: { id },
+        data: {
+          ...(type        !== undefined && { type }),
+          value: Number(value),
+          ...(description !== undefined && { description: description ? description.trim() : null }),
+          updated_at: new Date(),
+        },
+      });
+      return res.json({ success: true, data: c });
+    }
 
     const coupon = await prisma.$transaction(async (tx) => {
       const c = await tx.coupons.update({
         where: { id },
         data: {
-          ...(code      !== undefined && { code: code.trim().toUpperCase() }),
-          ...(type      !== undefined && { type }),
-          ...(value     !== undefined && { value: Number(value) }),
-          ...(for_all   !== undefined && { for_all }),
-          ...(max_uses  !== undefined && { max_uses: max_uses ? Number(max_uses) : null }),
-          ...(min_orders        !== undefined && { min_orders: min_orders ? Number(min_orders) : null }),
+          ...(code        !== undefined && { code: code.trim().toUpperCase() }),
+          ...(type        !== undefined && { type }),
+          ...(value       !== undefined && { value: Number(value) }),
+          ...(for_all     !== undefined && { for_all }),
+          ...(max_uses    !== undefined && { max_uses: max_uses ? Number(max_uses) : null }),
+          ...(min_orders  !== undefined && { min_orders: min_orders ? Number(min_orders) : null }),
           ...(first_order_only !== undefined && { first_order_only: !!first_order_only }),
-          ...(is_active !== undefined && { is_active }),
+          ...(is_active   !== undefined && { is_active }),
           ...(show_banner !== undefined && { show_banner }),
           ...(banner_text_fa !== undefined && { banner_text_fa: banner_text_fa || null }),
           ...(banner_text_en !== undefined && { banner_text_en: banner_text_en || null }),
           ...(banner_text_tr !== undefined && { banner_text_tr: banner_text_tr || null }),
-          ...(starts_at  !== undefined && { starts_at:  parseDate(starts_at,  false) }),
-          ...(expires_at !== undefined && { expires_at: parseDate(expires_at, true)  }),
+          ...(starts_at   !== undefined && { starts_at:  parseDate(starts_at,  false) }),
+          ...(expires_at  !== undefined && { expires_at: parseDate(expires_at, true)  }),
+          ...(description !== undefined && { description: description ? description.trim() : null }),
           updated_at: new Date(),
         },
       });

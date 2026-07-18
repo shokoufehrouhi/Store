@@ -4,10 +4,15 @@ async function getAll(req, res, next) {
   try {
     const { category, subcategory, gender, tag } = req.query;
     const where = { is_active: true };
-    if (category)    where.categories    = { key: category };
-    if (subcategory) where.subcategories = { key: subcategory };
-    if (gender)      where.gender        = gender;
-    if (tag)         where.tag           = tag;
+    if (gender) where.gender = gender;
+    if (tag)    where.tag    = tag;
+    if (category || subcategory) {
+      const primaryMatch = {};
+      const extraMatch   = {};
+      if (category)    { primaryMatch.categories    = { key: category };    extraMatch.categories    = { key: category };    }
+      if (subcategory) { primaryMatch.subcategories = { key: subcategory }; extraMatch.subcategories = { key: subcategory }; }
+      where.OR = [ primaryMatch, { product_categories: { some: extraMatch } } ];
+    }
 
     const rows = await prisma.products.findMany({
       where,
@@ -18,6 +23,7 @@ async function getAll(req, res, next) {
         product_sizes:     true,
         product_media:     { orderBy: { sort_order: 'asc' } },
         product_inventory: { select: { color_id: true, size_label: true, quantity: true } },
+        product_categories: { include: { categories: { select: { key: true } }, subcategories: { select: { key: true } } } },
         _count:            { select: { order_items: true, customer_product_photos: { where: { is_approved: true } } } },
       },
       orderBy: { created_at: 'desc' },

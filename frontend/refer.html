@@ -92,8 +92,8 @@ const T = {
 
 const params = new URLSearchParams(location.search);
 const token  = params.get('t') || '';
-const langParam = params.get('lang') || navigator.language.substring(0,2);
-const t = T[langParam] || T.en;
+const langParam = params.get('lang') || 'tr';
+const t = T[langParam] || T.tr;
 
 document.documentElement.dir  = t.dir;
 document.documentElement.lang = t.lang;
@@ -110,7 +110,7 @@ document.getElementById('already-msg').textContent = t.already;
 document.title = 'Shilista — ' + t.hd_title;
 
 if (!token) {
-  document.getElementById('err-msg').textContent = 'Link invalid (no token). URL: ' + location.href;
+  document.getElementById('err-msg').textContent = t.err_token;
   document.getElementById('err-msg').style.display = 'block';
   document.getElementById('submit-btn').disabled = true;
 }
@@ -153,7 +153,7 @@ async function submitForm() {
       btn.textContent = t.btn;
     }
   } catch(e) {
-    errEl.textContent = 'Fetch error: ' + e.message;
+    errEl.textContent = 'Error. Please try again.';
     errEl.style.display = 'block';
     btn.disabled = false;
     btn.textContent = t.btn;
