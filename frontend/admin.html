@@ -2952,10 +2952,10 @@ function renderCustomersTable(customers) {
     const statusBadge = c.is_active
       ? `<span class="badge badge-active">${t('custActive')}</span>`
       : `<span class="badge badge-inactive">${t('custInactive')}</span>`;
-    const joined = new Date(c.created_at).toLocaleDateString('fa-IR');
+    const joined = new Date(c.created_at).toLocaleDateString('en-GB');
     return `<tr>
       <td>${idBadge}</td>
-      <td style="font-weight:600">${esc(c.full_name)}${c.birth_date ? '<div style="font-size:11px;color:#aaa;margin-top:2px">🎂 ' + new Date(c.birth_date).toLocaleDateString('fa-IR') + '</div>' : ''}</td>
+      <td style="font-weight:600">${esc(c.full_name)}${c.birth_date ? '<div style="font-size:11px;color:#aaa;margin-top:2px">🎂 ' + new Date(c.birth_date).toLocaleDateString('en-GB') + '</div>' : ''}</td>
       <td style="direction:ltr;font-size:13px">${esc(c.email) || '—'}</td>
       <td style="direction:ltr;font-size:13px">${esc(c.mobile) || '—'}</td>
       <td>${regBadge}</td>
@@ -3011,7 +3011,7 @@ function openCustomerModal(c) {
       </div>
     </div>
     ${c.birthday_email_sent_at ? `<div style="margin-top:8px;padding:8px 12px;background:#f0fdf4;border-radius:8px;font-size:12px;color:#15803d">
-      📧 ${t('custBirthdayEmailSent')}: ${new Date(c.birthday_email_sent_at).toLocaleDateString('fa-IR')} — ${new Date(c.birthday_email_sent_at).toLocaleTimeString('fa-IR')}
+      📧 ${t('custBirthdayEmailSent')}: ${new Date(c.birthday_email_sent_at).toLocaleDateString('en-GB')} — ${new Date(c.birthday_email_sent_at).toLocaleTimeString('en-GB')}
     </div>` : ''}
   `;
   const footer = `
