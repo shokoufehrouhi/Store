@@ -9,7 +9,7 @@ const SESSION_TTL   = 7 * 24 * 60 * 60 * 1000; // 7 days
 // In-memory email verification store: email -> { code, expires, sentAt }
 const _verifyCodes = new Map();
 const VERIFY_TTL   = 10 * 60 * 1000; // 10 minutes
-const VERIFY_RESEND_WAIT = 60 * 1000; // 60 seconds before resend allowed
+const VERIFY_RESEND_WAIT = 120 * 1000; // 120 seconds before resend allowed
 
 function isValidMobile(m) {
   const digits = (m || '').replace(/[^\d]/g, '');

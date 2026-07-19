@@ -2133,6 +2133,9 @@ function executePendingCart() {
   _pendingCart = null;
   addToCart(pending.productId, pending.colorKey, pending.size);
 }
+var _signupData = null;
+var _signupResendTimer = null;
+
 function ccToPreferredLang(cc) {
   var c = (cc || '').replace(/\s/g, '');
   if (c === '+98') return 'fa';
@@ -2148,7 +2151,7 @@ function onSignupCcChange() {
 }
 
 function showAuthView(view) {
-  ['login','signup','forgot','reset'].forEach(function(v) {
+  ['login','signup','signup-verify','forgot','reset'].forEach(function(v) {
     var el = document.getElementById('auth-view-' + v);
     if (el) el.style.display = v === view ? 'block' : 'none';
   });
@@ -2156,11 +2159,49 @@ function showAuthView(view) {
   if (view === 'signup') {
     var ccInput = document.getElementById('signup-country-code');
     if (ccInput && !ccInput.value) {
-      ccInput.value = currentLang === 'fa' ? '+98' : currentLang === 'tr' ? '+90' : '+90';
+      ccInput.value = currentLang === 'fa' ? '+98' : '+90';
     }
     var sel = document.getElementById('signup-lang');
     if (sel) sel.value = currentLang === 'fa' ? 'fa' : currentLang === 'tr' ? 'tr' : 'en';
   }
+  if (view === 'signup-verify') {
+    var sentTo = document.getElementById('signup-verify-sent-to');
+    if (sentTo && _signupData) sentTo.textContent = _signupData.email;
+    var codeInput = document.getElementById('signup-verify-code');
+    if (codeInput) { codeInput.value = ''; setTimeout(function() { codeInput.focus(); }, 100); }
+  }
+}
+
+function startResendCountdown() {
+  clearInterval(_signupResendTimer);
+  var btn       = document.getElementById('signup-resend-btn');
+  var countdown = document.getElementById('signup-resend-countdown');
+  var secs = 120;
+  if (btn)      { btn.style.opacity = '0.35'; btn.style.pointerEvents = 'none'; }
+  if (countdown) countdown.textContent = ' (' + secs + 's)';
+  _signupResendTimer = setInterval(function() {
+    secs--;
+    if (secs <= 0) {
+      clearInterval(_signupResendTimer);
+      if (btn)       { btn.style.opacity = '1'; btn.style.pointerEvents = 'auto'; }
+      if (countdown)  countdown.textContent = '';
+    } else {
+      if (countdown) countdown.textContent = ' (' + secs + 's)';
+    }
+  }, 1000);
+}
+
+function resendSignupCode() {
+  if (!_signupData) return;
+  var btn = document.getElementById('signup-resend-btn');
+  if (btn) { btn.style.opacity = '0.35'; btn.style.pointerEvents = 'none'; }
+  fetch(API_BASE + '/customers/send-verification', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: _signupData.email })
+  }).then(function(res) { return res.json(); }).then(function(data) {
+    if (data.success) startResendCountdown();
+  }).catch(function() {});
 }
 function clearAuthErrors() {
   document.querySelectorAll('.auth-field-error, .auth-field-success').forEach(function(el) {
@@ -2228,72 +2269,72 @@ function doLogin() {
   });
 }
 
-// ─── Signup ───────────────────────────────────────────────────────────────────
-function sendSignupVerification() {
-  var t     = TRANSLATIONS[currentLang];
-  var email = (document.getElementById('signup-email')?.value || '').trim().toLowerCase();
-  clearAuthErrors();
-  if (!email)                { setAuthError('signup-email-err', t.err_email_req || t.err_id_req); return; }
-  if (!validateEmail(email)) { setAuthError('signup-email-err', t.err_email_inv); return; }
-
-  var btn = document.getElementById('signup-send-code-btn');
-  if (btn) { btn.disabled = true; btn.textContent = '...'; }
-
-  fetch(API_BASE + '/customers/send-verification', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: email, lang: currentLang }),
-  }).then(function(res) { return res.json().then(function(d) { return { status: res.status, data: d }; }); })
-  .then(function(r) {
-    if (btn) { btn.disabled = false; btn.setAttribute('data-i18n', 'auth_resend_code'); btn.textContent = t.auth_resend_code || 'Resend'; }
-    if (r.data.success) {
-      document.getElementById('signup-code-field').style.display = '';
-      document.getElementById('signup-verify-code').focus();
-      var hint = document.getElementById('signup-code-hint');
-      if (hint) hint.textContent = t.auth_code_sent || '✓ Code sent';
-    } else if (r.status === 409) {
-      setAuthError('signup-email-err', t.err_email_taken || t.err_user_exists);
-    } else if (r.status === 429) {
-      setAuthError('signup-email-err', t.err_too_many_attempts || 'Wait before resending');
-      if (btn) btn.disabled = false;
-    } else {
-      setAuthError('signup-email-err', r.data.message || t.err_email_inv);
-    }
-  }).catch(function() {
-    if (btn) btn.disabled = false;
-    setAuthError('signup-email-err', t.err_email_inv);
-  });
-}
-
-function doSignup() {
+// ─── Signup step 1: validate fields, send verification code, go to step 2 ─────
+function doSignupStep1() {
   var t         = TRANSLATIONS[currentLang];
   var fullName  = (document.getElementById('signup-name')?.value         || '').trim();
   var email     = (document.getElementById('signup-email')?.value        || '').trim().toLowerCase();
-  var code      = (document.getElementById('signup-verify-code')?.value  || '').trim();
   var password  =  document.getElementById('signup-password')?.value     || '';
   var confirm   =  document.getElementById('signup-confirm')?.value      || '';
   var cc        = (document.getElementById('signup-country-code')?.value || '').trim().replace(/\s/g, '');
   var mobileRaw = (document.getElementById('signup-mobile')?.value       || '').replace(/[\s\-]/g, '');
   var birthDate =  document.getElementById('signup-birth-date')?.value   || '';
+  var prefLang  =  document.getElementById('signup-lang')?.value         || currentLang;
   clearAuthErrors();
 
-  if (!email)                    { setAuthError('signup-email-err',  t.err_email_req  || t.err_id_req); return; }
-  if (!validateEmail(email))     { setAuthError('signup-email-err',  t.err_email_inv);                  return; }
-  if (!code)                     { setAuthError('signup-code-err',   t.err_code_req);                   return; }
-  if (!validatePassword(password)) { setAuthError('signup-pass-err', t.err_pass_inv);                   return; }
-  if (password !== confirm)       { setAuthError('signup-confirm-err', t.err_pass_mismatch);             return; }
-  if (!mobileRaw)                { setAuthError('signup-mobile-err', t.err_mobile_req || t.err_id_req); return; }
-
+  if (!email)                      { setAuthError('signup-email-err',   t.err_email_req || t.err_id_req); return; }
+  if (!validateEmail(email))       { setAuthError('signup-email-err',   t.err_email_inv);                  return; }
+  if (!validatePassword(password)) { setAuthError('signup-pass-err',    t.err_pass_inv);                   return; }
+  if (password !== confirm)        { setAuthError('signup-confirm-err', t.err_pass_mismatch);               return; }
+  if (!mobileRaw)                  { setAuthError('signup-mobile-err',  t.err_mobile_req || t.err_id_req); return; }
   if (cc && !cc.startsWith('+')) cc = '+' + cc;
   if (!cc) cc = currentLang === 'fa' ? '+98' : '+90';
-  var mobileClean = mobileRaw.replace(/^0+/, '');
-  var mobile = cc + mobileClean;
+  var mobile = cc + mobileRaw.replace(/^0+/, '');
   if (!/^\+[0-9]{7,15}$/.test(mobile)) { setAuthError('signup-mobile-err', t.err_mobile_intl_inv || t.err_mobile_inv); return; }
 
-  var prefLang = (document.getElementById('signup-lang')?.value || currentLang);
-  var body = { email: email, verification_code: code, password: password, mobile: mobile, preferred_lang: prefLang };
-  if (fullName) body.full_name = fullName;
-  if (birthDate) body.birth_date = birthDate;
+  _signupData = { fullName: fullName, email: email, password: password, mobile: mobile, birthDate: birthDate, prefLang: prefLang };
+
+  var btn = document.querySelector('#auth-view-signup .auth-submit-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
+  fetch(API_BASE + '/customers/send-verification', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email, lang: prefLang }),
+  }).then(function(res) { return res.json().then(function(d) { return { status: res.status, data: d }; }); })
+  .then(function(r) {
+    if (btn) { btn.disabled = false; btn.textContent = t.auth_btn_signup || 'Continue'; }
+    if (r.data.success) {
+      showAuthView('signup-verify');
+      startResendCountdown();
+    } else if (r.status === 409) {
+      setAuthError('signup-email-err', t.err_email_taken || t.err_user_exists);
+    } else {
+      setAuthError('signup-email-err', r.data.message || t.err_email_inv);
+    }
+  }).catch(function() {
+    if (btn) { btn.disabled = false; btn.textContent = t.auth_btn_signup || 'Continue'; }
+    setAuthError('signup-email-err', t.err_email_inv);
+  });
+}
+
+// ─── Signup step 2: verify code and register ──────────────────────────────────
+function doSignup() {
+  if (!_signupData) { showAuthView('signup'); return; }
+  var t    = TRANSLATIONS[currentLang];
+  var code = (document.getElementById('signup-verify-code')?.value || '').trim();
+  clearAuthErrors();
+  if (!code) { setAuthError('signup-code-err', t.err_code_req); return; }
+
+  var body = {
+    email:             _signupData.email,
+    verification_code: code,
+    password:          _signupData.password,
+    mobile:            _signupData.mobile,
+    preferred_lang:    _signupData.prefLang,
+  };
+  if (_signupData.fullName)  body.full_name  = _signupData.fullName;
+  if (_signupData.birthDate) body.birth_date = _signupData.birthDate;
 
   fetch(API_BASE + '/customers/register', {
     method: 'POST',
@@ -2303,6 +2344,8 @@ function doSignup() {
     return res.json().then(function(data) { return { status: res.status, data: data }; });
   }).then(function(r) {
     if (r.status === 201 && r.data.success) {
+      clearInterval(_signupResendTimer);
+      _signupData = null;
       var customer = r.data.data;
       customer.addresses = [];
       customer.favorites = [];
@@ -2314,15 +2357,15 @@ function doSignup() {
       renderGrid();
       executePendingCart();
       loadFavoritesFromServer();
-    } else if (r.status === 409) {
-      setAuthError('signup-email-err', t.err_user_exists);
     } else if (r.data.message === 'invalid_code') {
       setAuthError('signup-code-err', t.err_code_inv);
+    } else if (r.status === 409) {
+      setAuthError('signup-code-err', t.err_user_exists);
     } else {
-      setAuthError('signup-email-err', r.data.message || t.err_user_exists);
+      setAuthError('signup-code-err', r.data.message || t.err_code_inv);
     }
   }).catch(function() {
-    setAuthError('signup-email-err', t.err_user_exists);
+    setAuthError('signup-code-err', t.err_code_inv);
   });
 }
 
