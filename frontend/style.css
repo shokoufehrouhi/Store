@@ -44,7 +44,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 /* ─── Announcement Bar ───────────────────────────────────────────────────── */
 .announcement-bar {
-  background: var(--dark);
+  background: #c0562a;
   color: #fff;
   overflow: hidden;
   height: 42px;
