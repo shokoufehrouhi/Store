@@ -17,7 +17,7 @@ const FOOTER_TR = `
             </tr>
             <tr>
               <td style="text-align:center;padding-bottom:14px">
-                <a href="https://instagram.com/Shilista" style="display:inline-block;margin:0 4px;text-decoration:none;background:#c0562a;color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:6px;font-family:Arial,sans-serif">&#128248; @Shilista</a>
+                <a href="https://instagram.com/shilistaa" style="display:inline-block;margin:0 4px;text-decoration:none;background:#c0562a;color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:6px;font-family:Arial,sans-serif">&#128248; @shilistaa</a>
                 <a href="https://t.me/Shilistaa" style="display:inline-block;margin:0 4px;text-decoration:none;background:#229ED9;color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:6px;font-family:Arial,sans-serif">&#9992; @Shilistaa</a>
               </td>
             </tr>
