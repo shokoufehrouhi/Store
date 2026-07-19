@@ -3478,15 +3478,17 @@ function _renderOrdersList(apiOrders) {
         detailHtml += '</div>';
       }
 
-      // Messages section — always visible in expanded order
-      detailHtml += '<div class="order-messages-section" id="order-msgs-' + order.id + '">' +
-        '<div class="order-msgs-title">' + (t.msg_section_title || 'پیام‌ها') + '</div>' +
-        '<div class="order-msgs-list" id="order-msgs-list-' + order.id + '"><div style="color:#aaa;font-size:12px;text-align:center;padding:10px">' + (t.msg_empty || 'پیامی وجود ندارد') + '</div></div>' +
-        '<div class="order-msgs-compose">' +
-          '<textarea id="order-msg-input-' + order.id + '" class="order-msg-input" placeholder="' + (t.msg_placeholder || 'پیام خود را بنویسید...') + '" rows="2"></textarea>' +
-          '<button class="order-msg-send-btn" onclick="customerSendOrderMessage(' + order.id + ')">' + (t.msg_send || 'ارسال') + '</button>' +
-        '</div>' +
-      '</div>';
+      // Messages section — not shown for prize orders
+      if (!order.is_prize) {
+        detailHtml += '<div class="order-messages-section" id="order-msgs-' + order.id + '">' +
+          '<div class="order-msgs-title">' + (t.msg_section_title || 'پیام‌ها') + '</div>' +
+          '<div class="order-msgs-list" id="order-msgs-list-' + order.id + '"><div style="color:#aaa;font-size:12px;text-align:center;padding:10px">' + (t.msg_empty || 'پیامی وجود ندارد') + '</div></div>' +
+          '<div class="order-msgs-compose">' +
+            '<textarea id="order-msg-input-' + order.id + '" class="order-msg-input" placeholder="' + (t.msg_placeholder || 'پیام خود را بنویسید...') + '" rows="2"></textarea>' +
+            '<button class="order-msg-send-btn" onclick="customerSendOrderMessage(' + order.id + ')">' + (t.msg_send || 'ارسال') + '</button>' +
+          '</div>' +
+        '</div>';
+      }
 
       detailHtml += '</div>';
     }
@@ -3575,8 +3577,8 @@ function toggleProfileOrder(orderId) {
   _profileExpandedId = (_profileExpandedId === orderId) ? null : orderId;
   _renderOrdersList(_cachedApiOrders);
   if (_profileExpandedId === orderId) {
-    loadOrderMessages(orderId);
     var ord = (_cachedApiOrders || []).find(function(o) { return o.id === orderId; });
+    if (ord && !ord.is_prize) loadOrderMessages(orderId);
     if (ord && ord.status === 'delivered') loadOrderReturn(orderId, ord);
   }
 }
