@@ -185,6 +185,7 @@ async function login(req, res, next) {
         id: customer.id, full_name: customer.full_name, email: customer.email,
         mobile: customer.mobile, registered_by: customer.registered_by,
         preferred_lang: customer.preferred_lang, avatar: customer.avatar || null,
+        birth_date: customer.birth_date || null, gender: customer.gender || null,
         addresses,
       },
     });
