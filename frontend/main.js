@@ -1486,6 +1486,15 @@ function applyLang(lang) {
     var key = el.getAttribute('data-i18n-ph');
     if (t[key] !== undefined) el.placeholder = t[key];
   });
+  // Rebuild scrolling announcement marquee
+  var annTrack = document.getElementById('announcement-track');
+  if (annTrack && t.announcement) {
+    var annItems = t.announcement.split('|').map(function(s) { return s.trim(); }).filter(Boolean);
+    var annHtml = annItems.map(function(item) {
+      return '<span class="ann-item">' + item + '</span><span class="ann-sep">✦</span>';
+    }).join('');
+    annTrack.innerHTML = annHtml + annHtml;
+  }
   clearAuthErrors();
   updateAuthUI();
   // اگه profile modal باز بود محتوای تب فعلی رو دوباره رندر کن
