@@ -2960,6 +2960,16 @@ function renderInfoTab() {
       : '<input id="info-birth-input" type="date" dir="ltr" value="" style="font-family:monospace;letter-spacing:.5px">') +
     '</div>' +
 
+    '<div class="form-field">' +
+    '<label>' + t.profile_info_gender_label + '</label>' +
+    '<select id="info-gender-select">' +
+    '<option value=""' + (!user.gender ? ' selected' : '') + '>' + t.profile_info_gender_none + '</option>' +
+    '<option value="male"' + (user.gender === 'male' ? ' selected' : '') + '>' + t.profile_info_gender_male + '</option>' +
+    '<option value="female"' + (user.gender === 'female' ? ' selected' : '') + '>' + t.profile_info_gender_female + '</option>' +
+    '<option value="other"' + (user.gender === 'other' ? ' selected' : '') + '>' + t.profile_info_gender_other + '</option>' +
+    '</select>' +
+    '</div>' +
+
     '</div>' +
 
     '<span class="auth-field-success" id="info-save-success"></span>' +
@@ -3040,8 +3050,9 @@ function saveInfoAll() {
   var nameInp   = document.getElementById('info-name-input');
   var emailInp  = document.getElementById('info-email-input');
   var mobileInp = document.getElementById('info-mobile-input');
-  var birthInp  = document.getElementById('info-birth-input');
-  var langSel   = document.getElementById('info-lang-select');
+  var birthInp   = document.getElementById('info-birth-input');
+  var langSel    = document.getElementById('info-lang-select');
+  var genderSel  = document.getElementById('info-gender-select');
   var nameErr   = document.getElementById('info-name-err');
   var emailErr  = document.getElementById('info-email-err');
   var mobileErr = document.getElementById('info-mobile-err');
@@ -3056,6 +3067,7 @@ function saveInfoAll() {
   var mobileVal = mobileInp ? mobileInp.value.trim() : '';
   var birthVal  = birthInp  ? birthInp.value         : '';
   var langVal   = langSel   ? langSel.value          : '';
+  var genderVal = genderSel ? genderSel.value        : null;
 
   var valid = true;
   if (!nameVal) {
@@ -3081,6 +3093,7 @@ function saveInfoAll() {
   }
   var currentBirth = user.birth_date ? user.birth_date.split('T')[0] : '';
   if (!user.birth_date && birthVal !== currentBirth) body.birth_date = birthVal || null;
+  if (genderSel && genderVal !== (user.gender || '')) body.gender = genderVal || null;
 
   var btn = document.getElementById('info-save-btn');
   if (btn) { btn.disabled = true; btn.style.opacity = '.7'; }
@@ -3099,6 +3112,7 @@ function saveInfoAll() {
       u.email          = r.data.data.email;
       u.mobile         = r.data.data.mobile;
       u.birth_date     = r.data.data.birth_date || null;
+      u.gender         = r.data.data.gender || null;
       if (r.data.data.preferred_lang) u.preferred_lang = r.data.data.preferred_lang;
       if (r.data.data.registered_by) u.registered_by  = r.data.data.registered_by;
       updateUser(u);

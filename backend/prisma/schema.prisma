@@ -65,6 +65,7 @@ model customers {
   registered_by       String?     @db.Char(1)
   avatar                  String?
   birth_date              DateTime?   @db.Date
+  gender                  String?     @db.VarChar(10)
   birthday_email_year     Int?
   birthday_email_sent_at  DateTime?
   addresses           addresses[]
