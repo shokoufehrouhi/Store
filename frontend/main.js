@@ -2893,12 +2893,19 @@ function renderInfoTab() {
     : (currentLang === 'fa' ? 'موبایل' : currentLang === 'tr' ? 'Telefon' : 'Mobile');
 
   container.innerHTML =
-    // Loyalty card
+    '<div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">' +
+
+    // Left — Loyalty card
+    '<div style="flex-shrink:0">' +
     renderLoyaltyCard(user.completed_orders) +
+    '</div>' +
+
+    // Right — Profile info
+    '<div style="flex:1;min-width:260px">' +
 
     // Customer ID badge
     (customerId
-      ? '<div style="display:flex;align-items:center;gap:10px;background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:10px 16px;margin-bottom:20px">' +
+      ? '<div style="display:flex;align-items:center;gap:10px;background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:10px 16px;margin-bottom:16px">' +
         '<span style="font-size:12px;color:#888">' + (currentLang === 'fa' ? 'شناسه مشتری' : currentLang === 'tr' ? 'Müşteri ID' : 'Customer ID') + '</span>' +
         '<span style="font-family:monospace;font-size:18px;font-weight:800;color:var(--primary);letter-spacing:1px">' + customerId + '</span>' +
         '<span style="margin-inline-start:auto;font-size:11px;color:#aaa">' + (currentLang === 'fa' ? 'نوع: ' : 'Via: ') + regByLabel + '</span>' +
@@ -2906,7 +2913,7 @@ function renderInfoTab() {
       : '') +
 
     // Avatar
-    '<div style="display:flex;align-items:center;gap:16px;padding-bottom:20px;margin-bottom:20px;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
+    '<div style="display:flex;align-items:center;gap:16px;padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
     '<div class="info-avatar-ring">' +
     (src
       ? '<img src="' + src + '" alt="">'
@@ -2951,7 +2958,10 @@ function renderInfoTab() {
     '</div>' +
 
     '<span class="auth-field-success" id="info-save-success"></span>' +
-    '<button id="info-save-btn" class="auth-submit-btn" onclick="saveInfoAll()">' + t.profile_info_save + '</button>';
+    '<button id="info-save-btn" class="auth-submit-btn" onclick="saveInfoAll()">' + t.profile_info_save + '</button>' +
+
+    '</div>' + // end right col
+    '</div>';  // end flex row
 }
 
 function triggerAvatarUpload() {
