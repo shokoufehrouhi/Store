@@ -3263,10 +3263,12 @@ function _renderOrdersList(apiOrders) {
     : apiOrders;
 
   var ORDER_COLORS = {
+    confirmed:'#FF5C00',
     preorder:'#3b82f6', payment_needed:'#f59e0b', approval_needed:'#eab308',
     preparing:'#22c55e', delivery:'#8b5cf6', delivered:'#16a34a', cancelled:'#9ca3af', rejected:'#dc2626',
   };
   var ORDER_LABELS = {
+    confirmed:        t.prize_confirmed     || 'Confirmed',
     preorder:        t.preorder_registered || 'پیش‌سفارش',
     payment_needed:  t.payment_info_title  || 'در انتظار پرداخت',
     approval_needed: t.receipt_uploaded    || 'در انتظار تأیید',
