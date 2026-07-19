@@ -2962,7 +2962,7 @@ function renderCustomersTable(customers) {
       <td>${regBadge}</td>
       <td>${statusBadge}</td>
       <td style="font-size:12px;color:#999">${joined}</td>
-      <td style="font-size:12px;color:#059669">${(c.birthday_email_year && c.birth_date) ? new Date(c.birthday_email_year, new Date(c.birth_date).getMonth(), new Date(c.birth_date).getDate()).toLocaleDateString('en-GB') : '—'}</td>
+      <td style="font-size:12px;color:#059669">${(c.birthday_email_sent_at && c.birthday_email_year && c.birth_date) ? new Date(c.birthday_email_year, new Date(c.birth_date).getMonth(), new Date(c.birth_date).getDate()).toLocaleDateString('en-GB') : '—'}</td>
       <td><button class="btn btn-secondary btn-sm" onclick='openCustomerModal(${JSON.stringify(c).replace(/'/g,"\\'")})'>${t('edit')}</button></td>
     </tr>`;
   }).join('');
