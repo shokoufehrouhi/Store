@@ -2580,7 +2580,7 @@ function renderLoyaltyCard(completedOrders) {
     '<div class="lc-divider"></div>' +
     '<div class="lc-row">' +
       stamp(3) + dots + stamp(4) + dots + stamp(5) + dots +
-      prizeBox(prize2Unlocked, p2Lbl, tip2(), '🏆') +
+      prizeBox(prize2Unlocked, p2Lbl, tip2(), '🏆', 'claimPrize()') +
     '</div>' +
     '<div class="lc-footer">' + footerTxt() + '</div>' +
   '</div>';
@@ -2588,6 +2588,43 @@ function renderLoyaltyCard(completedOrders) {
 
 function toFaDigit(n) {
   return String(n).replace(/\d/g, function(d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; });
+}
+
+function claimPrize() {
+  var token = getSession();
+  var L = currentLang;
+  fetch(API_BASE + '/customers/claim-prize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-session-token': token || '' },
+  })
+  .then(function(r) { return r.json().then(function(d) { return { status: r.status, data: d }; }); })
+  .then(function(r) {
+    if (r.status === 409) {
+      var msg = L === 'fa' ? 'جایزه این دوره قبلاً دریافت شده' : (L === 'tr' ? 'Bu dönem ödülü zaten alındı' : 'Prize already claimed for this cycle');
+      showToast(msg, 'error'); return;
+    }
+    if (!r.data.success) {
+      showToast(L === 'fa' ? 'خطا در دریافت جایزه' : 'Could not claim prize', 'error'); return;
+    }
+    var title = L === 'fa' ? '🏆 جایزه شما ثبت شد!' : (L === 'tr' ? '🏆 Ödülünüz kaydedildi!' : '🏆 Prize Registered!');
+    var msg   = L === 'fa'
+      ? 'به زودی شما هدیه‌ای از طرف ما دریافت خواهید کرد که به آدرس پیش‌فرض شما ارسال می‌شود.'
+      : (L === 'tr'
+        ? 'Yakında varsayılan adresinize tarafımızdan bir hediye gönderilecektir.'
+        : 'You will soon receive a gift from us, which will be sent to your default address.');
+    var overlay = document.createElement('div');
+    overlay.className = 'lp-overlay';
+    overlay.innerHTML =
+      '<div class="lp-card">' +
+        '<button class="lp-close" onclick="this.closest(\'.lp-overlay\').remove()">&#x2715;</button>' +
+        '<div class="lp-icon">🏆</div>' +
+        '<div class="lp-title">' + title + '</div>' +
+        '<div class="lp-desc" style="text-align:center;line-height:1.8">' + msg + '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+  })
+  .catch(function() { showToast(L === 'fa' ? 'خطا در اتصال به سرور' : 'Network error', 'error'); });
 }
 
 function showLoyaltyReward() {

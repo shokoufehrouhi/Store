@@ -1077,4 +1077,49 @@ module.exports = {
   getAdminOrders, setPaymentInfo, approvePayment, rejectPayment, rejectPreorder, setShipping, markDelivered,
   getBankAccounts, createBankAccount, updateBankAccount, deleteBankAccount,
   getReports, getFinancialReport, getCustomerReports, getCouponReport,
+  listPrizeOrders, shipPrizeOrder, deliverPrizeOrder,
 };
+
+// ─── Prize Orders ─────────────────────────────────────────────────────────────
+async function listPrizeOrders(req, res, next) {
+  try {
+    const orders = await prisma.orders.findMany({
+      where: { is_prize: true },
+      orderBy: { created_at: 'desc' },
+      include: {
+        customers: { select: { id: true, full_name: true, mobile: true, email: true } },
+        addresses: { select: { recipient: true, city: true, detail: true, phone: true, postal_code: true } },
+      },
+    });
+    res.json({ success: true, data: orders });
+  } catch (err) { next(err); }
+}
+
+async function shipPrizeOrder(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const { carrier_name, tracking_number } = req.body;
+    const order = await prisma.orders.findUnique({ where: { id } });
+    if (!order || !order.is_prize) return res.status(404).json({ success: false, message: 'not_found' });
+    if (order.status !== 'confirmed') return res.status(400).json({ success: false, message: 'must_be_confirmed' });
+    const updated = await prisma.orders.update({
+      where: { id },
+      data: { status: 'shipped', carrier_name: carrier_name || null, tracking_number: tracking_number || null, shipped_at: new Date(), updated_at: new Date() },
+    });
+    res.json({ success: true, data: updated });
+  } catch (err) { next(err); }
+}
+
+async function deliverPrizeOrder(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const order = await prisma.orders.findUnique({ where: { id } });
+    if (!order || !order.is_prize) return res.status(404).json({ success: false, message: 'not_found' });
+    if (order.status !== 'shipped') return res.status(400).json({ success: false, message: 'must_be_shipped' });
+    const updated = await prisma.orders.update({
+      where: { id },
+      data: { status: 'delivered', delivered_at: new Date(), updated_at: new Date() },
+    });
+    res.json({ success: true, data: updated });
+  } catch (err) { next(err); }
+}

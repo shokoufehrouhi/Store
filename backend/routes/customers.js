@@ -17,5 +17,6 @@ router.post('/favorites/:productId',   c.addFavorite);
 router.delete('/favorites/:productId', c.removeFavorite);
 router.get('/cart',                    c.getCart);
 router.post('/cart/sync',              c.syncCart);
+router.post('/claim-prize',            c.claimPrize);
 
 module.exports = router;

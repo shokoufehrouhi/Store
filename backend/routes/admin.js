@@ -63,6 +63,9 @@ router.patch('/orders/:id/reject',          c.rejectPayment);
 router.patch('/orders/:id/reject-preorder', c.rejectPreorder);
 router.patch('/orders/:id/shipping',     c.setShipping);
 router.patch('/orders/:id/delivered',    c.markDelivered);
+router.get('/prizes',                    c.listPrizeOrders);
+router.patch('/prizes/:id/ship',         c.shipPrizeOrder);
+router.patch('/prizes/:id/delivered',    c.deliverPrizeOrder);
 
 const cp = require('../controllers/couponsController');
 router.get('/coupons',          cp.listCoupons);

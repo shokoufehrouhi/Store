@@ -552,4 +552,47 @@ async function syncCart(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { register, login, logout, getProfile, updateProfile, updateAvatar, addAddress, updateAddress, deleteAddress, forgotPassword, resetPassword, getFavorites, addFavorite, removeFavorite, getCart, syncCart };
+// ─── Claim loyalty prize ──────────────────────────────────────────────────────
+async function claimPrize(req, res, next) {
+  try {
+    const session = await resolveSession(req, res);
+    if (!session) return;
+
+    const customer = await prisma.customers.findUnique({
+      where: { id: session.customer_id },
+      select: { id: true, full_name: true, preferred_lang: true, addresses: { where: { is_default: true }, select: { id: true } } },
+    });
+    if (!customer) return res.status(404).json({ success: false, message: 'not_found' });
+
+    const deliveredCount = await prisma.orders.count({
+      where: { customer_id: session.customer_id, status: 'delivered', is_prize: false },
+    });
+    const eligibleCycles = Math.floor(deliveredCount / 6);
+    if (eligibleCycles < 1)
+      return res.status(403).json({ success: false, message: 'not_eligible' });
+
+    const prizesClaimed = await prisma.orders.count({
+      where: { customer_id: session.customer_id, is_prize: true },
+    });
+    if (prizesClaimed >= eligibleCycles)
+      return res.status(409).json({ success: false, message: 'already_claimed' });
+
+    const addressId = customer.addresses[0]?.id || null;
+    const order = await prisma.orders.create({
+      data: {
+        customer_id:  session.customer_id,
+        address_id:   addressId,
+        status:       'confirmed',
+        is_prize:     true,
+        total_amount: 0,
+        channel:      'prize',
+        lang:         customer.preferred_lang || 'fa',
+        note:         'Loyalty Gift Prize — cycle ' + eligibleCycles,
+      },
+    });
+
+    res.json({ success: true, order_id: order.id });
+  } catch (err) { next(err); }
+}
+
+module.exports = { register, login, logout, getProfile, updateProfile, updateAvatar, addAddress, updateAddress, deleteAddress, forgotPassword, resetPassword, getFavorites, addFavorite, removeFavorite, getCart, syncCart, claimPrize };
