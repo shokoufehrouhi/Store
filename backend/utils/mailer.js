@@ -1,9 +1,9 @@
 const nodemailer = require('nodemailer');
 
 const path          = require('path');
-const EMAIL_LOGO_PATH   = path.join(__dirname, '../../frontend/images/shilista_email_logo.jpg');
+const EMAIL_LOGO_PATH   = path.join(__dirname, '../../frontend/images/shilista_email_logo.png');
 const EMAIL_IMG_ATTACHMENTS = [
-  { filename: 'logo.jpg', path: EMAIL_LOGO_PATH, cid: 'logo@shilista' },
+  { filename: 'logo.png', path: EMAIL_LOGO_PATH, cid: 'logo@shilista' },
 ];
 
 const FOOTER_TR = `
