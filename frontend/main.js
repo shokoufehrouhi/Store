@@ -4678,14 +4678,23 @@ document.addEventListener('DOMContentLoaded', function() {
       openProfileModal();
       var _pTab = new URLSearchParams(location.search).get('tab') || 'info';
       showProfileTab(_pTab);
-      // Fetch products so the favorites tab can render product cards
-      fetch(API_BASE + '/products').then(function(r) { return r.json(); }).then(function(data) {
-        if (data && data.success) {
-          products = data.data.map(mapApiProduct);
+      // Fetch products + categories in parallel
+      Promise.all([
+        fetch(API_BASE + '/products').then(function(r) { return r.json(); }).catch(function() { return null; }),
+        fetch(API_BASE + '/categories').then(function(r) { return r.json(); }).catch(function() { return null; }),
+      ]).then(function(results) {
+        var prodData = results[0];
+        var catData  = results[1];
+        if (prodData && prodData.success) {
+          products = prodData.data.map(mapApiProduct);
           var favTabEl = document.getElementById('profile-tab-favorites');
           if (favTabEl && favTabEl.style.display !== 'none') renderFavoritesTab();
         }
-      }).catch(function() {});
+        if (catData && catData.success && catData.data.length) {
+          cachedCategories = catData.data;
+          buildMegaMenu(cachedCategories);
+        }
+      });
     } else {
       openAuthModal('login');
     }
