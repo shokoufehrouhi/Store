@@ -2,11 +2,35 @@ const nodemailer = require('nodemailer');
 
 const path          = require('path');
 const EMAIL_LOGO_PATH   = path.join(__dirname, '../../frontend/images/shilista_email_logo.jpg');
-const EMAIL_FOOTER_PATH = path.join(__dirname, '../../frontend/images/shilista_email_footer.jpg');
 const EMAIL_IMG_ATTACHMENTS = [
-  { filename: 'logo.jpg',   path: EMAIL_LOGO_PATH,   cid: 'logo@shilista'   },
-  { filename: 'footer.jpg', path: EMAIL_FOOTER_PATH, cid: 'footer@shilista' },
+  { filename: 'logo.jpg', path: EMAIL_LOGO_PATH, cid: 'logo@shilista' },
 ];
+
+const FOOTER_TR = `
+      <tr>
+        <td style="background:#2d1a0e;padding:24px 32px 20px;border-top:2px solid #c0562a">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="text-align:center;padding-bottom:14px">
+                <span style="font-size:20px;font-weight:800;color:#fff;letter-spacing:1.5px;font-family:Arial,sans-serif">Shilista</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="text-align:center;padding-bottom:14px">
+                <a href="https://instagram.com/Shilista" style="display:inline-block;margin:0 4px;text-decoration:none;background:#c0562a;color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:6px;font-family:Arial,sans-serif">&#128248; @Shilista</a>
+                <a href="https://t.me/Shilistaa" style="display:inline-block;margin:0 4px;text-decoration:none;background:#229ED9;color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:6px;font-family:Arial,sans-serif">&#9992; @Shilistaa</a>
+              </td>
+            </tr>
+            <tr>
+              <td style="text-align:center">
+                <a href="mailto:sales@shilista.com" style="color:#f0a070;text-decoration:none;font-size:12px;font-family:Arial,sans-serif">sales@shilista.com</a>
+                <span style="color:#666;margin:0 8px">&middot;</span>
+                <a href="https://www.shilista.com" style="color:#f0a070;text-decoration:none;font-size:12px;font-family:Arial,sans-serif">www.shilista.com</a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>`;
 
 function getTransporter() {
   if (!process.env.SMTP_HOST) return null;
@@ -375,11 +399,7 @@ function buildHtml(type, order, customer, extraInfo) {
       ${referralBlock}
 
       <!-- Footer -->
-      <tr>
-        <td style="background:#fff;padding:24px 32px 12px;border-top:1px solid #f0e8df;text-align:center">
-          <img src="cid:footer@shilista" alt="Shilista" width="480" style="width:480px;max-width:100%;height:auto;display:inline-block">
-        </td>
-      </tr>
+      ${FOOTER_TR}
 
     </table>
   </td></tr>
@@ -521,12 +541,8 @@ async function sendFriendInviteEmail({ toName, toEmail, referrerName, lang, trac
         </td>
       </tr>
 
-      <tr>
-        <td style="background:#fff;padding:24px 32px 12px;border-top:1px solid #f0e8df;text-align:center">
-          <img src="cid:footer@shilista" alt="Shilista" width="480" style="width:480px;max-width:100%;height:auto;display:inline-block">
-          ${trackPixel}
-        </td>
-      </tr>
+      ${FOOTER_TR}
+      ${trackPixel ? `<tr><td style="line-height:0;font-size:0">${trackPixel}</td></tr>` : ''}
 
     </table>
   </td></tr>
@@ -588,8 +604,8 @@ async function sendReplyEmail(customer, order, replyText) {
       <tr><td style="padding:28px 32px">
         <p style="margin:0 0 12px;font-size:14px;color:#555">${l.intro}</p>
         <div style="background:#f9f5f2;border-left:4px solid #c0562a;padding:14px 18px;border-radius:6px;font-size:14px;color:#333;line-height:1.7;white-space:pre-wrap">${replyText}</div>
-        <img src="cid:footer@shilista" alt="Shilista" width="480" style="width:480px;max-width:100%;height:auto;display:inline-block;margin-top:20px">
       </td></tr>
+      ${FOOTER_TR}
     </table>
   </td></tr>
 </table>
@@ -684,11 +700,7 @@ async function sendLoyaltyEmail(customer, deliveredCount) {
         </td>
       </tr>
 
-      <tr>
-        <td style="background:#fff;padding:24px 32px 12px;border-top:1px solid #f0e8df;text-align:center">
-          <img src="cid:footer@shilista" alt="Shilista" width="480" style="width:480px;max-width:100%;height:auto;display:inline-block">
-        </td>
-      </tr>
+      ${FOOTER_TR}
 
     </table>
   </td></tr>
@@ -767,11 +779,7 @@ async function sendPrizeEarnedEmail(customer) {
           </table>
         </td>
       </tr>
-      <tr>
-        <td style="background:#fff;padding:24px 32px 12px;border-top:1px solid #f0e8df;text-align:center">
-          <img src="cid:footer@shilista" alt="Shilista" width="480" style="width:480px;max-width:100%;height:auto;display:inline-block">
-        </td>
-      </tr>
+      ${FOOTER_TR}
     </table>
   </td></tr>
 </table>
@@ -889,11 +897,7 @@ async function sendBirthdayEmail(customer, birthdayDate, validUntil) {
         </td>
       </tr>
 
-      <tr>
-        <td style="background:#fff;padding:24px 32px 12px;border-top:1px solid #f0e8df;text-align:center">
-          <img src="cid:footer@shilista" alt="Shilista" width="480" style="width:480px;max-width:100%;height:auto;display:inline-block">
-        </td>
-      </tr>
+      ${FOOTER_TR}
 
     </table>
   </td></tr>
@@ -1002,11 +1006,7 @@ async function sendWelcomeEmail(customer) {
         </td>
       </tr>
 
-      <tr>
-        <td style="background:#fff;padding:24px 32px 12px;border-top:1px solid #f0e8df;text-align:center">
-          <img src="cid:footer@shilista" alt="Shilista" width="480" style="width:480px;max-width:100%;height:auto;display:inline-block">
-        </td>
-      </tr>
+      ${FOOTER_TR}
 
     </table>
   </td></tr>
