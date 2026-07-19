@@ -4714,6 +4714,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateCartBadge();
     updateAuthUI();
     updateFavBadge();
+    loadBanners();
     if (getCurrentUser()) {
       loadCartFromServer();
       loadFavoritesFromServer();

@@ -175,6 +175,16 @@
     </div>
   </header>
 
+  <!-- Discount Banner -->
+  <div id="discount-banner" style="display:none;background:linear-gradient(90deg,#FF5C00,#d94400,#FF5C00);background-size:200% auto;color:#fff;text-align:center;padding:9px 44px;font-size:13px;font-weight:600;position:sticky;top:64px;z-index:89;line-height:1.6">
+    <span id="discount-banner-text"></span>
+    <span style="margin-inline:8px;opacity:.4">·</span>
+    <span id="discount-banner-code" style="font-family:monospace;font-size:15px;font-weight:800;background:rgba(255,255,255,.22);padding:2px 12px;border-radius:6px;letter-spacing:2px;cursor:pointer;border:1.5px solid rgba(255,255,255,.4)" onclick="copyBannerCode()"></span>
+    <span id="discount-banner-exp" class="banner-exp"></span>
+    <span id="discount-banner-copy-tip" style="margin-inline-start:8px;font-size:11px;opacity:0;transition:opacity .4s"></span>
+    <button onclick="closeBanner()" style="position:absolute;inset-inline-end:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:#fff;font-size:20px;cursor:pointer;opacity:.6;line-height:1">×</button>
+  </div>
+
   <!-- Cart -->
   <div class="cart-overlay" id="cart-overlay" onclick="closeCart()"></div>
   <div class="cart-panel" id="cart-panel">
@@ -332,6 +342,6 @@
   <script src="i18n.js?v=55"></script>
   <script src="products.js?v=53"></script>
   <script>window.IS_PROFILE_PAGE = true;</script>
-  <script src="main.js?v=95"></script>
+  <script src="main.js?v=96"></script>
 </body>
 </html>
