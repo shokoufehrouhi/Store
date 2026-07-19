@@ -443,7 +443,7 @@ async function getAdminCustomers(req, res, next) {
       orderBy: { created_at: 'desc' },
       select: {
         id: true, full_name: true, email: true, mobile: true,
-        registered_by: true, preferred_lang: true, is_active: true, created_at: true, birth_date: true, birthday_email_sent_at: true,
+        registered_by: true, preferred_lang: true, is_active: true, created_at: true, birth_date: true, birthday_email_year: true, birthday_email_sent_at: true,
       },
     });
     res.json({ success: true, data: customers });
