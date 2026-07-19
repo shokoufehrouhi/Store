@@ -1995,11 +1995,28 @@ function getSession()     { return localStorage.getItem('mf_session') || null; }
 function setSession(tok)  { tok ? localStorage.setItem('mf_session', tok) : localStorage.removeItem('mf_session'); }
 
 function handleSessionExpired() {
+  if (!getSession()) return;
   setSession(null);
   localStorage.removeItem('mf_current_user');
   updateAuthUI();
-  setTimeout(function() { openAuthModal('login'); }, 400);
+  setTimeout(function() { openAuthModal('login'); }, 200);
 }
+
+(function() {
+  var _fetch = window.fetch.bind(window);
+  window.fetch = function(url, opts) {
+    return _fetch(url, opts).then(function(res) {
+      if (res.status === 401 && typeof url === 'string' && url.indexOf(API_BASE) === 0) {
+        res.clone().json().then(function(d) {
+          if (d.message === 'Session expired' || d.message === 'No session token') {
+            handleSessionExpired();
+          }
+        }).catch(function() {});
+      }
+      return res;
+    });
+  };
+})();
 
 function getCurrentUser() {
   var token = getSession();
