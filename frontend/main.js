@@ -2213,9 +2213,46 @@ function doLogin() {
 }
 
 // ─── Signup ───────────────────────────────────────────────────────────────────
+function sendSignupVerification() {
+  var t     = TRANSLATIONS[currentLang];
+  var email = (document.getElementById('signup-email')?.value || '').trim().toLowerCase();
+  clearAuthErrors();
+  if (!email)                { setAuthError('signup-email-err', t.err_email_req || t.err_id_req); return; }
+  if (!validateEmail(email)) { setAuthError('signup-email-err', t.err_email_inv); return; }
+
+  var btn = document.getElementById('signup-send-code-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
+  fetch(API_BASE + '/customers/send-verification', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email, lang: currentLang }),
+  }).then(function(res) { return res.json().then(function(d) { return { status: res.status, data: d }; }); })
+  .then(function(r) {
+    if (btn) { btn.disabled = false; btn.setAttribute('data-i18n', 'auth_resend_code'); btn.textContent = t.auth_resend_code || 'Resend'; }
+    if (r.data.success) {
+      document.getElementById('signup-code-field').style.display = '';
+      document.getElementById('signup-verify-code').focus();
+      var hint = document.getElementById('signup-code-hint');
+      if (hint) hint.textContent = t.auth_code_sent || '✓ Code sent';
+    } else if (r.status === 409) {
+      setAuthError('signup-email-err', t.err_email_taken || t.err_user_exists);
+    } else if (r.status === 429) {
+      setAuthError('signup-email-err', t.err_too_many_attempts || 'Wait before resending');
+      if (btn) btn.disabled = false;
+    } else {
+      setAuthError('signup-email-err', r.data.message || t.err_email_inv);
+    }
+  }).catch(function() {
+    if (btn) btn.disabled = false;
+    setAuthError('signup-email-err', t.err_email_inv);
+  });
+}
+
 function doSignup() {
   var t         = TRANSLATIONS[currentLang];
   var email     = (document.getElementById('signup-email')?.value        || '').trim().toLowerCase();
+  var code      = (document.getElementById('signup-verify-code')?.value  || '').trim();
   var password  =  document.getElementById('signup-password')?.value     || '';
   var confirm   =  document.getElementById('signup-confirm')?.value      || '';
   var cc        = (document.getElementById('signup-country-code')?.value || '').trim().replace(/\s/g, '');
@@ -2225,19 +2262,18 @@ function doSignup() {
 
   if (!email)                    { setAuthError('signup-email-err',  t.err_email_req  || t.err_id_req); return; }
   if (!validateEmail(email))     { setAuthError('signup-email-err',  t.err_email_inv);                  return; }
+  if (!code)                     { setAuthError('signup-code-err',   t.err_code_req);                   return; }
   if (!validatePassword(password)) { setAuthError('signup-pass-err', t.err_pass_inv);                   return; }
   if (password !== confirm)       { setAuthError('signup-confirm-err', t.err_pass_mismatch);             return; }
   if (!mobileRaw)                { setAuthError('signup-mobile-err', t.err_mobile_req || t.err_id_req); return; }
 
-  // Normalize country code: ensure starts with +
   if (cc && !cc.startsWith('+')) cc = '+' + cc;
   if (!cc) cc = currentLang === 'fa' ? '+98' : '+90';
-  // Remove leading zeros from mobile, then prepend country code
   var mobileClean = mobileRaw.replace(/^0+/, '');
   var mobile = cc + mobileClean;
   if (!/^\+[0-9]{7,15}$/.test(mobile)) { setAuthError('signup-mobile-err', t.err_mobile_intl_inv || t.err_mobile_inv); return; }
 
-  var body = { email: email, password: password, mobile: mobile, preferred_lang: currentLang };
+  var body = { email: email, verification_code: code, password: password, mobile: mobile, preferred_lang: currentLang };
   if (birthDate) body.birth_date = birthDate;
 
   fetch(API_BASE + '/customers/register', {
@@ -2261,6 +2297,8 @@ function doSignup() {
       loadFavoritesFromServer();
     } else if (r.status === 409) {
       setAuthError('signup-email-err', t.err_user_exists);
+    } else if (r.data.message === 'invalid_code') {
+      setAuthError('signup-code-err', t.err_code_inv);
     } else {
       setAuthError('signup-email-err', r.data.message || t.err_user_exists);
     }

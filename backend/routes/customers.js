@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const c = require('../controllers/customersController');
 
+router.post('/send-verification', c.sendVerificationCode);
 router.post('/register',         c.register);
 router.post('/login',            c.login);
 router.post('/logout',           c.logout);

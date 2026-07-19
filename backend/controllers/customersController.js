@@ -6,6 +6,11 @@ const { sendRawEmail } = require('../utils/mailer');
 const BCRYPT_ROUNDS = 12;
 const SESSION_TTL   = 7 * 24 * 60 * 60 * 1000; // 7 days
 
+// In-memory email verification store: email -> { code, expires, sentAt }
+const _verifyCodes = new Map();
+const VERIFY_TTL   = 10 * 60 * 1000; // 10 minutes
+const VERIFY_RESEND_WAIT = 60 * 1000; // 60 seconds before resend allowed
+
 function isValidMobile(m) {
   return /^05[0-9]{9}$/.test((m || '').replace(/[\s\-]/g, ''));
 }
@@ -30,12 +35,52 @@ async function verifyPassword(plain, stored) {
   return stored === legacyHash(plain);
 }
 
+async function sendVerificationCode(req, res, next) {
+  try {
+    const { email, lang } = req.body;
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return res.status(400).json({ success: false, message: 'invalid_email' });
+    }
+    const emailLow = email.trim().toLowerCase();
+    const existing = await prisma.customers.findFirst({ where: { email: emailLow } });
+    if (existing) return res.status(409).json({ success: false, message: 'email_taken' });
+
+    const prev = _verifyCodes.get(emailLow);
+    if (prev && (Date.now() - prev.sentAt) < VERIFY_RESEND_WAIT) {
+      return res.status(429).json({ success: false, message: 'resend_wait' });
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    _verifyCodes.set(emailLow, { code, expires: Date.now() + VERIFY_TTL, sentAt: Date.now() });
+
+    const L = lang || 'fa';
+    const subjects = { fa: 'کد تأیید ثبت‌نام Shilista', en: 'Shilista — Email Verification Code', tr: 'Shilista — E-posta Doğrulama Kodu' };
+    const intros   = { fa: 'کد تأیید ثبت‌نام شما:', en: 'Your verification code:', tr: 'Doğrulama kodunuz:' };
+    const expires  = { fa: 'این کد تا ۱۰ دقیقه دیگر معتبر است.', en: 'This code is valid for 10 minutes.', tr: 'Bu kod 10 dakika geçerlidir.' };
+    const html = `<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px">
+      <img src="https://shilista.com/images/shilista_email_logo.jpg" alt="Shilista" style="width:140px;margin-bottom:24px">
+      <p style="font-size:15px;color:#444;margin-bottom:16px">${intros[L] || intros.fa}</p>
+      <div style="font-size:36px;font-weight:900;letter-spacing:10px;color:#FF5C00;background:#fff5f0;border:2px solid #FF5C00;border-radius:12px;padding:18px 0;text-align:center;margin-bottom:20px">${code}</div>
+      <p style="font-size:13px;color:#888">${expires[L] || expires.fa}</p>
+    </div>`;
+    await sendRawEmail(emailLow, subjects[L] || subjects.fa, html);
+    res.json({ success: true });
+  } catch (err) { next(err); }
+}
+
 async function register(req, res, next) {
   try {
-    const { email, mobile, password, birth_date, preferred_lang } = req.body;
-    if (!email || !mobile || !password) {
-      return res.status(400).json({ success: false, message: 'email, mobile and password are required' });
+    const { email, mobile, password, birth_date, preferred_lang, verification_code } = req.body;
+    if (!email || !mobile || !password || !verification_code) {
+      return res.status(400).json({ success: false, message: 'email, mobile, password and verification_code are required' });
     }
+    // Verify email code
+    const emailLow = email.trim().toLowerCase();
+    const stored = _verifyCodes.get(emailLow);
+    if (!stored || stored.code !== String(verification_code).trim() || Date.now() > stored.expires) {
+      return res.status(400).json({ success: false, message: 'invalid_code' });
+    }
+    _verifyCodes.delete(emailLow);
     if (!isValidIntlMobile(mobile)) {
       return res.status(400).json({ success: false, message: 'invalid_mobile' });
     }
@@ -43,14 +88,14 @@ async function register(req, res, next) {
       return res.status(400).json({ success: false, message: 'password_too_weak' });
     }
     const existing = await prisma.customers.findFirst({
-      where: { OR: [{ email: email.trim().toLowerCase() }, { mobile }] },
+      where: { OR: [{ email: emailLow }, { mobile }] },
     });
     if (existing) return res.status(409).json({ success: false, message: 'Customer already exists' });
 
-    const full_name = email.trim().toLowerCase().split('@')[0];
+    const full_name = emailLow.split('@')[0];
     const customerData = {
       full_name,
-      email:         email.trim().toLowerCase(),
+      email:         emailLow,
       mobile,
       password_hash: await hashPassword(password),
       preferred_lang: preferred_lang || 'fa',
@@ -613,4 +658,4 @@ async function claimPrize(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { register, login, logout, getProfile, updateProfile, updateAvatar, addAddress, updateAddress, deleteAddress, forgotPassword, resetPassword, getFavorites, addFavorite, removeFavorite, getCart, syncCart, claimPrize };
+module.exports = { sendVerificationCode, register, login, logout, getProfile, updateProfile, updateAvatar, addAddress, updateAddress, deleteAddress, forgotPassword, resetPassword, getFavorites, addFavorite, removeFavorite, getCart, syncCart, claimPrize };

@@ -440,8 +440,17 @@
         </div>
         <div class="form-field">
           <label data-i18n="auth_email_label">ایمیل</label>
-          <input type="email" id="signup-email" data-i18n-ph="auth_email_ph" placeholder="email@example.com" onkeydown="if(event.key==='Enter')doSignup()">
+          <div style="display:flex;gap:8px">
+            <input type="email" id="signup-email" data-i18n-ph="auth_email_ph" placeholder="email@example.com" style="flex:1" onkeydown="if(event.key==='Enter')sendSignupVerification()">
+            <button type="button" id="signup-send-code-btn" onclick="sendSignupVerification()" style="flex-shrink:0;padding:0 14px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap" data-i18n="auth_send_code_btn">ارسال کد</button>
+          </div>
           <span class="auth-field-error" id="signup-email-err"></span>
+        </div>
+        <div class="form-field" id="signup-code-field" style="display:none">
+          <label data-i18n="auth_verify_label">کد تأیید</label>
+          <input type="text" id="signup-verify-code" inputmode="numeric" maxlength="6" data-i18n-ph="auth_verify_ph" placeholder="کد ۶ رقمی" style="letter-spacing:6px;font-size:20px;font-weight:700;text-align:center;direction:ltr" onkeydown="if(event.key==='Enter')doSignup()">
+          <span class="auth-field-error" id="signup-code-err"></span>
+          <span id="signup-code-hint" style="font-size:12px;color:#16a34a"></span>
         </div>
         <div class="form-field">
           <label data-i18n="auth_pass_label">رمز عبور</label>
@@ -663,6 +672,6 @@
 
   <script src="i18n.js?v=55"></script>
   <script src="products.js?v=52"></script>
-  <script src="main.js?v=106"></script>
+  <script src="main.js?v=107"></script>
 </body>
 </html>
