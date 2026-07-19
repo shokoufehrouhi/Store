@@ -654,10 +654,10 @@ async function setShipping(req, res, next) {
     if (order.status !== 'preparing') {
       return res.status(400).json({ success: false, message: 'Order must be in preparing status' });
     }
-    const { carrier_name, tracking_number } = req.body;
+    const { carrier_name, tracking_number, tracking_note } = req.body;
     const updated = await prisma.orders.update({
       where: { id },
-      data:  { carrier_name, tracking_number, status: 'delivery', shipped_at: new Date(), updated_at: new Date() },
+      data:  { carrier_name, tracking_number, tracking_note: tracking_note || null, status: 'delivery', shipped_at: new Date(), updated_at: new Date() },
       include: ADMIN_ORDER_INCLUDE,
     });
     if (updated.customers) {
@@ -665,6 +665,7 @@ async function setShipping(req, res, next) {
       const extraInfo = [
         { label: label('carrier', ol),  value: carrier_name },
         { label: label('tracking', ol), value: tracking_number, dir: 'ltr' },
+        ...(tracking_note ? [{ label: ol === 'fa' ? 'یادداشت ارسال' : ol === 'tr' ? 'Kargo Notu' : 'Tracking Note', value: tracking_note }] : []),
       ];
       sendOrderEmail(updated.customers, updated, 'delivery', extraInfo).catch(() => {});
     }
@@ -1121,13 +1122,13 @@ async function listPrizeOrders(req, res, next) {
 async function shipPrizeOrder(req, res, next) {
   try {
     const id = Number(req.params.id);
-    const { carrier_name, tracking_number } = req.body;
+    const { carrier_name, tracking_number, tracking_note } = req.body;
     const order = await prisma.orders.findUnique({ where: { id } });
     if (!order || !order.is_prize) return res.status(404).json({ success: false, message: 'not_found' });
     if (order.status !== 'confirmed') return res.status(400).json({ success: false, message: 'must_be_confirmed' });
     const updated = await prisma.orders.update({
       where: { id },
-      data: { status: 'shipped', carrier_name: carrier_name || null, tracking_number: tracking_number || null, shipped_at: new Date(), updated_at: new Date() },
+      data: { status: 'shipped', carrier_name: carrier_name || null, tracking_number: tracking_number || null, tracking_note: tracking_note || null, shipped_at: new Date(), updated_at: new Date() },
     });
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }

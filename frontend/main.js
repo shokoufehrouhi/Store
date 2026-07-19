@@ -3409,6 +3409,7 @@ function _renderOrdersList(apiOrders) {
         detailHtml += '<div class="order-tracking-box">' +
           (order.carrier_name ? '<div class="order-payment-row"><span>' + (t.carrier_label || 'باربری') + ':</span>' + order.carrier_name + '</div>' : '') +
           (order.tracking_number ? '<div class="order-payment-row"><span>' + (t.tracking_label || 'کد پیگیری') + ':</span><strong style="direction:ltr">' + order.tracking_number + '</strong></div>' : '') +
+          (order.tracking_note ? '<div class="order-payment-row"><span>' + (t.tracking_note_label || 'یادداشت کارگو') + ':</span><span style="direction:ltr;word-break:break-all">' + escapeHtml(order.tracking_note) + '</span></div>' : '') +
           '<div class="order-payment-row"><span>' + (t.shipped_at_label || 'تاریخ ارسال') + ':</span><span style="direction:ltr">' + shippedStr + '</span></div>' +
           '</div>';
       }
@@ -3420,6 +3421,7 @@ function _renderOrdersList(apiOrders) {
           '<p style="color:#16a34a;font-weight:700;margin:0 0 8px">' + (t.order_delivered || 'تحویل داده شد ✓') + '</p>' +
           (order.carrier_name ? '<div class="order-payment-row"><span>' + (t.carrier_label || 'باربری') + ':</span>' + order.carrier_name + '</div>' : '') +
           (order.tracking_number ? '<div class="order-payment-row"><span>' + (t.tracking_label || 'کد پیگیری') + ':</span><strong style="direction:ltr">' + order.tracking_number + '</strong></div>' : '') +
+          (order.tracking_note ? '<div class="order-payment-row"><span>' + (t.tracking_note_label || 'یادداشت کارگو') + ':</span><span style="direction:ltr;word-break:break-all">' + escapeHtml(order.tracking_note) + '</span></div>' : '') +
           '<div class="order-payment-row"><span>' + (t.shipped_at_label || 'تاریخ ارسال') + ':</span><span style="direction:ltr">' + shippedStr2 + '</span></div>' +
           '<div class="order-payment-row"><span>' + (t.delivered_at_label || 'تاریخ تحویل') + ':</span><span style="direction:ltr">' + deliveredStr2 + '</span></div>' +
           '</div>';
