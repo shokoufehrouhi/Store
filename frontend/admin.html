@@ -793,12 +793,12 @@
         <div class="card"><div class="table-wrap">
           <table>
             <thead><tr>
-              <th data-i18n="colOrderId">شماره</th>
-              <th data-i18n="colCustomer">مشتری</th>
-              <th data-i18n="colAddress">آدرس</th>
-              <th data-i18n="colStatus">وضعیت</th>
-              <th data-i18n="colDate">تاریخ</th>
-              <th data-i18n="colActions">عملیات</th>
+              <th data-i18n="ordersColId">#</th>
+              <th data-i18n="ordersColCustomer">مشتری</th>
+              <th data-i18n="ordersColAddress">آدرس</th>
+              <th data-i18n="ordersColStatus">وضعیت</th>
+              <th data-i18n="ordersColDate">تاریخ</th>
+              <th data-i18n="ordersColActions">عملیات</th>
             </tr></thead>
             <tbody id="prizes-tbody">
               <tr><td colspan="6" style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</td></tr>
@@ -1438,7 +1438,7 @@ const LANGS = {
     colorKeyPlh:'مثال: navy', colorFaPlh:'سرمه‌ای', colorEnPlh:'Navy', colorTrPlh:'Lacivert',
     // Orders
     ordersTitle:'سفارشات', ordersFilterAll:'همه وضعیت‌ها', ordersRefresh:'🔄 بروزرسانی',
-    ordersColId:'#', ordersColCustomer:'مشتری', ordersColProducts:'محصولات', ordersColStatus:'وضعیت',
+    ordersColId:'#', ordersColCustomer:'مشتری', ordersColProducts:'محصولات', ordersColStatus:'وضعیت', ordersColAddress:'آدرس',
     ordersColTotal:'مبلغ کل', ordersColDate:'تاریخ', ordersColActions:'عملیات',
     ordersEmpty:'سفارشی یافت نشد', ordersLoading:'در حال بارگذاری...', ordersLoadError:'خطا در بارگذاری',
     orderDetails:'جزئیات', orderClose:'✕', orderDetailTitle:'جزئیات سفارش',
@@ -1617,7 +1617,7 @@ const LANGS = {
     colorKeyPlh:'e.g. navy', colorFaPlh:'Farsi name', colorEnPlh:'Navy', colorTrPlh:'Lacivert',
     // Orders
     ordersTitle:'Orders', ordersFilterAll:'All Statuses', ordersRefresh:'🔄 Refresh',
-    ordersColId:'#', ordersColCustomer:'Customer', ordersColProducts:'Products', ordersColStatus:'Status',
+    ordersColId:'#', ordersColCustomer:'Customer', ordersColProducts:'Products', ordersColStatus:'Status', ordersColAddress:'Address',
     ordersColTotal:'Total', ordersColDate:'Date', ordersColActions:'Actions',
     ordersEmpty:'No orders found', ordersLoading:'Loading...', ordersLoadError:'Load error',
     orderDetails:'Details', orderClose:'✕', orderDetailTitle:'Order Details',
@@ -1796,7 +1796,7 @@ const LANGS = {
     colorKeyPlh:'örn. navy', colorFaPlh:'Farsça ad', colorEnPlh:'Navy', colorTrPlh:'Lacivert',
     // Orders
     ordersTitle:'Siparişler', ordersFilterAll:'Tüm Durumlar', ordersRefresh:'🔄 Yenile',
-    ordersColId:'#', ordersColCustomer:'Müşteri', ordersColProducts:'Ürünler', ordersColStatus:'Durum',
+    ordersColId:'#', ordersColCustomer:'Müşteri', ordersColProducts:'Ürünler', ordersColStatus:'Durum', ordersColAddress:'Adres',
     ordersColTotal:'Toplam', ordersColDate:'Tarih', ordersColActions:'İşlemler',
     ordersEmpty:'Sipariş bulunamadı', ordersLoading:'Yükleniyor...', ordersLoadError:'Yükleme hatası',
     orderDetails:'Detaylar', orderClose:'✕', orderDetailTitle:'Sipariş Detayları',
