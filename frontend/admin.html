@@ -1471,7 +1471,7 @@ const LANGS = {
     msgSectionTitle:'پیام‌ها', msgEmpty:'پیامی وجود ندارد', msgAdminPlaceholder:'پاسخ به مشتری...',
     msgSend:'ارسال', msgSupport:'پشتیبانی', msgCustomer:'مشتری', msgSentAtStatus:'مرحله:',
     navPrizes:'جوایز', noPrizes:'هنوز جایزه‌ای ثبت نشده',
-    prizeStatusConfirmed:'در انتظار ارسال', prizeStatusShipped:'ارسال شد', prizeStatusDelivered:'تحویل داده شد ✓', prizeStatusDone:'✓ تکمیل شد',
+    prizeStatusConfirmed:'تأیید شده', prizeStatusShipped:'ارسال شد', prizeStatusDelivered:'تحویل داده شد ✓', prizeStatusDone:'✓ تکمیل شد',
     prizeShipBtn:'ثبت کارگو', prizeDeliverBtn:'تحویل داده شد',
     prizeShipModalTitle:'ثبت اطلاعات ارسال جایزه', prizeCarrierLabel:'شرکت پست/کارگو', prizeCarrierPh:'مثال: پست پیشتاز', prizeTrackingLabel:'کد رهگیری', prizeTrackingPh:'کد رهگیری',
     prizeShipSave:'ثبت ارسال', prizeShipOk:'ارسال جایزه ثبت شد ✅', prizeDeliverOk:'جایزه تحویل داده شد ✅', prizeDeliverConfirm:'جایزه تحویل داده شده؟',
@@ -1653,7 +1653,7 @@ const LANGS = {
     msgSectionTitle:'Messages', msgEmpty:'No messages yet', msgAdminPlaceholder:'Reply to customer...',
     msgSend:'Send', msgSupport:'Support', msgCustomer:'Customer', msgSentAtStatus:'Stage:',
     navPrizes:'Prizes', noPrizes:'No prizes registered yet',
-    prizeStatusConfirmed:'Awaiting Shipment', prizeStatusShipped:'Shipped', prizeStatusDelivered:'Delivered ✓', prizeStatusDone:'✓ Done',
+    prizeStatusConfirmed:'Confirmed', prizeStatusShipped:'Shipped', prizeStatusDelivered:'Delivered ✓', prizeStatusDone:'✓ Done',
     prizeShipBtn:'Ship', prizeDeliverBtn:'Mark Delivered',
     prizeShipModalTitle:'Enter Shipping Info', prizeCarrierLabel:'Carrier / Courier', prizeCarrierPh:'e.g. Post Office', prizeTrackingLabel:'Tracking Number', prizeTrackingPh:'Tracking number',
     prizeShipSave:'Save Shipment', prizeShipOk:'Prize shipment saved ✅', prizeDeliverOk:'Prize marked as delivered ✅', prizeDeliverConfirm:'Mark prize as delivered?',
@@ -1835,7 +1835,7 @@ const LANGS = {
     msgSectionTitle:'Mesajlar', msgEmpty:'Henüz mesaj yok', msgAdminPlaceholder:'Müşteriye yanıt ver...',
     msgSend:'Gönder', msgSupport:'Destek', msgCustomer:'Müşteri', msgSentAtStatus:'Aşama:',
     navPrizes:'Ödüller', noPrizes:'Henüz ödül kaydedilmedi',
-    prizeStatusConfirmed:'Gönderi Bekleniyor', prizeStatusShipped:'Kargoya Verildi', prizeStatusDelivered:'Teslim Edildi ✓', prizeStatusDone:'✓ Tamamlandı',
+    prizeStatusConfirmed:'Onaylandı', prizeStatusShipped:'Kargoya Verildi', prizeStatusDelivered:'Teslim Edildi ✓', prizeStatusDone:'✓ Tamamlandı',
     prizeShipBtn:'Kargo Gir', prizeDeliverBtn:'Teslim Edildi',
     prizeShipModalTitle:'Kargo Bilgilerini Girin', prizeCarrierLabel:'Kargo Şirketi', prizeCarrierPh:'Örn: PTT', prizeTrackingLabel:'Takip Numarası', prizeTrackingPh:'Takip numarası',
     prizeShipSave:'Kargoyu Kaydet', prizeShipOk:'Ödül kargosu kaydedildi ✅', prizeDeliverOk:'Ödül teslim edildi olarak işaretlendi ✅', prizeDeliverConfirm:'Ödül teslim edildi mi?',
@@ -3454,10 +3454,10 @@ async function loadPrizes() {
     var addr = o.addresses;
     var addrTxt = addr ? (addr.city + ' — ' + addr.detail) : '—';
     var statusBadge = o.status === 'confirmed'
-      ? '<span class="badge" style="background:#dbeafe;color:#1d4ed8">' + t('prizeStatusConfirmed') + '</span>'
+      ? '<span class="badge" style="background:#FF5C00;color:#fff;font-weight:700">' + t('prizeStatusConfirmed') + '</span>'
       : o.status === 'shipped'
-        ? '<span class="badge" style="background:#fef3c7;color:#b45309">' + t('prizeStatusShipped') + '</span>'
-        : '<span class="badge badge-active">' + t('prizeStatusDelivered') + '</span>';
+        ? '<span class="badge" style="background:#8b5cf6;color:#fff">' + t('prizeStatusShipped') + '</span>'
+        : '<span class="badge" style="background:#16a34a;color:#fff">' + t('prizeStatusDelivered') + '</span>';
     var actionBtns = '';
     if (o.status === 'confirmed') {
       actionBtns = '<button class="btn btn-primary btn-sm" onclick="openPrizeShipModal(' + o.id + ')">' + t('prizeShipBtn') + '</button>';
