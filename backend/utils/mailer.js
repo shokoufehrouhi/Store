@@ -1,7 +1,7 @@
 const nodemailer = require('nodemailer');
 
 const path          = require('path');
-const EMAIL_LOGO_PATH   = path.join(__dirname, '../../frontend/images/shilista_email_logo.png');
+const EMAIL_LOGO_PATH   = path.join(__dirname, '../../frontend/images/shilista_logo.png');
 const EMAIL_IMG_ATTACHMENTS = [
   { filename: 'logo.png', path: EMAIL_LOGO_PATH, cid: 'logo@shilista' },
 ];
@@ -1022,4 +1022,55 @@ async function sendWelcomeEmail(customer) {
   });
 }
 
-module.exports = { sendOrderEmail, sendRawEmail, sendReplyEmail, sendFriendInviteEmail, sendLoyaltyEmail, sendBirthdayEmail, sendPrizeEarnedEmail, sendWelcomeEmail, label };
+// ─── Verification code email ──────────────────────────────────────────────────
+const VERIFY_L = {
+  fa: { dir:'rtl', subject:'کد تأیید ثبت‌نام Shilista', intro:'کد تأیید ثبت‌نام شما:', note:'این کد تا ۱۰ دقیقه دیگر معتبر است.' },
+  en: { dir:'ltr', subject:'Shilista — Email Verification Code', intro:'Your verification code:', note:'This code is valid for 10 minutes.' },
+  tr: { dir:'ltr', subject:'Shilista — E-posta Doğrulama Kodu', intro:'Doğrulama kodunuz:', note:'Bu kod 10 dakika geçerlidir.' },
+};
+
+async function sendVerificationEmail(toEmail, code, lang) {
+  const transporter = getTransporter();
+  if (!transporter) return;
+  const ll  = VERIFY_L[lang] || VERIFY_L.fa;
+  const html = `<!DOCTYPE html>
+<html dir="${ll.dir}" lang="${lang}">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,Tahoma,sans-serif;direction:${ll.dir}">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0eb;padding:32px 0">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0"
+      style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+      <tr>
+        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
+          <img src="cid:logo@shilista" alt="Shilista" width="220" style="width:220px;max-width:90%;height:auto;display:inline-block">
+        </td>
+      </tr>
+      <tr>
+        <td style="background:linear-gradient(135deg,#c0562a,#e07a40);padding:20px 32px;text-align:center">
+          <p style="margin:0;font-size:18px;font-weight:700;color:#fff;letter-spacing:.5px">${ll.intro}</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:36px 32px;text-align:center">
+          <div style="display:inline-block;background:#fff5f0;border:2px solid #c0562a;border-radius:14px;padding:20px 40px;margin-bottom:20px">
+            <span style="font-size:40px;font-weight:900;letter-spacing:12px;color:#c0562a;font-family:monospace">${code}</span>
+          </div>
+          <p style="margin:0;font-size:13px;color:#aaa">${ll.note}</p>
+        </td>
+      </tr>
+      ${FOOTER_TR}
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+  await transporter.sendMail({
+    from:        process.env.SMTP_FROM || process.env.SMTP_USER,
+    to:          toEmail,
+    subject:     ll.subject,
+    html,
+    attachments: EMAIL_IMG_ATTACHMENTS,
+  });
+}
+
+module.exports = { sendOrderEmail, sendRawEmail, sendReplyEmail, sendFriendInviteEmail, sendLoyaltyEmail, sendBirthdayEmail, sendPrizeEarnedEmail, sendWelcomeEmail, sendVerificationEmail, label };

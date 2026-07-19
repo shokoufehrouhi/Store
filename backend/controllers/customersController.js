@@ -1,7 +1,7 @@
 const prisma   = require('../prisma/client');
 const crypto   = require('crypto');
 const bcrypt   = require('bcrypt');
-const { sendRawEmail, sendWelcomeEmail } = require('../utils/mailer');
+const { sendRawEmail, sendWelcomeEmail, sendVerificationEmail } = require('../utils/mailer');
 
 const BCRYPT_ROUNDS = 12;
 const SESSION_TTL   = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -55,16 +55,7 @@ async function sendVerificationCode(req, res, next) {
     _verifyCodes.set(emailLow, { code, expires: Date.now() + VERIFY_TTL, sentAt: Date.now() });
 
     const L = lang || 'fa';
-    const subjects = { fa: 'کد تأیید ثبت‌نام Shilista', en: 'Shilista — Email Verification Code', tr: 'Shilista — E-posta Doğrulama Kodu' };
-    const intros   = { fa: 'کد تأیید ثبت‌نام شما:', en: 'Your verification code:', tr: 'Doğrulama kodunuz:' };
-    const expires  = { fa: 'این کد تا ۱۰ دقیقه دیگر معتبر است.', en: 'This code is valid for 10 minutes.', tr: 'Bu kod 10 dakika geçerlidir.' };
-    const html = `<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px">
-      <img src="https://shilista.com/images/shilista_email_logo.jpg" alt="Shilista" style="width:140px;margin-bottom:24px">
-      <p style="font-size:15px;color:#444;margin-bottom:16px">${intros[L] || intros.fa}</p>
-      <div style="font-size:36px;font-weight:900;letter-spacing:10px;color:#FF5C00;background:#fff5f0;border:2px solid #FF5C00;border-radius:12px;padding:18px 0;text-align:center;margin-bottom:20px">${code}</div>
-      <p style="font-size:13px;color:#888">${expires[L] || expires.fa}</p>
-    </div>`;
-    await sendRawEmail(emailLow, subjects[L] || subjects.fa, html);
+    await sendVerificationEmail(emailLow, code, L);
     res.json({ success: true });
   } catch (err) { next(err); }
 }
