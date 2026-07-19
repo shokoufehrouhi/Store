@@ -873,8 +873,10 @@ function handleFilterClick(el, scrollToProducts) {
   var gender = el.dataset.gender || 'all';
   var sub    = el.dataset.sub    || '';
   if (window.IS_PROFILE_PAGE) {
-    sessionStorage.setItem('mf_nav_filter', JSON.stringify({ cat: cat, gender: gender, sub: sub }));
-    window.location.href = '/';
+    var qp = '/?_cat=' + encodeURIComponent(cat);
+    if (sub) qp += '&_sub=' + encodeURIComponent(sub);
+    if (gender !== 'all') qp += '&_gender=' + encodeURIComponent(gender);
+    window.location.href = qp;
     return;
   }
   currentCategory    = cat;
@@ -972,24 +974,33 @@ function buildMegaMenu(categories) {
     return currentLang === 'en' ? obj.label_en : currentLang === 'tr' ? obj.label_tr : obj.label_fa;
   };
 
+  var isProfile = !!window.IS_PROFILE_PAGE;
   var html = '';
   categories.forEach(function(cat) {
+    var catHref = isProfile
+      ? ('/?_cat=' + encodeURIComponent(cat.key))
+      : '#products';
     html += '<div class="mega-col" data-cat="' + cat.key + '">';
-    html += '<a class="mega-cat-title" href="#products" data-filter="' + cat.key + '" data-gender="all" data-sub="">' + lbl(cat) + '</a>';
+    html += '<a class="mega-cat-title" href="' + catHref + '" data-filter="' + cat.key + '" data-gender="all" data-sub="">' + lbl(cat) + '</a>';
     (cat.subcategories || []).forEach(function(sub) {
-      html += '<a class="mega-sub-item" href="#products" data-filter="' + cat.key + '" data-gender="all" data-sub="' + sub.key + '">' + lbl(sub) + '</a>';
+      var subHref = isProfile
+        ? ('/?_cat=' + encodeURIComponent(cat.key) + '&_sub=' + encodeURIComponent(sub.key))
+        : '#products';
+      html += '<a class="mega-sub-item" href="' + subHref + '" data-filter="' + cat.key + '" data-gender="all" data-sub="' + sub.key + '">' + lbl(sub) + '</a>';
     });
     html += '</div>';
   });
 
   mega.innerHTML = html;
 
-  mega.addEventListener('click', function(e) {
-    var item = e.target.closest('.mega-cat-title, .mega-sub-item');
-    if (!item) return;
-    e.preventDefault();
-    handleFilterClick(item, true);
-  });
+  if (!isProfile) {
+    mega.addEventListener('click', function(e) {
+      var item = e.target.closest('.mega-cat-title, .mega-sub-item');
+      if (!item) return;
+      e.preventDefault();
+      handleFilterClick(item, true);
+    });
+  }
 }
 
 // ─── Header Nav Dropdowns ─────────────────────────────────────────────────────
@@ -4753,16 +4764,25 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   initIdleTimer();
 
-  // Apply filter passed from profile/product page via sessionStorage
-  var _pendingFilter = sessionStorage.getItem('mf_nav_filter');
-  if (_pendingFilter) {
-    sessionStorage.removeItem('mf_nav_filter');
-    try {
-      var _f = JSON.parse(_pendingFilter);
-      currentCategory    = _f.cat    || 'all';
-      currentGender      = _f.gender || 'all';
-      currentSubcategory = _f.sub    || null;
-    } catch (e) {}
+  // Apply filter passed via URL query params from profile page nav
+  var _navQs = new URLSearchParams(window.location.search);
+  if (_navQs.has('_cat') || _navQs.has('_sub') || _navQs.has('_gender')) {
+    currentCategory    = _navQs.get('_cat')    || 'all';
+    currentSubcategory = _navQs.get('_sub')    || null;
+    currentGender      = _navQs.get('_gender') || 'all';
+    window.history.replaceState({}, '', window.location.pathname);
+  } else {
+    // fallback: sessionStorage (kept for other navigation paths)
+    var _pendingFilter = sessionStorage.getItem('mf_nav_filter');
+    if (_pendingFilter) {
+      sessionStorage.removeItem('mf_nav_filter');
+      try {
+        var _f = JSON.parse(_pendingFilter);
+        currentCategory    = _f.cat    || 'all';
+        currentGender      = _f.gender || 'all';
+        currentSubcategory = _f.sub    || null;
+      } catch (e) {}
+    }
   }
 
   // Check for password reset token in URL
