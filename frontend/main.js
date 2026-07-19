@@ -3263,12 +3263,13 @@ function _renderOrdersList(apiOrders) {
     : apiOrders;
 
   var ORDER_COLORS = {
-    confirmed:'#FF5C00',
+    confirmed:'#FF5C00', shipped:'#8b5cf6',
     preorder:'#3b82f6', payment_needed:'#f59e0b', approval_needed:'#eab308',
     preparing:'#22c55e', delivery:'#8b5cf6', delivered:'#16a34a', cancelled:'#9ca3af', rejected:'#dc2626',
   };
   var ORDER_LABELS = {
     confirmed:        t.prize_confirmed     || 'Confirmed',
+    shipped:          t.prize_shipped       || 'Shipped',
     preorder:        t.preorder_registered || 'پیش‌سفارش',
     payment_needed:  t.payment_info_title  || 'در انتظار پرداخت',
     approval_needed: t.receipt_uploaded    || 'در انتظار تأیید',
@@ -3404,7 +3405,7 @@ function _renderOrdersList(apiOrders) {
         }
       }
 
-      if (st === 'delivery') {
+      if (st === 'delivery' || st === 'shipped') {
         var shippedStr = order.shipped_at ? new Date(order.shipped_at).toLocaleString(dateLocale) : '-';
         detailHtml += '<div class="order-tracking-box">' +
           (order.carrier_name ? '<div class="order-payment-row"><span>' + (t.carrier_label || 'باربری') + ':</span>' + order.carrier_name + '</div>' : '') +
