@@ -2862,7 +2862,9 @@ function renderInfoTab() {
     '</button>' +
     '</div>' +
 
-    // Fields — same structure as address form
+    // Fields — 2-column grid
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px">' +
+
     '<div class="form-field">' +
     '<label>' + t.profile_info_name_label + '</label>' +
     '<input id="info-name-input" type="text" value="' + displayName.replace(/"/g,'&quot;') + '">' +
@@ -2884,6 +2886,8 @@ function renderInfoTab() {
     (user.birth_date
       ? '<div style="padding:8px 0;font-family:monospace;letter-spacing:.5px;color:#555;direction:ltr">' + user.birth_date.split('T')[0] + '</div>'
       : '<input id="info-birth-input" type="date" dir="ltr" value="" style="font-family:monospace;letter-spacing:.5px">') +
+    '</div>' +
+
     '</div>' +
 
     '<span class="auth-field-success" id="info-save-success"></span>' +
