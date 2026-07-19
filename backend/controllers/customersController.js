@@ -116,7 +116,14 @@ async function register(req, res, next) {
       },
     });
 
-    sendWelcomeEmail(customer).catch(() => {});
+    const fodCoupon = await prisma.coupons.findUnique({ where: { code: 'FOD' } });
+    const now = new Date();
+    const fodActive = fodCoupon &&
+      fodCoupon.is_active &&
+      (!fodCoupon.starts_at  || fodCoupon.starts_at  <= now) &&
+      (!fodCoupon.expires_at || fodCoupon.expires_at >= now) &&
+      (!fodCoupon.max_uses   || fodCoupon.used_count  < fodCoupon.max_uses);
+    if (fodActive) sendWelcomeEmail(customer).catch(() => {});
 
     // assign BESTIE if this email was referred
     if (email) {
