@@ -325,6 +325,7 @@ function addToCart(productId, colorKey, size) {
     cart.push({ id: productId, colorKey: colorKey, size: size, qty: 1 });
   }
   saveCart();
+  openCart();
 }
 
 function removeFromCart(index) {
