@@ -2591,11 +2591,12 @@ function renderLoyaltyCard(completedOrders) {
 
   var dots = '<div class="lc-dot-gap"><span></span><span></span><span></span></div>';
 
-  function prizeBox(unlocked, lblTxt, tipTxt, icon, onclickFn) {
+  function prizeBox(unlocked, lblTxt, tipTxt, icon, onclickFn, unlockedLbl) {
     var state     = unlocked ? 'lc-unlocked' : 'lc-locked';
     var q         = unlocked ? '' : '<span class="lc-prize-q">?</span>';
-    var lbl       = unlocked ? (onclickFn ? claimTxt : (L === 'fa' ? '📦 در پیگیری' : (L === 'tr' ? '📦 Takipte' : '📦 Tracking'))) : lblTxt;
-    var clickAttr = (unlocked && onclickFn) ? ' onclick="' + onclickFn + '"' : '';
+    var defaultUnlockedLbl = onclickFn ? claimTxt : (L === 'fa' ? '📦 در پیگیری' : (L === 'tr' ? '📦 Takipte' : '📦 Tracking'));
+    var lbl       = unlocked ? (unlockedLbl || defaultUnlockedLbl) : lblTxt;
+    var clickAttr = (unlocked && onclickFn) ? ' onclick="' + onclickFn + '" style="cursor:pointer"' : '';
     return '<div class="lc-prize ' + state + '"' + clickAttr + '>' +
       '<div class="lc-prize-box"><span class="lc-prize-icon">' + icon + '</span>' + q + '</div>' +
       '<div class="lc-prize-lbl">' + lbl + '</div>' +
@@ -2615,7 +2616,7 @@ function renderLoyaltyCard(completedOrders) {
     '<div class="lc-divider"></div>' +
     '<div class="lc-row">' +
       stamp(3) + dots + stamp(4) + dots + stamp(5) + dots +
-      prizeBox(prize2Unlocked, p2Lbl, tip2(), '🏆', null) +
+      prizeBox(prize2Unlocked, p2Lbl, tip2(), '🏆', prize2Unlocked ? 'showPrize2Info()' : null, L === 'fa' ? '📦 در پیگیری' : (L === 'tr' ? '📦 Takipte' : '📦 Tracking')) +
     '</div>' +
     '<div class="lc-footer">' + footerTxt() + '</div>' +
   '</div>';
@@ -2704,6 +2705,29 @@ function showLoyaltyReward() {
       });
     })
     .catch(function() { showToast(L === 'fa' ? 'خطا در اتصال به سرور' : 'Network error', 'error'); });
+}
+
+function showPrize2Info() {
+  var L = currentLang;
+  var title = L === 'fa' ? '🏆 جایزه ویژه شیلیستا' : (L === 'tr' ? '🏆 Shilista Özel Ödülü' : '🏆 Shilista Special Prize');
+  var msg   = L === 'fa'
+    ? 'شما موفق به کسب هدیه ویژه شیلیستا شدید!\n\nهدیه به زودی به آدرس پیش‌فرض شما ارسال می‌شود.\n\nوضعیت ارسال را از طریق لیست سفارشات پیگیری کنید.'
+    : (L === 'tr'
+      ? 'Shilista özel ödülünüzü kazandınız!\n\nHediyeniz yakında varsayılan adresinize gönderilecek.\n\nKargo durumunu sipariş listenizden takip edebilirsiniz.'
+      : 'You have earned the Shilista special prize!\n\nYour gift will be sent to your default address soon.\n\nTrack the shipping status from your orders list.');
+  var ordersBtnTxt = L === 'fa' ? '📦 مشاهده سفارشات' : (L === 'tr' ? '📦 Siparişleri Gör' : '📦 View Orders');
+  var overlay = document.createElement('div');
+  overlay.className = 'lp-overlay';
+  overlay.innerHTML =
+    '<div class="lp-card">' +
+      '<button class="lp-close" onclick="this.closest(\'.lp-overlay\').remove()">&#x2715;</button>' +
+      '<div class="lp-icon">🏆</div>' +
+      '<div class="lp-title">' + title + '</div>' +
+      '<div class="lp-desc" style="text-align:center;line-height:1.9;white-space:pre-line">' + msg + '</div>' +
+      '<button onclick="this.closest(\'.lp-overlay\').remove();showProfileTab(\'orders\')" style="margin-top:18px;background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:11px 28px;font-size:14px;font-weight:700;cursor:pointer">' + ordersBtnTxt + '</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
 }
 
 // ─── Info Tab ─────────────────────────────────────────────────────────────────
