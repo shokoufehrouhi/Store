@@ -541,7 +541,7 @@ function cartAdd(pid, cKey, cId, sz){
   if(x){ x.qty = (x.qty||1)+1; } else { c.push({id:pid, colorKey:cKey||null, colorId:cId||null, size:sz||null, qty:1}); }
   saveCart(c);
   pdUpdateCartBadge();
-  if(document.getElementById('pd-cart-overlay') && !document.getElementById('pd-cart-overlay').classList.contains('hidden')) renderPdCart();
+  openPdCart();
   var tok = getSession();
   if(tok){ fetch(API+'/customers/cart/sync',{method:'POST',headers:{'Content-Type':'application/json','x-session-token':tok},body:JSON.stringify({items:c})}).catch(function(){}); }
 }
