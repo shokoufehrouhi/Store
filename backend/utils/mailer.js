@@ -703,6 +703,88 @@ async function sendLoyaltyEmail(customer, deliveredCount) {
   });
 }
 
+// ─── Prize earned email ──────────────────────────────────────────────────────────
+const PRIZE_EARNED_L = {
+  fa: {
+    dir:     'rtl',
+    subject: '🏆 جایزه شما آماده ارسال است! — Shilista',
+    title:   '🏆 تبریک! جایزه وفاداری شما ثبت شد',
+    body:    'شما موفق به کسب جایزه وفاداری Shilista شدید!\n\nبه زودی هدیه‌ای از طرف ما به آدرس پیش‌فرض شما ارسال خواهد شد.\n\nوضعیت ارسال را می‌توانید در لیست سفارشات خود مشاهده کنید.',
+    btn:     'مشاهده سفارشات',
+  },
+  en: {
+    dir:     'ltr',
+    subject: '🏆 Your Loyalty Prize is on its way! — Shilista',
+    title:   '🏆 Congratulations! Your Prize is Registered',
+    body:    "You've earned a loyalty prize from Shilista!\n\nA gift will be sent to your default address soon.\n\nYou can track the shipping status in your orders list.",
+    btn:     'View Orders',
+  },
+  tr: {
+    dir:     'ltr',
+    subject: '🏆 Sadakat Ödülünüz Yolda! — Shilista',
+    title:   '🏆 Tebrikler! Ödülünüz Kaydedildi',
+    body:    "Shilista sadakat ödülünüzü kazandınız!\n\nYakında varsayılan adresinize bir hediye gönderilecek.\n\nKargo durumunu sipariş listenizden takip edebilirsiniz.",
+    btn:     'Siparişleri Görüntüle',
+  },
+};
+
+async function sendPrizeEarnedEmail(customer) {
+  if (!customer.email) return;
+  const transporter = getTransporter();
+  if (!transporter) return;
+  const lang    = (customer.preferred_lang || 'fa').substring(0, 2);
+  const ll      = PRIZE_EARNED_L[lang] || PRIZE_EARNED_L.fa;
+  const siteUrl = process.env.SITE_URL || 'https://shilista.com';
+  const ordersUrl = `${siteUrl}/profile.html?tab=orders`;
+
+  const html = `<!DOCTYPE html>
+<html dir="${ll.dir}" lang="${lang}">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,Tahoma,sans-serif;direction:${ll.dir}">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0eb;padding:32px 0">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+      <tr>
+        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
+          <img src="cid:logo@shilista" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
+        </td>
+      </tr>
+      <tr>
+        <td style="background:linear-gradient(135deg,#7c3aed,#a855f7);padding:20px 32px;text-align:center">
+          <p style="margin:0;font-size:20px;font-weight:700;color:#fff;letter-spacing:.5px">${ll.title}</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:32px 32px 24px">
+          <p style="margin:0 0 28px;font-size:15px;color:#444;line-height:1.9;white-space:pre-line">${ll.body}</p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td align="center">
+                <a href="${ordersUrl}" style="display:inline-block;background:#7c3aed;color:#fff;font-size:15px;font-weight:700;padding:13px 36px;border-radius:8px;text-decoration:none;letter-spacing:.3px">${ll.btn}</a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="background:#fff;padding:24px 32px 12px;border-top:1px solid #f0e8df;text-align:center">
+          <img src="cid:footer@shilista" alt="Shilista" width="480" style="width:480px;max-width:100%;height:auto;display:inline-block">
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+
+  await transporter.sendMail({
+    from:        process.env.SMTP_FROM || process.env.SMTP_USER,
+    to:          customer.email,
+    subject:     ll.subject,
+    html,
+    attachments: EMAIL_IMG_ATTACHMENTS,
+  });
+}
+
 // ─── Birthday email ─────────────────────────────────────────────────────────────
 const BIRTHDAY_L = {
   fa: {
@@ -826,4 +908,4 @@ async function sendBirthdayEmail(customer, birthdayDate, validUntil) {
   });
 }
 
-module.exports = { sendOrderEmail, sendRawEmail, sendReplyEmail, sendFriendInviteEmail, sendLoyaltyEmail, sendBirthdayEmail, label };
+module.exports = { sendOrderEmail, sendRawEmail, sendReplyEmail, sendFriendInviteEmail, sendLoyaltyEmail, sendBirthdayEmail, sendPrizeEarnedEmail, label };

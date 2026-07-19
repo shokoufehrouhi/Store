@@ -567,7 +567,7 @@ async function claimPrize(req, res, next) {
     const deliveredCount = await prisma.orders.count({
       where: { customer_id: session.customer_id, status: 'delivered', is_prize: false },
     });
-    const eligibleCycles = Math.floor(deliveredCount / 6);
+    const eligibleCycles = Math.floor(deliveredCount / 3);
     if (eligibleCycles < 1)
       return res.status(403).json({ success: false, message: 'not_eligible' });
 

@@ -1,7 +1,7 @@
 const prisma  = require('../prisma/client');
 const path    = require('path');
 const fs      = require('fs');
-const { sendOrderEmail, sendLoyaltyEmail, label } = require('../utils/mailer');
+const { sendOrderEmail, sendLoyaltyEmail, sendPrizeEarnedEmail, label } = require('../utils/mailer');
 
 // ─── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -687,11 +687,33 @@ async function markDelivered(req, res, next) {
     if (updated.customers) {
       sendOrderEmail(updated.customers, updated, 'delivered').catch(() => {});
       const deliveredCount = await prisma.orders.count({
-        where: { customer_id: updated.customer_id, status: 'delivered' },
+        where: { customer_id: updated.customer_id, status: 'delivered', is_prize: false },
       });
-      const isMilestone = deliveredCount % 6 === 3 || (deliveredCount % 6 === 0 && deliveredCount > 0);
-      if (isMilestone) {
-        sendLoyaltyEmail(updated.customers, deliveredCount).catch(e => console.error('[loyalty email]', e.message));
+      if (deliveredCount > 0 && deliveredCount % 3 === 0) {
+        const eligibleCycles = Math.floor(deliveredCount / 3);
+        const prizesClaimed = await prisma.orders.count({
+          where: { customer_id: updated.customer_id, is_prize: true },
+        });
+        if (prizesClaimed < eligibleCycles) {
+          const custFull = await prisma.customers.findUnique({
+            where:  { id: updated.customer_id },
+            select: { addresses: { where: { is_default: true }, select: { id: true } } },
+          });
+          const addressId = custFull?.addresses?.[0]?.id || null;
+          await prisma.orders.create({
+            data: {
+              customer_id:  updated.customer_id,
+              address_id:   addressId,
+              status:       'confirmed',
+              is_prize:     true,
+              total_amount: 0,
+              channel:      'prize',
+              lang:         updated.customers.preferred_lang || 'fa',
+              note:         'Loyalty Gift Prize — cycle ' + eligibleCycles,
+            },
+          });
+          sendPrizeEarnedEmail(updated.customers).catch(e => console.error('[prize email]', e.message));
+        }
       }
     }
     res.json({ success: true, data: updated });
