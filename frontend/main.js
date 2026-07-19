@@ -2899,16 +2899,7 @@ function renderInfoTab() {
     // Below — Profile info
     '<div style="margin-top:20px">' +
 
-    // Customer ID badge
-    (customerId
-      ? '<div style="display:flex;align-items:center;gap:10px;background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:10px 16px;margin-bottom:16px">' +
-        '<span style="font-size:12px;color:#888">' + (currentLang === 'fa' ? 'شناسه مشتری' : currentLang === 'tr' ? 'Müşteri ID' : 'Customer ID') + '</span>' +
-        '<span style="font-family:monospace;font-size:18px;font-weight:800;color:var(--primary);letter-spacing:1px">' + customerId + '</span>' +
-        '<span style="margin-inline-start:auto;font-size:11px;color:#aaa">' + (currentLang === 'fa' ? 'نوع: ' : 'Via: ') + regByLabel + '</span>' +
-        '</div>'
-      : '') +
-
-    // Avatar
+    // Avatar + Customer ID in one row
     '<div style="display:flex;align-items:center;gap:16px;padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
     '<div class="info-avatar-ring">' +
     (src
@@ -2923,6 +2914,12 @@ function renderInfoTab() {
     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>' +
     t.profile_info_avatar_remove +
     '</button>' +
+    (customerId
+      ? '<div style="margin-inline-start:auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px">' +
+        '<span style="font-size:11px;color:#aaa">' + (currentLang === 'fa' ? 'شناسه مشتری' : currentLang === 'tr' ? 'Müşteri ID' : 'Customer ID') + '</span>' +
+        '<span style="font-family:monospace;font-size:20px;font-weight:800;color:var(--primary);letter-spacing:1px">' + customerId + '</span>' +
+        '</div>'
+      : '') +
     '</div>' +
 
     // Fields — 2-column grid
