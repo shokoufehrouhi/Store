@@ -1469,7 +1469,12 @@ const LANGS = {
     ordersSearchPlh:'جستجو: شماره، موبایل، ایمیل...',
     msgSectionTitle:'پیام‌ها', msgEmpty:'پیامی وجود ندارد', msgAdminPlaceholder:'پاسخ به مشتری...',
     msgSend:'ارسال', msgSupport:'پشتیبانی', msgCustomer:'مشتری', msgSentAtStatus:'مرحله:',
-    navPrizes:'جوایز', navReturns:'مرجوعی‌ها', adminReturnTitle:'مرجوعی', adminNoReturn:'بدون مرجوعی',
+    navPrizes:'جوایز', noPrizes:'هنوز جایزه‌ای ثبت نشده',
+    prizeStatusConfirmed:'در انتظار ارسال', prizeStatusShipped:'ارسال شد', prizeStatusDelivered:'تحویل داده شد ✓', prizeStatusDone:'✓ تکمیل شد',
+    prizeShipBtn:'ثبت کارگو', prizeDeliverBtn:'تحویل داده شد',
+    prizeShipModalTitle:'ثبت اطلاعات ارسال جایزه', prizeCarrierLabel:'شرکت پست/کارگو', prizeCarrierPh:'مثال: پست پیشتاز', prizeTrackingLabel:'کد رهگیری', prizeTrackingPh:'کد رهگیری',
+    prizeShipSave:'ثبت ارسال', prizeShipOk:'ارسال جایزه ثبت شد ✅', prizeDeliverOk:'جایزه تحویل داده شد ✅', prizeDeliverConfirm:'جایزه تحویل داده شده؟',
+    navReturns:'مرجوعی‌ها', adminReturnTitle:'مرجوعی', adminNoReturn:'بدون مرجوعی',
     retStatusRequested:'در انتظار ارسال', retStatusShipped:'ارسال شده', retStatusReceived:'دریافت شد',
     retStatusRefundSent:'واریز شد', retStatusCompleted:'تکمیل', retStatusExpired:'منقضی', retStatusDefective:'گزارش معیوب',
     retLabelRequested:'درخواست', retLabelShipped:'ارسال', retLabelReceived:'دریافت', retLabelRefundSent:'واریز', retLabelCompleted:'تکمیل',
@@ -1643,7 +1648,12 @@ const LANGS = {
     ordersSearchPlh:'Search: order #, mobile, email...',
     msgSectionTitle:'Messages', msgEmpty:'No messages yet', msgAdminPlaceholder:'Reply to customer...',
     msgSend:'Send', msgSupport:'Support', msgCustomer:'Customer', msgSentAtStatus:'Stage:',
-    navPrizes:'Prizes', navReturns:'Returns', adminReturnTitle:'Return / Refund', adminNoReturn:'No returns',
+    navPrizes:'Prizes', noPrizes:'No prizes registered yet',
+    prizeStatusConfirmed:'Awaiting Shipment', prizeStatusShipped:'Shipped', prizeStatusDelivered:'Delivered ✓', prizeStatusDone:'✓ Done',
+    prizeShipBtn:'Ship', prizeDeliverBtn:'Mark Delivered',
+    prizeShipModalTitle:'Enter Shipping Info', prizeCarrierLabel:'Carrier / Courier', prizeCarrierPh:'e.g. Post Office', prizeTrackingLabel:'Tracking Number', prizeTrackingPh:'Tracking number',
+    prizeShipSave:'Save Shipment', prizeShipOk:'Prize shipment saved ✅', prizeDeliverOk:'Prize marked as delivered ✅', prizeDeliverConfirm:'Mark prize as delivered?',
+    navReturns:'Returns', adminReturnTitle:'Return / Refund', adminNoReturn:'No returns',
     retStatusRequested:'Awaiting Shipment', retStatusShipped:'Shipped', retStatusReceived:'Received',
     retStatusRefundSent:'Refund Sent', retStatusCompleted:'Completed', retStatusExpired:'Expired', retStatusDefective:'Defective Report',
     retLabelRequested:'Requested', retLabelShipped:'Shipped', retLabelReceived:'Received', retLabelRefundSent:'Refund Sent', retLabelCompleted:'Completed',
@@ -1817,7 +1827,12 @@ const LANGS = {
     ordersSearchPlh:'Ara: sipariş #, mobil, e-posta...',
     msgSectionTitle:'Mesajlar', msgEmpty:'Henüz mesaj yok', msgAdminPlaceholder:'Müşteriye yanıt ver...',
     msgSend:'Gönder', msgSupport:'Destek', msgCustomer:'Müşteri', msgSentAtStatus:'Aşama:',
-    navPrizes:'Ödüller', navReturns:'İadeler', adminReturnTitle:'İade / Geri Ödeme', adminNoReturn:'İade yok',
+    navPrizes:'Ödüller', noPrizes:'Henüz ödül kaydedilmedi',
+    prizeStatusConfirmed:'Gönderi Bekleniyor', prizeStatusShipped:'Kargoya Verildi', prizeStatusDelivered:'Teslim Edildi ✓', prizeStatusDone:'✓ Tamamlandı',
+    prizeShipBtn:'Kargo Gir', prizeDeliverBtn:'Teslim Edildi',
+    prizeShipModalTitle:'Kargo Bilgilerini Girin', prizeCarrierLabel:'Kargo Şirketi', prizeCarrierPh:'Örn: PTT', prizeTrackingLabel:'Takip Numarası', prizeTrackingPh:'Takip numarası',
+    prizeShipSave:'Kargoyu Kaydet', prizeShipOk:'Ödül kargosu kaydedildi ✅', prizeDeliverOk:'Ödül teslim edildi olarak işaretlendi ✅', prizeDeliverConfirm:'Ödül teslim edildi mi?',
+    navReturns:'İadeler', adminReturnTitle:'İade / Geri Ödeme', adminNoReturn:'İade yok',
     retStatusRequested:'Gönderi Bekleniyor', retStatusShipped:'Kargoya Verildi', retStatusReceived:'Alındı',
     retStatusRefundSent:'İade Gönderildi', retStatusCompleted:'Tamamlandı', retStatusExpired:'Süresi Doldu', retStatusDefective:'Hata Raporu',
     retLabelRequested:'Talep', retLabelShipped:'Kargo', retLabelReceived:'Alım', retLabelRefundSent:'İade', retLabelCompleted:'Tamamlama',
@@ -3417,10 +3432,10 @@ function renderAdminReturn(rets, orderId, el) {
 async function loadPrizes() {
   const tbody = document.getElementById('prizes-tbody');
   const res = await api('/admin/prizes');
-  if (!res?.success) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:red">خطا</td></tr>'; return; }
+  if (!res?.success) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:red">' + t('orderSaveError') + '</td></tr>'; return; }
   const orders = res.data;
   if (!orders.length) {
-    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="icon">🏆</div><p>هنوز جایزه‌ای ثبت نشده</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="icon">🏆</div><p>' + t('noPrizes') + '</p></div></td></tr>';
     return;
   }
   tbody.innerHTML = orders.map(function(o) {
@@ -3428,17 +3443,17 @@ async function loadPrizes() {
     var addr = o.addresses;
     var addrTxt = addr ? (addr.city + ' — ' + addr.detail) : '—';
     var statusBadge = o.status === 'confirmed'
-      ? '<span class="badge" style="background:#dbeafe;color:#1d4ed8">در انتظار ارسال</span>'
+      ? '<span class="badge" style="background:#dbeafe;color:#1d4ed8">' + t('prizeStatusConfirmed') + '</span>'
       : o.status === 'shipped'
-        ? '<span class="badge" style="background:#fef3c7;color:#b45309">ارسال شد</span>'
-        : '<span class="badge badge-active">تحویل داده شد ✓</span>';
+        ? '<span class="badge" style="background:#fef3c7;color:#b45309">' + t('prizeStatusShipped') + '</span>'
+        : '<span class="badge badge-active">' + t('prizeStatusDelivered') + '</span>';
     var actions = '';
     if (o.status === 'confirmed') {
-      actions = '<button class="btn btn-primary btn-sm" onclick="openPrizeShipModal(' + o.id + ')">ثبت کارگو</button>';
+      actions = '<button class="btn btn-primary btn-sm" onclick="openPrizeShipModal(' + o.id + ')">' + t('prizeShipBtn') + '</button>';
     } else if (o.status === 'shipped') {
-      actions = '<button class="btn btn-primary btn-sm" onclick="deliverPrize(' + o.id + ')">تحویل داده شد</button>';
+      actions = '<button class="btn btn-primary btn-sm" onclick="deliverPrize(' + o.id + ')">' + t('prizeDeliverBtn') + '</button>';
     } else {
-      actions = '<span style="font-size:12px;color:#059669">✓ تکمیل شد</span>';
+      actions = '<span style="font-size:12px;color:#059669">' + t('prizeStatusDone') + '</span>';
     }
     var trackTxt = o.tracking_number ? '<div style="font-size:11px;color:#aaa;margin-top:2px;direction:ltr">' + esc(o.carrier_name || '') + ' ' + esc(o.tracking_number) + '</div>' : '';
     return '<tr>' +
@@ -3455,17 +3470,17 @@ async function loadPrizes() {
 function openPrizeShipModal(id) {
   var body =
     '<div class="form-row">' +
-      '<div class="form-field"><label>شرکت پست/کارگو</label>' +
-        '<input type="text" id="prize-carrier" placeholder="مثال: پست پیشتاز">' +
+      '<div class="form-field"><label>' + t('prizeCarrierLabel') + '</label>' +
+        '<input type="text" id="prize-carrier" placeholder="' + t('prizeCarrierPh') + '">' +
       '</div>' +
-      '<div class="form-field"><label>کد رهگیری</label>' +
-        '<input type="text" id="prize-tracking" dir="ltr" placeholder="کد رهگیری">' +
+      '<div class="form-field"><label>' + t('prizeTrackingLabel') + '</label>' +
+        '<input type="text" id="prize-tracking" dir="ltr" placeholder="' + t('prizeTrackingPh') + '">' +
       '</div>' +
     '</div>';
   var footer =
-    '<button class="btn btn-primary" onclick="shipPrize(' + id + ')">ثبت ارسال</button>' +
-    '<button class="btn btn-secondary" onclick="closeModal()">انصراف</button>';
-  openModal('ثبت اطلاعات ارسال جایزه', body, footer);
+    '<button class="btn btn-primary" onclick="shipPrize(' + id + ')">' + t('prizeShipSave') + '</button>' +
+    '<button class="btn btn-secondary" onclick="closeModal()">' + t('cancel') + '</button>';
+  openModal(t('prizeShipModalTitle'), body, footer);
 }
 
 async function shipPrize(id) {
@@ -3475,15 +3490,15 @@ async function shipPrize(id) {
     method: 'PATCH',
     body: JSON.stringify({ carrier_name: carrier, tracking_number: tracking }),
   });
-  if (res?.success) { closeModal(); showToast('ارسال جایزه ثبت شد ✅'); loadPrizes(); }
-  else showToast(res?.message || 'خطا', 'error');
+  if (res?.success) { closeModal(); showToast(t('prizeShipOk')); loadPrizes(); }
+  else showToast(res?.message || t('orderSaveError'), 'error');
 }
 
 async function deliverPrize(id) {
-  if (!confirm('جایزه تحویل داده شده؟')) return;
+  if (!confirm(t('prizeDeliverConfirm'))) return;
   var res = await api('/admin/prizes/' + id + '/delivered', { method: 'PATCH' });
-  if (res?.success) { showToast('جایزه تحویل داده شد ✅'); loadPrizes(); }
-  else showToast(res?.message || 'خطا', 'error');
+  if (res?.success) { showToast(t('prizeDeliverOk')); loadPrizes(); }
+  else showToast(res?.message || t('orderSaveError'), 'error');
 }
 
 var _allAdminReturns = [];
