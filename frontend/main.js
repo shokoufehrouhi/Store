@@ -2251,6 +2251,7 @@ function sendSignupVerification() {
 
 function doSignup() {
   var t         = TRANSLATIONS[currentLang];
+  var fullName  = (document.getElementById('signup-name')?.value         || '').trim();
   var email     = (document.getElementById('signup-email')?.value        || '').trim().toLowerCase();
   var code      = (document.getElementById('signup-verify-code')?.value  || '').trim();
   var password  =  document.getElementById('signup-password')?.value     || '';
@@ -2274,6 +2275,7 @@ function doSignup() {
   if (!/^\+[0-9]{7,15}$/.test(mobile)) { setAuthError('signup-mobile-err', t.err_mobile_intl_inv || t.err_mobile_inv); return; }
 
   var body = { email: email, verification_code: code, password: password, mobile: mobile, preferred_lang: currentLang };
+  if (fullName) body.full_name = fullName;
   if (birthDate) body.birth_date = birthDate;
 
   fetch(API_BASE + '/customers/register', {

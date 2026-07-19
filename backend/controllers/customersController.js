@@ -71,7 +71,7 @@ async function sendVerificationCode(req, res, next) {
 
 async function register(req, res, next) {
   try {
-    const { email, mobile, password, birth_date, preferred_lang, verification_code } = req.body;
+    const { email, mobile, password, birth_date, preferred_lang, verification_code, full_name } = req.body;
     if (!email || !mobile || !password || !verification_code) {
       return res.status(400).json({ success: false, message: 'email, mobile, password and verification_code are required' });
     }
@@ -93,9 +93,9 @@ async function register(req, res, next) {
     });
     if (existing) return res.status(409).json({ success: false, message: 'Customer already exists' });
 
-    const full_name = emailLow.split('@')[0];
+    const full_name_val = (full_name && full_name.trim()) ? full_name.trim() : emailLow.split('@')[0];
     const customerData = {
-      full_name,
+      full_name: full_name_val,
       email:         emailLow,
       mobile,
       password_hash: await hashPassword(password),
