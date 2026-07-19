@@ -32,7 +32,7 @@ async function getCustomerFromSession(req, res) {
   }
   await prisma.sessions.update({
     where: { id: token },
-    data:  { last_activity: new Date(), expires_at: new Date(Date.now() + 30 * 60 * 1000) },
+    data:  { last_activity: new Date(), expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
   });
   return session.customer_id;
 }

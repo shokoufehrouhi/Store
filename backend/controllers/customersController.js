@@ -4,6 +4,7 @@ const bcrypt   = require('bcrypt');
 const { sendRawEmail } = require('../utils/mailer');
 
 const BCRYPT_ROUNDS = 12;
+const SESSION_TTL   = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 function isValidMobile(m) {
   return /^05[0-9]{9}$/.test((m || '').replace(/[\s\-]/g, ''));
@@ -51,7 +52,7 @@ async function register(req, res, next) {
     const session = await prisma.sessions.create({
       data: {
         customer_id:   customer.id,
-        expires_at:    new Date(Date.now() + 30 * 60 * 1000),
+        expires_at:    new Date(Date.now() + SESSION_TTL),
         last_activity: new Date(),
       },
     });
@@ -107,7 +108,7 @@ async function login(req, res, next) {
     const session = await prisma.sessions.create({
       data: {
         customer_id:   customer.id,
-        expires_at:    new Date(Date.now() + 30 * 60 * 1000),
+        expires_at:    new Date(Date.now() + SESSION_TTL),
         last_activity: new Date(),
       },
     });
@@ -161,7 +162,7 @@ async function getProfile(req, res, next) {
     // refresh session
     await prisma.sessions.update({
       where: { id: token },
-      data:  { last_activity: new Date(), expires_at: new Date(Date.now() + 30 * 60 * 1000) },
+      data:  { last_activity: new Date(), expires_at: new Date(Date.now() + SESSION_TTL) },
     });
 
     const [customer, completedOrders] = await Promise.all([
@@ -248,6 +249,10 @@ async function resolveSession(req, res) {
   });
   if (!session) { res.status(401).json({ success: false, message: 'Session expired' }); return null; }
   if (!session.customers?.is_active) { res.status(403).json({ success: false, message: 'Account is deactivated' }); return null; }
+  prisma.sessions.update({
+    where: { id: token },
+    data:  { last_activity: new Date(), expires_at: new Date(Date.now() + SESSION_TTL) },
+  }).catch(() => {});
   return session;
 }
 
