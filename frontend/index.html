@@ -470,7 +470,7 @@
         <div class="form-field">
           <label data-i18n="auth_mobile_label">شماره موبایل</label>
           <div style="display:flex;gap:6px;direction:ltr">
-            <input type="text" id="signup-country-code" style="width:74px;flex-shrink:0;text-align:center;font-weight:600;letter-spacing:0.03em" placeholder="+90" onkeydown="if(event.key==='Enter')doSignup()">
+            <input type="text" id="signup-country-code" style="width:74px;flex-shrink:0;text-align:center;font-weight:600;letter-spacing:0.03em" placeholder="+90" oninput="onSignupCcChange()" onkeydown="if(event.key==='Enter')doSignup()">
             <input type="tel" id="signup-mobile" style="flex:1" data-i18n-ph="auth_mobile_ph" placeholder="05xxxxxxxxx" onkeydown="if(event.key==='Enter')doSignup()">
           </div>
           <span class="auth-field-error" id="signup-mobile-err"></span>
@@ -478,6 +478,14 @@
         <div class="form-field">
           <label data-i18n="auth_birth_label">تاریخ تولد <span class="auth-optional" data-i18n="auth_optional" style="color:#9ca3af;font-weight:400;font-size:12px">(اختیاری)</span></label>
           <input type="date" id="signup-birth-date" style="direction:ltr">
+        </div>
+        <div class="form-field">
+          <label data-i18n="auth_lang_label">زبان <span style="color:#9ca3af;font-weight:400;font-size:12px" data-i18n="auth_optional">(اختیاری)</span></label>
+          <select id="signup-lang" style="direction:ltr;font-size:14px">
+            <option value="fa">فارسی</option>
+            <option value="tr">Türkçe</option>
+            <option value="en">English</option>
+          </select>
         </div>
         <button class="auth-submit-btn" onclick="doSignup()" data-i18n="auth_btn_signup">ثبت‌نام</button>
         <p class="auth-switch-text"><span data-i18n="auth_have_account">حساب دارید؟</span> <button class="auth-link-btn" onclick="showAuthView('login')" data-i18n="auth_do_login">ورود کنید</button></p>
@@ -676,6 +684,6 @@
 
   <script src="i18n.js?v=55"></script>
   <script src="products.js?v=52"></script>
-  <script src="main.js?v=110"></script>
+  <script src="main.js?v=111"></script>
 </body>
 </html>

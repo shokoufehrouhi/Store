@@ -2133,6 +2133,20 @@ function executePendingCart() {
   _pendingCart = null;
   addToCart(pending.productId, pending.colorKey, pending.size);
 }
+function ccToPreferredLang(cc) {
+  var c = (cc || '').replace(/\s/g, '');
+  if (c === '+98') return 'fa';
+  if (c === '+90') return 'tr';
+  return 'en';
+}
+
+function onSignupCcChange() {
+  var cc = (document.getElementById('signup-country-code')?.value || '').trim();
+  if (cc && !cc.startsWith('+')) cc = '+' + cc;
+  var sel = document.getElementById('signup-lang');
+  if (sel) sel.value = ccToPreferredLang(cc);
+}
+
 function showAuthView(view) {
   ['login','signup','forgot','reset'].forEach(function(v) {
     var el = document.getElementById('auth-view-' + v);
@@ -2142,8 +2156,10 @@ function showAuthView(view) {
   if (view === 'signup') {
     var ccInput = document.getElementById('signup-country-code');
     if (ccInput && !ccInput.value) {
-      ccInput.value = currentLang === 'fa' ? '+98' : '+90';
+      ccInput.value = currentLang === 'fa' ? '+98' : currentLang === 'tr' ? '+90' : '+90';
     }
+    var sel = document.getElementById('signup-lang');
+    if (sel) sel.value = currentLang === 'fa' ? 'fa' : currentLang === 'tr' ? 'tr' : 'en';
   }
 }
 function clearAuthErrors() {
@@ -2274,7 +2290,8 @@ function doSignup() {
   var mobile = cc + mobileClean;
   if (!/^\+[0-9]{7,15}$/.test(mobile)) { setAuthError('signup-mobile-err', t.err_mobile_intl_inv || t.err_mobile_inv); return; }
 
-  var body = { email: email, verification_code: code, password: password, mobile: mobile, preferred_lang: currentLang };
+  var prefLang = (document.getElementById('signup-lang')?.value || currentLang);
+  var body = { email: email, verification_code: code, password: password, mobile: mobile, preferred_lang: prefLang };
   if (fullName) body.full_name = fullName;
   if (birthDate) body.birth_date = birthDate;
 
