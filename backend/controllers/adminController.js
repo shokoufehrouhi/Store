@@ -1099,7 +1099,7 @@ module.exports = {
   getAdminOrders, setPaymentInfo, approvePayment, rejectPayment, rejectPreorder, setShipping, markDelivered,
   getBankAccounts, createBankAccount, updateBankAccount, deleteBankAccount,
   getReports, getFinancialReport, getCustomerReports, getCouponReport,
-  listPrizeOrders, shipPrizeOrder, deliverPrizeOrder,
+  listPrizeOrders, shipPrizeOrder, deliverPrizeOrder, updatePrizeNote,
 };
 
 // ─── Prize Orders ─────────────────────────────────────────────────────────────
@@ -1143,5 +1143,19 @@ async function deliverPrizeOrder(req, res, next) {
       data: { status: 'delivered', delivered_at: new Date(), updated_at: new Date() },
     });
     res.json({ success: true, data: updated });
+  } catch (err) { next(err); }
+}
+
+async function updatePrizeNote(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const { admin_note } = req.body;
+    const order = await prisma.orders.findUnique({ where: { id } });
+    if (!order || !order.is_prize) return res.status(404).json({ success: false, message: 'not_found' });
+    await prisma.orders.update({
+      where: { id },
+      data: { admin_note: admin_note || null, updated_at: new Date() },
+    });
+    res.json({ success: true });
   } catch (err) { next(err); }
 }

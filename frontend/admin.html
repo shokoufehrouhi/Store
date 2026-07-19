@@ -1475,6 +1475,9 @@ const LANGS = {
     prizeShipBtn:'ثبت کارگو', prizeDeliverBtn:'تحویل داده شد',
     prizeShipModalTitle:'ثبت اطلاعات ارسال جایزه', prizeCarrierLabel:'شرکت پست/کارگو', prizeCarrierPh:'مثال: پست پیشتاز', prizeTrackingLabel:'کد رهگیری', prizeTrackingPh:'کد رهگیری',
     prizeShipSave:'ثبت ارسال', prizeShipOk:'ارسال جایزه ثبت شد ✅', prizeDeliverOk:'جایزه تحویل داده شد ✅', prizeDeliverConfirm:'جایزه تحویل داده شده؟',
+    prizeDetailBtn:'جزئیات', prizeDetailTitle:'جزئیات جایزه', prizeAdminNoteLabel:'یادداشت داخلی (چه هدیه‌ای ارسال شد)', prizeAdminNotePh:'مثال: شلوارک مشکی سایز M', prizeNoteSaved:'یادداشت ذخیره شد ✅',
+    prizeStepConfirmed:'ثبت شد', prizeStepShipped:'ارسال شد', prizeStepDelivered:'تحویل داده شد',
+    prizeAddrLabel:'آدرس ارسال', prizeTrackInfo:'اطلاعات کارگو',
     navReturns:'مرجوعی‌ها', adminReturnTitle:'مرجوعی', adminNoReturn:'بدون مرجوعی',
     retStatusRequested:'در انتظار ارسال', retStatusShipped:'ارسال شده', retStatusReceived:'دریافت شد',
     retStatusRefundSent:'واریز شد', retStatusCompleted:'تکمیل', retStatusExpired:'منقضی', retStatusDefective:'گزارش معیوب',
@@ -1654,6 +1657,9 @@ const LANGS = {
     prizeShipBtn:'Ship', prizeDeliverBtn:'Mark Delivered',
     prizeShipModalTitle:'Enter Shipping Info', prizeCarrierLabel:'Carrier / Courier', prizeCarrierPh:'e.g. Post Office', prizeTrackingLabel:'Tracking Number', prizeTrackingPh:'Tracking number',
     prizeShipSave:'Save Shipment', prizeShipOk:'Prize shipment saved ✅', prizeDeliverOk:'Prize marked as delivered ✅', prizeDeliverConfirm:'Mark prize as delivered?',
+    prizeDetailBtn:'Detail', prizeDetailTitle:'Prize Detail', prizeAdminNoteLabel:'Internal Note (what gift was sent)', prizeAdminNotePh:'e.g. Black shorts size M', prizeNoteSaved:'Note saved ✅',
+    prizeStepConfirmed:'Registered', prizeStepShipped:'Shipped', prizeStepDelivered:'Delivered',
+    prizeAddrLabel:'Delivery Address', prizeTrackInfo:'Shipping Info',
     navReturns:'Returns', adminReturnTitle:'Return / Refund', adminNoReturn:'No returns',
     retStatusRequested:'Awaiting Shipment', retStatusShipped:'Shipped', retStatusReceived:'Received',
     retStatusRefundSent:'Refund Sent', retStatusCompleted:'Completed', retStatusExpired:'Expired', retStatusDefective:'Defective Report',
@@ -1833,6 +1839,9 @@ const LANGS = {
     prizeShipBtn:'Kargo Gir', prizeDeliverBtn:'Teslim Edildi',
     prizeShipModalTitle:'Kargo Bilgilerini Girin', prizeCarrierLabel:'Kargo Şirketi', prizeCarrierPh:'Örn: PTT', prizeTrackingLabel:'Takip Numarası', prizeTrackingPh:'Takip numarası',
     prizeShipSave:'Kargoyu Kaydet', prizeShipOk:'Ödül kargosu kaydedildi ✅', prizeDeliverOk:'Ödül teslim edildi olarak işaretlendi ✅', prizeDeliverConfirm:'Ödül teslim edildi mi?',
+    prizeDetailBtn:'Detay', prizeDetailTitle:'Ödül Detayı', prizeAdminNoteLabel:'Dahili Not (ne gönderildi)', prizeAdminNotePh:'örn. M beden siyah şort', prizeNoteSaved:'Not kaydedildi ✅',
+    prizeStepConfirmed:'Kaydedildi', prizeStepShipped:'Gönderildi', prizeStepDelivered:'Teslim Edildi',
+    prizeAddrLabel:'Teslimat Adresi', prizeTrackInfo:'Kargo Bilgisi',
     navReturns:'İadeler', adminReturnTitle:'İade / Geri Ödeme', adminNoReturn:'İade yok',
     retStatusRequested:'Gönderi Bekleniyor', retStatusShipped:'Kargoya Verildi', retStatusReceived:'Alındı',
     retStatusRefundSent:'İade Gönderildi', retStatusCompleted:'Tamamlandı', retStatusExpired:'Süresi Doldu', retStatusDefective:'Hata Raporu',
@@ -3449,13 +3458,13 @@ async function loadPrizes() {
       : o.status === 'shipped'
         ? '<span class="badge" style="background:#fef3c7;color:#b45309">' + t('prizeStatusShipped') + '</span>'
         : '<span class="badge badge-active">' + t('prizeStatusDelivered') + '</span>';
-    var actions = '';
+    var actionBtns = '';
     if (o.status === 'confirmed') {
-      actions = '<button class="btn btn-primary btn-sm" onclick="openPrizeShipModal(' + o.id + ')">' + t('prizeShipBtn') + '</button>';
+      actionBtns = '<button class="btn btn-primary btn-sm" onclick="openPrizeShipModal(' + o.id + ')">' + t('prizeShipBtn') + '</button>';
     } else if (o.status === 'shipped') {
-      actions = '<button class="btn btn-primary btn-sm" onclick="deliverPrize(' + o.id + ')">' + t('prizeDeliverBtn') + '</button>';
+      actionBtns = '<button class="btn btn-primary btn-sm" onclick="deliverPrize(' + o.id + ')">' + t('prizeDeliverBtn') + '</button>';
     } else {
-      actions = '<span style="font-size:12px;color:#059669">' + t('prizeStatusDone') + '</span>';
+      actionBtns = '<span style="font-size:12px;color:#059669">' + t('prizeStatusDone') + '</span>';
     }
     var trackTxt = o.tracking_number ? '<div style="font-size:11px;color:#aaa;margin-top:2px;direction:ltr">' + esc(o.carrier_name || '') + ' ' + esc(o.tracking_number) + '</div>' : '';
     return '<tr>' +
@@ -3464,7 +3473,7 @@ async function loadPrizes() {
       '<td style="font-size:12px">' + esc(addrTxt) + '</td>' +
       '<td>' + statusBadge + trackTxt + '</td>' +
       '<td style="font-size:12px;color:#999">' + new Date(o.created_at).toLocaleDateString('en-GB') + '</td>' +
-      '<td>' + actions + '</td>' +
+      '<td><div style="display:flex;gap:6px;flex-wrap:wrap">' + actionBtns + '<button class="btn btn-secondary btn-sm" onclick="openPrizeDetail(' + o.id + ')">' + t('prizeDetailBtn') + '</button></div></td>' +
     '</tr>';
   }).join('');
 }
@@ -3493,6 +3502,91 @@ async function shipPrize(id) {
     body: JSON.stringify({ carrier_name: carrier, tracking_number: tracking }),
   });
   if (res?.success) { closeModal(); showToast(t('prizeShipOk')); loadPrizes(); }
+  else showToast(res?.message || t('orderSaveError'), 'error');
+}
+
+var _prizeCache = {};
+
+async function openPrizeDetail(id) {
+  const res = await api('/admin/prizes');
+  if (!res?.success) return;
+  const o = res.data.find(x => x.id === id);
+  if (!o) return;
+  _prizeCache[id] = o;
+
+  var cust = o.customers;
+  var addr = o.addresses;
+
+  // timeline steps
+  function step(icon, label, date, active, done) {
+    var col = done ? '#059669' : active ? 'var(--primary)' : '#ccc';
+    var dateTxt = date ? '<div style="font-size:11px;color:#999;margin-top:2px">' + new Date(date).toLocaleDateString('en-GB') + '</div>' : '';
+    return '<div style="display:flex;flex-direction:column;align-items:center;flex:1">' +
+      '<div style="width:36px;height:36px;border-radius:50%;background:' + col + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px">' + icon + '</div>' +
+      '<div style="font-size:12px;font-weight:600;margin-top:6px;color:' + col + '">' + label + '</div>' + dateTxt +
+    '</div>';
+  }
+  function connector(done) {
+    return '<div style="flex:0.4;height:3px;background:' + (done ? '#059669' : '#e5e7eb') + ';margin-top:-20px;align-self:center"></div>';
+  }
+
+  var s1done = true;
+  var s2done = o.status === 'shipped' || o.status === 'delivered';
+  var s3done = o.status === 'delivered';
+
+  var timeline =
+    '<div style="display:flex;align-items:flex-start;padding:16px 8px 8px">' +
+      step('📋', t('prizeStepConfirmed'), o.created_at, true, true) +
+      connector(s2done) +
+      step('🚚', t('prizeStepShipped'), o.shipped_at, s2done, s2done) +
+      connector(s3done) +
+      step('✅', t('prizeStepDelivered'), o.delivered_at, s3done, s3done) +
+    '</div>';
+
+  // address block
+  var addrBlock = addr
+    ? '<div style="font-size:13px;line-height:1.8;background:#f9fafb;border-radius:8px;padding:12px 14px;margin-top:4px">' +
+        (addr.recipient ? '<strong>' + esc(addr.recipient) + '</strong><br>' : '') +
+        esc(addr.city || '') + (addr.detail ? ' — ' + esc(addr.detail) : '') +
+        (addr.postal_code ? '<br><span style="color:#999;font-size:11px">' + esc(addr.postal_code) + '</span>' : '') +
+        (addr.phone ? '<br><span style="direction:ltr;display:inline-block;color:#555">' + esc(addr.phone) + '</span>' : '') +
+      '</div>'
+    : '<div style="color:#aaa;font-size:13px">—</div>';
+
+  // tracking block
+  var trackBlock = '';
+  if (o.tracking_number || o.carrier_name) {
+    trackBlock = '<div style="margin-top:12px"><div style="font-size:12px;font-weight:600;color:#555;margin-bottom:4px">' + t('prizeTrackInfo') + '</div>' +
+      '<div style="font-size:13px;direction:ltr;background:#f9fafb;border-radius:8px;padding:10px 14px">' +
+        (o.carrier_name ? esc(o.carrier_name) + ' &nbsp;' : '') +
+        (o.tracking_number ? '<span style="font-family:monospace;font-weight:700">' + esc(o.tracking_number) + '</span>' : '') +
+      '</div></div>';
+  }
+
+  var body =
+    timeline +
+    '<hr style="border:none;border-top:1px solid #f0f0f0;margin:8px 0">' +
+    '<div style="margin-top:12px"><div style="font-size:12px;font-weight:600;color:#555;margin-bottom:4px">' + t('prizeAddrLabel') + '</div>' + addrBlock + '</div>' +
+    trackBlock +
+    '<div style="margin-top:16px">' +
+      '<label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">' + t('prizeAdminNoteLabel') + ' 🔒</label>' +
+      '<textarea id="prize-admin-note" rows="3" placeholder="' + t('prizeAdminNotePh') + '" style="width:100%;resize:vertical;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-family:inherit;font-size:13px;box-sizing:border-box">' + esc(o.admin_note || '') + '</textarea>' +
+    '</div>';
+
+  var footer =
+    '<button class="btn btn-primary" onclick="savePrizeNote(' + id + ')">' + (t('save') || 'ذخیره') + '</button>' +
+    '<button class="btn btn-secondary" onclick="closeModal()">' + t('cancel') + '</button>';
+
+  openModal('🏆 ' + t('prizeDetailTitle') + ' #' + String(id).padStart(6,'0'), body, footer);
+}
+
+async function savePrizeNote(id) {
+  var note = document.getElementById('prize-admin-note')?.value?.trim() || '';
+  var res = await api('/admin/prizes/' + id + '/note', {
+    method: 'PATCH',
+    body: JSON.stringify({ admin_note: note }),
+  });
+  if (res?.success) { showToast(t('prizeNoteSaved')); if (_prizeCache[id]) _prizeCache[id].admin_note = note; }
   else showToast(res?.message || t('orderSaveError'), 'error');
 }
 

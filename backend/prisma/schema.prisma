@@ -118,6 +118,7 @@ model orders {
   delivered_at             DateTime?     @db.Timestamptz(6)
   rejected_at              DateTime?     @db.Timestamptz(6)
   is_prize                 Boolean       @default(false)
+  admin_note               String?
   coupon_code              String?       @db.VarChar(50)
   discount_amount          Decimal       @default(0) @db.Decimal(14, 0)
   original_amount          Decimal?      @db.Decimal(14, 0)
