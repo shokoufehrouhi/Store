@@ -3021,9 +3021,11 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 [dir="ltr"] .auth-modal-close { left: auto; right: 14px; }
 .auth-modal-close:hover { background: rgba(0,0,0,.12); color: var(--dark); }
 
-.auth-modal-header { margin-bottom: 24px; }
-.auth-modal-header h2 { font-size: 22px; font-weight: 800; color: var(--dark); margin-bottom: 4px; }
-.auth-modal-header p  { color: var(--text-light); font-size: 14px; }
+.auth-modal-header { margin-bottom: 16px; }
+.auth-modal-header h2 { font-size: 20px; font-weight: 800; color: var(--dark); margin-bottom: 2px; }
+.auth-modal-header p  { color: var(--text-light); font-size: 13px; }
+.form-field { margin-bottom: 10px; }
+.signup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
 
 /* ─── Form Fields ─────────────────────────────────────────────────────────── */
 .form-field { margin-bottom: 14px; }
@@ -3035,6 +3037,7 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   margin-bottom: 6px;
 }
 .form-field input,
+.form-field select,
 .form-field textarea {
   width: 100%;
   padding: 11px 14px;
@@ -3048,6 +3051,7 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   box-sizing: border-box;
 }
 .form-field input:focus,
+.form-field select:focus,
 .form-field textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(255,92,0,.12); }
 .form-field textarea { height: 72px; resize: vertical; }
 

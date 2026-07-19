@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=66">
+  <link rel="stylesheet" href="style.css?v=67">
 </head>
 <body>
 
@@ -438,46 +438,61 @@
           <h2 data-i18n="auth_signup_title">ثبت‌نام</h2>
           <p  data-i18n="auth_signup_sub">حساب جدید بسازید</p>
         </div>
-        <div class="form-field">
-          <label data-i18n="auth_name_label">نام و نام خانوادگی <span style="color:#9ca3af;font-weight:400;font-size:12px" data-i18n="auth_optional">(اختیاری)</span></label>
-          <input type="text" id="signup-name" data-i18n-ph="auth_name_ph" placeholder="نام کامل" onkeydown="if(event.key==='Enter')doSignup()">
+
+        <!-- Name + Email -->
+        <div class="signup-grid">
+          <div class="form-field">
+            <label data-i18n="auth_name_label">نام <span style="color:#9ca3af;font-weight:400;font-size:11px" data-i18n="auth_optional">(اختیاری)</span></label>
+            <input type="text" id="signup-name" data-i18n-ph="auth_name_ph" placeholder="نام کامل" onkeydown="if(event.key==='Enter')doSignupStep1()">
+          </div>
+          <div class="form-field">
+            <label data-i18n="auth_email_label">ایمیل</label>
+            <input type="email" id="signup-email" data-i18n-ph="auth_email_ph" placeholder="email@example.com" onkeydown="if(event.key==='Enter')doSignupStep1()">
+            <span class="auth-field-error" id="signup-email-err"></span>
+          </div>
         </div>
-        <div class="form-field">
-          <label data-i18n="auth_email_label">ایمیل</label>
-          <input type="email" id="signup-email" data-i18n-ph="auth_email_ph" placeholder="email@example.com" onkeydown="if(event.key==='Enter')doSignupStep1()">
-          <span class="auth-field-error" id="signup-email-err"></span>
+
+        <!-- Password + Confirm -->
+        <div class="signup-grid">
+          <div class="form-field">
+            <label data-i18n="auth_pass_label">رمز عبور</label>
+            <div class="pass-wrap"><input type="password" id="signup-password" data-i18n-ph="auth_signup_pass_ph" placeholder="حداقل ۸ کاراکتر" onkeydown="if(event.key==='Enter')doSignupStep1()"><button class="toggle-pass" onclick="togglePassVis('signup-password',this)">👁</button></div>
+            <span class="auth-field-error" id="signup-pass-err"></span>
+          </div>
+          <div class="form-field">
+            <label data-i18n="auth_signup_conf_label">تکرار رمز</label>
+            <div class="pass-wrap"><input type="password" id="signup-confirm" data-i18n-ph="auth_signup_conf_ph" placeholder="تکرار کنید" onkeydown="if(event.key==='Enter')doSignupStep1()"><button class="toggle-pass" onclick="togglePassVis('signup-confirm',this)">👁</button></div>
+            <span class="auth-field-error" id="signup-confirm-err"></span>
+          </div>
         </div>
-        <div class="form-field">
-          <label data-i18n="auth_pass_label">رمز عبور</label>
-          <div class="pass-wrap"><input type="password" id="signup-password" data-i18n-ph="auth_signup_pass_ph" placeholder="حداقل ۸ کاراکتر" onkeydown="if(event.key==='Enter')doSignup()"><button class="toggle-pass" onclick="togglePassVis('signup-password',this)">👁</button></div>
-          <span class="auth-field-error" id="signup-pass-err"></span>
-          <span class="form-hint" data-i18n="auth_pass_hint">باید شامل حرف بزرگ، حرف کوچک انگلیسی و عدد باشد</span>
-        </div>
-        <div class="form-field">
-          <label data-i18n="auth_signup_conf_label">تکرار رمز عبور</label>
-          <div class="pass-wrap"><input type="password" id="signup-confirm" data-i18n-ph="auth_signup_conf_ph" placeholder="رمز عبور را تکرار کنید" onkeydown="if(event.key==='Enter')doSignup()"><button class="toggle-pass" onclick="togglePassVis('signup-confirm',this)">👁</button></div>
-          <span class="auth-field-error" id="signup-confirm-err"></span>
-        </div>
+        <span class="form-hint" style="display:block;margin-top:-6px;margin-bottom:8px" data-i18n="auth_pass_hint">باید شامل حرف بزرگ، حرف کوچک انگلیسی و عدد باشد</span>
+
+        <!-- Mobile -->
         <div class="form-field">
           <label data-i18n="auth_mobile_label">شماره موبایل</label>
           <div style="display:flex;gap:6px;direction:ltr">
-            <input type="text" id="signup-country-code" style="width:74px;flex-shrink:0;text-align:center;font-weight:600;letter-spacing:0.03em" placeholder="+90" oninput="onSignupCcChange()" onkeydown="if(event.key==='Enter')doSignup()">
-            <input type="tel" id="signup-mobile" style="flex:1" data-i18n-ph="auth_mobile_ph" placeholder="05xxxxxxxxx" onkeydown="if(event.key==='Enter')doSignup()">
+            <input type="text" id="signup-country-code" style="width:72px;flex-shrink:0;text-align:center;font-weight:600;letter-spacing:0.03em" placeholder="+90" oninput="onSignupCcChange()" onkeydown="if(event.key==='Enter')doSignupStep1()">
+            <input type="tel" id="signup-mobile" style="flex:1" data-i18n-ph="auth_mobile_ph" placeholder="5xxxxxxxxx" onkeydown="if(event.key==='Enter')doSignupStep1()">
           </div>
           <span class="auth-field-error" id="signup-mobile-err"></span>
         </div>
-        <div class="form-field">
-          <label data-i18n="auth_birth_label">تاریخ تولد <span class="auth-optional" data-i18n="auth_optional" style="color:#9ca3af;font-weight:400;font-size:12px">(اختیاری)</span></label>
-          <input type="date" id="signup-birth-date" style="direction:ltr">
+
+        <!-- Birth date + Language -->
+        <div class="signup-grid">
+          <div class="form-field">
+            <label data-i18n="auth_birth_label">تاریخ تولد <span style="color:#9ca3af;font-weight:400;font-size:11px" data-i18n="auth_optional">(اختیاری)</span></label>
+            <input type="date" id="signup-birth-date" style="direction:ltr">
+          </div>
+          <div class="form-field">
+            <label data-i18n="auth_lang_label">زبان <span style="color:#9ca3af;font-weight:400;font-size:11px" data-i18n="auth_optional">(اختیاری)</span></label>
+            <select id="signup-lang">
+              <option value="fa">فارسی</option>
+              <option value="tr">Türkçe</option>
+              <option value="en">English</option>
+            </select>
+          </div>
         </div>
-        <div class="form-field">
-          <label data-i18n="auth_lang_label">زبان <span style="color:#9ca3af;font-weight:400;font-size:12px" data-i18n="auth_optional">(اختیاری)</span></label>
-          <select id="signup-lang" style="direction:ltr;font-size:14px">
-            <option value="fa">فارسی</option>
-            <option value="tr">Türkçe</option>
-            <option value="en">English</option>
-          </select>
-        </div>
+
         <button class="auth-submit-btn" onclick="doSignupStep1()" data-i18n="auth_btn_signup">ادامه و ارسال کد</button>
         <p class="auth-switch-text"><span data-i18n="auth_have_account">حساب دارید؟</span> <button class="auth-link-btn" onclick="showAuthView('login')" data-i18n="auth_do_login">ورود کنید</button></p>
       </div>
