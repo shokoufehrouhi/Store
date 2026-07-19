@@ -869,9 +869,21 @@ function restoreFilterFromHash() {
 
 // ─── Shared Filter Handler ────────────────────────────────────────────────────
 function handleFilterClick(el, scrollToProducts) {
-  currentCategory    = el.dataset.filter || 'all';
-  currentGender      = el.dataset.gender || 'all';
-  currentSubcategory = el.dataset.sub    || null;
+  var cat    = el.dataset.filter || 'all';
+  var gender = el.dataset.gender || 'all';
+  var sub    = el.dataset.sub    || '';
+  if (window.IS_PROFILE_PAGE) {
+    var p = new URLSearchParams();
+    if (cat    && cat    !== 'all') p.set('cat', cat);
+    if (gender && gender !== 'all') p.set('gender', gender);
+    if (sub    && sub    !== '')    p.set('sub', sub);
+    var qs = p.toString();
+    window.location.href = '/' + (qs ? '#' + qs : '');
+    return;
+  }
+  currentCategory    = cat;
+  currentGender      = gender;
+  currentSubcategory = sub || null;
   currentColors      = [];
   currentSizes       = [];
   saveFilterToHash();
