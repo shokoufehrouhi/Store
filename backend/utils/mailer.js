@@ -1,10 +1,6 @@
 const nodemailer = require('nodemailer');
 
-const path          = require('path');
-const EMAIL_LOGO_PATH   = path.join(__dirname, '../../frontend/images/shilista_logo.png');
-const EMAIL_IMG_ATTACHMENTS = [
-  { filename: 'logo.png', path: EMAIL_LOGO_PATH, cid: 'logo@shilista' },
-];
+const EMAIL_LOGO_URL = 'https://www.shilista.com/images/shilista_logo.png';
 
 const FOOTER_TR = `
       <tr>
@@ -348,7 +344,7 @@ function buildHtml(type, order, customer, extraInfo) {
       <!-- Header -->
       <tr>
         <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
-          <img src="cid:logo@shilista" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
+          <img src="https://www.shilista.com/images/shilista_logo.png" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
 
@@ -417,19 +413,14 @@ async function sendOrderEmail(customer, order, type, extraInfo, attachFiles) {
 
   const { subject, html } = buildHtml(type, order, customer, extraInfo);
 
-  const attachments = [...EMAIL_IMG_ATTACHMENTS];
-  if (attachFiles && attachFiles.length) {
-    for (const f of attachFiles) {
-      attachments.push(f);
-    }
-  }
+  const attachments = attachFiles && attachFiles.length ? attachFiles : undefined;
 
   await transporter.sendMail({
     from:        process.env.SMTP_FROM || process.env.SMTP_USER,
     to:          customer.email,
     subject,
     html,
-    attachments,
+    ...(attachments ? { attachments } : {}),
   });
 }
 
@@ -554,7 +545,7 @@ async function sendFriendInviteEmail({ toName, toEmail, referrerName, lang, trac
     to:          toEmail,
     subject,
     html,
-    attachments: EMAIL_IMG_ATTACHMENTS,
+    
   });
 }
 
@@ -596,7 +587,7 @@ async function sendReplyEmail(customer, order, replyText) {
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
       <tr><td style="background:#fff;padding:24px 32px 16px;border-bottom:2px solid #f0e8df;text-align:center">
-        <img src="cid:logo@shilista" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
+        <img src="https://www.shilista.com/images/shilista_logo.png" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
       </td></tr>
       <tr><td style="background:linear-gradient(135deg,#c0562a,#e07a40);padding:16px 32px;text-align:center">
         <p style="margin:0;font-size:16px;font-weight:700;color:#fff">${subject}</p>
@@ -610,7 +601,7 @@ async function sendReplyEmail(customer, order, replyText) {
   </td></tr>
 </table>
 </body></html>`;
-  await transporter.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to: customer.email, subject, html, attachments: EMAIL_IMG_ATTACHMENTS });
+  await transporter.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to: customer.email, subject, html });
 }
 
 // ─── Loyalty milestone email ────────────────────────────────────────────────────
@@ -673,7 +664,7 @@ async function sendLoyaltyEmail(customer, deliveredCount) {
 
       <tr>
         <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
-          <img src="cid:logo@shilista" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
+          <img src="https://www.shilista.com/images/shilista_logo.png" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
 
@@ -712,7 +703,7 @@ async function sendLoyaltyEmail(customer, deliveredCount) {
     to:          customer.email,
     subject,
     html,
-    attachments: EMAIL_IMG_ATTACHMENTS,
+    
   });
 }
 
@@ -759,7 +750,7 @@ async function sendPrizeEarnedEmail(customer) {
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
       <tr>
         <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
-          <img src="cid:logo@shilista" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
+          <img src="https://www.shilista.com/images/shilista_logo.png" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
       <tr>
@@ -790,7 +781,7 @@ async function sendPrizeEarnedEmail(customer) {
     to:          customer.email,
     subject:     ll.subject,
     html,
-    attachments: EMAIL_IMG_ATTACHMENTS,
+    
   });
 }
 
@@ -855,7 +846,7 @@ async function sendBirthdayEmail(customer, birthdayDate, validUntil) {
 
       <tr>
         <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
-          <img src="cid:logo@shilista" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
+          <img src="https://www.shilista.com/images/shilista_logo.png" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
 
@@ -909,7 +900,7 @@ async function sendBirthdayEmail(customer, birthdayDate, validUntil) {
     to:          customer.email,
     subject:     ll.subject,
     html,
-    attachments: EMAIL_IMG_ATTACHMENTS,
+    
   });
 }
 
@@ -965,7 +956,7 @@ async function sendWelcomeEmail(customer) {
 
       <tr>
         <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
-          <img src="cid:logo@shilista" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
+          <img src="https://www.shilista.com/images/shilista_logo.png" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
 
@@ -1018,7 +1009,7 @@ async function sendWelcomeEmail(customer) {
     to:          customer.email,
     subject:     ll.subject,
     html,
-    attachments: EMAIL_IMG_ATTACHMENTS,
+    
   });
 }
 
@@ -1043,7 +1034,7 @@ async function sendVerificationEmail(toEmail, code, lang) {
       style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
       <tr>
         <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
-          <img src="cid:logo@shilista" alt="Shilista" width="220" style="width:220px;max-width:90%;height:auto;display:inline-block">
+          <img src="https://www.shilista.com/images/shilista_logo.png" alt="Shilista" width="220" style="width:220px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
       <tr>
@@ -1069,7 +1060,7 @@ async function sendVerificationEmail(toEmail, code, lang) {
     to:          toEmail,
     subject:     ll.subject,
     html,
-    attachments: EMAIL_IMG_ATTACHMENTS,
+    
   });
 }
 
