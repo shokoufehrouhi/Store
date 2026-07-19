@@ -4694,8 +4694,8 @@ document.addEventListener('DOMContentLoaded', function() {
       loadCartFromServer();
       loadFavoritesFromServer();
       loadActivePreorder();
-      openProfileModal();
       var _pTab = new URLSearchParams(location.search).get('tab') || 'info';
+      openProfileModal();
       showProfileTab(_pTab);
       // Fetch products + categories in parallel
       Promise.all([
