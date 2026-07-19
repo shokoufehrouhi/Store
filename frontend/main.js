@@ -2608,7 +2608,6 @@ function renderLoyaltyCard(completedOrders) {
   return '<div class="lc-card">' +
     '<div class="lc-header">' +
       '<div><div class="lc-brand">' + brandTxt + '</div><div class="lc-title">' + titleTxt + '</div></div>' +
-      '<div class="lc-cycle-badge">' + cycleTxt + '</div>' +
     '</div>' +
     '<div class="lc-row">' +
       stamp(0) + dots + stamp(1) + dots + stamp(2) + dots +

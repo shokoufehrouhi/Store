@@ -709,7 +709,7 @@ async function markDelivered(req, res, next) {
               total_amount: 0,
               channel:      'prize',
               lang:         updated.customers.preferred_lang || 'fa',
-              note:         'Loyalty Gift Prize — cycle 2 (round ' + eligibleCycles + ')',
+              note:         'Loyalty Gift Prize',
             },
           });
           sendPrizeEarnedEmail(updated.customers).catch(e => console.error('[prize email]', e.message));
