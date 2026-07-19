@@ -2908,26 +2908,33 @@ function renderInfoTab() {
         '</div>'
       : '') +
 
-    // Avatar
-    '<div style="display:flex;align-items:center;gap:16px;padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
-    '<div class="info-avatar-ring">' +
-    (src
-      ? '<img src="' + src + '" alt="">'
-      : makeInitialsAvatar(displayName, 68, 26)) +
+    // Fields grid
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px">' +
+
+    // Row 1: Email + Avatar buttons
+    '<div class="form-field">' +
+    '<label>' + t.profile_info_email_label + '</label>' +
+    emailField +
+    '</div>' +
+
+    '<div class="form-field" style="display:flex;flex-direction:column;justify-content:flex-end">' +
+    '<label>' + (currentLang === 'fa' ? 'تصویر پروفایل' : currentLang === 'tr' ? 'Profil Fotoğrafı' : 'Profile Photo') + '</label>' +
+    '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+    '<div class="info-avatar-ring" style="width:40px;height:40px">' +
+    (src ? '<img src="' + src + '" alt="">' : makeInitialsAvatar(displayName, 40, 16)) +
     '</div>' +
     '<button class="info-avatar-upload-btn" onclick="triggerAvatarUpload()">' +
-    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
+    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
     (src ? t.profile_info_avatar_edit : t.profile_info_avatar_add) +
     '</button>' +
     '<button class="info-avatar-remove-btn' + (src ? '' : ' info-avatar-remove-btn--disabled') + '" onclick="removeAvatar()" ' + (src ? '' : 'disabled') + '>' +
-    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>' +
+    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>' +
     t.profile_info_avatar_remove +
     '</button>' +
     '</div>' +
+    '</div>' +
 
-    // Fields — 2-column grid
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px">' +
-
+    // Row 2: Name + Mobile
     '<div class="form-field">' +
     '<label>' + t.profile_info_name_label + '</label>' +
     '<input id="info-name-input" type="text" value="' + displayName.replace(/"/g,'&quot;') + '">' +
@@ -2935,22 +2942,11 @@ function renderInfoTab() {
     '</div>' +
 
     '<div class="form-field">' +
-    '<label>' + t.profile_info_email_label + '</label>' +
-    emailField +
-    '</div>' +
-
-    '<div class="form-field">' +
     '<label>' + t.profile_info_mobile_label + '</label>' +
     mobileField +
     '</div>' +
 
-    '<div class="form-field">' +
-    '<label>' + t.profile_info_birth_label + '</label>' +
-    (user.birth_date
-      ? '<div style="padding:8px 0;font-family:monospace;letter-spacing:.5px;color:#555;direction:ltr">' + user.birth_date.split('T')[0] + '</div>'
-      : '<input id="info-birth-input" type="date" dir="ltr" value="" style="font-family:monospace;letter-spacing:.5px">') +
-    '</div>' +
-
+    // Row 3: Language + Birth date
     '<div class="form-field">' +
     '<label>' + (currentLang === 'fa' ? 'زبان ترجیحی' : currentLang === 'tr' ? 'Tercih Edilen Dil' : 'Preferred Language') + '</label>' +
     '<select id="info-lang-select">' +
@@ -2958,6 +2954,13 @@ function renderInfoTab() {
     '<option value="tr"' + (user.preferred_lang === 'tr' ? ' selected' : '') + '>Türkçe</option>' +
     '<option value="en"' + (user.preferred_lang === 'en' ? ' selected' : '') + '>English</option>' +
     '</select>' +
+    '</div>' +
+
+    '<div class="form-field">' +
+    '<label>' + t.profile_info_birth_label + '</label>' +
+    (user.birth_date
+      ? '<div style="padding:8px 0;font-family:monospace;letter-spacing:.5px;color:#555;direction:ltr">' + user.birth_date.split('T')[0] + '</div>'
+      : '<input id="info-birth-input" type="date" dir="ltr" value="" style="font-family:monospace;letter-spacing:.5px">') +
     '</div>' +
 
     '</div>' +
