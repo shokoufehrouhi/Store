@@ -3435,8 +3435,10 @@ function _renderOrdersList(apiOrders) {
           '<div class="order-payment-row"><span>' + (t.shipped_at_label || 'تاریخ ارسال') + ':</span><span style="direction:ltr">' + shippedStr2 + '</span></div>' +
           '<div class="order-payment-row"><span>' + (t.delivered_at_label || 'تاریخ تحویل') + ':</span><span style="direction:ltr">' + deliveredStr2 + '</span></div>' +
           '</div>';
-        detailHtml += '<div id="order-return-section-' + order.id + '"><div style="color:#aaa;font-size:12px;text-align:center;padding:6px"></div></div>';
-        detailHtml += buildProductPhotoUploadSection(order);
+        if (!order.is_prize) {
+          detailHtml += '<div id="order-return-section-' + order.id + '"><div style="color:#aaa;font-size:12px;text-align:center;padding:6px"></div></div>';
+          detailHtml += buildProductPhotoUploadSection(order);
+        }
       }
 
       if (st === 'cancelled') {
@@ -3591,7 +3593,7 @@ function toggleProfileOrder(orderId) {
   if (_profileExpandedId === orderId) {
     var ord = (_cachedApiOrders || []).find(function(o) { return o.id === orderId; });
     if (ord && !ord.is_prize) loadOrderMessages(orderId);
-    if (ord && ord.status === 'delivered') loadOrderReturn(orderId, ord);
+    if (ord && !ord.is_prize && ord.status === 'delivered') loadOrderReturn(orderId, ord);
   }
 }
 
