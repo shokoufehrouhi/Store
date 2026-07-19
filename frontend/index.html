@@ -439,14 +439,9 @@
           <p  data-i18n="auth_signup_sub">حساب جدید بسازید</p>
         </div>
         <div class="form-field">
-          <label data-i18n="auth_name_label">نام و نام خانوادگی</label>
-          <input type="text" id="signup-name" data-i18n-ph="auth_name_ph" placeholder="نام کامل" onkeydown="if(event.key==='Enter')doSignup()">
-          <span class="auth-field-error" id="signup-name-err"></span>
-        </div>
-        <div class="form-field">
-          <label data-i18n="auth_id_label">ایمیل یا شماره موبایل</label>
-          <input type="text" id="signup-identifier" data-i18n-ph="auth_id_ph" placeholder="email@example.com یا ۰۹..." onkeydown="if(event.key==='Enter')doSignup()">
-          <span class="auth-field-error" id="signup-id-err"></span>
+          <label data-i18n="auth_email_label">ایمیل</label>
+          <input type="email" id="signup-email" data-i18n-ph="auth_email_ph" placeholder="email@example.com" onkeydown="if(event.key==='Enter')doSignup()">
+          <span class="auth-field-error" id="signup-email-err"></span>
         </div>
         <div class="form-field">
           <label data-i18n="auth_pass_label">رمز عبور</label>
@@ -458,6 +453,18 @@
           <label data-i18n="auth_signup_conf_label">تکرار رمز عبور</label>
           <div class="pass-wrap"><input type="password" id="signup-confirm" data-i18n-ph="auth_signup_conf_ph" placeholder="رمز عبور را تکرار کنید" onkeydown="if(event.key==='Enter')doSignup()"><button class="toggle-pass" onclick="togglePassVis('signup-confirm',this)">👁</button></div>
           <span class="auth-field-error" id="signup-confirm-err"></span>
+        </div>
+        <div class="form-field">
+          <label data-i18n="auth_mobile_label">شماره موبایل</label>
+          <div style="display:flex;gap:6px;direction:ltr">
+            <input type="text" id="signup-country-code" style="width:74px;flex-shrink:0;text-align:center;font-weight:600;letter-spacing:0.03em" placeholder="+90" onkeydown="if(event.key==='Enter')doSignup()">
+            <input type="tel" id="signup-mobile" style="flex:1" data-i18n-ph="auth_mobile_ph" placeholder="05xxxxxxxxx" onkeydown="if(event.key==='Enter')doSignup()">
+          </div>
+          <span class="auth-field-error" id="signup-mobile-err"></span>
+        </div>
+        <div class="form-field">
+          <label data-i18n="auth_birth_label">تاریخ تولد <span class="auth-optional" data-i18n="auth_optional" style="color:#9ca3af;font-weight:400;font-size:12px">(اختیاری)</span></label>
+          <input type="date" id="signup-birth-date" style="direction:ltr">
         </div>
         <button class="auth-submit-btn" onclick="doSignup()" data-i18n="auth_btn_signup">ثبت‌نام</button>
         <p class="auth-switch-text"><span data-i18n="auth_have_account">حساب دارید؟</span> <button class="auth-link-btn" onclick="showAuthView('login')" data-i18n="auth_do_login">ورود کنید</button></p>
@@ -656,6 +663,6 @@
 
   <script src="i18n.js?v=55"></script>
   <script src="products.js?v=52"></script>
-  <script src="main.js?v=105"></script>
+  <script src="main.js?v=106"></script>
 </body>
 </html>

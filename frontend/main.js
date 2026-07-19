@@ -2139,6 +2139,12 @@ function showAuthView(view) {
     if (el) el.style.display = v === view ? 'block' : 'none';
   });
   clearAuthErrors();
+  if (view === 'signup') {
+    var ccInput = document.getElementById('signup-country-code');
+    if (ccInput && !ccInput.value) {
+      ccInput.value = currentLang === 'fa' ? '+98' : '+90';
+    }
+  }
 }
 function clearAuthErrors() {
   document.querySelectorAll('.auth-field-error, .auth-field-success').forEach(function(el) {
@@ -2208,25 +2214,32 @@ function doLogin() {
 
 // ─── Signup ───────────────────────────────────────────────────────────────────
 function doSignup() {
-  var t          = TRANSLATIONS[currentLang];
-  var name       = (document.getElementById('signup-name').value       || '').trim();
-  var identifier = (document.getElementById('signup-identifier').value || '').trim();
-  var password   =  document.getElementById('signup-password').value   || '';
-  var confirm    =  document.getElementById('signup-confirm').value    || '';
+  var t         = TRANSLATIONS[currentLang];
+  var email     = (document.getElementById('signup-email')?.value        || '').trim().toLowerCase();
+  var password  =  document.getElementById('signup-password')?.value     || '';
+  var confirm   =  document.getElementById('signup-confirm')?.value      || '';
+  var cc        = (document.getElementById('signup-country-code')?.value || '').trim().replace(/\s/g, '');
+  var mobileRaw = (document.getElementById('signup-mobile')?.value       || '').replace(/[\s\-]/g, '');
+  var birthDate =  document.getElementById('signup-birth-date')?.value   || '';
   clearAuthErrors();
-  if (!name)       { setAuthError('signup-name-err', t.err_name_req); return; }
-  if (!identifier) { setAuthError('signup-id-err',   t.err_id_req);   return; }
-  var isEmail = identifier.includes('@');
-  if (isEmail  && !validateEmail(identifier))  { setAuthError('signup-id-err', t.err_email_inv);  return; }
-  if (!isEmail && !validateMobile(identifier)) { setAuthError('signup-id-err', t.err_mobile_inv); return; }
-  if (!validatePassword(password)) { setAuthError('signup-pass-err',    t.err_pass_inv);      return; }
-  if (password !== confirm)        { setAuthError('signup-confirm-err', t.err_pass_mismatch);  return; }
-  var body = {
-    name:     name,
-    password: password,
-    email:    isEmail  ? identifier : undefined,
-    mobile:   !isEmail ? identifier : undefined
-  };
+
+  if (!email)                    { setAuthError('signup-email-err',  t.err_email_req  || t.err_id_req); return; }
+  if (!validateEmail(email))     { setAuthError('signup-email-err',  t.err_email_inv);                  return; }
+  if (!validatePassword(password)) { setAuthError('signup-pass-err', t.err_pass_inv);                   return; }
+  if (password !== confirm)       { setAuthError('signup-confirm-err', t.err_pass_mismatch);             return; }
+  if (!mobileRaw)                { setAuthError('signup-mobile-err', t.err_mobile_req || t.err_id_req); return; }
+
+  // Normalize country code: ensure starts with +
+  if (cc && !cc.startsWith('+')) cc = '+' + cc;
+  if (!cc) cc = currentLang === 'fa' ? '+98' : '+90';
+  // Remove leading zeros from mobile, then prepend country code
+  var mobileClean = mobileRaw.replace(/^0+/, '');
+  var mobile = cc + mobileClean;
+  if (!/^\+[0-9]{7,15}$/.test(mobile)) { setAuthError('signup-mobile-err', t.err_mobile_intl_inv || t.err_mobile_inv); return; }
+
+  var body = { email: email, password: password, mobile: mobile, preferred_lang: currentLang };
+  if (birthDate) body.birth_date = birthDate;
+
   fetch(API_BASE + '/customers/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -2247,12 +2260,12 @@ function doSignup() {
       executePendingCart();
       loadFavoritesFromServer();
     } else if (r.status === 409) {
-      setAuthError('signup-id-err', t.err_user_exists);
+      setAuthError('signup-email-err', t.err_user_exists);
     } else {
-      setAuthError('signup-id-err', r.data.message || t.err_user_exists);
+      setAuthError('signup-email-err', r.data.message || t.err_user_exists);
     }
   }).catch(function() {
-    setAuthError('signup-id-err', t.err_user_exists);
+    setAuthError('signup-email-err', t.err_user_exists);
   });
 }
 

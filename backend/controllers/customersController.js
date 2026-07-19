@@ -9,6 +9,9 @@ const SESSION_TTL   = 7 * 24 * 60 * 60 * 1000; // 7 days
 function isValidMobile(m) {
   return /^05[0-9]{9}$/.test((m || '').replace(/[\s\-]/g, ''));
 }
+function isValidIntlMobile(m) {
+  return /^\+[0-9]{7,15}$/.test((m || '').replace(/\s/g, ''));
+}
 
 function legacyHash(pass) {
   return Buffer.from(pass, 'utf8').toString('base64');
@@ -29,24 +32,34 @@ async function verifyPassword(plain, stored) {
 
 async function register(req, res, next) {
   try {
-    const { full_name, name, email, mobile, password, preferred_lang } = req.body;
-    const customerName = full_name || name;
-    if (!customerName || !password || (!email && !mobile)) {
-      return res.status(400).json({ success: false, message: 'name, password and email or mobile are required' });
+    const { email, mobile, password, birth_date, preferred_lang } = req.body;
+    if (!email || !mobile || !password) {
+      return res.status(400).json({ success: false, message: 'email, mobile and password are required' });
     }
-    if (mobile && !isValidMobile(mobile)) {
+    if (!isValidIntlMobile(mobile)) {
       return res.status(400).json({ success: false, message: 'invalid_mobile' });
     }
+    if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+      return res.status(400).json({ success: false, message: 'password_too_weak' });
+    }
     const existing = await prisma.customers.findFirst({
-      where: { OR: [email ? { email } : {}, mobile ? { mobile } : {}] },
+      where: { OR: [{ email: email.trim().toLowerCase() }, { mobile }] },
     });
     if (existing) return res.status(409).json({ success: false, message: 'Customer already exists' });
 
+    const full_name = email.trim().toLowerCase().split('@')[0];
+    const customerData = {
+      full_name,
+      email:         email.trim().toLowerCase(),
+      mobile,
+      password_hash: await hashPassword(password),
+      preferred_lang: preferred_lang || 'fa',
+      registered_by: 'e',
+    };
+    if (birth_date) customerData.birth_date = new Date(birth_date);
     const customer = await prisma.customers.create({
-      data: { full_name: customerName, email: email || null, mobile: mobile || null,
-              password_hash: await hashPassword(password), preferred_lang: preferred_lang || 'fa',
-              registered_by: email ? 'e' : 'm' },
-      select: { id: true, full_name: true, email: true, mobile: true, registered_by: true, preferred_lang: true, created_at: true },
+      data: customerData,
+      select: { id: true, full_name: true, email: true, mobile: true, birth_date: true, registered_by: true, preferred_lang: true, created_at: true },
     });
 
     const session = await prisma.sessions.create({
