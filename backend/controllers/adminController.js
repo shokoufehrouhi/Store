@@ -1150,12 +1150,16 @@ async function updatePrizeNote(req, res, next) {
   try {
     const id = Number(req.params.id);
     const { admin_note } = req.body;
+    if (!admin_note || !admin_note.trim()) return res.status(400).json({ success: false, message: 'note_empty' });
     const order = await prisma.orders.findUnique({ where: { id } });
     if (!order || !order.is_prize) return res.status(404).json({ success: false, message: 'not_found' });
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const newEntry = dateStr + ' | ' + admin_note.trim();
+    const combined = order.admin_note ? order.admin_note + '\n' + newEntry : newEntry;
     await prisma.orders.update({
       where: { id },
-      data: { admin_note: admin_note || null, updated_at: new Date() },
+      data: { admin_note: combined, updated_at: new Date() },
     });
-    res.json({ success: true });
+    res.json({ success: true, admin_note: combined });
   } catch (err) { next(err); }
 }

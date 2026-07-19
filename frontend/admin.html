@@ -3563,31 +3563,67 @@ async function openPrizeDetail(id) {
       '</div></div>';
   }
 
+  // notes log
+  function buildNotesLog(adminNote) {
+    if (!adminNote || !adminNote.trim()) return '';
+    var lines = adminNote.trim().split('\n').filter(Boolean).reverse();
+    var rows = lines.map(function(line) {
+      var sep = line.indexOf(' | ');
+      var date = sep !== -1 ? '<span style="font-family:monospace;font-size:11px;color:#7c3aed;font-weight:700;flex-shrink:0">' + esc(line.slice(0, sep)) + '</span>' : '';
+      var text = sep !== -1 ? esc(line.slice(sep + 3)) : esc(line);
+      return '<div style="display:flex;gap:10px;align-items:baseline;padding:7px 12px;border-bottom:1px solid #f0f0f0">' + date + '<span style="font-size:13px;color:#333">' + text + '</span></div>';
+    }).join('');
+    return '<div id="prize-notes-log" style="background:#faf9ff;border:1.5px solid #e9e2ff;border-radius:8px;margin-bottom:10px;max-height:160px;overflow-y:auto">' + rows + '</div>';
+  }
+
+  var notesSection =
+    '<div style="margin-top:16px">' +
+      '<div style="font-size:12px;font-weight:600;color:#555;margin-bottom:6px">' + t('prizeAdminNoteLabel') + ' 🔒</div>' +
+      '<div id="prize-notes-log-wrap">' + buildNotesLog(o.admin_note) + '</div>' +
+      '<div style="display:flex;gap:8px;align-items:flex-end">' +
+        '<textarea id="prize-admin-note" rows="2" placeholder="' + t('prizeAdminNotePh') + '" style="flex:1;resize:none;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-family:inherit;font-size:13px;box-sizing:border-box"></textarea>' +
+        '<button class="btn btn-primary btn-sm" onclick="savePrizeNote(' + id + ')" style="white-space:nowrap;height:38px">+ ' + (t('save') || 'ذخیره') + '</button>' +
+      '</div>' +
+    '</div>';
+
   var body =
     timeline +
     '<hr style="border:none;border-top:1px solid #f0f0f0;margin:8px 0">' +
     '<div style="margin-top:12px"><div style="font-size:12px;font-weight:600;color:#555;margin-bottom:4px">' + t('prizeAddrLabel') + '</div>' + addrBlock + '</div>' +
     trackBlock +
-    '<div style="margin-top:16px">' +
-      '<label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px">' + t('prizeAdminNoteLabel') + ' 🔒</label>' +
-      '<textarea id="prize-admin-note" rows="3" placeholder="' + t('prizeAdminNotePh') + '" style="width:100%;resize:vertical;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-family:inherit;font-size:13px;box-sizing:border-box">' + esc(o.admin_note || '') + '</textarea>' +
-    '</div>';
+    notesSection;
 
-  var footer =
-    '<button class="btn btn-primary" onclick="savePrizeNote(' + id + ')">' + (t('save') || 'ذخیره') + '</button>' +
-    '<button class="btn btn-secondary" onclick="closeModal()">' + t('cancel') + '</button>';
+  var footer = '<button class="btn btn-secondary" onclick="closeModal()">' + t('cancel') + '</button>';
 
   openModal('🏆 ' + t('prizeDetailTitle') + ' #' + String(id).padStart(6,'0'), body, footer);
 }
 
 async function savePrizeNote(id) {
   var note = document.getElementById('prize-admin-note')?.value?.trim() || '';
+  if (!note) return;
   var res = await api('/admin/prizes/' + id + '/note', {
     method: 'PATCH',
     body: JSON.stringify({ admin_note: note }),
   });
-  if (res?.success) { showToast(t('prizeNoteSaved')); if (_prizeCache[id]) _prizeCache[id].admin_note = note; }
-  else showToast(res?.message || t('orderSaveError'), 'error');
+  if (res?.success) {
+    showToast(t('prizeNoteSaved'));
+    if (_prizeCache[id]) _prizeCache[id].admin_note = res.admin_note;
+    // refresh notes log in-place
+    var logWrap = document.getElementById('prize-notes-log-wrap');
+    if (logWrap) {
+      var lines = res.admin_note.trim().split('\n').filter(Boolean).reverse();
+      var rows = lines.map(function(line) {
+        var sep = line.indexOf(' | ');
+        var date = sep !== -1 ? '<span style="font-family:monospace;font-size:11px;color:#7c3aed;font-weight:700;flex-shrink:0">' + esc(line.slice(0, sep)) + '</span>' : '';
+        var text = sep !== -1 ? esc(line.slice(sep + 3)) : esc(line);
+        return '<div style="display:flex;gap:10px;align-items:baseline;padding:7px 12px;border-bottom:1px solid #f0f0f0">' + date + '<span style="font-size:13px;color:#333">' + text + '</span></div>';
+      }).join('');
+      logWrap.innerHTML = '<div id="prize-notes-log" style="background:#faf9ff;border:1.5px solid #e9e2ff;border-radius:8px;margin-bottom:10px;max-height:160px;overflow-y:auto">' + rows + '</div>';
+    }
+    document.getElementById('prize-admin-note').value = '';
+  } else {
+    showToast(res?.message || t('orderSaveError'), 'error');
+  }
 }
 
 function deliverPrize(id) {
