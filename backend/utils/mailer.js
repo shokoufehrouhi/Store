@@ -909,4 +909,117 @@ async function sendBirthdayEmail(customer, birthdayDate, validUntil) {
   });
 }
 
-module.exports = { sendOrderEmail, sendRawEmail, sendReplyEmail, sendFriendInviteEmail, sendLoyaltyEmail, sendBirthdayEmail, sendPrizeEarnedEmail, label };
+// ─── Welcome email (sent immediately after registration) ──────────────────────
+const WELCOME_L = {
+  fa: {
+    dir:        'rtl',
+    subject:    '🎉 خوش آمدی به Shilista — هدیه اول خرید',
+    title:      '🎉 خوش آمدی به Shilista!',
+    body:       'حساب شما با موفقیت ایجاد شد.\n\nبه‌عنوان هدیه خوش‌آمدگویی، یک کد تخفیف ویژه برای اولین خرید شما در نظر گرفته‌ایم:',
+    code_label: 'کد تخفیف خوش‌آمدگویی:',
+    note:       'این کد فقط یک‌بار قابل استفاده است. همین حالا خرید کنید!',
+    btn:        'خرید کنید',
+  },
+  en: {
+    dir:        'ltr',
+    subject:    '🎉 Welcome to Shilista — Your First Order Gift',
+    title:      '🎉 Welcome to Shilista!',
+    body:       'Your account has been created successfully.\n\nAs a welcome gift, here\'s an exclusive discount code for your first order:',
+    code_label: 'Your Welcome Discount Code:',
+    note:       'This code can be used only once. Start shopping now!',
+    btn:        'Shop Now',
+  },
+  tr: {
+    dir:        'ltr',
+    subject:    '🎉 Shilista\'ya Hoş Geldin — İlk Sipariş Hediyesi',
+    title:      '🎉 Shilista\'ya Hoş Geldiniz!',
+    body:       'Hesabınız başarıyla oluşturuldu.\n\nHoş geldin hediyesi olarak ilk siparişiniz için özel bir indirim kodu hazırladık:',
+    code_label: 'Hoş Geldin İndirim Kodunuz:',
+    note:       'Bu kod yalnızca bir kez kullanılabilir. Hemen alışverişe başlayın!',
+    btn:        'Alışverişe Başla',
+  },
+};
+
+async function sendWelcomeEmail(customer) {
+  if (!customer.email) return;
+  const transporter = getTransporter();
+  if (!transporter) return;
+
+  const lang    = (customer.preferred_lang || 'fa').substring(0, 2);
+  const ll      = WELCOME_L[lang] || WELCOME_L.fa;
+  const siteUrl = process.env.SITE_URL || 'https://shilista.com';
+  const name    = customer.full_name || '';
+
+  const html = `<!DOCTYPE html>
+<html dir="${ll.dir}" lang="${lang}">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,Tahoma,sans-serif;direction:${ll.dir}">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0eb;padding:32px 0">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0"
+      style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+
+      <tr>
+        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
+          <img src="cid:logo@shilista" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
+        </td>
+      </tr>
+
+      <tr>
+        <td style="background:linear-gradient(135deg,#c0562a,#e07a40);padding:22px 32px;text-align:center">
+          <p style="margin:0;font-size:20px;font-weight:700;color:#fff;letter-spacing:.5px">${ll.title}</p>
+          ${name ? `<p style="margin:6px 0 0;font-size:14px;color:rgba(255,255,255,.85)">${name}</p>` : ''}
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding:32px 32px 24px">
+          <p style="margin:0 0 28px;font-size:15px;color:#444;line-height:1.9;white-space:pre-line">${ll.body}</p>
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
+            <tr>
+              <td style="text-align:center">
+                <p style="margin:0 0 10px;font-size:13px;color:#a07050;font-weight:600">${ll.code_label}</p>
+                <div style="display:inline-block;background:#fdf5ed;border:2px dashed #c0562a;border-radius:12px;padding:18px 40px">
+                  <span style="font-family:monospace;font-size:34px;font-weight:800;color:#c0562a;letter-spacing:5px">FOD</span>
+                </div>
+                <p style="margin:12px 0 0;font-size:13px;color:#888">${ll.note}</p>
+              </td>
+            </tr>
+          </table>
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px">
+            <tr>
+              <td align="center">
+                <a href="${siteUrl}"
+                  style="display:inline-block;background:#c0562a;color:#fff;font-size:15px;font-weight:700;
+                         padding:13px 40px;border-radius:8px;text-decoration:none;letter-spacing:.3px">
+                  ${ll.btn}
+                </a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="background:#fff;padding:24px 32px 12px;border-top:1px solid #f0e8df;text-align:center">
+          <img src="cid:footer@shilista" alt="Shilista" width="480" style="width:480px;max-width:100%;height:auto;display:inline-block">
+        </td>
+      </tr>
+
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+
+  await transporter.sendMail({
+    from:        process.env.SMTP_FROM || process.env.SMTP_USER,
+    to:          customer.email,
+    subject:     ll.subject,
+    html,
+    attachments: EMAIL_IMG_ATTACHMENTS,
+  });
+}
+
+module.exports = { sendOrderEmail, sendRawEmail, sendReplyEmail, sendFriendInviteEmail, sendLoyaltyEmail, sendBirthdayEmail, sendPrizeEarnedEmail, sendWelcomeEmail, label };

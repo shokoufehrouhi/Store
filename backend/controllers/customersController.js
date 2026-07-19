@@ -1,7 +1,7 @@
 const prisma   = require('../prisma/client');
 const crypto   = require('crypto');
 const bcrypt   = require('bcrypt');
-const { sendRawEmail } = require('../utils/mailer');
+const { sendRawEmail, sendWelcomeEmail } = require('../utils/mailer');
 
 const BCRYPT_ROUNDS = 12;
 const SESSION_TTL   = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -115,6 +115,8 @@ async function register(req, res, next) {
         last_activity: new Date(),
       },
     });
+
+    sendWelcomeEmail(customer).catch(() => {});
 
     // assign BESTIE if this email was referred
     if (email) {
