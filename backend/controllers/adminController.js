@@ -689,8 +689,8 @@ async function markDelivered(req, res, next) {
       const deliveredCount = await prisma.orders.count({
         where: { customer_id: updated.customer_id, status: 'delivered', is_prize: false },
       });
-      if (deliveredCount > 0 && deliveredCount % 3 === 0) {
-        const eligibleCycles = Math.floor(deliveredCount / 3);
+      if (deliveredCount > 0 && deliveredCount % 6 === 0) {
+        const eligibleCycles = Math.floor(deliveredCount / 6);
         const prizesClaimed = await prisma.orders.count({
           where: { customer_id: updated.customer_id, is_prize: true },
         });

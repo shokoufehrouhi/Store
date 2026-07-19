@@ -2521,29 +2521,40 @@ function showProfileTab(tab) {
 // ─── Loyalty Card ─────────────────────────────────────────────────────────────
 function renderLoyaltyCard(completedOrders) {
   var n = completedOrders || 0;
-  var justCompleted = n > 0 && n % 3 === 0;
-  var filled = justCompleted ? 3 : (n % 3);
-  var cycleNum = justCompleted ? Math.floor(n / 3) : (Math.floor(n / 3) + 1);
-  var prizeUnlocked = filled >= 3;
+  var justCompleted = n > 0 && n % 6 === 0;
+  var filled = justCompleted ? 6 : (n % 6);
+  var cycleNum = justCompleted ? Math.floor(n / 6) : (Math.floor(n / 6) + 1);
+  var prize1Unlocked = filled >= 3;
+  var prize2Unlocked = filled >= 6;
   var L = currentLang;
 
   var cycleTxt = L === 'fa' ? ('دوره ' + toFaDigit(cycleNum)) : (L === 'tr' ? ('Devir ' + cycleNum) : ('Cycle ' + cycleNum));
   var brandTxt = 'SHILISTA CLUB';
   var titleTxt = L === 'fa' ? 'باشگاه وفاداری' : (L === 'tr' ? 'Sadakat Kulübü' : 'Loyalty Club');
-  var prizeLbl = L === 'fa' ? 'جایزه ویژه' : (L === 'tr' ? 'Özel Ödül' : 'Special Prize');
+  var p1Lbl = L === 'fa' ? 'کد تخفیف' : (L === 'tr' ? 'İndirim Kodu' : 'Discount Code');
+  var p2Lbl = L === 'fa' ? 'جایزه ویژه' : (L === 'tr' ? 'Özel Ödül' : 'Special Prize');
+  var claimTxt = L === 'fa' ? '🎉 دریافت!' : (L === 'tr' ? '🎉 Al!' : '🎉 Claim!');
 
-  function tipTxt() {
-    if (prizeUnlocked) return L === 'fa' ? '🏆 جایزه ثبت شد — سفارشات رو چک کن!' : (L === 'tr' ? '🏆 Ödül kaydedildi — siparişleri kontrol et!' : '🏆 Prize registered — check your orders!');
+  function tip1() {
+    if (prize1Unlocked) return L === 'fa' ? '✨ کد تخفیف آماده‌ست!' : (L === 'tr' ? '✨ İndirim kodu hazır!' : '✨ Discount code ready!');
     var rem = 3 - filled;
-    return L === 'fa' ? (toFaDigit(rem) + ' خرید مانده تا جایزه 🎁') : (L === 'tr' ? rem + ' alışveriş kaldı 🎁' : rem + ' purchase' + (rem > 1 ? 's' : '') + ' until your prize 🎁');
+    return L === 'fa' ? (toFaDigit(rem) + ' خرید مانده') : (L === 'tr' ? rem + ' alışveriş kaldı' : rem + ' purchase' + (rem > 1 ? 's' : '') + ' to go');
+  }
+  function tip2() {
+    if (prize2Unlocked) return L === 'fa' ? '🏆 جایزه ثبت شد — سفارشات رو چک کن!' : (L === 'tr' ? '🏆 Ödül kaydedildi — siparişleri kontrol et!' : '🏆 Prize registered — check your orders!');
+    var rem = 6 - filled;
+    return L === 'fa' ? (toFaDigit(rem) + ' خرید مانده تا جایزه ویژه 🎁') : (L === 'tr' ? rem + ' alışveriş kaldı 🎁' : rem + ' left until your gift 🎁');
   }
   function footerTxt() {
     if (n === 0) return L === 'fa' ? 'اولین خریدت رو ثبت کن و شروع کن!' : (L === 'tr' ? 'İlk alışverişini yap ve başla!' : 'Make your first purchase and start!');
-    if (prizeUnlocked) return L === 'fa' ? 'هر ۳ خرید = جایزه جدید! 🎊' : (L === 'tr' ? 'Her 3 alışveriş = yeni ödül! 🎊' : 'Every 3 purchases = a new prize! 🎊');
-    var rem = 3 - filled;
+    if (prize2Unlocked) return L === 'fa' ? 'هر ۶ خرید = جوایز جدید! 🎊' : (L === 'tr' ? 'Her 6 alışveriş = yeni ödüller! 🎊' : 'Every 6 purchases = new prizes! 🎊');
+    var next = prize1Unlocked ? (6 - filled) : (3 - filled);
+    var nextLbl = prize1Unlocked
+      ? (L === 'fa' ? 'جایزه ویژه' : L === 'tr' ? 'özel ödül' : 'special prize')
+      : (L === 'fa' ? 'کد تخفیف' : L === 'tr' ? 'indirim kodu' : 'your discount code');
     return L === 'fa'
-      ? 'فقط <strong>' + toFaDigit(rem) + ' خرید</strong> تا جایزه ویژه'
-      : (L === 'tr' ? '<strong>' + rem + ' alışveriş</strong> daha özel ödül için' : 'Just <strong>' + rem + ' purchase' + (rem > 1 ? 's' : '') + '</strong> until your prize');
+      ? 'فقط <strong>' + toFaDigit(next) + ' خرید</strong> تا ' + nextLbl
+      : (L === 'tr' ? '<strong>' + next + ' alışveriş</strong> daha ' + nextLbl + ' için' : 'Just <strong>' + next + ' purchase' + (next > 1 ? 's' : '') + '</strong> until ' + nextLbl);
   }
 
   function star(state) {
@@ -2555,23 +2566,23 @@ function renderLoyaltyCard(completedOrders) {
   }
 
   function stamp(i) {
-    var state = i < filled ? 'filled' : (i === filled && !prizeUnlocked ? 'next' : 'empty');
+    var state = i < filled ? 'filled' : (i === filled && !prize2Unlocked ? 'next' : 'empty');
     return '<div class="lc-stamp lc-' + state + '">' + star(state) + '</div>';
   }
 
   var dots = '<div class="lc-dot-gap"><span></span><span></span><span></span></div>';
 
-  var prizeState = prizeUnlocked ? 'lc-unlocked' : 'lc-locked';
-  var prizeQ     = prizeUnlocked ? '' : '<span class="lc-prize-q">?</span>';
-  var prizeLblTxt = prizeUnlocked
-    ? (L === 'fa' ? '📦 در پیگیری' : (L === 'tr' ? '📦 Takipte' : '📦 Tracking'))
-    : prizeLbl;
-  var prizeBox =
-    '<div class="lc-prize ' + prizeState + '">' +
-      '<div class="lc-prize-box"><span class="lc-prize-icon">🏆</span>' + prizeQ + '</div>' +
-      '<div class="lc-prize-lbl">' + prizeLblTxt + '</div>' +
-      '<div class="lc-tip">' + tipTxt() + '</div>' +
+  function prizeBox(unlocked, lblTxt, tipTxt, icon, onclickFn) {
+    var state     = unlocked ? 'lc-unlocked' : 'lc-locked';
+    var q         = unlocked ? '' : '<span class="lc-prize-q">?</span>';
+    var lbl       = unlocked ? (onclickFn ? claimTxt : (L === 'fa' ? '📦 در پیگیری' : (L === 'tr' ? '📦 Takipte' : '📦 Tracking'))) : lblTxt;
+    var clickAttr = (unlocked && onclickFn) ? ' onclick="' + onclickFn + '"' : '';
+    return '<div class="lc-prize ' + state + '"' + clickAttr + '>' +
+      '<div class="lc-prize-box"><span class="lc-prize-icon">' + icon + '</span>' + q + '</div>' +
+      '<div class="lc-prize-lbl">' + lbl + '</div>' +
+      '<div class="lc-tip">' + tipTxt + '</div>' +
     '</div>';
+  }
 
   return '<div class="lc-card">' +
     '<div class="lc-header">' +
@@ -2580,7 +2591,12 @@ function renderLoyaltyCard(completedOrders) {
     '</div>' +
     '<div class="lc-row">' +
       stamp(0) + dots + stamp(1) + dots + stamp(2) + dots +
-      prizeBox +
+      prizeBox(prize1Unlocked, p1Lbl, tip1(), '🎁', 'showLoyaltyReward()') +
+    '</div>' +
+    '<div class="lc-divider"></div>' +
+    '<div class="lc-row">' +
+      stamp(3) + dots + stamp(4) + dots + stamp(5) + dots +
+      prizeBox(prize2Unlocked, p2Lbl, tip2(), '🏆', null) +
     '</div>' +
     '<div class="lc-footer">' + footerTxt() + '</div>' +
   '</div>';
