@@ -500,6 +500,7 @@ const ADMIN_ORDER_INCLUDE = {
 async function getAdminOrders(req, res, next) {
   try {
     const orders = await prisma.orders.findMany({
+      where: { is_prize: false },
       include: ADMIN_ORDER_INCLUDE,
       orderBy: { created_at: 'desc' },
     });
