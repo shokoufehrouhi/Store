@@ -2935,13 +2935,13 @@ function renderInfoTab() {
     '</div>' +
 
     '<div class="form-field">' +
-    '<label>' + t.profile_info_mobile_label + '</label>' +
-    mobileField +
+    '<label>' + t.profile_info_email_label + '</label>' +
+    emailField +
     '</div>' +
 
     '<div class="form-field">' +
-    '<label>' + t.profile_info_email_label + '</label>' +
-    emailField +
+    '<label>' + t.profile_info_mobile_label + '</label>' +
+    mobileField +
     '</div>' +
 
     '<div class="form-field">' +
