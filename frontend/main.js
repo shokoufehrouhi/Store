@@ -873,12 +873,8 @@ function handleFilterClick(el, scrollToProducts) {
   var gender = el.dataset.gender || 'all';
   var sub    = el.dataset.sub    || '';
   if (window.IS_PROFILE_PAGE) {
-    var p = new URLSearchParams();
-    if (cat    && cat    !== 'all') p.set('cat', cat);
-    if (gender && gender !== 'all') p.set('gender', gender);
-    if (sub    && sub    !== '')    p.set('sub', sub);
-    var qs = p.toString();
-    window.location.href = '/' + (qs ? '#' + qs : '');
+    sessionStorage.setItem('mf_nav_filter', JSON.stringify({ cat: cat, gender: gender, sub: sub }));
+    window.location.href = '/';
     return;
   }
   currentCategory    = cat;
@@ -4756,6 +4752,18 @@ document.addEventListener('DOMContentLoaded', function() {
     updateCartBadge();
   }
   initIdleTimer();
+
+  // Apply filter passed from profile/product page via sessionStorage
+  var _pendingFilter = sessionStorage.getItem('mf_nav_filter');
+  if (_pendingFilter) {
+    sessionStorage.removeItem('mf_nav_filter');
+    try {
+      var _f = JSON.parse(_pendingFilter);
+      currentCategory    = _f.cat    || 'all';
+      currentGender      = _f.gender || 'all';
+      currentSubcategory = _f.sub    || null;
+    } catch (e) {}
+  }
 
   // Check for password reset token in URL
   var hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
