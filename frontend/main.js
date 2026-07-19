@@ -2951,6 +2951,15 @@ function renderInfoTab() {
       : '<input id="info-birth-input" type="date" dir="ltr" value="" style="font-family:monospace;letter-spacing:.5px">') +
     '</div>' +
 
+    '<div class="form-field">' +
+    '<label>' + (currentLang === 'fa' ? 'زبان ترجیحی' : currentLang === 'tr' ? 'Tercih Edilen Dil' : 'Preferred Language') + '</label>' +
+    '<select id="info-lang-select">' +
+    '<option value="fa"' + (user.preferred_lang === 'fa' ? ' selected' : '') + '>فارسی</option>' +
+    '<option value="tr"' + (user.preferred_lang === 'tr' ? ' selected' : '') + '>Türkçe</option>' +
+    '<option value="en"' + (user.preferred_lang === 'en' ? ' selected' : '') + '>English</option>' +
+    '</select>' +
+    '</div>' +
+
     '</div>' +
 
     '<span class="auth-field-success" id="info-save-success"></span>' +
@@ -3032,6 +3041,7 @@ function saveInfoAll() {
   var emailInp  = document.getElementById('info-email-input');
   var mobileInp = document.getElementById('info-mobile-input');
   var birthInp  = document.getElementById('info-birth-input');
+  var langSel   = document.getElementById('info-lang-select');
   var nameErr   = document.getElementById('info-name-err');
   var emailErr  = document.getElementById('info-email-err');
   var mobileErr = document.getElementById('info-mobile-err');
@@ -3045,6 +3055,7 @@ function saveInfoAll() {
   var emailVal  = emailInp  ? emailInp.value.trim()  : '';
   var mobileVal = mobileInp ? mobileInp.value.trim() : '';
   var birthVal  = birthInp  ? birthInp.value         : '';
+  var langVal   = langSel   ? langSel.value          : '';
 
   var valid = true;
   if (!nameVal) {
@@ -3062,6 +3073,7 @@ function saveInfoAll() {
   if (!valid) return;
 
   var body = { full_name: nameVal };
+  if (langVal && langVal !== user.preferred_lang) body.preferred_lang = langVal;
   if (user.registered_by !== 'e' && emailVal  && emailVal  !== user.email)  body.email  = emailVal;
   if (user.registered_by !== 'm') {
     if (mobileVal && mobileVal !== user.mobile) body.mobile = mobileVal;
@@ -3083,11 +3095,12 @@ function saveInfoAll() {
     if (btn) { btn.disabled = false; btn.style.opacity = ''; }
     if (r.status === 200 && r.data.success) {
       var u = getCurrentUser();
-      u.full_name    = r.data.data.full_name;
-      u.email        = r.data.data.email;
-      u.mobile       = r.data.data.mobile;
-      u.birth_date   = r.data.data.birth_date || null;
-      if (r.data.data.registered_by) u.registered_by = r.data.data.registered_by;
+      u.full_name      = r.data.data.full_name;
+      u.email          = r.data.data.email;
+      u.mobile         = r.data.data.mobile;
+      u.birth_date     = r.data.data.birth_date || null;
+      if (r.data.data.preferred_lang) u.preferred_lang = r.data.data.preferred_lang;
+      if (r.data.data.registered_by) u.registered_by  = r.data.data.registered_by;
       updateUser(u);
       renderProfileHeader();
       updateAuthUI();
