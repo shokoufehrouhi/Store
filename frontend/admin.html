@@ -678,10 +678,11 @@
               <th data-i18n="custRegBy">نوع ثبت‌نام</th>
               <th data-i18n="custStatus">وضعیت</th>
               <th data-i18n="custJoined">تاریخ عضویت</th>
+              <th data-i18n="custBirthdayEmailSent">ایمیل تولد</th>
               <th data-i18n="colActions">عملیات</th>
             </tr></thead>
             <tbody id="customers-tbody">
-              <tr><td colspan="8" style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</td></tr>
+              <tr><td colspan="9" style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</td></tr>
             </tbody>
           </table>
         </div></div>
@@ -2941,7 +2942,7 @@ async function loadCustomers() {
 function renderCustomersTable(customers) {
   const tbody = document.getElementById('customers-tbody');
   if (!customers.length) {
-    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icon">👥</div><p>${t('noCustomers')}</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon">👥</div><p>${t('noCustomers')}</p></div></td></tr>`;
     return;
   }
   tbody.innerHTML = customers.map(c => {
@@ -2961,6 +2962,7 @@ function renderCustomersTable(customers) {
       <td>${regBadge}</td>
       <td>${statusBadge}</td>
       <td style="font-size:12px;color:#999">${joined}</td>
+      <td style="font-size:12px;color:#059669">${c.birthday_email_sent_at ? new Date(c.birthday_email_sent_at).toLocaleDateString('en-GB') : '—'}</td>
       <td><button class="btn btn-secondary btn-sm" onclick='openCustomerModal(${JSON.stringify(c).replace(/'/g,"\\'")})'>${t('edit')}</button></td>
     </tr>`;
   }).join('');
