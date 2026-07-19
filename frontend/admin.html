@@ -1294,7 +1294,7 @@
 <!-- ═══ CONFIRM ═══ -->
 <div id="confirm-overlay" class="hidden">
   <div class="confirm-card">
-    <div class="confirm-icon">🗑️</div>
+    <div class="confirm-icon" id="confirm-icon">🗑️</div>
     <h4 id="confirm-title" data-i18n="deleteItem">حذف آیتم</h4>
     <p id="confirm-text"></p>
     <div class="confirm-actions">
@@ -2026,6 +2026,7 @@ function showToast(msg, type = 'success') {
 
 // ─── Confirm ──────────────────────────────────────────────────────────────────
 function showConfirm(text, onYes) {
+  document.getElementById('confirm-icon').textContent = '🗑️';
   document.getElementById('confirm-title').textContent = t('deleteItem');
   document.getElementById('confirm-yes-btn').textContent = t('confirmYes');
   document.querySelector('#confirm-overlay .btn-secondary').textContent = t('confirmNo');
@@ -3494,11 +3495,19 @@ async function shipPrize(id) {
   else showToast(res?.message || t('orderSaveError'), 'error');
 }
 
-async function deliverPrize(id) {
-  if (!confirm(t('prizeDeliverConfirm'))) return;
-  var res = await api('/admin/prizes/' + id + '/delivered', { method: 'PATCH' });
-  if (res?.success) { showToast(t('prizeDeliverOk')); loadPrizes(); }
-  else showToast(res?.message || t('orderSaveError'), 'error');
+function deliverPrize(id) {
+  document.getElementById('confirm-icon').textContent = '🏆';
+  document.getElementById('confirm-title').textContent = t('prizeDeliverBtn');
+  document.getElementById('confirm-yes-btn').textContent = t('prizeDeliverBtn');
+  document.querySelector('#confirm-overlay .btn-secondary').textContent = t('confirmNo');
+  document.getElementById('confirm-text').textContent = t('prizeDeliverConfirm');
+  document.getElementById('confirm-overlay').classList.remove('hidden');
+  document.getElementById('confirm-yes-btn').onclick = async () => {
+    closeConfirm();
+    var res = await api('/admin/prizes/' + id + '/delivered', { method: 'PATCH' });
+    if (res?.success) { showToast(t('prizeDeliverOk')); loadPrizes(); }
+    else showToast(res?.message || t('orderSaveError'), 'error');
+  };
 }
 
 var _allAdminReturns = [];
