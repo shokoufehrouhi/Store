@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=67">
+  <link rel="stylesheet" href="style.css?v=68">
 </head>
 <body>
 
@@ -439,17 +439,16 @@
           <p  data-i18n="auth_signup_sub">حساب جدید بسازید</p>
         </div>
 
-        <!-- Name + Email -->
-        <div class="signup-grid">
-          <div class="form-field">
-            <label data-i18n="auth_name_label">نام <span style="color:#9ca3af;font-weight:400;font-size:11px" data-i18n="auth_optional">(اختیاری)</span></label>
-            <input type="text" id="signup-name" data-i18n-ph="auth_name_ph" placeholder="نام کامل" onkeydown="if(event.key==='Enter')doSignupStep1()">
-          </div>
-          <div class="form-field">
-            <label data-i18n="auth_email_label">ایمیل</label>
-            <input type="email" id="signup-email" data-i18n-ph="auth_email_ph" placeholder="email@example.com" onkeydown="if(event.key==='Enter')doSignupStep1()">
-            <span class="auth-field-error" id="signup-email-err"></span>
-          </div>
+        <!-- Name -->
+        <div class="form-field">
+          <label data-i18n="auth_name_label">نام <span style="color:#9ca3af;font-weight:400;font-size:11px" data-i18n="auth_optional">(اختیاری)</span></label>
+          <input type="text" id="signup-name" data-i18n-ph="auth_name_ph" placeholder="نام کامل" onkeydown="if(event.key==='Enter')doSignupStep1()">
+        </div>
+        <!-- Email -->
+        <div class="form-field">
+          <label data-i18n="auth_email_label">ایمیل</label>
+          <input type="email" id="signup-email" data-i18n-ph="auth_email_ph" placeholder="email@example.com" onkeydown="if(event.key==='Enter')doSignupStep1()">
+          <span class="auth-field-error" id="signup-email-err"></span>
         </div>
 
         <!-- Password + Confirm -->
