@@ -2893,15 +2893,11 @@ function renderInfoTab() {
     : (currentLang === 'fa' ? 'موبایل' : currentLang === 'tr' ? 'Telefon' : 'Mobile');
 
   container.innerHTML =
-    '<div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">' +
-
-    // Left — Loyalty card
-    '<div style="flex-shrink:0">' +
+    // Top — Loyalty card
     renderLoyaltyCard(user.completed_orders) +
-    '</div>' +
 
-    // Right — Profile info
-    '<div style="flex:1;min-width:260px">' +
+    // Below — Profile info
+    '<div style="margin-top:20px">' +
 
     // Customer ID badge
     (customerId
@@ -2959,8 +2955,7 @@ function renderInfoTab() {
 
     '<span class="auth-field-success" id="info-save-success"></span>' +
     '<button id="info-save-btn" class="auth-submit-btn" onclick="saveInfoAll()">' + t.profile_info_save + '</button>' +
-    '</div>' + // end right col
-    '</div>';  // end flex row
+    '</div>'; // end profile info
 }
 
 function triggerAvatarUpload() {
