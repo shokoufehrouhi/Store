@@ -103,6 +103,7 @@ async function trackOpen(req, res) {
 async function adminListLeads(req, res, next) {
   try {
     const leads = await prisma.leads.findMany({
+      where: { status: { not: 'registered' } },
       orderBy: { created_at: 'desc' },
       include: {
         customers: { select: { id: true, full_name: true, email: true } },
