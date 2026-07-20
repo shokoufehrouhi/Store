@@ -356,7 +356,7 @@ function buildReferralBlock(lang, referralUrl, dir) {
 
 // ─── Build full HTML email ─────────────────────────────────────────────────────
 function buildHtml(type, order, customer, extraInfo) {
-  const lang = (order.lang || customer.preferred_lang || 'fa').substring(0, 2);
+  const lang = (customer.preferred_lang || order.lang || 'fa').substring(0, 2);
   const l    = L[lang] || L.fa;
   const dir  = l.dir;
 
@@ -621,7 +621,7 @@ async function sendReplyEmail(customer, order, replyText) {
   if (!customer.email) return;
   const transporter = getTransporter();
   if (!transporter) return;
-  const lang = (order.lang || customer.preferred_lang || 'fa').substring(0, 2);
+  const lang = (customer.preferred_lang || order.lang || 'fa').substring(0, 2);
   const l    = REPLY_L[lang] || REPLY_L.fa;
   const dir  = lang === 'fa' ? 'rtl' : 'ltr';
   const subject = l.subject.replace('{{id}}', order.id);
