@@ -3,12 +3,10 @@ const path = require('path');
 
 const IMAGES_DIR = path.join(__dirname, '../../frontend/images');
 
-const EMAIL_LOGO_URL   = 'cid:email-logo@shilista';
-const EMAIL_FOOTER_URL = 'cid:email-footer@shilista';
+const EMAIL_LOGO_URL = 'cid:email-logo@shilista';
 
 const EMAIL_ATTACHMENTS = [
-  { filename: 'shilista_email_logo.jpg',   path: path.join(IMAGES_DIR, 'shilista_email_logo.jpg'),   cid: 'email-logo@shilista' },
-  { filename: 'shilista_email_footer.jpg', path: path.join(IMAGES_DIR, 'shilista_email_footer.jpg'), cid: 'email-footer@shilista' },
+  { filename: 'shilista_email_logo.jpg', path: path.join(IMAGES_DIR, 'shilista_email_logo.jpg'), cid: 'email-logo@shilista' },
 ];
 
 const FOOTER_TR = `
@@ -16,23 +14,60 @@ const FOOTER_TR = `
         <td style="background:#2d1a0e;padding:28px 32px 24px;border-top:2px solid #c0562a">
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
-              <td style="text-align:center;padding-bottom:16px">
-                <a href="https://shilista.com" style="display:inline-block">
-                  <img src="${EMAIL_FOOTER_URL}" alt="Shilista" width="180" style="width:180px;max-width:90%;height:auto;display:inline-block">
+              <td style="text-align:center;padding-bottom:18px">
+                <!-- Instagram -->
+                <a href="https://instagram.com/shilistaa" style="display:inline-block;margin:0 5px;text-decoration:none;vertical-align:middle">
+                  <table cellpadding="0" cellspacing="0" style="display:inline-table">
+                    <tr>
+                      <td style="background:#E1306C;border-radius:8px;padding:8px 14px;vertical-align:middle">
+                        <span style="display:inline-block;vertical-align:middle">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                        </span>
+                        <span style="color:#fff;font-size:12px;font-weight:700;font-family:Arial,sans-serif;vertical-align:middle;margin-left:6px">@shilistaa</span>
+                      </td>
+                    </tr>
+                  </table>
+                </a>
+                <!-- Telegram -->
+                <a href="https://t.me/Shilistaa" style="display:inline-block;margin:0 5px;text-decoration:none;vertical-align:middle">
+                  <table cellpadding="0" cellspacing="0" style="display:inline-table">
+                    <tr>
+                      <td style="background:#229ED9;border-radius:8px;padding:8px 14px;vertical-align:middle">
+                        <span style="display:inline-block;vertical-align:middle">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                        </span>
+                        <span style="color:#fff;font-size:12px;font-weight:700;font-family:Arial,sans-serif;vertical-align:middle;margin-left:6px">@Shilistaa</span>
+                      </td>
+                    </tr>
+                  </table>
                 </a>
               </td>
             </tr>
             <tr>
-              <td style="text-align:center;padding-bottom:14px">
-                <a href="https://instagram.com/shilistaa" style="display:inline-block;margin:0 4px;text-decoration:none;background:#c0562a;color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:6px;font-family:Arial,sans-serif">&#128248; @shilistaa</a>
-                <a href="https://t.me/Shilistaa" style="display:inline-block;margin:0 4px;text-decoration:none;background:#229ED9;color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:6px;font-family:Arial,sans-serif">&#9992; @Shilistaa</a>
-              </td>
-            </tr>
-            <tr>
-              <td style="text-align:center">
-                <a href="mailto:sales@shilista.com" style="color:#f0a070;text-decoration:none;font-size:12px;font-family:Arial,sans-serif">sales@shilista.com</a>
-                <span style="color:#666;margin:0 8px">&middot;</span>
-                <a href="https://shilista.com" style="color:#f0a070;text-decoration:none;font-size:12px;font-family:Arial,sans-serif">www.shilista.com</a>
+              <td style="text-align:center;padding-top:4px">
+                <!-- Email -->
+                <a href="mailto:sales@shilista.com" style="display:inline-block;margin:0 6px;text-decoration:none;vertical-align:middle">
+                  <table cellpadding="0" cellspacing="0" style="display:inline-table">
+                    <tr>
+                      <td style="vertical-align:middle">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f0a070" stroke-width="2" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                        <span style="color:#f0a070;font-size:12px;font-family:Arial,sans-serif;vertical-align:middle;margin-left:4px">sales@shilista.com</span>
+                      </td>
+                    </tr>
+                  </table>
+                </a>
+                <span style="color:#555;margin:0 4px;vertical-align:middle">&middot;</span>
+                <!-- Website -->
+                <a href="https://shilista.com" style="display:inline-block;margin:0 6px;text-decoration:none;vertical-align:middle">
+                  <table cellpadding="0" cellspacing="0" style="display:inline-table">
+                    <tr>
+                      <td style="vertical-align:middle">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f0a070" stroke-width="2" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        <span style="color:#f0a070;font-size:12px;font-family:Arial,sans-serif;vertical-align:middle;margin-left:4px">www.shilista.com</span>
+                      </td>
+                    </tr>
+                  </table>
+                </a>
               </td>
             </tr>
           </table>
