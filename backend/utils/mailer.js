@@ -1,6 +1,17 @@
 const nodemailer = require('nodemailer');
+const fs   = require('fs');
+const path = require('path');
 
-const EMAIL_LOGO_URL = 'https://shilista.com/images/shilista_logo.png';
+function loadBase64(filename) {
+  try {
+    const ext = path.extname(filename).slice(1).replace('jpg', 'jpeg');
+    const buf = fs.readFileSync(path.join(__dirname, '../../frontend/images', filename));
+    return 'data:image/' + ext + ';base64,' + buf.toString('base64');
+  } catch (e) { return ''; }
+}
+
+const EMAIL_LOGO_URL   = loadBase64('shilista_email_logo.jpg');
+const EMAIL_FOOTER_URL = loadBase64('shilista_email_footer.jpg');
 
 const FOOTER_TR = `
       <tr>
@@ -9,7 +20,7 @@ const FOOTER_TR = `
             <tr>
               <td style="text-align:center;padding-bottom:16px">
                 <a href="https://shilista.com" style="display:inline-block">
-                  <img src="https://shilista.com/images/shilista_email_logo.png" alt="Shilista" width="140" style="width:140px;max-width:80%;height:auto;display:inline-block">
+                  <img src="${EMAIL_FOOTER_URL}" alt="Shilista" width="180" style="width:180px;max-width:90%;height:auto;display:inline-block">
                 </a>
               </td>
             </tr>
@@ -346,7 +357,7 @@ function buildHtml(type, order, customer, extraInfo) {
       <!-- Header -->
       <tr>
         <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
-          <img src="https://shilista.com/images/shilista_logo.png" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
+          <img src="${EMAIL_LOGO_URL}" alt="Shilista" width="200" style="width:200px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
 
@@ -589,7 +600,7 @@ async function sendReplyEmail(customer, order, replyText) {
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
       <tr><td style="background:#fff;padding:24px 32px 16px;border-bottom:2px solid #f0e8df;text-align:center">
-        <img src="https://shilista.com/images/shilista_logo.png" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
+        <img src="${EMAIL_LOGO_URL}" alt="Shilista" width="200" style="width:200px;max-width:90%;height:auto;display:inline-block">
       </td></tr>
       <tr><td style="background:linear-gradient(135deg,#c0562a,#e07a40);padding:16px 32px;text-align:center">
         <p style="margin:0;font-size:16px;font-weight:700;color:#fff">${subject}</p>
@@ -666,7 +677,7 @@ async function sendLoyaltyEmail(customer, deliveredCount) {
 
       <tr>
         <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
-          <img src="https://shilista.com/images/shilista_logo.png" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
+          <img src="${EMAIL_LOGO_URL}" alt="Shilista" width="200" style="width:200px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
 
@@ -752,7 +763,7 @@ async function sendPrizeEarnedEmail(customer) {
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
       <tr>
         <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
-          <img src="https://shilista.com/images/shilista_logo.png" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
+          <img src="${EMAIL_LOGO_URL}" alt="Shilista" width="200" style="width:200px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
       <tr>
@@ -848,7 +859,7 @@ async function sendBirthdayEmail(customer, birthdayDate, validUntil) {
 
       <tr>
         <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
-          <img src="https://shilista.com/images/shilista_logo.png" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
+          <img src="${EMAIL_LOGO_URL}" alt="Shilista" width="200" style="width:200px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
 
@@ -958,7 +969,7 @@ async function sendWelcomeEmail(customer) {
 
       <tr>
         <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
-          <img src="https://shilista.com/images/shilista_logo.png" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
+          <img src="${EMAIL_LOGO_URL}" alt="Shilista" width="200" style="width:200px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
 
@@ -1036,7 +1047,7 @@ async function sendVerificationEmail(toEmail, code, lang) {
       style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
       <tr>
         <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
-          <img src="https://shilista.com/images/shilista_logo.png" alt="Shilista" width="220" style="width:220px;max-width:90%;height:auto;display:inline-block">
+          <img src="${EMAIL_LOGO_URL}" alt="Shilista" width="200" style="width:200px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
       <tr>
