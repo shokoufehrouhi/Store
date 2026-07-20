@@ -1007,6 +1007,53 @@ function buildMegaMenu(categories) {
   }
 }
 
+// ─── Gender Dropdowns (Women / Men) ──────────────────────────────────────────
+function buildGenderDropdowns(categories) {
+  var lbl = function(obj) {
+    return currentLang === 'en' ? obj.label_en : currentLang === 'tr' ? obj.label_tr : obj.label_fa;
+  };
+  var isProfile = !!window.IS_PROFILE_PAGE;
+  var clothingCat = categories.find(function(c) { return c.key === 'clothing'; });
+  var shoesCat    = categories.find(function(c) { return c.key === 'shoes'; });
+  var accCat      = categories.find(function(c) { return c.key === 'accessories'; });
+
+  ['female', 'male'].forEach(function(gender) {
+    var drop = document.getElementById(gender === 'female' ? 'nav-drop-women' : 'nav-drop-men');
+    if (!drop) return;
+    var html = '';
+    [clothingCat, shoesCat].forEach(function(cat) {
+      if (!cat || !cat.subcategories || !cat.subcategories.length) return;
+      html += '<div class="nav-drop-group" data-cat="' + cat.key + '" data-gender="' + gender + '">';
+      html += '<span class="nav-drop-cat-label">' + lbl(cat) + '</span>';
+      cat.subcategories.forEach(function(sub) {
+        var href = isProfile
+          ? '/?_cat=' + encodeURIComponent(cat.key) + '&_gender=' + gender + '&_sub=' + encodeURIComponent(sub.key)
+          : '#products';
+        html += '<a class="nav-drop-item" href="' + href + '" data-filter="' + cat.key + '" data-gender="' + gender + '" data-sub="' + sub.key + '">' + lbl(sub) + '</a>';
+      });
+      html += '</div>';
+    });
+    if (accCat) {
+      var accHref = isProfile ? '/?_cat=accessories&_gender=' + gender : '#products';
+      html += '<div class="nav-drop-group" data-cat="accessories" data-gender="' + gender + '">';
+      html += '<span class="nav-drop-cat-label">' + lbl(accCat) + '</span>';
+      html += '<a class="nav-drop-item" href="' + accHref + '" data-filter="accessories" data-gender="' + gender + '" data-sub="">' + lbl(accCat) + '</a>';
+      html += '</div>';
+    }
+    drop.innerHTML = html;
+    if (!isProfile) {
+      drop.onclick = function(e) {
+        var item = e.target.closest('.nav-drop-item');
+        if (!item) return;
+        e.preventDefault();
+        handleFilterClick(item, true);
+        var mm = document.getElementById('mobile-menu');
+        if (mm) mm.classList.remove('open');
+      };
+    }
+  });
+}
+
 // ─── Header Nav Dropdowns ─────────────────────────────────────────────────────
 function initNavDropdowns() {
   document.querySelectorAll('.nav-link[data-filter], .nav-drop-item, .mega-cat-title, .mega-sub-item, .mobile-menu a[data-filter]').forEach(function(item) {
@@ -1611,7 +1658,7 @@ function applyLang(lang) {
   document.querySelectorAll('.js-phone').forEach(function(el) { el.textContent = display; el.dir = 'ltr'; });
 
   if (!window.IS_PROFILE_PAGE) {
-    if (cachedCategories.length) { buildSidebar(cachedCategories); buildMegaMenu(cachedCategories); }
+    if (cachedCategories.length) { buildSidebar(cachedCategories); buildMegaMenu(cachedCategories); buildGenderDropdowns(cachedCategories); }
     renderGrid();
     renderBanner();
   }
@@ -5025,6 +5072,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (catData && catData.success && catData.data.length) {
           cachedCategories = catData.data;
           buildMegaMenu(cachedCategories);
+          buildGenderDropdowns(cachedCategories);
         }
       });
     } else {
@@ -5158,6 +5206,7 @@ document.addEventListener('DOMContentLoaded', function() {
       cachedCategories = catData.data;
       buildSidebar(cachedCategories);
       buildMegaMenu(cachedCategories);
+      buildGenderDropdowns(cachedCategories);
     } else {
       initSidebar();
     }
