@@ -12,8 +12,7 @@ const VERIFY_TTL   = 10 * 60 * 1000; // 10 minutes
 const VERIFY_RESEND_WAIT = 120 * 1000; // 120 seconds before resend allowed
 
 function isValidMobile(m) {
-  const digits = (m || '').replace(/[^\d]/g, '');
-  return digits.length >= 7 && /^[+0-9][\d\s\-]{5,17}$/.test((m || '').trim());
+  return (m || '').replace(/[^\d]/g, '').length >= 7;
 }
 function isValidIntlMobile(m) {
   return /^\+[0-9]{7,15}$/.test((m || '').replace(/\s/g, ''));

@@ -2063,7 +2063,15 @@ function hashPass(pwd) { return btoa(unescape(encodeURIComponent(pwd))); }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 function validateEmail(e)    { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim()); }
-function validateMobile(m)   { return /^[+0-9][\d\s\-]{5,17}$/.test((m || '').trim()) && (m.replace(/[^\d]/g, '').length >= 7); }
+function validateMobile(m)   { return (m || '').replace(/[^\d]/g, '').length >= 7; }
+function parseAddrPhone(phone) {
+  if (!phone) return { cc: '', mobile: '' };
+  if (phone.startsWith('+')) {
+    var m = phone.match(/^(\+\d{1,3})([\d\s\-].*)$/);
+    if (m) return { cc: m[1], mobile: m[2] };
+  }
+  return { cc: '', mobile: phone };
+}
 function validatePassword(p) { return p.length >= 8 && /[A-Z]/.test(p) && /[a-z]/.test(p) && /[0-9]/.test(p); }
 
 // ─── Auth UI helpers ──────────────────────────────────────────────────────────
@@ -3195,7 +3203,7 @@ function renderAddresses() {
     '<h4 class="addr-form-title" id="addr-form-title">' + t.profile_add_addr + '</h4>' +
     '<div class="address-form-grid">' +
     '<div class="form-field"><label>' + t.addr_name_label + '</label><input id="addr-name" placeholder="' + t.addr_name_ph + '"><span class="auth-field-error" id="addr-name-err"></span></div>' +
-    '<div class="form-field"><label>' + t.addr_phone_label + '</label><input id="addr-phone" placeholder="' + t.addr_phone_ph + '"><span class="auth-field-error" id="addr-phone-err"></span></div>' +
+    '<div class="form-field"><label>' + t.addr_phone_label + '</label><div style="display:flex;gap:6px"><input id="addr-country-code" style="width:72px;flex-shrink:0;text-align:center;font-weight:600;letter-spacing:0.03em" placeholder="+90"><input id="addr-phone" style="flex:1" placeholder="' + t.addr_phone_ph + '"></div><span class="auth-field-error" id="addr-phone-err"></span></div>' +
     '<div class="form-field"><label>' + t.addr_city_label + '</label><input id="addr-city" placeholder="' + t.addr_city_ph + '"><span class="auth-field-error" id="addr-city-err"></span></div>' +
     '<div class="form-field"><label>' + t.addr_postal_label + ' <span style="font-weight:400;color:var(--text-muted)">' + t.addr_postal_opt + '</span></label><input id="addr-postal" placeholder="' + t.addr_postal_ph + '"></div>' +
     '</div>' +
@@ -3231,17 +3239,21 @@ function toggleAddressForm(idx) {
     var user  = getCurrentUser(); if (!user) return;
     var a     = user.addresses[_editingAddrIdx];
     if (!a) return;
-    document.getElementById('addr-name').value   = a.name   || '';
-    document.getElementById('addr-phone').value  = a.phone  || '';
-    document.getElementById('addr-city').value   = a.city   || '';
-    document.getElementById('addr-postal').value = a.postal || '';
-    document.getElementById('addr-detail').value = a.detail || '';
+    var parsedPhone = parseAddrPhone(a.phone || '');
+    document.getElementById('addr-name').value          = a.name   || '';
+    document.getElementById('addr-country-code').value  = parsedPhone.cc;
+    document.getElementById('addr-phone').value         = parsedPhone.mobile;
+    document.getElementById('addr-city').value          = a.city   || '';
+    document.getElementById('addr-postal').value        = a.postal || '';
+    document.getElementById('addr-detail').value        = a.detail || '';
     // scroll to form
     f.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } else {
-    ['addr-name','addr-phone','addr-city','addr-postal','addr-detail'].forEach(function(id) {
+    ['addr-name','addr-country-code','addr-phone','addr-city','addr-postal','addr-detail'].forEach(function(id) {
       var el = document.getElementById(id); if (el) el.value = '';
     });
+    var ccEl = document.getElementById('addr-country-code');
+    if (ccEl) ccEl.value = currentLang === 'fa' ? '+98' : '+90';
   }
   f.style.display = 'block';
   if (btn) btn.style.display = 'none';
@@ -3252,8 +3264,11 @@ function editAddress(i) {
 }
 
 function saveAddress() {
-  var name   = (document.getElementById('addr-name')   || {value:''}).value.trim();
-  var phone  = (document.getElementById('addr-phone')  || {value:''}).value.trim();
+  var name     = (document.getElementById('addr-name')         || {value:''}).value.trim();
+  var cc       = (document.getElementById('addr-country-code') || {value:''}).value.trim().replace(/\s/g, '');
+  var phoneRaw = (document.getElementById('addr-phone')        || {value:''}).value.trim();
+  if (cc && !cc.startsWith('+')) cc = '+' + cc;
+  var phone  = cc ? cc + phoneRaw : phoneRaw;
   var city   = (document.getElementById('addr-city')   || {value:''}).value.trim();
   var postal = (document.getElementById('addr-postal') || {value:''}).value.trim();
   var detail = (document.getElementById('addr-detail') || {value:''}).value.trim();
@@ -4584,9 +4599,11 @@ function checkoutAddAddress() {
   document.getElementById('checkout-add-addr-btn').style.display = 'none';
   document.getElementById('checkout-addr-list').style.display = 'none';
   document.getElementById('checkout-addr-selected').style.display = 'none';
-  ['co-addr-name','co-addr-phone','co-addr-city','co-addr-postal','co-addr-detail'].forEach(function(id) {
+  ['co-addr-name','co-addr-cc','co-addr-phone','co-addr-city','co-addr-postal','co-addr-detail'].forEach(function(id) {
     var el = document.getElementById(id); if (el) el.value = '';
   });
+  var coCc = document.getElementById('co-addr-cc');
+  if (coCc) coCc.value = currentLang === 'fa' ? '+98' : '+90';
 }
 
 function checkoutCancelAddress() {
@@ -4599,8 +4616,11 @@ function checkoutCancelAddress() {
 
 function checkoutSaveAddress() {
   var t    = TRANSLATIONS[currentLang];
-  var name   = (document.getElementById('co-addr-name').value   || '').trim();
-  var phone  = (document.getElementById('co-addr-phone').value  || '').trim();
+  var name     = (document.getElementById('co-addr-name').value  || '').trim();
+  var ccRaw    = (document.getElementById('co-addr-cc').value    || '').trim().replace(/\s/g, '');
+  var phoneRaw = (document.getElementById('co-addr-phone').value || '').trim();
+  if (ccRaw && !ccRaw.startsWith('+')) ccRaw = '+' + ccRaw;
+  var phone  = ccRaw ? ccRaw + phoneRaw : phoneRaw;
   var city   = (document.getElementById('co-addr-city').value   || '').trim();
   var postal = (document.getElementById('co-addr-postal').value || '').trim();
   var detail = (document.getElementById('co-addr-detail').value || '').trim();
