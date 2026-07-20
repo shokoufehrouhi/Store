@@ -3180,11 +3180,13 @@ function renderAddresses() {
         return (
           '<div class="address-card' + (a.is_default ? ' address-card--default' : '') + '" id="addr-card-' + i + '">' +
           '<div class="address-info">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
           '<strong>' + a.name + '</strong>' +
-          (a.is_default ? '<span class="addr-default-badge">' + (t.addr_default_label || 'پیش‌فرض') + '</span>' : '') +
-          '<span>' + a.phone + '</span>' +
-          '<span>' + a.city + ' — ' + a.detail + '</span>' +
-          (a.postal ? '<span>' + t.addr_postal_label + ': ' + a.postal + '</span>' : '') +
+          (a.is_default ? '<span class="addr-default-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' + (t.addr_default_label || 'پیش‌فرض') + '</span>' : '') +
+          '</div>' +
+          '<div class="addr-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;opacity:.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8a19.79 19.79 0 01-3.07-8.63A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg><span dir="ltr">' + a.phone + '</span></div>' +
+          '<div class="addr-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;opacity:.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg><span>' + a.city + (a.detail ? ' — ' + a.detail : '') + '</span></div>' +
+          (a.postal ? '<div class="addr-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;opacity:.5"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h5l3 5v3h-8V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg><span>' + t.addr_postal_label + ': ' + a.postal + '</span></div>' : '') +
           '</div>' +
           '<div class="address-actions">' +
           '<button class="addr-default-btn' + (a.is_default ? ' addr-default-btn--active' : '') + '" onclick="setDefaultAddress(' + i + ')" ' + (a.is_default ? 'disabled' : '') + ' title="' + (t.addr_set_default || 'پیش‌فرض') + '">' +
