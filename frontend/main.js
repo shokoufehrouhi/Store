@@ -3079,7 +3079,7 @@ function saveInfoAll() {
   var mobCcEl   = document.getElementById('info-mobile-cc');
   var mobCcRaw  = mobCcEl ? mobCcEl.value.trim().replace(/\s/g, '') : '';
   if (mobCcRaw && !mobCcRaw.startsWith('+')) mobCcRaw = '+' + mobCcRaw;
-  var mobRaw    = mobileInp ? mobileInp.value.trim() : '';
+  var mobRaw    = mobileInp ? mobileInp.value.trim().replace(/^0+/, '') : '';
   var mobileVal = mobRaw ? (mobCcRaw + mobRaw) : '';
   var birthVal  = birthInp  ? birthInp.value         : '';
   var langVal   = langSel   ? langSel.value          : '';
@@ -3279,7 +3279,7 @@ function editAddress(i) {
 function saveAddress() {
   var name     = (document.getElementById('addr-name')         || {value:''}).value.trim();
   var cc       = (document.getElementById('addr-country-code') || {value:''}).value.trim().replace(/\s/g, '');
-  var phoneRaw = (document.getElementById('addr-phone')        || {value:''}).value.trim();
+  var phoneRaw = (document.getElementById('addr-phone')        || {value:''}).value.trim().replace(/^0+/, '');
   if (cc && !cc.startsWith('+')) cc = '+' + cc;
   var phone  = cc ? cc + phoneRaw : phoneRaw;
   var city   = (document.getElementById('addr-city')   || {value:''}).value.trim();
@@ -4631,7 +4631,7 @@ function checkoutSaveAddress() {
   var t    = TRANSLATIONS[currentLang];
   var name     = (document.getElementById('co-addr-name').value  || '').trim();
   var ccRaw    = (document.getElementById('co-addr-cc').value    || '').trim().replace(/\s/g, '');
-  var phoneRaw = (document.getElementById('co-addr-phone').value || '').trim();
+  var phoneRaw = (document.getElementById('co-addr-phone').value || '').trim().replace(/^0+/, '');
   if (ccRaw && !ccRaw.startsWith('+')) ccRaw = '+' + ccRaw;
   var phone  = ccRaw ? ccRaw + phoneRaw : phoneRaw;
   var city   = (document.getElementById('co-addr-city').value   || '').trim();

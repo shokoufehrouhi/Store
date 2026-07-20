@@ -3087,7 +3087,7 @@ function openCustomerModal(c) {
 
 async function saveCustomer(id) {
   const _cc  = (document.getElementById('cu-mobile-cc')?.value?.trim() || '').replace(/\s/g,'');
-  const _mob = (document.getElementById('cu-mobile')?.value?.trim() || '');
+  const _mob = (document.getElementById('cu-mobile')?.value?.trim() || '').replace(/^0+/, '');
   const _cc2 = _cc && !_cc.startsWith('+') ? '+' + _cc : _cc;
   const _fullMobile = _mob ? (_cc2 + _mob) : null;
   const payload = {
