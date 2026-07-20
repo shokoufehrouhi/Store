@@ -218,7 +218,7 @@
             <span data-i18n="menu_all">همه محصولات</span>
             <svg class="nav-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 7L1 3h8z"/></svg>
           </a>
-          <div class="nav-dropdown nav-mega"></div>
+          <div class="nav-dropdown nav-mega" id="nav-mega-all"></div>
         </div>
         <div class="nav-group">
           <a class="nav-link has-drop" href="/#gender=female">
@@ -835,6 +835,31 @@ function loadCph(pid){
       }).join('')+'</div>';
   }).catch(function(){});
 }
+
+// ── mega menu from API ────────────────────────────────────────────────────────
+function buildPdMegaMenu(cats) {
+  var mega = document.getElementById('nav-mega-all');
+  if (!mega) return;
+  var lbl = function(obj) {
+    return CL === 'en' ? (obj.label_en||obj.label_tr||obj.label_fa)
+         : CL === 'tr' ? (obj.label_tr||obj.label_fa||obj.label_en)
+         :                (obj.label_fa||obj.label_tr||obj.label_en);
+  };
+  var html = '';
+  cats.forEach(function(cat) {
+    html += '<div class="mega-col">';
+    html += '<a class="mega-cat-title" href="/#cat=' + encodeURIComponent(cat.key) + '">' + lbl(cat) + '</a>';
+    (cat.subcategories || []).forEach(function(sub) {
+      html += '<a class="mega-sub-item" href="/#cat=' + encodeURIComponent(cat.key) + '&sub=' + encodeURIComponent(sub.key) + '">' + lbl(sub) + '</a>';
+    });
+    html += '</div>';
+  });
+  mega.innerHTML = html || '';
+}
+
+fetch(API + '/categories').then(function(r) { return r.json(); }).then(function(d) {
+  if (d.success && d.data) buildPdMegaMenu(d.data);
+}).catch(function() {});
 
 // ── init ──────────────────────────────────────────────────────────────────────
 var pid = Number(new URLSearchParams(location.search).get('id'));
