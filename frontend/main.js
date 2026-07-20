@@ -60,6 +60,8 @@ var currentGender      = 'all';
 var currentColors      = [];
 var currentSizes       = [];
 var currentSort        = 'newest';
+var currentPage        = 1;
+var PAGE_SIZE          = 15;
 var _filterBaseList    = [];
 var cart               = JSON.parse(localStorage.getItem('cart') || '[]');
 var cachedCategories   = [];
@@ -885,6 +887,7 @@ function handleFilterClick(el, scrollToProducts) {
   currentSubcategory = sub || null;
   currentColors      = [];
   currentSizes       = [];
+  currentPage        = 1;
   saveFilterToHash();
 
   // active state روی همه filter elements (sidebar + nav)
@@ -1347,27 +1350,83 @@ function toggleColorFilter(key) {
   var idx = currentColors.indexOf(key);
   if (idx === -1) currentColors.push(key);
   else currentColors.splice(idx, 1);
+  currentPage = 1;
   renderGrid();
 }
 function toggleSizeFilter(label) {
   var idx = currentSizes.indexOf(label);
   if (idx === -1) currentSizes.push(label);
   else currentSizes.splice(idx, 1);
+  currentPage = 1;
   renderGrid();
 }
 function setSort(sort) {
   currentSort = sort;
+  currentPage = 1;
   renderGrid();
 }
 function clearFilters() {
   currentColors = [];
   currentSizes  = [];
+  currentPage   = 1;
   renderGrid();
 }
 
 function siteSearch(val) {
   currentSearch = (val || '').trim();
+  currentPage   = 1;
   renderGrid(true);
+}
+
+function renderPagination(totalItems) {
+  var bar = document.getElementById('pagination-bar');
+  if (!bar) return;
+  var totalPages = Math.ceil(totalItems / PAGE_SIZE);
+  if (totalPages <= 1) { bar.innerHTML = ''; return; }
+
+  var t = TRANSLATIONS[currentLang];
+  var isRtl = currentLang === 'fa';
+
+  function pageBtn(label, page, disabled, active) {
+    var cls = 'pg-btn' + (active ? ' active' : '');
+    var dis = disabled ? ' disabled' : '';
+    return '<button class="' + cls + '"' + dis + ' onclick="goToPage(' + page + ')">' + label + '</button>';
+  }
+
+  var html = '';
+
+  // info: Page X of Y
+  html += '<span class="pg-info">' + (t.pg_of ? (currentPage + ' / ' + totalPages) : (currentPage + ' / ' + totalPages)) + '</span>';
+
+  // prev arrow
+  html += pageBtn(isRtl ? '›' : '‹', currentPage - 1, currentPage === 1, false);
+
+  // page numbers with ellipsis
+  var pages = [];
+  if (totalPages <= 7) {
+    for (var i = 1; i <= totalPages; i++) pages.push(i);
+    pages.forEach(function(p) { html += pageBtn(p, p, false, p === currentPage); });
+  } else {
+    html += pageBtn(1, 1, false, currentPage === 1);
+    if (currentPage > 3) html += '<span class="pg-dots">…</span>';
+    var start = Math.max(2, currentPage - 1);
+    var end   = Math.min(totalPages - 1, currentPage + 1);
+    for (var j = start; j <= end; j++) html += pageBtn(j, j, false, j === currentPage);
+    if (currentPage < totalPages - 2) html += '<span class="pg-dots">…</span>';
+    html += pageBtn(totalPages, totalPages, false, currentPage === totalPages);
+  }
+
+  // next arrow
+  html += pageBtn(isRtl ? '‹' : '›', currentPage + 1, currentPage === totalPages, false);
+
+  bar.innerHTML = html;
+}
+
+function goToPage(page) {
+  currentPage = page;
+  renderGrid(true);
+  var productsEl = document.getElementById('products-grid');
+  if (productsEl) productsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function renderGrid(skipFilterBar) {
@@ -1420,9 +1479,14 @@ function renderGrid(skipFilterBar) {
             (p.extra_categories || []).some(function(ec) { return ec.subcategory === currentSubcategory; });
         })
       : filteredList;
-    grid.innerHTML = list.length
-      ? list.map(renderProduct).join('')
-      : gridEmpty(t);
+    if (!list.length) {
+      grid.innerHTML = gridEmpty(t);
+      renderPagination(0);
+      return;
+    }
+    var pageSlice = list.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+    grid.innerHTML = pageSlice.map(renderProduct).join('');
+    renderPagination(list.length);
     animateCards(grid);
     return;
   }
@@ -1434,34 +1498,62 @@ function renderGrid(skipFilterBar) {
     : (SUBCATEGORIES[currentCategory] || []).filter(function(s) { return s.key; });
 
   if (!subs.length) {
-    grid.innerHTML = filteredList.length
-      ? filteredList.map(renderProduct).join('')
-      : gridEmpty(t);
+    if (!filteredList.length) {
+      grid.innerHTML = gridEmpty(t);
+      renderPagination(0);
+      return;
+    }
+    var pageSlice2 = filteredList.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+    grid.innerHTML = pageSlice2.map(renderProduct).join('');
+    renderPagination(filteredList.length);
     animateCards(grid);
     return;
   }
 
-  var html = '';
+  // Build flat ordered list keeping subcategory order
+  var orderedItems = [];
   subs.forEach(function(sub) {
     var subKey   = sub.key;
-    var subLabel = getSubcatLabel(sub);
     var subProds = filteredList.filter(function(p) {
       return p.subcategory === subKey ||
         (p.extra_categories || []).some(function(ec) { return ec.subcategory === subKey; });
     });
-
-    if (!subProds.length) return;
-
-    html += '<div class="subcat-section">';
-    html += '<div class="subcat-header">'
-          + '<span class="subcat-header-title">' + subLabel + '</span>'
-          + '<span class="subcat-header-count">' + subProds.length + '</span>'
-          + '</div>';
-    html += '<div class="subcat-grid">' + subProds.map(renderProduct).join('') + '</div>';
-    html += '</div>';
+    subProds.forEach(function(p) { orderedItems.push({ sub: sub, p: p }); });
   });
 
+  if (!orderedItems.length) {
+    grid.innerHTML = gridEmpty(t);
+    renderPagination(0);
+    return;
+  }
+
+  var pageItems = orderedItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Group page items back into subcategory sections
+  var html = '';
+  var seenSubs = {};
+  var currentSubKey = null;
+  pageItems.forEach(function(item) {
+    var subKey = item.sub.key;
+    if (subKey !== currentSubKey) {
+      if (currentSubKey !== null) html += '</div></div>';
+      var subLabel = getSubcatLabel(item.sub);
+      // count total products in this sub (for the badge)
+      var totalInSub = orderedItems.filter(function(x) { return x.sub.key === subKey; }).length;
+      html += '<div class="subcat-section">';
+      html += '<div class="subcat-header">'
+            + '<span class="subcat-header-title">' + subLabel + '</span>'
+            + '<span class="subcat-header-count">' + totalInSub + '</span>'
+            + '</div>';
+      html += '<div class="subcat-grid">';
+      currentSubKey = subKey;
+    }
+    html += renderProduct(item.p);
+  });
+  if (currentSubKey !== null) html += '</div></div>';
+
   grid.innerHTML = html || gridEmpty(t);
+  renderPagination(orderedItems.length);
   animateCards(grid);
 }
 
