@@ -1,17 +1,15 @@
 const nodemailer = require('nodemailer');
-const fs   = require('fs');
 const path = require('path');
 
-function loadBase64(filename) {
-  try {
-    const ext = path.extname(filename).slice(1).replace('jpg', 'jpeg');
-    const buf = fs.readFileSync(path.join(__dirname, '../../frontend/images', filename));
-    return 'data:image/' + ext + ';base64,' + buf.toString('base64');
-  } catch (e) { return ''; }
-}
+const IMAGES_DIR = path.join(__dirname, '../../frontend/images');
 
-const EMAIL_LOGO_URL   = loadBase64('shilista_email_logo.jpg');
-const EMAIL_FOOTER_URL = loadBase64('shilista_email_footer.jpg');
+const EMAIL_LOGO_URL   = 'cid:email-logo@shilista';
+const EMAIL_FOOTER_URL = 'cid:email-footer@shilista';
+
+const EMAIL_ATTACHMENTS = [
+  { filename: 'shilista_email_logo.jpg',   path: path.join(IMAGES_DIR, 'shilista_email_logo.jpg'),   cid: 'email-logo@shilista' },
+  { filename: 'shilista_email_footer.jpg', path: path.join(IMAGES_DIR, 'shilista_email_footer.jpg'), cid: 'email-footer@shilista' },
+];
 
 const FOOTER_TR = `
       <tr>
@@ -426,14 +424,14 @@ async function sendOrderEmail(customer, order, type, extraInfo, attachFiles) {
 
   const { subject, html } = buildHtml(type, order, customer, extraInfo);
 
-  const attachments = attachFiles && attachFiles.length ? attachFiles : undefined;
+  const attachments = [...EMAIL_ATTACHMENTS, ...(attachFiles || [])];
 
   await transporter.sendMail({
     from:        process.env.SMTP_FROM || process.env.SMTP_USER,
     to:          customer.email,
     subject,
     html,
-    ...(attachments ? { attachments } : {}),
+    attachments,
   });
 }
 
@@ -558,7 +556,7 @@ async function sendFriendInviteEmail({ toName, toEmail, referrerName, lang, trac
     to:          toEmail,
     subject,
     html,
-    
+    attachments: EMAIL_ATTACHMENTS,
   });
 }
 
@@ -614,7 +612,7 @@ async function sendReplyEmail(customer, order, replyText) {
   </td></tr>
 </table>
 </body></html>`;
-  await transporter.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to: customer.email, subject, html });
+  await transporter.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to: customer.email, subject, html, attachments: EMAIL_ATTACHMENTS });
 }
 
 // ─── Loyalty milestone email ────────────────────────────────────────────────────
@@ -716,7 +714,7 @@ async function sendLoyaltyEmail(customer, deliveredCount) {
     to:          customer.email,
     subject,
     html,
-    
+    attachments: EMAIL_ATTACHMENTS,
   });
 }
 
@@ -794,7 +792,7 @@ async function sendPrizeEarnedEmail(customer) {
     to:          customer.email,
     subject:     ll.subject,
     html,
-    
+    attachments: EMAIL_ATTACHMENTS,
   });
 }
 
@@ -913,7 +911,7 @@ async function sendBirthdayEmail(customer, birthdayDate, validUntil) {
     to:          customer.email,
     subject:     ll.subject,
     html,
-    
+    attachments: EMAIL_ATTACHMENTS,
   });
 }
 
@@ -1022,7 +1020,7 @@ async function sendWelcomeEmail(customer) {
     to:          customer.email,
     subject:     ll.subject,
     html,
-    
+    attachments: EMAIL_ATTACHMENTS,
   });
 }
 
@@ -1073,7 +1071,7 @@ async function sendVerificationEmail(toEmail, code, lang) {
     to:          toEmail,
     subject:     ll.subject,
     html,
-    
+    attachments: EMAIL_ATTACHMENTS,
   });
 }
 
