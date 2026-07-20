@@ -1055,11 +1055,15 @@ function buildGenderDropdowns(categories) {
 }
 
 // ─── Sports / Accessories Dropdowns ──────────────────────────────────────────
+var ACC_SPORTS_KEYS = ['Sports Equipment', 'Sports Gloves', 'Sports Cap'];
+
 function buildCatDropdowns(categories) {
   var lbl = function(obj) {
     return currentLang === 'en' ? obj.label_en : currentLang === 'tr' ? obj.label_tr : obj.label_fa;
   };
   var isProfile = !!window.IS_PROFILE_PAGE;
+  var sportsCat = categories.find(function(c) { return c.key === 'Sports'; });
+
   [
     { key: 'Sports',      dropId: 'nav-drop-sports' },
     { key: 'accessories', dropId: 'nav-drop-acc'    },
@@ -1077,6 +1081,23 @@ function buildCatDropdowns(categories) {
       html += '<a class="nav-drop-item" href="' + href + '" data-filter="' + cat.key + '" data-gender="all" data-sub="' + sub.key + '">' + lbl(sub) + '</a>';
     });
     html += '</div>';
+    // For accessories dropdown, also add sports accessories group
+    if (item.key === 'accessories' && sportsCat) {
+      var sportAccSubs = (sportsCat.subcategories || []).filter(function(s) {
+        return ACC_SPORTS_KEYS.indexOf(s.key) !== -1;
+      });
+      if (sportAccSubs.length) {
+        html += '<div class="nav-drop-group" data-cat="Sports" data-gender="all">';
+        html += '<span class="nav-drop-cat-label">' + lbl(sportsCat) + '</span>';
+        sportAccSubs.forEach(function(sub) {
+          var href = isProfile
+            ? '/?_cat=Sports&_sub=' + encodeURIComponent(sub.key)
+            : '#products';
+          html += '<a class="nav-drop-item" href="' + href + '" data-filter="Sports" data-gender="all" data-sub="' + sub.key + '">' + lbl(sub) + '</a>';
+        });
+        html += '</div>';
+      }
+    }
     drop.innerHTML = html;
     if (!isProfile) {
       drop.onclick = function(e) {
