@@ -15,8 +15,8 @@ const EMAIL_ATTACHMENTS = [
 
 const FOOTER_TR = `
       <tr>
-        <td style="background:#2d1a0e;padding:28px 32px 24px;border-top:2px solid #c0562a">
-          <table width="100%" cellpadding="0" cellspacing="0">
+        <td dir="ltr" style="background:#2d1a0e;padding:28px 32px 24px;border-top:2px solid #c0562a">
+          <table width="100%" cellpadding="0" cellspacing="0" dir="ltr">
             <tr>
               <td style="text-align:center;padding-bottom:18px">
                 <!-- Instagram -->
