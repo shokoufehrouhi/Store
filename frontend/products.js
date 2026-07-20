@@ -6,7 +6,7 @@ const CONTACT = {
   phoneDisplay:      '+۹۰ ۵۵۵ ۰۴۰ ۱۷۳۷',
   phoneDisplayLatin: '+90 555 040 1737',
   whatsapp: '905550401737',
-  telegram: 'akhgar_sport',
+  telegram: 'Shilistaa',
 };
 
 // =====================================================
