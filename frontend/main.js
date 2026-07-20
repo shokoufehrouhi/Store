@@ -1054,6 +1054,43 @@ function buildGenderDropdowns(categories) {
   });
 }
 
+// ─── Sports / Accessories Dropdowns ──────────────────────────────────────────
+function buildCatDropdowns(categories) {
+  var lbl = function(obj) {
+    return currentLang === 'en' ? obj.label_en : currentLang === 'tr' ? obj.label_tr : obj.label_fa;
+  };
+  var isProfile = !!window.IS_PROFILE_PAGE;
+  [
+    { key: 'Sports',      dropId: 'nav-drop-sports' },
+    { key: 'accessories', dropId: 'nav-drop-acc'    },
+  ].forEach(function(item) {
+    var drop = document.getElementById(item.dropId);
+    if (!drop) return;
+    var cat = categories.find(function(c) { return c.key === item.key; });
+    if (!cat) return;
+    var html = '<div class="nav-drop-group" data-cat="' + cat.key + '" data-gender="all">';
+    html += '<span class="nav-drop-cat-label">' + lbl(cat) + '</span>';
+    (cat.subcategories || []).forEach(function(sub) {
+      var href = isProfile
+        ? '/?_cat=' + encodeURIComponent(cat.key) + '&_sub=' + encodeURIComponent(sub.key)
+        : '#products';
+      html += '<a class="nav-drop-item" href="' + href + '" data-filter="' + cat.key + '" data-gender="all" data-sub="' + sub.key + '">' + lbl(sub) + '</a>';
+    });
+    html += '</div>';
+    drop.innerHTML = html;
+    if (!isProfile) {
+      drop.onclick = function(e) {
+        var it = e.target.closest('.nav-drop-item');
+        if (!it) return;
+        e.preventDefault();
+        handleFilterClick(it, true);
+        var mm = document.getElementById('mobile-menu');
+        if (mm) mm.classList.remove('open');
+      };
+    }
+  });
+}
+
 // ─── Header Nav Dropdowns ─────────────────────────────────────────────────────
 function initNavDropdowns() {
   document.querySelectorAll('.nav-link[data-filter], .nav-drop-item, .mega-cat-title, .mega-sub-item, .mobile-menu a[data-filter]').forEach(function(item) {
@@ -1658,7 +1695,7 @@ function applyLang(lang) {
   document.querySelectorAll('.js-phone').forEach(function(el) { el.textContent = display; el.dir = 'ltr'; });
 
   if (!window.IS_PROFILE_PAGE) {
-    if (cachedCategories.length) { buildSidebar(cachedCategories); buildMegaMenu(cachedCategories); buildGenderDropdowns(cachedCategories); }
+    if (cachedCategories.length) { buildSidebar(cachedCategories); buildMegaMenu(cachedCategories); buildGenderDropdowns(cachedCategories); buildCatDropdowns(cachedCategories); }
     renderGrid();
     renderBanner();
   }
@@ -5073,6 +5110,7 @@ document.addEventListener('DOMContentLoaded', function() {
           cachedCategories = catData.data;
           buildMegaMenu(cachedCategories);
           buildGenderDropdowns(cachedCategories);
+          buildCatDropdowns(cachedCategories);
         }
       });
     } else {
@@ -5207,6 +5245,7 @@ document.addEventListener('DOMContentLoaded', function() {
       buildSidebar(cachedCategories);
       buildMegaMenu(cachedCategories);
       buildGenderDropdowns(cachedCategories);
+      buildCatDropdowns(cachedCategories);
     } else {
       initSidebar();
     }
