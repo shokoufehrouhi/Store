@@ -2885,13 +2885,20 @@ function renderInfoTab() {
       '<span class="auth-field-error" id="info-email-err"></span>';
   }
 
+  var parsedMob = parseAddrPhone(user.mobile || '');
   if (mobileLocked) {
     mobileField =
-      '<input type="text" value="' + (user.mobile || '') + '" disabled style="opacity:.75;cursor:default;">' +
+      '<div style="display:flex;gap:6px">' +
+      '<input type="text" value="' + (parsedMob.cc || '') + '" disabled style="width:72px;flex-shrink:0;text-align:center;font-weight:600;opacity:.75;cursor:default;letter-spacing:0.03em">' +
+      '<input type="text" value="' + (parsedMob.mobile || '') + '" disabled style="flex:1;opacity:.75;cursor:default;">' +
+      '</div>' +
       '<span class="form-hint" style="color:var(--primary);font-weight:600;">🔒 ' + t.profile_info_locked + '</span>';
   } else {
     mobileField =
-      '<input id="info-mobile-input" type="text" value="' + (user.mobile || '') + '" placeholder="' + t.profile_info_ph_mobile + '">' +
+      '<div style="display:flex;gap:6px">' +
+      '<input id="info-mobile-cc" type="text" value="' + (parsedMob.cc || '') + '" style="width:72px;flex-shrink:0;text-align:center;font-weight:600;letter-spacing:0.03em" placeholder="+90">' +
+      '<input id="info-mobile-input" type="text" value="' + (parsedMob.mobile || '') + '" style="flex:1" placeholder="' + t.profile_info_ph_mobile + '">' +
+      '</div>' +
       '<span class="auth-field-error" id="info-mobile-err"></span>';
   }
 
@@ -3069,7 +3076,11 @@ function saveInfoAll() {
 
   var nameVal   = nameInp   ? nameInp.value.trim()   : (user.full_name || user.name || '');
   var emailVal  = emailInp  ? emailInp.value.trim()  : '';
-  var mobileVal = mobileInp ? mobileInp.value.trim() : '';
+  var mobCcEl   = document.getElementById('info-mobile-cc');
+  var mobCcRaw  = mobCcEl ? mobCcEl.value.trim().replace(/\s/g, '') : '';
+  if (mobCcRaw && !mobCcRaw.startsWith('+')) mobCcRaw = '+' + mobCcRaw;
+  var mobRaw    = mobileInp ? mobileInp.value.trim() : '';
+  var mobileVal = mobRaw ? (mobCcRaw + mobRaw) : '';
   var birthVal  = birthInp  ? birthInp.value         : '';
   var langVal   = langSel   ? langSel.value          : '';
   var genderVal = genderSel ? genderSel.value        : null;
