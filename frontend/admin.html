@@ -3280,14 +3280,14 @@ function _renderOrderRows(tbodyId, orders) {
       return `<a href="javascript:void(0)" onclick="event.stopPropagation();openProductFromOrder(${p.id})" style="color:#3b82f6;text-decoration:none;font-size:13px;display:block;line-height:1.6">${pname}</a>`;
     }).join('');
     const noteHtml = order.note
-      ? `<div style="margin-top:5px;font-size:12px;color:#92400e;background:#fffbeb;border-inline-start:2px solid #f59e0b;padding:2px 6px;border-radius:4px;line-height:1.5">💬 ${order.note}</div>`
+      ? `<div style="margin-top:5px;font-size:12px;color:#92400e;background:#fffbeb;border-inline-start:2px solid #f59e0b;padding:2px 6px;border-radius:4px;line-height:1.5">💬 ${esc(order.note)}</div>`
       : '';
     const rejectedAt = order.payment_rejection_reason && order.rejected_at
       ? new Date(order.rejected_at).toLocaleString(dateLocale)
       : null;
     const rejectHtml = order.payment_rejection_reason
       ? `<div style="margin-top:5px;font-size:12px;color:#b91c1c;background:#fef2f2;border-inline-start:2px solid #f87171;padding:4px 6px;border-radius:4px;line-height:1.6">
-           🚫 ${order.payment_rejection_reason}
+           🚫 ${esc(order.payment_rejection_reason)}
            ${rejectedAt ? `<span style="display:block;color:#9ca3af;font-size:11px;margin-top:1px">${rejectedAt}</span>` : ''}
          </div>`
       : '';
@@ -4124,7 +4124,7 @@ function renderOrderDetail() {
     const rejDateStr = order.rejected_at ? new Date(order.rejected_at).toLocaleString(dateLocale) : '-';
     html += `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:13px">
       <div style="color:#b91c1c;font-size:14px;font-weight:700;margin-bottom:8px">🚫 ${t('orderRejectReasonLbl')}</div>
-      <div style="color:#7f1d1d;margin-bottom:6px;white-space:pre-wrap">${order.payment_rejection_reason}</div>
+      <div style="color:#7f1d1d;margin-bottom:6px;white-space:pre-wrap">${esc(order.payment_rejection_reason)}</div>
       <div style="color:#9ca3af;font-size:12px;direction:ltr;text-align:start">${rejDateStr}</div>
     </div>`;
   }
