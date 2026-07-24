@@ -157,6 +157,50 @@
     .page-header h2 { font-size: 18px; font-weight: 700; }
     .page-body { padding: 24px 28px; }
 
+    /* ── Notifications ──────────────────────────── */
+    .notif-list { display: flex; flex-direction: column; gap: 0; }
+    .notif-item {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 18px; border-bottom: 1px solid var(--border);
+      transition: background .15s; cursor: default;
+    }
+    .notif-item:last-child { border-bottom: none; }
+    .notif-item:hover { background: #f8f9fb; }
+    .notif-item.unread { background: #fff8f5; }
+    .notif-item.unread:hover { background: #fff2ea; }
+    .notif-icon {
+      width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 18px;
+    }
+    .notif-icon.ni-order    { background: #eff6ff; }
+    .notif-icon.ni-update   { background: #fef9c3; }
+    .notif-icon.ni-return   { background: #fef2f2; }
+    .notif-icon.ni-customer { background: #f0fdf4; }
+    .notif-icon.ni-lead     { background: #f5f3ff; }
+    .notif-body { flex: 1; min-width: 0; }
+    .notif-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .notif-sub   { font-size: 12px; color: var(--text-muted); }
+    .notif-time  { font-size: 11px; color: #aaa; white-space: nowrap; margin-inline-start: 8px; }
+    .notif-view  {
+      flex-shrink: 0; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 700;
+      background: var(--primary); color: #fff; border: none; cursor: pointer;
+      transition: background .15s; margin-inline-start: 10px;
+    }
+    .notif-view:hover { background: var(--primary-dark); }
+    .notif-unread-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--primary);
+      flex-shrink: 0;
+    }
+    #notif-bell-badge {
+      position: absolute; top: -4px; inset-inline-end: -4px;
+      min-width: 18px; height: 18px; border-radius: 9px;
+      background: var(--primary); color: #fff; font-size: 10px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center; padding: 0 4px;
+      display: none;
+    }
+    .notif-bell-wrap { position: relative; display: inline-flex; }
+    .notif-empty { text-align: center; padding: 60px 20px; color: #aaa; font-size: 14px; }
+
     /* ── Dashboard ──────────────────────────────── */
     .db-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 18px; margin-bottom: 32px; }
     .db-card {
@@ -628,6 +672,12 @@
       <button class="nav-item" onclick="showTab('dashboard')" id="nav-dashboard">
         <span class="nav-icon">📊</span><span data-i18n="navDashboard">داشبورد</span>
       </button>
+      <button class="nav-item" onclick="showTab('notifications')" id="nav-notifications" style="position:relative">
+        <span class="nav-icon">
+          <span class="notif-bell-wrap">🔔<span id="notif-bell-badge"></span></span>
+        </span>
+        <span data-i18n="navNotifications">اعلان‌ها</span>
+      </button>
       <div class="nav-section-label" data-i18n="navGroupCatalog">فروشگاه</div>
       <button class="nav-item" onclick="showTab('products')" id="nav-products">
         <span class="nav-icon">📦</span><span data-i18n="navProducts">محصولات</span>
@@ -694,6 +744,20 @@
   </aside>
 
   <div id="main-content">
+
+    <!-- Notifications -->
+    <div id="tab-notifications" class="hidden">
+      <div class="page-header">
+        <h2>🔔 <span data-i18n="navNotifications">اعلان‌ها</span></h2>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button class="btn btn-secondary" onclick="markAllRead()" style="font-size:12px" data-i18n="notifMarkAll">همه خوانده شد</button>
+          <button class="btn btn-secondary" onclick="loadNotifications()" style="font-size:12px">↻ <span data-i18n="refresh">بروزرسانی</span></button>
+        </div>
+      </div>
+      <div class="page-body" style="padding:0">
+        <div id="notifications-content"><div class="notif-empty">در حال بارگذاری...</div></div>
+      </div>
+    </div>
 
     <!-- Dashboard -->
     <div id="tab-dashboard" class="hidden">
@@ -1401,7 +1465,8 @@ const LANGS = {
     loginBtn:'ورود به پنل', username:'نام کاربری', password:'رمز عبور',
     connecting:'در حال ورود...', connFail:'اتصال به سرور ناموفق بود',
     navGroupCatalog:'فروشگاه', navGroupConfig:'تنظیمات پایه', navGroupUsers:'کاربران',
-    navDashboard:'داشبورد', navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navCustomers:'مشتریان', navLeads:'لیدها', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navProductPhotos:'عکس‌های خریداران', refresh:'بروزرسانی',
+    navDashboard:'داشبورد', navNotifications:'اعلان‌ها', navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navCustomers:'مشتریان', navLeads:'لیدها', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navProductPhotos:'عکس‌های خریداران', refresh:'بروزرسانی',
+    notifMarkAll:'همه خوانده شد', notifNewOrder:'سفارش جدید', notifOrderUpdate:'بروزرسانی سفارش', notifNewReturn:'درخواست مرجوعی', notifReturnUpdate:'بروزرسانی مرجوعی', notifNewCustomer:'مشتری جدید', notifNewLead:'لید جدید', notifView:'مشاهده', notifEmpty:'اعلانی وجود ندارد',
     dbTotalCustomers:'مشتریان', dbNewThisMonth:'این ماه', dbTotalRevenue:'فروش کل', dbRevenueMonth:'این ماه', dbRevenueToday:'امروز', dbActiveOrders:'سفارش فعال', dbCompletedOrders:'تحویل‌شده', dbOrdersToday:'سفارش امروز', dbTotalLeads:'لید', dbNewLeads:'این ماه', dbTotalReturns:'مرجوعی', dbPendingReturns:'در انتظار', dbTopProducts:'پرفروش‌ترین‌ها', dbRecentOrders:'سفارشات اخیر', dbOrderId:'شناسه', dbCustomer:'مشتری', dbProduct:'محصول', dbQty:'تعداد', dbStatus:'وضعیت', dbAmount:'مبلغ', dbDate:'تاریخ', loading:'در حال بارگذاری...', loadError:'خطا در بارگذاری داده‌ها', noData:'داده‌ای موجود نیست',
     leadsColName:'نام', leadsColEmail:'ایمیل', leadsColPhone:'تلفن', leadsColReferredBy:'معرف', leadsColStatus:'وضعیت', leadsColDate:'تاریخ',
     leadsStatusPending:'در انتظار', leadsStatusEmailSent:'ایمیل ارسال شد', leadsStatusOpened:'بازشده', leadsStatusRegistered:'ثبت‌نام کرد',
@@ -1585,7 +1650,8 @@ const LANGS = {
     loginBtn:'Login', username:'Username', password:'Password',
     connecting:'Logging in...', connFail:'Could not connect to server',
     navGroupCatalog:'Store', navGroupConfig:'Configuration', navGroupUsers:'Users',
-    navDashboard:'Dashboard', navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navCustomers:'Customers', navLeads:'Leads', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navProductPhotos:'Buyer Photos', refresh:'Refresh',
+    navDashboard:'Dashboard', navNotifications:'Notifications', navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navCustomers:'Customers', navLeads:'Leads', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navProductPhotos:'Buyer Photos', refresh:'Refresh',
+    notifMarkAll:'Mark all read', notifNewOrder:'New Order', notifOrderUpdate:'Order Updated', notifNewReturn:'Return Request', notifReturnUpdate:'Return Updated', notifNewCustomer:'New Customer', notifNewLead:'New Lead', notifView:'View', notifEmpty:'No notifications',
     dbTotalCustomers:'Customers', dbNewThisMonth:'This Month', dbTotalRevenue:'Total Revenue', dbRevenueMonth:'This Month', dbRevenueToday:'Today', dbActiveOrders:'Active Orders', dbCompletedOrders:'Delivered', dbOrdersToday:'Today Orders', dbTotalLeads:'Leads', dbNewLeads:'This Month', dbTotalReturns:'Returns', dbPendingReturns:'Pending', dbTopProducts:'Top Products', dbRecentOrders:'Recent Orders', dbOrderId:'ID', dbCustomer:'Customer', dbProduct:'Product', dbQty:'Qty', dbStatus:'Status', dbAmount:'Amount', dbDate:'Date', loading:'Loading...', loadError:'Failed to load data', noData:'No data available',
     leadsColName:'Name', leadsColEmail:'Email', leadsColPhone:'Phone', leadsColReferredBy:'Referred By', leadsColStatus:'Status', leadsColDate:'Date',
     leadsStatusPending:'Pending', leadsStatusEmailSent:'Email Sent', leadsStatusOpened:'Opened', leadsStatusRegistered:'Registered',
@@ -1769,7 +1835,8 @@ const LANGS = {
     loginBtn:'Giriş Yap', username:'Kullanıcı Adı', password:'Şifre',
     connecting:'Giriş yapılıyor...', connFail:'Sunucuya bağlanılamadı',
     navGroupCatalog:'Mağaza', navGroupConfig:'Yapılandırma', navGroupUsers:'Kullanıcılar',
-    navDashboard:'Gösterge Paneli', navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navCustomers:'Müşteriler', navLeads:'Adaylar', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navProductPhotos:'Alıcı Fotoğrafları', refresh:'Yenile',
+    navDashboard:'Gösterge Paneli', navNotifications:'Bildirimler', navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navCustomers:'Müşteriler', navLeads:'Adaylar', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navProductPhotos:'Alıcı Fotoğrafları', refresh:'Yenile',
+    notifMarkAll:'Tümünü okundu say', notifNewOrder:'Yeni Sipariş', notifOrderUpdate:'Sipariş Güncellendi', notifNewReturn:'İade Talebi', notifReturnUpdate:'İade Güncellendi', notifNewCustomer:'Yeni Müşteri', notifNewLead:'Yeni Aday', notifView:'Görüntüle', notifEmpty:'Bildirim yok',
     dbTotalCustomers:'Müşteriler', dbNewThisMonth:'Bu Ay', dbTotalRevenue:'Toplam Satış', dbRevenueMonth:'Bu Ay', dbRevenueToday:'Bugün', dbActiveOrders:'Aktif Sipariş', dbCompletedOrders:'Teslim Edildi', dbOrdersToday:'Bugün Siparişler', dbTotalLeads:'Adaylar', dbNewLeads:'Bu Ay', dbTotalReturns:'İadeler', dbPendingReturns:'Beklemede', dbTopProducts:'En Çok Satanlar', dbRecentOrders:'Son Siparişler', dbOrderId:'ID', dbCustomer:'Müşteri', dbProduct:'Ürün', dbQty:'Adet', dbStatus:'Durum', dbAmount:'Tutar', dbDate:'Tarih', loading:'Yükleniyor...', loadError:'Veri yüklenemedi', noData:'Veri yok',
     leadsColName:'Ad', leadsColEmail:'E-posta', leadsColPhone:'Telefon', leadsColReferredBy:'Referans', leadsColStatus:'Durum', leadsColDate:'Tarih',
     leadsStatusPending:'Beklemede', leadsStatusEmailSent:'E-posta Gönderildi', leadsStatusOpened:'Açıldı', leadsStatusRegistered:'Kayıt Oldu',
@@ -2068,6 +2135,11 @@ function showAdmin() {
   document.getElementById('admin-layout').classList.remove('hidden');
   showTab(currentTab);
   loadBankAccounts();
+  api('/admin/notifications').then(res => {
+    if (!res?.success) return;
+    const unread = res.data.filter(n => !_readNotifIds.has(`${n.type}_${n.id}`)).length;
+    updateNotifBadge(unread);
+  });
 }
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
@@ -2075,7 +2147,7 @@ function showTab(tab) {
   currentTab = tab;
   localStorage.setItem('admin_tab', tab);
   if (window.innerWidth <= 768) closeSidebar();
-  ['dashboard','products','categories','colors','sizes','customers','active-orders','orders','prizes','returns','product-photos','suppliers','bank-accounts','coupons','leads','reports'].forEach(t2 => {
+  ['notifications','dashboard','products','categories','colors','sizes','customers','active-orders','orders','prizes','returns','product-photos','suppliers','bank-accounts','coupons','leads','reports'].forEach(t2 => {
     const el = document.getElementById(`tab-${t2}`);
     const nav = document.getElementById(`nav-${t2}`);
     if (el)  el.classList.add('hidden');
@@ -2083,6 +2155,7 @@ function showTab(tab) {
   });
   document.getElementById(`tab-${tab}`).classList.remove('hidden');
   document.getElementById(`nav-${tab}`).classList.add('active');
+  if (tab === 'notifications')  loadNotifications();
   if (tab === 'dashboard')      loadDashboard();
   if (tab === 'products')       loadProducts();
   if (tab === 'categories')     loadCategories();
@@ -2145,6 +2218,114 @@ function openModal(title, bodyHtml, footerHtml) {
   document.getElementById('modal-body').innerHTML = bodyHtml;
   document.getElementById('modal-footer').innerHTML = footerHtml;
   document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+let _readNotifIds = new Set(JSON.parse(localStorage.getItem('read_notif_ids') || '[]'));
+
+function saveReadIds() { localStorage.setItem('read_notif_ids', JSON.stringify([..._readNotifIds])); }
+
+function markAllRead() {
+  document.querySelectorAll('.notif-item[data-nkey]').forEach(el => _readNotifIds.add(el.dataset.nkey));
+  saveReadIds();
+  document.querySelectorAll('.notif-item.unread').forEach(el => el.classList.remove('unread'));
+  document.querySelectorAll('.notif-unread-dot').forEach(el => el.remove());
+  updateNotifBadge(0);
+}
+
+function updateNotifBadge(count) {
+  const badge = document.getElementById('notif-bell-badge');
+  if (!badge) return;
+  if (count > 0) { badge.textContent = count > 99 ? '99+' : count; badge.style.display = 'flex'; }
+  else { badge.style.display = 'none'; }
+}
+
+function timeAgo(dateStr) {
+  const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
+  if (diff < 60)   return diff + 's';
+  if (diff < 3600) return Math.floor(diff/60) + 'm';
+  if (diff < 86400)return Math.floor(diff/3600) + 'h';
+  return Math.floor(diff/86400) + 'd';
+}
+
+async function viewNotification(tab, actionId, nkey) {
+  _readNotifIds.add(nkey);
+  saveReadIds();
+  const el = document.querySelector(`.notif-item[data-nkey="${nkey}"]`);
+  if (el) { el.classList.remove('unread'); el.querySelector('.notif-unread-dot')?.remove(); }
+  const unreadCount = document.querySelectorAll('.notif-item.unread').length;
+  updateNotifBadge(unreadCount);
+
+  if (tab === 'active-orders' || tab === 'orders') {
+    showTab('active-orders');
+    setTimeout(async () => {
+      if (!_allAdminOrders.length) await loadAdminOrders();
+      openOrderDetail(actionId);
+    }, 400);
+  } else if (tab === 'returns') {
+    showTab('returns');
+    setTimeout(async () => {
+      if (!window._allAdminReturns?.length) await loadAdminReturns();
+      openReturnDetail(actionId);
+    }, 400);
+  } else if (tab === 'customers') {
+    showTab('customers');
+  } else if (tab === 'leads') {
+    showTab('leads');
+  }
+}
+
+async function loadNotifications() {
+  const wrap = document.getElementById('notifications-content');
+  wrap.innerHTML = `<div class="notif-empty">${t('loading')}</div>`;
+  const res = await api('/admin/notifications');
+  if (!res?.success) { wrap.innerHTML = `<div class="notif-empty" style="color:#ef4444">${t('loadError')}</div>`; return; }
+
+  const items = res.data;
+  if (!items.length) { wrap.innerHTML = `<div class="notif-empty">🔔 ${t('notifEmpty')}</div>`; updateNotifBadge(0); return; }
+
+  const iconMap = {
+    new_order:    ['ni-order',    '🛍️'],
+    order_update: ['ni-update',   '🔄'],
+    new_return:   ['ni-return',   '↩️'],
+    return_update:['ni-return',   '📝'],
+    new_customer: ['ni-customer', '👤'],
+    new_lead:     ['ni-lead',     '🧲'],
+  };
+  const titleMap = {
+    new_order:    'notifNewOrder',
+    order_update: 'notifOrderUpdate',
+    new_return:   'notifNewReturn',
+    return_update:'notifReturnUpdate',
+    new_customer: 'notifNewCustomer',
+    new_lead:     'notifNewLead',
+  };
+
+  let unread = 0;
+  const rows = items.map(n => {
+    const nkey = `${n.type}_${n.id}`;
+    const isUnread = !_readNotifIds.has(nkey);
+    if (isUnread) unread++;
+    const [iconCls, icon] = iconMap[n.type] || ['ni-order','📌'];
+    let sub = n.customer || '';
+    if (n.status) sub += (sub ? ' · ' : '') + orderStatusLabel(n.status);
+    if (n.amount) sub += (sub ? ' · ' : '') + Number(n.amount).toLocaleString('en-US');
+    if (n.order_id) sub += (sub ? ' · ' : '') + `ORD-${n.order_id}`;
+    return `
+      <div class="notif-item${isUnread ? ' unread' : ''}" data-nkey="${nkey}">
+        ${isUnread ? '<div class="notif-unread-dot"></div>' : ''}
+        <div class="notif-icon ${iconCls}">${icon}</div>
+        <div class="notif-body">
+          <div class="notif-title">${t(titleMap[n.type])} #${n.id}</div>
+          <div class="notif-sub">${sub}</div>
+        </div>
+        <div class="notif-time">${timeAgo(n.timestamp)}</div>
+        <button class="notif-view" onclick="viewNotification('${n.tab}',${n.action_id},'${nkey}')">${t('notifView')}</button>
+      </div>`;
+  });
+
+  wrap.innerHTML = `<div class="notif-list">${rows.join('')}</div>`;
+  updateNotifBadge(unread);
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────

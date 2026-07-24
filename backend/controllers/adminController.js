@@ -3,6 +3,98 @@ const path    = require('path');
 const fs      = require('fs');
 const { sendOrderEmail, sendLoyaltyEmail, sendPrizeEarnedEmail, label } = require('../utils/mailer');
 
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+async function getNotifications(req, res, next) {
+  try {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const [orders, returns, customers, leads] = await Promise.all([
+      prisma.orders.findMany({
+        where: { updated_at: { gte: since } },
+        orderBy: { updated_at: 'desc' },
+        take: 30,
+        include: { customers: { select: { full_name: true, mobile: true } } },
+      }),
+      prisma.order_returns.findMany({
+        where: { updated_at: { gte: since } },
+        orderBy: { updated_at: 'desc' },
+        take: 20,
+        include: { orders: { include: { customers: { select: { full_name: true } } } } },
+      }),
+      prisma.customers.findMany({
+        where: { created_at: { gte: since } },
+        orderBy: { created_at: 'desc' },
+        take: 20,
+        select: { id: true, full_name: true, mobile: true, email: true, created_at: true },
+      }),
+      prisma.leads.findMany({
+        where: { created_at: { gte: since } },
+        orderBy: { created_at: 'desc' },
+        take: 20,
+        select: { id: true, name: true, email: true, phone: true, status: true, created_at: true },
+      }),
+    ]);
+
+    const notifications = [];
+
+    for (const o of orders) {
+      const diffMs = Math.abs(new Date(o.updated_at) - new Date(o.created_at));
+      const isNew = diffMs < 10000;
+      notifications.push({
+        type: isNew ? 'new_order' : 'order_update',
+        id: o.id,
+        customer: o.customers?.full_name || o.customers?.mobile || '—',
+        status: o.status,
+        amount: Number(o.total_amount),
+        timestamp: isNew ? o.created_at : o.updated_at,
+        tab: 'active-orders',
+        action_id: o.id,
+      });
+    }
+
+    for (const r of returns) {
+      const diffMs = Math.abs(new Date(r.updated_at) - new Date(r.requested_at));
+      const isNew = diffMs < 10000;
+      notifications.push({
+        type: isNew ? 'new_return' : 'return_update',
+        id: r.id,
+        order_id: r.order_id,
+        customer: r.orders?.customers?.full_name || '—',
+        status: r.status,
+        timestamp: r.updated_at,
+        tab: 'returns',
+        action_id: r.id,
+      });
+    }
+
+    for (const c of customers) {
+      notifications.push({
+        type: 'new_customer',
+        id: c.id,
+        customer: c.full_name || c.mobile || c.email || '—',
+        timestamp: c.created_at,
+        tab: 'customers',
+        action_id: c.id,
+      });
+    }
+
+    for (const l of leads) {
+      notifications.push({
+        type: 'new_lead',
+        id: l.id,
+        customer: l.name || l.email || '—',
+        status: l.status,
+        timestamp: l.created_at,
+        tab: 'leads',
+        action_id: l.id,
+      });
+    }
+
+    notifications.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    res.json({ success: true, data: notifications.slice(0, 50) });
+  } catch (err) { next(err); }
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 async function getDashboard(req, res, next) {
@@ -1174,6 +1266,7 @@ module.exports = {
   getProducts, createProduct, updateProduct, deleteProduct,
   getAdminOrders, setPaymentInfo, approvePayment, rejectPayment, rejectPreorder, setShipping, markDelivered,
   getBankAccounts, createBankAccount, updateBankAccount, deleteBankAccount,
+  getNotifications,
   getDashboard,
   getReports, getFinancialReport, getCustomerReports, getCouponReport,
   listPrizeOrders, shipPrizeOrder, deliverPrizeOrder, updatePrizeNote,

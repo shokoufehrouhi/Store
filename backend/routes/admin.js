@@ -8,6 +8,7 @@ router.post('/login', c.login);
 router.use(adminAuth);
 
 router.get('/dashboard', c.getDashboard);
+router.get('/notifications', c.getNotifications);
 
 router.post('/upload', (req, res, next) => {
   const upload = getUploadMiddleware();
