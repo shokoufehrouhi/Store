@@ -158,38 +158,74 @@
     .page-body { padding: 24px 28px; }
 
     /* ── Dashboard ──────────────────────────────── */
-    .db-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .db-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 18px; margin-bottom: 32px; }
     .db-card {
-      background: var(--white); border-radius: 14px; border: 1px solid var(--border);
-      padding: 20px 22px; display: flex; flex-direction: column; gap: 6px;
-      transition: box-shadow .2s, transform .2s;
+      background: var(--white); border-radius: 18px;
+      border: 1px solid var(--border);
+      padding: 22px 24px 18px;
+      display: flex; flex-direction: column; gap: 0;
+      position: relative; overflow: hidden;
+      transition: box-shadow .25s, transform .25s;
+      cursor: default;
     }
-    .db-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); transform: translateY(-2px); }
-    .db-card-icon { font-size: 26px; margin-bottom: 4px; }
-    .db-card-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
-    .db-card-value { font-size: 26px; font-weight: 800; color: var(--text); line-height: 1.1; }
-    .db-card-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-    .db-card-sub span { color: #16a34a; font-weight: 600; }
-    .db-card.accent-blue  { border-top: 3px solid #3b82f6; }
-    .db-card.accent-green { border-top: 3px solid #16a34a; }
-    .db-card.accent-orange{ border-top: 3px solid var(--primary); }
-    .db-card.accent-purple{ border-top: 3px solid #8b5cf6; }
-    .db-card.accent-red   { border-top: 3px solid #ef4444; }
-    .db-card.accent-teal  { border-top: 3px solid #0d9488; }
-    .db-section-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; color: var(--text); }
+    .db-card::before {
+      content: ''; position: absolute; inset-inline-end: -18px; top: -18px;
+      width: 90px; height: 90px; border-radius: 50%;
+      opacity: .08; background: var(--db-color, #3b82f6);
+    }
+    .db-card::after {
+      content: ''; position: absolute; inset-inline-end: 8px; top: 14px;
+      width: 44px; height: 44px; border-radius: 12px;
+      background: var(--db-color, #3b82f6); opacity: .12;
+    }
+    .db-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,.10); transform: translateY(-3px); }
+    .db-card-icon {
+      font-size: 20px; position: absolute; inset-inline-end: 19px; top: 18px;
+      width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+      border-radius: 12px; background: var(--db-color, #3b82f6);
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--db-color, #3b82f6) 40%, transparent);
+      z-index: 1;
+    }
+    .db-card-label { font-size: 11px; color: var(--text-muted); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 8px; }
+    .db-card-value { font-size: 30px; font-weight: 900; color: var(--text); line-height: 1; margin-bottom: 10px; }
+    .db-card-sub {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 600;
+      background: color-mix(in srgb, var(--db-color, #3b82f6) 12%, transparent);
+      color: var(--db-color, #3b82f6);
+      padding: 3px 9px; border-radius: 20px; width: fit-content;
+    }
+    .db-card.c-blue   { --db-color: #3b82f6; }
+    .db-card.c-green  { --db-color: #16a34a; }
+    .db-card.c-orange { --db-color: #FF5C00; }
+    .db-card.c-teal   { --db-color: #0d9488; }
+    .db-card.c-purple { --db-color: #8b5cf6; }
+    .db-card.c-red    { --db-color: #ef4444; }
+    .db-section-title { font-size: 14px; font-weight: 700; margin-bottom: 16px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+    .db-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
     .db-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    .db-box { background: var(--white); border-radius: 14px; border: 1px solid var(--border); padding: 20px; }
+    .db-box {
+      background: var(--white); border-radius: 18px;
+      border: 1px solid var(--border); padding: 22px 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    }
     .db-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .db-table th { text-align: right; padding: 8px 10px; border-bottom: 2px solid var(--border); color: var(--text-muted); font-weight: 600; font-size: 12px; }
-    .db-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); }
+    .db-table th { text-align: right; padding: 10px 12px; border-bottom: 2px solid var(--border); color: var(--text-muted); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+    .db-table td { padding: 11px 12px; border-bottom: 1px solid #f1f3f6; vertical-align: middle; }
     .db-table tr:last-child td { border-bottom: none; }
-    .db-badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .db-table tbody tr:hover td { background: #f8f9fb; }
+    .db-rank { width: 22px; height: 22px; border-radius: 50%; background: var(--bg); font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); }
+    .db-rank.top1 { background: #fef3c7; color: #d97706; }
+    .db-rank.top2 { background: #f1f5f9; color: #64748b; }
+    .db-rank.top3 { background: #fef2f2; color: #dc2626; }
+    .db-badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; gap: 4px; }
     .db-badge.delivered { background: #dcfce7; color: #16a34a; }
-    .db-badge.active    { background: #fef9c3; color: #a16207; }
+    .db-badge.active    { background: #fff7ed; color: #ea580c; }
     .db-badge.other     { background: #f1f5f9; color: #64748b; }
     @media (max-width: 768px) {
       .db-two-col { grid-template-columns: 1fr; }
       .db-grid { grid-template-columns: repeat(2, 1fr); }
+      .db-card-value { font-size: 24px; }
     }
 
     /* ── Buttons ──────────────────────────────────── */
@@ -2135,70 +2171,73 @@ async function loadDashboard() {
 
   wrap.innerHTML = `
     <div class="db-grid">
-      <div class="db-card accent-blue">
-        <div class="db-card-icon">👥</div>
+      <div class="db-card c-blue">
         <div class="db-card-label">${t('dbTotalCustomers')}</div>
         <div class="db-card-value">${fmt(d.customers.total)}</div>
-        <div class="db-card-sub">+ <span>${fmt(d.customers.newThisMonth)}</span> ${t('dbNewThisMonth')}</div>
+        <div class="db-card-sub">↑ ${fmt(d.customers.newThisMonth)} ${t('dbNewThisMonth')}</div>
+        <div class="db-card-icon">👥</div>
       </div>
-      <div class="db-card accent-green">
-        <div class="db-card-icon">💰</div>
+      <div class="db-card c-green">
         <div class="db-card-label">${t('dbTotalRevenue')}</div>
         <div class="db-card-value">${fmt(d.revenue.total)}</div>
-        <div class="db-card-sub">${t('dbRevenueMonth')}: <span>${fmt(d.revenue.thisMonth)}</span></div>
+        <div class="db-card-sub">↑ ${fmt(d.revenue.thisMonth)} ${t('dbRevenueMonth')}</div>
+        <div class="db-card-icon">💰</div>
       </div>
-      <div class="db-card accent-orange">
-        <div class="db-card-icon">🔥</div>
+      <div class="db-card c-orange">
         <div class="db-card-label">${t('dbActiveOrders')}</div>
         <div class="db-card-value">${fmt(d.orders.active)}</div>
-        <div class="db-card-sub">${t('dbCompletedOrders')}: <span>${fmt(d.orders.completed)}</span></div>
+        <div class="db-card-sub">✓ ${fmt(d.orders.completed)} ${t('dbCompletedOrders')}</div>
+        <div class="db-card-icon">🔥</div>
       </div>
-      <div class="db-card accent-teal">
-        <div class="db-card-icon">📋</div>
+      <div class="db-card c-teal">
         <div class="db-card-label">${t('dbOrdersToday')}</div>
         <div class="db-card-value">${fmt(d.orders.today)}</div>
-        <div class="db-card-sub">${t('dbRevenueToday')}: <span>${fmt(d.revenue.today)}</span></div>
+        <div class="db-card-sub">💵 ${fmt(d.revenue.today)} ${t('dbRevenueToday')}</div>
+        <div class="db-card-icon">📋</div>
       </div>
-      <div class="db-card accent-purple">
-        <div class="db-card-icon">🧲</div>
+      <div class="db-card c-purple">
         <div class="db-card-label">${t('dbTotalLeads')}</div>
         <div class="db-card-value">${fmt(d.leads.total)}</div>
-        <div class="db-card-sub">+ <span>${fmt(d.leads.newThisMonth)}</span> ${t('dbNewLeads')}</div>
+        <div class="db-card-sub">↑ ${fmt(d.leads.newThisMonth)} ${t('dbNewLeads')}</div>
+        <div class="db-card-icon">🧲</div>
       </div>
-      <div class="db-card accent-red">
-        <div class="db-card-icon">↩</div>
+      <div class="db-card c-red">
         <div class="db-card-label">${t('dbTotalReturns')}</div>
         <div class="db-card-value">${fmt(d.returns.total)}</div>
-        <div class="db-card-sub">${t('dbPendingReturns')}: <span style="color:#ef4444">${fmt(d.returns.pending)}</span></div>
+        <div class="db-card-sub">⏳ ${fmt(d.returns.pending)} ${t('dbPendingReturns')}</div>
+        <div class="db-card-icon">↩️</div>
       </div>
     </div>
 
     <div class="db-two-col">
       <div class="db-box">
         <div class="db-section-title">🏆 ${t('dbTopProducts')}</div>
-        ${d.topProducts.length === 0 ? `<div style="color:#888;font-size:13px">${t('noData')}</div>` : `
+        ${d.topProducts.length === 0 ? `<div style="color:#aaa;font-size:13px;padding:12px 0">${t('noData')}</div>` : `
         <table class="db-table">
           <thead><tr><th>#</th><th>${t('dbProduct')}</th><th>${t('dbQty')}</th></tr></thead>
           <tbody>${d.topProducts.map((p,i) => `
             <tr>
-              <td style="color:#888;font-weight:700">${i+1}</td>
-              <td><div style="font-weight:600;font-size:13px">${p.name_fa||p.name_en||'—'}</div><div style="font-size:11px;color:#888">${p.code||''}</div></td>
-              <td><strong>${fmt(p.qty)}</strong></td>
+              <td><span class="db-rank${i===0?' top1':i===1?' top2':i===2?' top3':''}">${i+1}</span></td>
+              <td>
+                <div style="font-weight:700;font-size:13px;color:var(--text)">${p.name_fa||p.name_en||'—'}</div>
+                ${p.code ? `<div style="font-size:11px;color:#aaa;margin-top:1px">${p.code}</div>` : ''}
+              </td>
+              <td><span style="font-weight:800;font-size:14px;color:var(--text)">${fmt(p.qty)}</span></td>
             </tr>`).join('')}
           </tbody>
         </table>`}
       </div>
       <div class="db-box">
         <div class="db-section-title">📋 ${t('dbRecentOrders')}</div>
-        ${d.recentOrders.length === 0 ? `<div style="color:#888;font-size:13px">${t('noData')}</div>` : `
+        ${d.recentOrders.length === 0 ? `<div style="color:#aaa;font-size:13px;padding:12px 0">${t('noData')}</div>` : `
         <table class="db-table">
           <thead><tr><th>${t('dbOrderId')}</th><th>${t('dbCustomer')}</th><th>${t('dbStatus')}</th><th>${t('dbAmount')}</th></tr></thead>
           <tbody>${d.recentOrders.map(o => `
             <tr>
-              <td style="font-size:11px;color:#888">#${o.id}</td>
-              <td style="font-size:12px">${o.customer||'—'}</td>
+              <td><span style="font-size:11px;font-weight:700;color:#aaa">#${o.id}</span></td>
+              <td><span style="font-size:13px;font-weight:600">${o.customer||'—'}</span></td>
               <td>${statusBadge(o.status)}</td>
-              <td style="font-size:12px;font-weight:600">${fmt(o.amount)}</td>
+              <td><span style="font-size:13px;font-weight:800;color:var(--text)">${fmt(o.amount)}</span></td>
             </tr>`).join('')}
           </tbody>
         </table>`}
