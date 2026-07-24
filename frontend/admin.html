@@ -2359,7 +2359,13 @@ async function viewEmailBody(id, subject) {
     </div>`, '');
   setTimeout(() => {
     const frame = document.getElementById('comm-preview-frame');
-    if (frame) { frame.contentDocument.open(); frame.contentDocument.write(html_body); frame.contentDocument.close(); }
+    if (frame) {
+      const html = html_body
+        .replace(/cid:email-logo@shilista/g, '/images/shilista_email_logo.jpg')
+        .replace(/cid:icon-telegram@shilista/g, '/images/icon_telegram.png')
+        .replace(/cid:icon-instagram@shilista/g, '/images/icon_instagram.png');
+      frame.contentDocument.open(); frame.contentDocument.write(html); frame.contentDocument.close();
+    }
   }, 50);
 }
 
