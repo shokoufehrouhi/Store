@@ -2189,7 +2189,7 @@ function showAdmin() {
   loadBankAccounts();
   api('/admin/notifications').then(res => {
     if (!res?.success) return;
-    const unread = res.data.filter(n => !_readNotifIds.has(`${n.type}_${n.id}`)).length;
+    const unread = res.data.filter(n => !_readNotifIds.has(`${n.type}_${n.id}_${n.status || ''}`)).length;
     updateNotifBadge(unread);
   });
 }
@@ -2464,7 +2464,7 @@ async function loadNotifications() {
 
   let unread = 0;
   const rows = items.map(n => {
-    const nkey = `${n.type}_${n.id}`;
+    const nkey = `${n.type}_${n.id}_${n.status || ''}`;
     const isUnread = !_readNotifIds.has(nkey);
     if (isUnread) unread++;
     const [iconCls, icon] = iconMap[n.type] || ['ni-order','📌'];

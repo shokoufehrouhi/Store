@@ -91,6 +91,7 @@ async function getNotifications(req, res, next) {
 
     const notifications = [];
 
+    const TERMINAL_STATUSES = new Set(['delivered', 'cancelled', 'rejected']);
     for (const o of orders) {
       const diffMs = Math.abs(new Date(o.updated_at) - new Date(o.created_at));
       const isNew = diffMs < 10000;
@@ -101,7 +102,7 @@ async function getNotifications(req, res, next) {
         status: o.status,
         amount: Number(o.total_amount),
         timestamp: isNew ? o.created_at : o.updated_at,
-        tab: 'active-orders',
+        tab: TERMINAL_STATUSES.has(o.status) ? 'orders' : 'active-orders',
         action_id: o.id,
       });
     }
