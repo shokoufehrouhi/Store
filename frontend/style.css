@@ -1779,9 +1779,9 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 
 @media (max-width: 768px) {
   .nav-links, .order-btn { display: none; }
-  .menu-toggle { display: block; }
+  .menu-toggle { display: block; padding: 10px; }
   .logo { margin-left: auto; }
-  .logo-img { height: 44px; }
+  .logo-img { height: 44px; max-width: 130px; }
 
   .hero { min-height: auto; }
   .hero-content { padding: 24px 0; }
@@ -1827,7 +1827,7 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 @media (max-width: 420px) {
   .products-grid { grid-template-columns: 1fr; }
   .hero-title { font-size: 22px; }
-  .logo-img { height: 38px; }
+  .logo-img { height: 38px; max-width: 110px; }
   .product-card { font-size: 13px; }
 }
 
@@ -3717,6 +3717,15 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   .fav-grid { grid-template-columns: repeat(2, 1fr); }
   .fav-thumb { aspect-ratio: 1 / 1; }
   .address-form-grid { grid-template-columns: 1fr; }
+  .signup-grid { grid-template-columns: 1fr; }
+  .color-swatch { width: 36px; height: 36px; }
+  .filter-drawer-close { width: 40px; height: 40px; }
+}
+
+/* Safety net: let the header row wrap rather than overflow if the combined
+   logo + auth/fav/cart buttons + hamburger don't fit a very narrow screen. */
+@media (max-width: 380px) {
+  .header-inner { flex-wrap: wrap; row-gap: 6px; }
 }
 
 /* ─── Mobile Modal ───────────────────────────────────────────────────────── */

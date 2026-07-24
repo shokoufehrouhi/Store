@@ -126,7 +126,8 @@
           <button class="mobile-lang-opt" data-lang="en">EN</button>
           <button class="mobile-lang-opt" data-lang="tr">TR</button>
         </div>
-        <button class="mobile-order-btn" onclick="openCheckout();closeMenu()" data-i18n="order_btn">ثبت سفارش</button>
+        <button class="mobile-order-btn" onclick="openCheckout();toggleMenu()" data-i18n="order_btn">ثبت سفارش</button>
+        <button class="mobile-order-btn" id="mobile-menu-logout" onclick="doLogout();toggleMenu()" data-i18n="profile_logout" style="display:none;background:none;border:1px solid var(--border);color:var(--text)">خروج از حساب</button>
       </nav>
     </div>
   </header>

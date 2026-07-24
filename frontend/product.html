@@ -38,6 +38,7 @@
     @media(max-width: 700px){
       .pd-card { grid-template-columns: 1fr; }
       .pd-gallery { border-inline-start: none !important; border-bottom: 1px solid var(--border); }
+      .pd-arrow { width: 42px; height: 42px; }
     }
     @media(max-width: 480px){
       .pd-info { padding: 20px 16px 28px; }
@@ -174,8 +175,14 @@
     }
     .pd-cart-head-title { font-size: 15px; font-weight: 700; color: var(--text); }
     .pd-cart-close {
-      background: none; border: none; font-size: 22px; cursor: pointer;
-      color: var(--text-light); line-height: 1; padding: 0 4px;
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--bg); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; cursor: pointer; color: var(--text-light); line-height: 1;
+    }
+    .pd-cart-close:hover { background: var(--border); }
+    @media (max-width: 768px) {
+      .pd-cart-drawer { width: 100% !important; }
     }
     .pd-cart-items { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
     .pd-cart-item {
@@ -534,7 +541,13 @@ document.addEventListener('click', function(){ var m=document.getElementById('si
 // mobile menu
 function pdToggleMenu(){
   var m = document.getElementById('pd-mobile-menu');
-  if(m) m.classList.toggle('open');
+  if(!m) return;
+  m.classList.toggle('open');
+  // .header is position:fixed (see comment at top of <style>), so it doesn't
+  // push .pd-page down on its own when the menu grows it taller — do it manually.
+  var header = document.getElementById('header');
+  var page   = document.querySelector('.pd-page');
+  if(header && page) page.style.marginTop = header.offsetHeight + 'px';
 }
 
 // i18n for header links

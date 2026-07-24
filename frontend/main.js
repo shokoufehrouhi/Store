@@ -2790,6 +2790,8 @@ function makeInitialsAvatar(name, size, fontSize) {
 
 function updateAuthUI() {
   var user = getCurrentUser();
+  var mobileLogoutBtn = document.getElementById('mobile-menu-logout');
+  if (mobileLogoutBtn) mobileLogoutBtn.style.display = user ? 'block' : 'none';
   var btn  = document.getElementById('auth-header-btn');
   if (!btn) return;
   if (user) {

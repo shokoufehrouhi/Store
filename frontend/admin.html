@@ -550,10 +550,10 @@
     /* ── Category sections ──────────────────────── */
     .cat-section { margin-bottom: 24px; transition: opacity .2s; }
     .cat-section-header {
-      display: flex; align-items: center; justify-content: space-between;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
       padding: 14px 16px; background: var(--bg); border-radius: 8px; margin-bottom: 10px;
     }
-    .cat-section-header .cat-info { display: flex; align-items: center; gap: 10px; }
+    .cat-section-header .cat-info { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .cat-section-header .cat-title { font-size: 15px; font-weight: 700; }
     .vis-toggle { position: relative; display: inline-flex; align-items: center; cursor: pointer; flex-shrink: 0; }
     .vis-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
@@ -613,8 +613,8 @@
       }
 
       /* modal full width */
-      .modal-overlay-admin { padding: 0 !important; }
-      .modal-box { width: 100% !important; max-width: 100% !important;
+      #modal-overlay { padding: 0 !important; }
+      .modal-card { width: 100% !important; max-width: 100% !important;
         border-radius: 0 !important; margin: 0 !important; max-height: 100vh !important; }
 
       /* actions wrap */
@@ -644,6 +644,11 @@
 
       /* Coupon field grid: 2 columns instead of 6 */
       #coupon-field-grid { grid-template-columns: 1fr 1fr !important; }
+
+      /* Larger touch targets */
+      .media-thumb .rm-media { width: 26px; height: 26px; }
+      .vis-toggle { padding: 8px; margin: -8px; }
+      .size-tag .rm { padding: 6px; margin: -6px; }
     }
 
     @media (max-width: 480px) {
@@ -651,6 +656,9 @@
       .page-header h2 { font-size: 15px; }
       /* Login card: fit small phones */
       .login-card { width: calc(100vw - 32px); padding: 32px 22px; }
+      .confirm-card { width: calc(100vw - 32px); padding: 24px 20px; }
+      /* Coupon field grid: down to 1 column, matching other forms */
+      #coupon-field-grid { grid-template-columns: 1fr !important; }
     }
   </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
@@ -1328,7 +1336,7 @@
       </div>
       <div class="page-body">
         <!-- Sub-tab nav -->
-        <div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:2px solid var(--border)">
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:20px;border-bottom:2px solid var(--border)">
           <button class="rpt-subtab active" id="rpt-subtab-sales"      onclick="switchReportSubtab('sales')"     data-i18n="rptSubSales">گزارش فروش</button>
           <button class="rpt-subtab"        id="rpt-subtab-customers"  onclick="switchReportSubtab('customers')" data-i18n="rptSubCustomers">گزارش مشتریان</button>
           <button class="rpt-subtab"        id="rpt-subtab-financial"  onclick="switchReportSubtab('financial')" data-i18n="rptSubFinancial">گزارش مالی</button>
@@ -5889,7 +5897,7 @@ async function loadCouponReport() {
       ? '<div style="width:100%;height:4px;background:#f0f0f0;border-radius:2px;margin-top:4px"><div style="height:4px;background:var(--primary);border-radius:2px;width:' + Math.min(100, Math.round(cp.used_count / cp.max_uses * 100)) + '%"></div></div>'
       : '';
     var rowsHtml = cp.orders.length
-      ? '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px">' +
+      ? '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px">' +
           '<thead><tr style="background:var(--bg)">' +
             '<th style="padding:6px 10px;text-align:right;font-weight:600;color:#888">#</th>' +
             '<th style="padding:6px 10px;text-align:right;font-weight:600;color:#888">' + t('crDate') + '</th>' +
@@ -5911,7 +5919,7 @@ async function loadCouponReport() {
               '<td style="padding:6px 10px"><span style="font-size:11px;padding:2px 8px;border-radius:20px;background:#f0f0f0">' + esc(o.status) + '</span></td>' +
             '</tr>';
           }).join('') +
-          '</tbody></table>'
+          '</tbody></table></div>'
       : '<div style="padding:16px;color:#aaa;font-size:13px;text-align:center">' + t('crNoOrders') + '</div>';
 
     var uid = 'cr-detail-' + cp.id;
