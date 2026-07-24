@@ -3,6 +3,54 @@ const path    = require('path');
 const fs      = require('fs');
 const { sendOrderEmail, sendLoyaltyEmail, sendPrizeEarnedEmail, label } = require('../utils/mailer');
 
+// ─── Communications ────────────────────────────────────────────────────────────
+
+async function getCommunications(req, res, next) {
+  try {
+    const page  = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = 30;
+    const skip  = (page - 1) * limit;
+    const type  = req.query.type || undefined;
+
+    const where = type ? { type } : {};
+    const [total, logs] = await Promise.all([
+      prisma.email_logs.count({ where }),
+      prisma.email_logs.findMany({
+        where,
+        orderBy: { sent_at: 'desc' },
+        skip,
+        take: limit,
+        include: { customers: { select: { id: true, full_name: true, mobile: true } } },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      data: logs.map(l => ({
+        id:          l.id,
+        to:          l.to,
+        type:        l.type,
+        subject:     l.subject,
+        customer_id: l.customer_id,
+        customer:    l.customers?.full_name || l.customers?.mobile || null,
+        order_id:    l.order_id,
+        sent_at:     l.sent_at,
+      })),
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+    });
+  } catch (err) { next(err); }
+}
+
+async function getCommunicationBody(req, res, next) {
+  try {
+    const log = await prisma.email_logs.findUnique({ where: { id: parseInt(req.params.id) } });
+    if (!log) return res.status(404).json({ success: false });
+    res.json({ success: true, data: { html_body: log.html_body, subject: log.subject, to: log.to, sent_at: log.sent_at } });
+  } catch (err) { next(err); }
+}
+
 // ─── Notifications ────────────────────────────────────────────────────────────
 
 async function getNotifications(req, res, next) {
@@ -1286,6 +1334,7 @@ module.exports = {
   getProducts, createProduct, updateProduct, deleteProduct,
   getAdminOrders, setPaymentInfo, approvePayment, rejectPayment, rejectPreorder, setShipping, markDelivered,
   getBankAccounts, createBankAccount, updateBankAccount, deleteBankAccount,
+  getCommunications, getCommunicationBody,
   getNotifications,
   getDashboard,
   getReports, getFinancialReport, getCustomerReports, getCouponReport,

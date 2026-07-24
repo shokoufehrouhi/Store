@@ -9,6 +9,8 @@ router.use(adminAuth);
 
 router.get('/dashboard', c.getDashboard);
 router.get('/notifications', c.getNotifications);
+router.get('/communications', c.getCommunications);
+router.get('/communications/:id/body', c.getCommunicationBody);
 
 router.post('/upload', (req, res, next) => {
   const upload = getUploadMiddleware();

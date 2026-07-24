@@ -1,5 +1,20 @@
 const nodemailer = require('nodemailer');
 const path = require('path');
+const prisma = require('../prisma/client');
+
+async function sendAndLog(transporter, mailOpts, logData = {}) {
+  await transporter.sendMail(mailOpts);
+  prisma.email_logs.create({
+    data: {
+      to:          mailOpts.to,
+      subject:     mailOpts.subject || '',
+      html_body:   mailOpts.html   || '',
+      type:        logData.type    || 'unknown',
+      customer_id: logData.customer_id || null,
+      order_id:    logData.order_id    || null,
+    },
+  }).catch(e => console.error('[email_log]', e.message));
+}
 
 const IMAGES_DIR = path.join(__dirname, '../../frontend/images');
 
@@ -461,13 +476,10 @@ async function sendOrderEmail(customer, order, type, extraInfo, attachFiles) {
 
   const attachments = [...EMAIL_ATTACHMENTS, ...(attachFiles || [])];
 
-  await transporter.sendMail({
-    from:        process.env.SMTP_FROM || process.env.SMTP_USER,
-    to:          customer.email,
-    subject,
-    html,
-    attachments,
-  });
+  await sendAndLog(transporter, {
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: customer.email, subject, html, attachments,
+  }, { type: `order_${type}`, customer_id: customer.id || null, order_id: order?.id || null });
 }
 
 // ─── Friend invite email (BESTIE5 referral) ───────────────────────────────────
@@ -586,24 +598,21 @@ async function sendFriendInviteEmail({ toName, toEmail, referrerName, lang, trac
 </table>
 </body></html>`;
 
-  await transporter.sendMail({
-    from:        process.env.SMTP_FROM || process.env.SMTP_USER,
-    to:          toEmail,
-    subject,
-    html,
-    attachments: EMAIL_ATTACHMENTS,
-  });
+  await sendAndLog(transporter, {
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: toEmail, subject, html, attachments: EMAIL_ATTACHMENTS,
+  }, { type: 'invite' });
 }
 
 async function sendRawEmail(to, subject, html) {
   const transporter = getTransporter();
   if (!transporter || !to) return;
-  await transporter.sendMail({
+  await sendAndLog(transporter, {
     from:    process.env.SMTP_FROM || process.env.SMTP_USER,
     to,
     subject,
     html,
-  });
+  }, { type: 'raw' });
 }
 
 function label(key, lang) {
@@ -647,7 +656,7 @@ async function sendReplyEmail(customer, order, replyText) {
   </td></tr>
 </table>
 </body></html>`;
-  await transporter.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to: customer.email, subject, html, attachments: EMAIL_ATTACHMENTS });
+  await sendAndLog(transporter, { from: process.env.SMTP_FROM || process.env.SMTP_USER, to: customer.email, subject, html, attachments: EMAIL_ATTACHMENTS }, { type: 'reply', customer_id: customer.id || null, order_id: order?.id || null });
 }
 
 // ─── Loyalty milestone email ────────────────────────────────────────────────────
@@ -744,13 +753,10 @@ async function sendLoyaltyEmail(customer, deliveredCount) {
 </table>
 </body></html>`;
 
-  await transporter.sendMail({
-    from:        process.env.SMTP_FROM || process.env.SMTP_USER,
-    to:          customer.email,
-    subject,
-    html,
-    attachments: EMAIL_ATTACHMENTS,
-  });
+  await sendAndLog(transporter, {
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: customer.email, subject, html, attachments: EMAIL_ATTACHMENTS,
+  }, { type: 'loyalty', customer_id: customer.id || null });
 }
 
 // ─── Prize earned email ──────────────────────────────────────────────────────────
@@ -828,7 +834,7 @@ async function sendPrizeEarnedEmail(customer) {
     subject:     ll.subject,
     html,
     attachments: EMAIL_ATTACHMENTS,
-  });
+  }, { type: 'prize_earned', customer_id: customer.id || null });
 }
 
 // ─── Birthday email ─────────────────────────────────────────────────────────────
@@ -947,7 +953,7 @@ async function sendBirthdayEmail(customer, birthdayDate, validUntil) {
     subject:     ll.subject,
     html,
     attachments: EMAIL_ATTACHMENTS,
-  });
+  }, { type: 'birthday', customer_id: customer.id || null });
 }
 
 // ─── Welcome email (sent immediately after registration) ──────────────────────
@@ -1056,7 +1062,7 @@ async function sendWelcomeEmail(customer) {
     subject:     ll.subject,
     html,
     attachments: EMAIL_ATTACHMENTS,
-  });
+  }, { type: 'welcome', customer_id: customer.id || null });
 }
 
 // ─── Verification code email ──────────────────────────────────────────────────
@@ -1107,7 +1113,7 @@ async function sendVerificationEmail(toEmail, code, lang) {
     subject:     ll.subject,
     html,
     attachments: EMAIL_ATTACHMENTS,
-  });
+  }, { type: 'verification' });
 }
 
 module.exports = { sendOrderEmail, sendRawEmail, sendReplyEmail, sendFriendInviteEmail, sendLoyaltyEmail, sendBirthdayEmail, sendPrizeEarnedEmail, sendWelcomeEmail, sendVerificationEmail, label };

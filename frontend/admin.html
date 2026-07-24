@@ -157,6 +157,19 @@
     .page-header h2 { font-size: 18px; font-weight: 700; }
     .page-body { padding: 24px 28px; }
 
+    /* ── Communications ─────────────────────────── */
+    .comm-type-badge { display:inline-block; padding:2px 9px; border-radius:12px; font-size:11px; font-weight:700; background:#f1f5f9; color:#475569; }
+    .comm-type-badge.order   { background:#eff6ff; color:#2563eb; }
+    .comm-type-badge.reply   { background:#f0fdf4; color:#16a34a; }
+    .comm-type-badge.loyalty { background:#fef9c3; color:#b45309; }
+    .comm-type-badge.birthday{ background:#fdf4ff; color:#9333ea; }
+    .comm-type-badge.welcome { background:#f0fdf4; color:#059669; }
+    .comm-type-badge.prize   { background:#fff7ed; color:#ea580c; }
+    .comm-type-badge.invite  { background:#f5f3ff; color:#7c3aed; }
+    .comm-type-badge.verif   { background:#f8fafc; color:#64748b; }
+    .comm-iframe-wrap { width:100%; height:60vh; border:1px solid var(--border); border-radius:10px; overflow:hidden; background:#fff; }
+    .comm-iframe-wrap iframe { width:100%; height:100%; border:none; }
+
     /* ── Notifications ──────────────────────────── */
     .notif-list { display: flex; flex-direction: column; gap: 0; }
     .notif-item {
@@ -672,6 +685,9 @@
       <button class="nav-item" onclick="showTab('dashboard')" id="nav-dashboard">
         <span class="nav-icon">📊</span><span data-i18n="navDashboard">داشبورد</span>
       </button>
+      <button class="nav-item" onclick="showTab('communications')" id="nav-communications">
+        <span class="nav-icon">✉️</span><span data-i18n="navCommunications">ارتباطات</span>
+      </button>
       <button class="nav-item" onclick="showTab('notifications')" id="nav-notifications" style="position:relative">
         <span class="nav-icon">
           <span class="notif-bell-wrap">🔔<span id="notif-bell-badge"></span></span>
@@ -744,6 +760,33 @@
   </aside>
 
   <div id="main-content">
+
+    <!-- Communications -->
+    <div id="tab-communications" class="hidden">
+      <div class="page-header">
+        <h2>✉️ <span data-i18n="navCommunications">ارتباطات</span></h2>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="comm-type-filter" onchange="loadCommunications(1)" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);font-size:13px;background:var(--white)">
+            <option value="" data-i18n="commAllTypes">همه</option>
+            <option value="order_confirmed">سفارش تایید</option>
+            <option value="order_payment_received">پرداخت دریافت</option>
+            <option value="order_shipping">ارسال</option>
+            <option value="order_delivered">تحویل</option>
+            <option value="reply">پاسخ پیام</option>
+            <option value="loyalty">وفاداری</option>
+            <option value="birthday">تولد</option>
+            <option value="welcome">خوش‌آمد</option>
+            <option value="prize_earned">جایزه</option>
+            <option value="invite">دعوت دوست</option>
+            <option value="verification">کد تایید</option>
+          </select>
+          <button class="btn btn-secondary" onclick="loadCommunications(1)" style="font-size:12px">↻ <span data-i18n="refresh">بروزرسانی</span></button>
+        </div>
+      </div>
+      <div class="page-body">
+        <div id="communications-content"><div style="text-align:center;padding:40px;color:#888">در حال بارگذاری...</div></div>
+      </div>
+    </div>
 
     <!-- Notifications -->
     <div id="tab-notifications" class="hidden">
@@ -1466,6 +1509,7 @@ const LANGS = {
     connecting:'در حال ورود...', connFail:'اتصال به سرور ناموفق بود',
     navGroupCatalog:'فروشگاه', navGroupConfig:'تنظیمات پایه', navGroupUsers:'کاربران',
     navDashboard:'داشبورد', navNotifications:'اعلان‌ها', navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navCustomers:'مشتریان', navLeads:'لیدها', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navProductPhotos:'عکس‌های خریداران', refresh:'بروزرسانی',
+    navCommunications:'ارتباطات', commAllTypes:'همه انواع', commSubject:'موضوع', commTo:'گیرنده', commType:'نوع', commDate:'تاریخ', commCustomer:'مشتری', commView:'مشاهده', commEmpty:'ایمیلی ثبت نشده',
     notifMarkAll:'همه خوانده شد', notifNewOrder:'سفارش جدید', notifOrderUpdate:'بروزرسانی سفارش', notifNewPrize:'جایزه جدید', notifPrizeUpdate:'بروزرسانی جایزه', notifNewReturn:'درخواست مرجوعی', notifReturnUpdate:'بروزرسانی مرجوعی', notifNewCustomer:'مشتری جدید', notifNewLead:'لید جدید', notifView:'مشاهده', notifEmpty:'اعلانی وجود ندارد',
     dbTotalCustomers:'مشتریان', dbNewThisMonth:'این ماه', dbTotalRevenue:'فروش کل', dbRevenueMonth:'این ماه', dbRevenueToday:'امروز', dbActiveOrders:'سفارش فعال', dbCompletedOrders:'تحویل‌شده', dbOrdersToday:'سفارش امروز', dbTotalLeads:'لید', dbNewLeads:'این ماه', dbTotalReturns:'مرجوعی', dbPendingReturns:'در انتظار', dbTopProducts:'پرفروش‌ترین‌ها', dbRecentOrders:'سفارشات اخیر', dbOrderId:'شناسه', dbCustomer:'مشتری', dbProduct:'محصول', dbQty:'تعداد', dbStatus:'وضعیت', dbAmount:'مبلغ', dbDate:'تاریخ', loading:'در حال بارگذاری...', loadError:'خطا در بارگذاری داده‌ها', noData:'داده‌ای موجود نیست',
     leadsColName:'نام', leadsColEmail:'ایمیل', leadsColPhone:'تلفن', leadsColReferredBy:'معرف', leadsColStatus:'وضعیت', leadsColDate:'تاریخ',
@@ -1651,6 +1695,7 @@ const LANGS = {
     connecting:'Logging in...', connFail:'Could not connect to server',
     navGroupCatalog:'Store', navGroupConfig:'Configuration', navGroupUsers:'Users',
     navDashboard:'Dashboard', navNotifications:'Notifications', navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navCustomers:'Customers', navLeads:'Leads', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navProductPhotos:'Buyer Photos', refresh:'Refresh',
+    navCommunications:'Communications', commAllTypes:'All types', commSubject:'Subject', commTo:'To', commType:'Type', commDate:'Date', commCustomer:'Customer', commView:'View', commEmpty:'No emails logged yet',
     notifMarkAll:'Mark all read', notifNewOrder:'New Order', notifOrderUpdate:'Order Updated', notifNewPrize:'New Prize', notifPrizeUpdate:'Prize Updated', notifNewReturn:'Return Request', notifReturnUpdate:'Return Updated', notifNewCustomer:'New Customer', notifNewLead:'New Lead', notifView:'View', notifEmpty:'No notifications',
     dbTotalCustomers:'Customers', dbNewThisMonth:'This Month', dbTotalRevenue:'Total Revenue', dbRevenueMonth:'This Month', dbRevenueToday:'Today', dbActiveOrders:'Active Orders', dbCompletedOrders:'Delivered', dbOrdersToday:'Today Orders', dbTotalLeads:'Leads', dbNewLeads:'This Month', dbTotalReturns:'Returns', dbPendingReturns:'Pending', dbTopProducts:'Top Products', dbRecentOrders:'Recent Orders', dbOrderId:'ID', dbCustomer:'Customer', dbProduct:'Product', dbQty:'Qty', dbStatus:'Status', dbAmount:'Amount', dbDate:'Date', loading:'Loading...', loadError:'Failed to load data', noData:'No data available',
     leadsColName:'Name', leadsColEmail:'Email', leadsColPhone:'Phone', leadsColReferredBy:'Referred By', leadsColStatus:'Status', leadsColDate:'Date',
@@ -1836,6 +1881,7 @@ const LANGS = {
     connecting:'Giriş yapılıyor...', connFail:'Sunucuya bağlanılamadı',
     navGroupCatalog:'Mağaza', navGroupConfig:'Yapılandırma', navGroupUsers:'Kullanıcılar',
     navDashboard:'Gösterge Paneli', navNotifications:'Bildirimler', navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navCustomers:'Müşteriler', navLeads:'Adaylar', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navProductPhotos:'Alıcı Fotoğrafları', refresh:'Yenile',
+    navCommunications:'İletişim', commAllTypes:'Tüm türler', commSubject:'Konu', commTo:'Alıcı', commType:'Tür', commDate:'Tarih', commCustomer:'Müşteri', commView:'Görüntüle', commEmpty:'Henüz e-posta kaydı yok',
     notifMarkAll:'Tümünü okundu say', notifNewOrder:'Yeni Sipariş', notifOrderUpdate:'Sipariş Güncellendi', notifNewPrize:'Yeni Ödül', notifPrizeUpdate:'Ödül Güncellendi', notifNewReturn:'İade Talebi', notifReturnUpdate:'İade Güncellendi', notifNewCustomer:'Yeni Müşteri', notifNewLead:'Yeni Aday', notifView:'Görüntüle', notifEmpty:'Bildirim yok',
     dbTotalCustomers:'Müşteriler', dbNewThisMonth:'Bu Ay', dbTotalRevenue:'Toplam Satış', dbRevenueMonth:'Bu Ay', dbRevenueToday:'Bugün', dbActiveOrders:'Aktif Sipariş', dbCompletedOrders:'Teslim Edildi', dbOrdersToday:'Bugün Siparişler', dbTotalLeads:'Adaylar', dbNewLeads:'Bu Ay', dbTotalReturns:'İadeler', dbPendingReturns:'Beklemede', dbTopProducts:'En Çok Satanlar', dbRecentOrders:'Son Siparişler', dbOrderId:'ID', dbCustomer:'Müşteri', dbProduct:'Ürün', dbQty:'Adet', dbStatus:'Durum', dbAmount:'Tutar', dbDate:'Tarih', loading:'Yükleniyor...', loadError:'Veri yüklenemedi', noData:'Veri yok',
     leadsColName:'Ad', leadsColEmail:'E-posta', leadsColPhone:'Telefon', leadsColReferredBy:'Referans', leadsColStatus:'Durum', leadsColDate:'Tarih',
@@ -2147,7 +2193,7 @@ function showTab(tab) {
   currentTab = tab;
   localStorage.setItem('admin_tab', tab);
   if (window.innerWidth <= 768) closeSidebar();
-  ['notifications','dashboard','products','categories','colors','sizes','customers','active-orders','orders','prizes','returns','product-photos','suppliers','bank-accounts','coupons','leads','reports'].forEach(t2 => {
+  ['communications','notifications','dashboard','products','categories','colors','sizes','customers','active-orders','orders','prizes','returns','product-photos','suppliers','bank-accounts','coupons','leads','reports'].forEach(t2 => {
     const el = document.getElementById(`tab-${t2}`);
     const nav = document.getElementById(`nav-${t2}`);
     if (el)  el.classList.add('hidden');
@@ -2155,6 +2201,7 @@ function showTab(tab) {
   });
   document.getElementById(`tab-${tab}`).classList.remove('hidden');
   document.getElementById(`nav-${tab}`).classList.add('active');
+  if (tab === 'communications') loadCommunications(1);
   if (tab === 'notifications')  loadNotifications();
   if (tab === 'dashboard')      loadDashboard();
   if (tab === 'products')       loadProducts();
@@ -2218,6 +2265,79 @@ function openModal(title, bodyHtml, footerHtml) {
   document.getElementById('modal-body').innerHTML = bodyHtml;
   document.getElementById('modal-footer').innerHTML = footerHtml;
   document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+// ─── COMMUNICATIONS ────────────────────────────────────────────────────────────
+let _commPage = 1;
+
+const COMM_TYPE_LABELS = {
+  order_confirmed:'سفارش تایید', order_payment_received:'پرداخت', order_shipping:'ارسال',
+  order_delivered:'تحویل', order_rejected:'رد سفارش', order_cancelled:'لغو',
+  reply:'پاسخ پیام', loyalty:'وفاداری', birthday:'تولد', welcome:'خوش‌آمد',
+  prize_earned:'جایزه', invite:'دعوت', verification:'کد تایید', raw:'ارسال مستقیم',
+};
+
+function commTypeBadge(type) {
+  const cls = type.startsWith('order') ? 'order' : type === 'reply' ? 'reply' : type === 'loyalty' ? 'loyalty' : type === 'birthday' ? 'birthday' : type === 'welcome' ? 'welcome' : type === 'prize_earned' ? 'prize' : type === 'invite' ? 'invite' : 'verif';
+  const label = COMM_TYPE_LABELS[type] || type;
+  return `<span class="comm-type-badge ${cls}">${label}</span>`;
+}
+
+async function loadCommunications(page = 1) {
+  _commPage = page;
+  const wrap = document.getElementById('communications-content');
+  wrap.innerHTML = `<div style="text-align:center;padding:40px;color:#888">${t('loading')}</div>`;
+  const typeFilter = document.getElementById('comm-type-filter')?.value || '';
+  const qs = `page=${page}${typeFilter ? '&type=' + typeFilter : ''}`;
+  const res = await api(`/admin/communications?${qs}`);
+  if (!res?.success) { wrap.innerHTML = `<div style="padding:20px;color:#ef4444">${t('loadError')}</div>`; return; }
+  if (!res.data.length) { wrap.innerHTML = `<div style="text-align:center;padding:60px;color:#aaa">✉️ ${t('commEmpty')}</div>`; return; }
+
+  const rows = res.data.map(e => `
+    <tr>
+      <td style="font-size:11px;color:#aaa">#${e.id}</td>
+      <td><div style="font-size:13px;font-weight:600;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.subject}</div></td>
+      <td><div style="font-size:12px;color:#555">${e.to}</div>${e.customer ? `<div style="font-size:11px;color:#aaa">${e.customer}</div>` : ''}</td>
+      <td>${commTypeBadge(e.type)}</td>
+      <td style="font-size:12px;color:#888;white-space:nowrap">${new Date(e.sent_at).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick="viewEmailBody(${e.id},'${e.subject.replace(/'/g,"\\'")}')">${t('commView')}</button></td>
+    </tr>`).join('');
+
+  const pages = res.pages;
+  const pager = pages > 1 ? `
+    <div style="display:flex;justify-content:center;gap:8px;padding:16px">
+      ${Array.from({length:pages},(_,i)=>`<button class="btn ${i+1===page?'btn-primary':'btn-secondary'} btn-sm" onclick="loadCommunications(${i+1})">${i+1}</button>`).join('')}
+    </div>` : '';
+
+  wrap.innerHTML = `
+    <div style="overflow-x:auto">
+      <table class="data-table" style="min-width:700px">
+        <thead><tr>
+          <th>#</th><th>${t('commSubject')}</th><th>${t('commTo')}</th>
+          <th>${t('commType')}</th><th>${t('commDate')}</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    ${pager}`;
+}
+
+async function viewEmailBody(id, subject) {
+  const res = await api(`/admin/communications/${id}/body`);
+  if (!res?.success) return;
+  const { html_body, to, sent_at } = res.data;
+  const date = new Date(sent_at).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  openModal(subject, `
+    <div style="margin-bottom:12px;font-size:13px;color:#555">
+      <b>${t('commTo')}:</b> ${to} &nbsp;·&nbsp; <b>${t('commDate')}:</b> ${date}
+    </div>
+    <div class="comm-iframe-wrap">
+      <iframe id="comm-preview-frame" sandbox="allow-same-origin"></iframe>
+    </div>`, '');
+  setTimeout(() => {
+    const frame = document.getElementById('comm-preview-frame');
+    if (frame) { frame.contentDocument.open(); frame.contentDocument.write(html_body); frame.contentDocument.close(); }
+  }, 50);
 }
 
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
