@@ -1,34 +1,64 @@
 const prisma = require('../prisma/client');
 
+// Merges a frozen published_data snapshot with data that must always stay
+// live/real-time regardless of publish state: product_inventory (orders
+// decrement it directly, see ordersController.js) and the shared colors
+// table (never itself publish-gated, so color hex/name edits stay instant).
+function mergeLiveColors(snapshot, colorsById) {
+  const data = { ...snapshot };
+  if (Array.isArray(data.product_colors)) {
+    data.product_colors = data.product_colors.map(pc => ({ ...pc, colors: colorsById.get(pc.color_id) || null }));
+  }
+  return data;
+}
+
 async function getAll(req, res, next) {
   try {
     const { category, subcategory, gender, tag } = req.query;
-    const where = { is_live: true };
-    if (gender) where.gender = gender;
-    if (tag)    where.tag    = tag;
-    if (category || subcategory) {
-      const primaryMatch = {};
-      const extraMatch   = {};
-      if (category)    { primaryMatch.categories    = { key: category };    extraMatch.categories    = { key: category };    }
-      if (subcategory) { primaryMatch.subcategories = { key: subcategory }; extraMatch.subcategories = { key: subcategory }; }
-      where.OR = [ primaryMatch, { product_categories: { some: extraMatch } } ];
+
+    const [rows, allColors] = await Promise.all([
+      prisma.products.findMany({
+        where: { is_live: true },
+        select: {
+          id: true, created_at: true, published_data: true,
+          _count: { select: { order_items: true, customer_product_photos: { where: { is_approved: true } } } },
+        },
+        orderBy: { created_at: 'desc' },
+      }),
+      prisma.colors.findMany(),
+    ]);
+    const colorsById = new Map(allColors.map(c => [c.id, c]));
+    const ids = rows.map(r => r.id);
+    const inventory = ids.length
+      ? await prisma.product_inventory.findMany({ where: { product_id: { in: ids } }, select: { product_id: true, color_id: true, size_label: true, quantity: true } })
+      : [];
+    const inventoryByProduct = new Map();
+    for (const inv of inventory) {
+      if (!inventoryByProduct.has(inv.product_id)) inventoryByProduct.set(inv.product_id, []);
+      inventoryByProduct.get(inv.product_id).push(inv);
     }
 
-    const rows = await prisma.products.findMany({
-      where,
-      include: {
-        categories:        { select: { key: true, label_fa: true, label_en: true, label_tr: true } },
-        subcategories:     { select: { key: true, label_fa: true, label_en: true, label_tr: true } },
-        product_colors:    { include: { colors: true } },
-        product_sizes:     true,
-        product_media:     { orderBy: { sort_order: 'asc' } },
-        product_inventory: { select: { color_id: true, size_label: true, quantity: true } },
-        product_categories: { include: { categories: { select: { key: true } }, subcategories: { select: { key: true } } } },
-        _count:            { select: { order_items: true, customer_product_photos: { where: { is_approved: true } } } },
-      },
-      orderBy: { created_at: 'desc' },
-    });
-    const products = rows.map(p => ({ ...p, cost_price: undefined, sales: p._count.order_items, has_customer_photos: p._count.customer_product_photos > 0, _count: undefined }));
+    let products = rows.map(r => ({
+      id: r.id,
+      ...mergeLiveColors(r.published_data || {}, colorsById),
+      product_inventory: inventoryByProduct.get(r.id) || [],
+      sales: r._count.order_items,
+      has_customer_photos: r._count.customer_product_photos > 0,
+    }));
+
+    if (gender) products = products.filter(p => p.gender === gender);
+    if (tag)    products = products.filter(p => p.tag === tag);
+    if (category) {
+      products = products.filter(p =>
+        p.categories?.key === category ||
+        (p.product_categories || []).some(pc => pc.categories?.key === category));
+    }
+    if (subcategory) {
+      products = products.filter(p =>
+        p.subcategories?.key === subcategory ||
+        (p.product_categories || []).some(pc => pc.subcategories?.key === subcategory));
+    }
+
     res.json({ success: true, data: products });
   } catch (err) {
     next(err);
@@ -37,19 +67,26 @@ async function getAll(req, res, next) {
 
 async function getOne(req, res, next) {
   try {
-    const product = await prisma.products.findFirst({
+    const row = await prisma.products.findFirst({
       where: { id: Number(req.params.id), is_live: true },
-      include: {
-        categories:        true,
-        subcategories:     true,
-        product_colors:    { include: { colors: true } },
-        product_sizes:     true,
-        product_media:     { orderBy: { sort_order: 'asc' } },
-        product_inventory: { select: { color_id: true, size_label: true, quantity: true } },
+      select: { id: true, published_data: true },
+    });
+    if (!row) return res.status(404).json({ success: false, message: 'Product not found' });
+
+    const [inventory, allColors] = await Promise.all([
+      prisma.product_inventory.findMany({ where: { product_id: row.id }, select: { color_id: true, size_label: true, quantity: true } }),
+      prisma.colors.findMany(),
+    ]);
+    const colorsById = new Map(allColors.map(c => [c.id, c]));
+
+    res.json({
+      success: true,
+      data: {
+        id: row.id,
+        ...mergeLiveColors(row.published_data || {}, colorsById),
+        product_inventory: inventory,
       },
     });
-    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
-    res.json({ success: true, data: { ...product, cost_price: undefined } });
   } catch (err) {
     next(err);
   }

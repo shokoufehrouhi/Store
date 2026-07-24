@@ -275,7 +275,7 @@ async function updateCategory(req, res, next) {
     const { key, label_fa, label_en, label_tr } = req.body;
     const cat = await prisma.categories.update({
       where: { id: Number(req.params.id) },
-      data: { key, label_fa, label_en: label_en || label_fa, label_tr: label_tr || label_fa },
+      data: { key, label_fa, label_en: label_en || label_fa, label_tr: label_tr || label_fa, is_dirty: true },
     });
     res.json({ success: true, data: cat });
   } catch (err) { next(err); }
@@ -286,7 +286,7 @@ async function toggleCategory(req, res, next) {
     const id = Number(req.params.id);
     const cur = await prisma.categories.findUnique({ where: { id }, select: { is_active: true } });
     if (!cur) return res.status(404).json({ success: false });
-    const cat = await prisma.categories.update({ where: { id }, data: { is_active: !cur.is_active } });
+    const cat = await prisma.categories.update({ where: { id }, data: { is_active: !cur.is_active, is_dirty: true } });
     res.json({ success: true, data: cat });
   } catch (err) { next(err); }
 }
@@ -337,6 +337,7 @@ async function updateSubcategory(req, res, next) {
         label_fa,
         label_en: label_en || label_fa,
         label_tr: label_tr || label_fa,
+        is_dirty: true,
       },
     });
     res.json({ success: true, data: sub });
@@ -348,7 +349,7 @@ async function toggleSubcategory(req, res, next) {
     const id = Number(req.params.id);
     const cur = await prisma.subcategories.findUnique({ where: { id }, select: { is_active: true } });
     if (!cur) return res.status(404).json({ success: false });
-    const sub = await prisma.subcategories.update({ where: { id }, data: { is_active: !cur.is_active } });
+    const sub = await prisma.subcategories.update({ where: { id }, data: { is_active: !cur.is_active, is_dirty: true } });
     res.json({ success: true, data: sub });
   } catch (err) { next(err); }
 }
@@ -450,6 +451,7 @@ async function deleteMedia(req, res, next) {
     if (!media) return res.status(404).json({ success: false, message: 'Not found' });
 
     await prisma.product_media.delete({ where: { id } });
+    await prisma.products.update({ where: { id: media.product_id }, data: { is_dirty: true } });
 
     if (media.url.startsWith('/uploads/')) {
       const path = require('path');
@@ -463,33 +465,44 @@ async function deleteMedia(req, res, next) {
 }
 
 // ─── Publish ───────────────────────────────────────────────────────────────────
+const { PRODUCT_INCLUDE, buildProductSnapshot, buildCategorySnapshot, buildSubcategorySnapshot } = require('../utils/publishSnapshot');
 
 async function getPublishStatus(req, res, next) {
   try {
     const [products, categories, subcategories] = await Promise.all([
-      prisma.products.findMany({ select: { is_active: true, is_live: true } }),
-      prisma.categories.findMany({ select: { is_active: true, is_live: true } }),
-      prisma.subcategories.findMany({ select: { is_active: true, is_live: true } }),
+      prisma.products.count({ where: { is_dirty: true } }),
+      prisma.categories.count({ where: { is_dirty: true } }),
+      prisma.subcategories.count({ where: { is_dirty: true } }),
     ]);
-    const pendingCount = rows => rows.filter(r => r.is_active !== r.is_live).length;
-    const pending = {
-      products: pendingCount(products),
-      categories: pendingCount(categories),
-      subcategories: pendingCount(subcategories),
-    };
-    res.json({ success: true, data: { pending_count: pending.products + pending.categories + pending.subcategories, pending } });
+    res.json({ success: true, data: { pending_count: products + categories + subcategories, pending: { products, categories, subcategories } } });
   } catch (err) { next(err); }
 }
 
+// Re-snapshots EVERY row (not just is_dirty ones) so that, e.g., a category
+// rename correctly cascades into every product's embedded category label in
+// the same publish click. Do not "optimize" this to only touch dirty rows —
+// that would silently break cross-entity consistency.
 async function publishChanges(req, res, next) {
   try {
+    const [products, categories, subcategories] = await Promise.all([
+      prisma.products.findMany({ include: PRODUCT_INCLUDE }),
+      prisma.categories.findMany(),
+      prisma.subcategories.findMany(),
+    ]);
+
     await prisma.$transaction([
-      prisma.products.updateMany({ where: { is_active: true },  data: { is_live: true } }),
-      prisma.products.updateMany({ where: { is_active: false }, data: { is_live: false } }),
-      prisma.categories.updateMany({ where: { is_active: true },  data: { is_live: true } }),
-      prisma.categories.updateMany({ where: { is_active: false }, data: { is_live: false } }),
-      prisma.subcategories.updateMany({ where: { is_active: true },  data: { is_live: true } }),
-      prisma.subcategories.updateMany({ where: { is_active: false }, data: { is_live: false } }),
+      ...products.map(p => prisma.products.update({
+        where: { id: p.id },
+        data: { is_live: p.is_active, is_dirty: false, published_data: buildProductSnapshot(p) },
+      })),
+      ...categories.map(c => prisma.categories.update({
+        where: { id: c.id },
+        data: { is_live: c.is_active, is_dirty: false, published_data: buildCategorySnapshot(c) },
+      })),
+      ...subcategories.map(s => prisma.subcategories.update({
+        where: { id: s.id },
+        data: { is_live: s.is_active, is_dirty: false, published_data: buildSubcategorySnapshot(s) },
+      })),
     ]);
     res.json({ success: true });
   } catch (err) { next(err); }
@@ -642,6 +655,7 @@ async function updateProduct(req, res, next) {
         stock:              stock     || 0,
         delivery_days:      delivery_days != null ? Number(delivery_days) : 5,
         is_active:          is_active !== undefined ? Boolean(is_active) : true,
+        is_dirty:           true,
         brand:              brand?.trim()              || null,
         supplier_shop_name: supplier_shop_name?.trim() || null,
         product_link:       product_link?.trim()       || null,
@@ -697,7 +711,7 @@ async function deleteProduct(req, res, next) {
   try {
     await prisma.products.update({
       where: { id: Number(req.params.id) },
-      data:  { is_active: false },
+      data:  { is_active: false, is_dirty: true },
     });
     res.json({ success: true });
   } catch (err) { next(err); }

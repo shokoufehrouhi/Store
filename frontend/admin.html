@@ -2680,7 +2680,7 @@ function renderProductsTable(products) {
     const statusBadge = (p.is_active
       ? `<span class="badge badge-active">${t('active')}</span>`
       : `<span class="badge badge-inactive">${t('inactive')}</span>`)
-      + (p.is_active !== p.is_live ? `<span class="pending-dot" title="${t('pendingPublish')}"></span>` : '');
+      + (p.is_dirty ? `<span class="pending-dot" title="${t('pendingPublish')}"></span>` : '');
     const firstImg = (p.product_media||[]).find(m => m.type === 'image');
     const firstVid = !firstImg && (p.product_media||[]).find(m => m.type === 'video');
     const mediaSrc = firstImg ? (SERVER_URL + firstImg.url) : null;
@@ -3313,7 +3313,7 @@ function renderCategoriesPage(cats) {
                 <input type="checkbox" ${s.is_active ? 'checked' : ''} onchange="toggleSubVisibility(${s.id},this)">
                 <span class="vis-slider"></span>
               </label>
-              ${s.is_active !== s.is_live ? `<span class="pending-dot" title="${t('pendingPublish')}"></span>` : ''}
+              ${s.is_dirty ? `<span class="pending-dot" title="${t('pendingPublish')}"></span>` : ''}
             </td>
             <td><div class="actions">
               <button class="btn btn-secondary btn-sm" onclick='openSubcategoryModal(${JSON.stringify(s).replace(/'/g,"\\'")})'>${t('edit')}</button>
@@ -3334,7 +3334,7 @@ function renderCategoriesPage(cats) {
             <input type="checkbox" ${cat.is_active ? 'checked' : ''} onchange="toggleCatVisibility(${cat.id},this)">
             <span class="vis-slider"></span>
           </label>
-          ${cat.is_active !== cat.is_live ? `<span class="pending-dot" title="${t('pendingPublish')}"></span>` : ''}
+          ${cat.is_dirty ? `<span class="pending-dot" title="${t('pendingPublish')}"></span>` : ''}
           <button class="btn btn-secondary btn-sm" onclick="openCategoryModal(${cat.id})">${t('edit')}</button>
           <button class="btn btn-primary btn-sm" onclick="openSubcategoryModal(null,${cat.id})">${t('addSubcatForCat')}</button>
           <button class="btn btn-danger btn-sm" onclick="confirmDeleteCategory(${cat.id},'${cat.label_fa.replace(/'/g,"\\'")}')">${t('del')}</button>

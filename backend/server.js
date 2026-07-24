@@ -63,12 +63,21 @@ app.post('/api/coupons/validate', cp.validateCoupon);
 app.get('/api/categories', async (req, res, next) => {
   try {
     const prisma = require('./prisma/client');
-    const cats = await prisma.categories.findMany({
-      where: { is_live: true },
-      include: { subcategories: { where: { is_live: true }, orderBy: { id: 'asc' } } },
-      orderBy: { id: 'asc' },
-    });
-    res.json({ success: true, data: cats });
+    const [cats, subs] = await Promise.all([
+      prisma.categories.findMany({ where: { is_live: true }, select: { id: true, published_data: true } }),
+      prisma.subcategories.findMany({ where: { is_live: true }, select: { id: true, published_data: true } }),
+    ]);
+    const data = cats
+      .map(c => ({
+        id: c.id,
+        ...c.published_data,
+        subcategories: subs
+          .filter(s => s.published_data?.category_id === c.id)
+          .map(s => ({ id: s.id, ...s.published_data }))
+          .sort((a, b) => a.id - b.id),
+      }))
+      .sort((a, b) => a.id - b.id);
+    res.json({ success: true, data });
   } catch (err) { next(err); }
 });
 

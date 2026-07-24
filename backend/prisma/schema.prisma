@@ -32,6 +32,8 @@ model categories {
   label_tr      String          @db.VarChar(60)
   is_active     Boolean         @default(true)
   is_live       Boolean         @default(false)
+  is_dirty      Boolean         @default(true)
+  published_data Json?
   created_at    DateTime        @default(now()) @db.Timestamptz(6)
   products           products[]
   subcategories      subcategories[]
@@ -283,6 +285,8 @@ model products {
   stock             Int                 @default(0)
   is_active         Boolean             @default(true)
   is_live           Boolean             @default(false)
+  is_dirty          Boolean             @default(true)
+  published_data    Json?
   created_at        DateTime            @default(now()) @db.Timestamptz(6)
   updated_at        DateTime            @default(now()) @db.Timestamptz(6)
   delivery_days       Int                 @default(5)
@@ -350,6 +354,8 @@ model subcategories {
   label_tr    String     @db.VarChar(60)
   is_active   Boolean    @default(true)
   is_live     Boolean    @default(false)
+  is_dirty    Boolean    @default(true)
+  published_data Json?
   created_at  DateTime   @default(now()) @db.Timestamptz(6)
   products           products[]
   categories         categories @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
