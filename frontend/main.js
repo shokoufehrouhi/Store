@@ -4977,8 +4977,7 @@ function submitCheckout() {
         openProfileModal();
         showProfileTab('orders');
       } else if (data.message === 'active_preorder_exists') {
-        if (couponResEl) { couponResEl.style.display = ''; couponResEl.innerHTML = '<span style="color:#ef4444">' + escapeHtml(t.active_preorder_exists || data.message) + '</span>'; }
-        else { errEl.textContent = t.active_preorder_exists || data.message; }
+        showToast(t.active_preorder_exists || data.message, 'error');
       } else {
         errEl.textContent = data.message || t.network_error || 'خطا';
       }
