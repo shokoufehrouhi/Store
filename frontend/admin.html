@@ -2155,8 +2155,7 @@ async function loadDashboard() {
   if (!res?.success) { wrap.innerHTML = `<div style="padding:40px;color:#ef4444">${t('loadError')}</div>`; return; }
   const d = res.data;
 
-  function fmt(n) { return Number(n).toLocaleString('fa-IR'); }
-  function fmtP(n) { return Number(n).toLocaleString('fa-IR') + ' تومان'; }
+  function fmt(n) { return Number(n).toLocaleString('en-US'); }
 
   const statusLabel = s => ({
     preorder:'پیش‌سفارش', payment_needed:'نیاز به پرداخت', approval_needed:'در انتظار تأیید',
