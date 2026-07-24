@@ -134,10 +134,16 @@
     .nav-item.active { background: var(--primary); color: #fff; }
     .nav-icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
     .nav-section-label {
+      display: flex; align-items: center; justify-content: space-between; width: 100%;
       font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
       color: #555; padding: 10px 12px 3px; user-select: none;
+      border: none; background: none; cursor: pointer; font-family: inherit;
     }
-    .nav-section-label:first-child { padding-top: 4px; }
+    .nav-section:first-child .nav-section-label { padding-top: 4px; }
+    .nav-section-label:hover { color: #ccc; }
+    .nav-section-arrow { font-size: 9px; transition: transform .15s; }
+    .nav-section.collapsed .nav-section-arrow { transform: rotate(-90deg); }
+    .nav-section.collapsed .nav-section-items { display: none; }
 
     .sidebar-footer { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
     .btn-logout {
@@ -697,77 +703,125 @@
       </div>
     </div>
     <nav class="sidebar-nav">
-      <div class="nav-section-label" data-i18n="navGroupOverview">نمای کلی</div>
-      <button class="nav-item" onclick="showTab('dashboard')" id="nav-dashboard">
-        <span class="nav-icon">📊</span><span data-i18n="navDashboard">داشبورد</span>
-      </button>
-      <button class="nav-item" onclick="showTab('communications')" id="nav-communications">
-        <span class="nav-icon">✉️</span><span data-i18n="navCommunications">ارتباطات</span>
-      </button>
-      <button class="nav-item" onclick="showTab('notifications')" id="nav-notifications" style="position:relative">
-        <span class="nav-icon">
-          <span class="notif-bell-wrap">🔔<span id="notif-bell-badge"></span></span>
-        </span>
-        <span data-i18n="navNotifications">اعلان‌ها</span>
-      </button>
+      <div class="nav-section" id="navsec-overview">
+        <button class="nav-section-label" onclick="toggleNavSection('overview')">
+          <span data-i18n="navGroupOverview">نمای کلی</span>
+          <span class="nav-section-arrow">▾</span>
+        </button>
+        <div class="nav-section-items">
+          <button class="nav-item" onclick="showTab('dashboard')" id="nav-dashboard">
+            <span class="nav-icon">📊</span><span data-i18n="navDashboard">داشبورد</span>
+          </button>
+          <button class="nav-item" onclick="showTab('communications')" id="nav-communications">
+            <span class="nav-icon">✉️</span><span data-i18n="navCommunications">ارتباطات</span>
+          </button>
+          <button class="nav-item" onclick="showTab('notifications')" id="nav-notifications" style="position:relative">
+            <span class="nav-icon">
+              <span class="notif-bell-wrap">🔔<span id="notif-bell-badge"></span></span>
+            </span>
+            <span data-i18n="navNotifications">اعلان‌ها</span>
+          </button>
+        </div>
+      </div>
 
-      <div class="nav-section-label" data-i18n="navGroupOrders">سفارشات</div>
-      <button class="nav-item" onclick="showTab('active-orders')" id="nav-active-orders">
-        <span class="nav-icon">🔥</span><span data-i18n="navActiveOrders">سفارشات فعال</span>
-      </button>
-      <button class="nav-item" onclick="showTab('orders')" id="nav-orders">
-        <span class="nav-icon">📋</span><span data-i18n="navOrders">سفارشات تکمیل‌شده</span>
-      </button>
-      <button class="nav-item" onclick="showTab('prizes')" id="nav-prizes">
-        <span class="nav-icon">🏆</span><span data-i18n="navPrizes">جوایز</span>
-      </button>
-      <button class="nav-item" onclick="showTab('returns')" id="nav-returns">
-        <span class="nav-icon">↩</span><span data-i18n="navReturns">مرجوعی‌ها</span>
-      </button>
+      <div class="nav-section" id="navsec-orders">
+        <button class="nav-section-label" onclick="toggleNavSection('orders')">
+          <span data-i18n="navGroupOrders">سفارشات</span>
+          <span class="nav-section-arrow">▾</span>
+        </button>
+        <div class="nav-section-items">
+          <button class="nav-item" onclick="showTab('active-orders')" id="nav-active-orders">
+            <span class="nav-icon">🔥</span><span data-i18n="navActiveOrders">سفارشات فعال</span>
+          </button>
+          <button class="nav-item" onclick="showTab('orders')" id="nav-orders">
+            <span class="nav-icon">📋</span><span data-i18n="navOrders">سفارشات تکمیل‌شده</span>
+          </button>
+          <button class="nav-item" onclick="showTab('prizes')" id="nav-prizes">
+            <span class="nav-icon">🏆</span><span data-i18n="navPrizes">جوایز</span>
+          </button>
+          <button class="nav-item" onclick="showTab('returns')" id="nav-returns">
+            <span class="nav-icon">↩</span><span data-i18n="navReturns">مرجوعی‌ها</span>
+          </button>
+          <button class="nav-item" onclick="showTab('product-photos')" id="nav-product-photos">
+            <span class="nav-icon">📷</span><span data-i18n="navProductPhotos">عکس‌های خریداران</span>
+          </button>
+        </div>
+      </div>
 
-      <button class="nav-item" onclick="showTab('product-photos')" id="nav-product-photos">
-        <span class="nav-icon">📷</span><span data-i18n="navProductPhotos">عکس‌های خریداران</span>
-      </button>
+      <div class="nav-section" id="navsec-catalog">
+        <button class="nav-section-label" onclick="toggleNavSection('catalog')">
+          <span data-i18n="navGroupCatalog">فروشگاه</span>
+          <span class="nav-section-arrow">▾</span>
+        </button>
+        <div class="nav-section-items">
+          <button class="nav-item" onclick="showTab('products')" id="nav-products">
+            <span class="nav-icon">📦</span><span data-i18n="navProducts">محصولات</span>
+          </button>
+          <button class="nav-item" onclick="showTab('categories')" id="nav-categories">
+            <span class="nav-icon">🏷️</span><span data-i18n="navCategories">دسته‌بندی‌ها</span>
+          </button>
+        </div>
+      </div>
 
-      <div class="nav-section-label" data-i18n="navGroupCatalog">فروشگاه</div>
-      <button class="nav-item" onclick="showTab('products')" id="nav-products">
-        <span class="nav-icon">📦</span><span data-i18n="navProducts">محصولات</span>
-      </button>
-      <button class="nav-item" onclick="showTab('categories')" id="nav-categories">
-        <span class="nav-icon">🏷️</span><span data-i18n="navCategories">دسته‌بندی‌ها</span>
-      </button>
+      <div class="nav-section" id="navsec-users">
+        <button class="nav-section-label" onclick="toggleNavSection('users')">
+          <span data-i18n="navGroupUsers">کاربران</span>
+          <span class="nav-section-arrow">▾</span>
+        </button>
+        <div class="nav-section-items">
+          <button class="nav-item" onclick="showTab('customers')" id="nav-customers">
+            <span class="nav-icon">👥</span><span data-i18n="navCustomers">مشتریان</span>
+          </button>
+          <button class="nav-item" onclick="showTab('leads')" id="nav-leads">
+            <span class="nav-icon">🧲</span><span data-i18n="navLeads">لیدها</span>
+          </button>
+          <button class="nav-item" onclick="showTab('suppliers')" id="nav-suppliers">
+            <span class="nav-icon">🏪</span><span data-i18n="navSuppliers">تامین‌کنندگان</span>
+          </button>
+        </div>
+      </div>
 
-      <div class="nav-section-label" data-i18n="navGroupUsers">کاربران</div>
-      <button class="nav-item" onclick="showTab('customers')" id="nav-customers">
-        <span class="nav-icon">👥</span><span data-i18n="navCustomers">مشتریان</span>
-      </button>
-      <button class="nav-item" onclick="showTab('leads')" id="nav-leads">
-        <span class="nav-icon">🧲</span><span data-i18n="navLeads">لیدها</span>
-      </button>
-      <button class="nav-item" onclick="showTab('suppliers')" id="nav-suppliers">
-        <span class="nav-icon">🏪</span><span data-i18n="navSuppliers">تامین‌کنندگان</span>
-      </button>
+      <div class="nav-section" id="navsec-analytics">
+        <button class="nav-section-label" onclick="toggleNavSection('analytics')">
+          <span data-i18n="navGroupAnalytics">آمار</span>
+          <span class="nav-section-arrow">▾</span>
+        </button>
+        <div class="nav-section-items">
+          <button class="nav-item" onclick="showTab('reports')" id="nav-reports">
+            <span class="nav-icon">📊</span><span data-i18n="navReports">گزارش‌ها</span>
+          </button>
+        </div>
+      </div>
 
-      <div class="nav-section-label" data-i18n="navGroupAnalytics">آمار</div>
-      <button class="nav-item" onclick="showTab('reports')" id="nav-reports">
-        <span class="nav-icon">📊</span><span data-i18n="navReports">گزارش‌ها</span>
-      </button>
+      <div class="nav-section" id="navsec-payment">
+        <button class="nav-section-label" onclick="toggleNavSection('payment')">
+          <span data-i18n="navGroupPayment">پرداخت</span>
+          <span class="nav-section-arrow">▾</span>
+        </button>
+        <div class="nav-section-items">
+          <button class="nav-item" onclick="showTab('bank-accounts')" id="nav-bank-accounts">
+            <span class="nav-icon">🏦</span><span data-i18n="navBankAccounts">حساب‌های بانکی</span>
+          </button>
+          <button class="nav-item" onclick="showTab('coupons')" id="nav-coupons">
+            <span class="nav-icon">🎟️</span><span data-i18n="navCoupons">کدهای تخفیف</span>
+          </button>
+        </div>
+      </div>
 
-      <div class="nav-section-label" data-i18n="navGroupPayment">پرداخت</div>
-      <button class="nav-item" onclick="showTab('bank-accounts')" id="nav-bank-accounts">
-        <span class="nav-icon">🏦</span><span data-i18n="navBankAccounts">حساب‌های بانکی</span>
-      </button>
-      <button class="nav-item" onclick="showTab('coupons')" id="nav-coupons">
-        <span class="nav-icon">🎟️</span><span data-i18n="navCoupons">کدهای تخفیف</span>
-      </button>
-
-      <div class="nav-section-label" data-i18n="navGroupConfig">تنظیمات پایه</div>
-      <button class="nav-item" onclick="showTab('colors')" id="nav-colors">
-        <span class="nav-icon">🎨</span><span data-i18n="navColors">رنگ‌ها</span>
-      </button>
-      <button class="nav-item" onclick="showTab('sizes')" id="nav-sizes">
-        <span class="nav-icon">📏</span><span data-i18n="navSizes">سایزها</span>
-      </button>
+      <div class="nav-section" id="navsec-config">
+        <button class="nav-section-label" onclick="toggleNavSection('config')">
+          <span data-i18n="navGroupConfig">تنظیمات پایه</span>
+          <span class="nav-section-arrow">▾</span>
+        </button>
+        <div class="nav-section-items">
+          <button class="nav-item" onclick="showTab('colors')" id="nav-colors">
+            <span class="nav-icon">🎨</span><span data-i18n="navColors">رنگ‌ها</span>
+          </button>
+          <button class="nav-item" onclick="showTab('sizes')" id="nav-sizes">
+            <span class="nav-icon">📏</span><span data-i18n="navSizes">سایزها</span>
+          </button>
+        </div>
+      </div>
     </nav>
     <div class="sidebar-footer">
       <button class="btn-publish" id="btn-publish" onclick="openPublishConfirm()">
@@ -2146,6 +2200,24 @@ function closeSidebar() {
   document.getElementById('sidebar-overlay').classList.remove('open');
 }
 
+function getCollapsedNavSections() {
+  try { return new Set(JSON.parse(localStorage.getItem('admin_collapsed_sections') || '[]')); }
+  catch { return new Set(); }
+}
+function toggleNavSection(name) {
+  const el = document.getElementById(`navsec-${name}`);
+  if (!el) return;
+  const collapsed = getCollapsedNavSections();
+  if (el.classList.toggle('collapsed')) collapsed.add(name);
+  else collapsed.delete(name);
+  localStorage.setItem('admin_collapsed_sections', JSON.stringify([...collapsed]));
+}
+function applyCollapsedNavSections() {
+  getCollapsedNavSections().forEach(name => {
+    document.getElementById(`navsec-${name}`)?.classList.add('collapsed');
+  });
+}
+
 function toggleLangMenu(e) {
   e.stopPropagation();
   const menu = document.getElementById('lang-globe-menu');
@@ -2209,6 +2281,7 @@ function showAdmin() {
   _adminShown = true;
   document.getElementById('login-overlay').classList.add('hidden');
   document.getElementById('admin-layout').classList.remove('hidden');
+  applyCollapsedNavSections();
   showTab(currentTab);
   loadBankAccounts();
   refreshPublishStatus();
@@ -2231,7 +2304,9 @@ function showTab(tab) {
     if (nav) nav.classList.remove('active');
   });
   document.getElementById(`tab-${tab}`).classList.remove('hidden');
-  document.getElementById(`nav-${tab}`).classList.add('active');
+  const navBtn = document.getElementById(`nav-${tab}`);
+  navBtn.classList.add('active');
+  navBtn.closest('.nav-section')?.classList.remove('collapsed');
   if (tab === 'communications') loadCommunications(1);
   if (tab === 'notifications')  loadNotifications();
   if (tab === 'dashboard')      loadDashboard();
