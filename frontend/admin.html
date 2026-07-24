@@ -139,13 +139,28 @@
     }
     .nav-section-label:first-child { padding-top: 4px; }
 
-    .sidebar-footer { padding: 12px; }
+    .sidebar-footer { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
     .btn-logout {
       display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 14px;
       border-radius: 8px; color: #666; font-size: 14px; background: none;
       border: none; cursor: pointer; font-family: inherit; transition: all .2s;
     }
     .btn-logout:hover { background: #2a2a2a; color: var(--danger); }
+    .btn-publish {
+      display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 14px;
+      border-radius: 8px; color: #fff; font-size: 14px; background: #16a34a;
+      border: none; cursor: pointer; font-family: inherit; transition: all .2s;
+    }
+    .btn-publish:hover { background: #15803d; }
+    .publish-badge {
+      margin-inline-start: auto; min-width: 18px; height: 18px; border-radius: 9px;
+      background: #fff; color: #16a34a; font-size: 10px; font-weight: 800;
+      display: none; align-items: center; justify-content: center; padding: 0 4px;
+    }
+    .pending-dot {
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      background: #f59e0b; margin-inline-start: 6px; vertical-align: middle;
+    }
 
     #main-content { margin-inline-start: var(--sidebar-w); flex: 1; min-height: 100vh; }
 
@@ -753,6 +768,10 @@
       </button>
     </nav>
     <div class="sidebar-footer">
+      <button class="btn-publish" id="btn-publish" onclick="openPublishConfirm()">
+        <span>🚀</span><span data-i18n="publishChanges">انتشار تغییرات</span>
+        <span id="publish-badge" class="publish-badge"></span>
+      </button>
       <button class="btn-logout" onclick="doLogout()">
         <span>🚪</span><span data-i18n="logout">خروج</span>
       </button>
@@ -1632,6 +1651,7 @@ const LANGS = {
     valColorFields:'کلید، نام فارسی و کد رنگ الزامی‌اند',
     valHexFormat:'کد رنگ باید به فرمت #RRGGBB باشد',
     deleteItem:'حذف آیتم', confirmYes:'بله، حذف کن', confirmNo:'انصراف',
+    publishChanges:'انتشار تغییرات', confirmPublish:'آیا مطمئنید تغییرات روی سایت منتشر شوند؟', publishedOk:'تغییرات با موفقیت منتشر شد', pendingPublish:'منتشر نشده — منتظر انتشار',
     confirmDeleteProduct:'این محصول حذف شود؟', confirmDeleteSubcat:'این زیردسته حذف شود؟',
     confirmDeleteColor:'این رنگ حذف شود؟',
     bestseller:'پرفروش', newTag:'جدید',
@@ -1819,6 +1839,7 @@ const LANGS = {
     valColorFields:'Key, Farsi name and hex code are required',
     valHexFormat:'Color code must be in #RRGGBB format',
     deleteItem:'Delete Item', confirmYes:'Yes, Delete', confirmNo:'Cancel',
+    publishChanges:'Publish Changes', confirmPublish:'Are you sure you want to publish these changes to the live site?', publishedOk:'Changes published successfully', pendingPublish:'Not published yet — waiting for publish',
     confirmDeleteProduct:'Delete this product?', confirmDeleteSubcat:'Delete this subcategory?',
     confirmDeleteColor:'Delete this color?',
     bestseller:'Bestseller', newTag:'New',
@@ -2006,6 +2027,7 @@ const LANGS = {
     valColorFields:'Anahtar, Farsça ad ve renk kodu gereklidir',
     valHexFormat:'Renk kodu #RRGGBB formatında olmalı',
     deleteItem:'Öğeyi Sil', confirmYes:'Evet, Sil', confirmNo:'İptal',
+    publishChanges:'Değişiklikleri Yayınla', confirmPublish:'Bu değişiklikleri canlı siteye yayınlamak istediğinize emin misiniz?', publishedOk:'Değişiklikler başarıyla yayınlandı', pendingPublish:'Henüz yayınlanmadı — yayın bekleniyor',
     confirmDeleteProduct:'Bu ürün silinsin mi?', confirmDeleteSubcat:'Bu alt kategori silinsin mi?',
     confirmDeleteColor:'Bu renk silinsin mi?',
     bestseller:'Çok Satan', newTag:'Yeni',
@@ -2187,6 +2209,7 @@ function showAdmin() {
   document.getElementById('admin-layout').classList.remove('hidden');
   showTab(currentTab);
   loadBankAccounts();
+  refreshPublishStatus();
   api('/admin/notifications').then(res => {
     if (!res?.success) return;
     const unread = res.data.filter(n => !_readNotifIds.has(`${n.type}_${n.id}_${n.status || ''}`)).length;
@@ -2253,9 +2276,9 @@ function showToast(msg, type = 'success') {
 }
 
 // ─── Confirm ──────────────────────────────────────────────────────────────────
-function showConfirm(text, onYes) {
-  document.getElementById('confirm-icon').textContent = '🗑️';
-  document.getElementById('confirm-title').textContent = t('deleteItem');
+function showConfirm(text, onYes, opts = {}) {
+  document.getElementById('confirm-icon').textContent = opts.icon || '🗑️';
+  document.getElementById('confirm-title').textContent = opts.title || t('deleteItem');
   document.getElementById('confirm-yes-btn').textContent = t('confirmYes');
   document.querySelector('#confirm-overlay .btn-secondary').textContent = t('confirmNo');
   document.getElementById('confirm-text').textContent = text;
@@ -2263,6 +2286,29 @@ function showConfirm(text, onYes) {
   document.getElementById('confirm-yes-btn').onclick = () => { closeConfirm(); onYes(); };
 }
 function closeConfirm() { document.getElementById('confirm-overlay').classList.add('hidden'); }
+
+// ─── Publish ──────────────────────────────────────────────────────────────────
+async function refreshPublishStatus() {
+  const res = await api('/admin/publish/status');
+  const badge = document.getElementById('publish-badge');
+  if (!badge) return;
+  const n = res?.success ? res.data.pending_count : 0;
+  if (n > 0) { badge.textContent = n > 99 ? '99+' : n; badge.style.display = 'flex'; }
+  else { badge.style.display = 'none'; }
+}
+function openPublishConfirm() {
+  showConfirm(t('confirmPublish'), async () => {
+    const res = await api('/admin/publish', { method: 'POST' });
+    if (res?.success) {
+      showToast(t('publishedOk'));
+      if (currentTab === 'products')   loadProducts();
+      if (currentTab === 'categories') loadCategories();
+      refreshPublishStatus();
+    } else {
+      showToast(res?.message || t('saveError'), 'error');
+    }
+  }, { icon: '🚀', title: t('publishChanges') });
+}
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
@@ -2594,6 +2640,7 @@ async function loadProducts() {
   allSizes      = szR?.data  || [];
   _allProducts = pR.data || [];
   renderProductsTable(_allProducts);
+  refreshPublishStatus();
 }
 
 var _allProducts = [];
@@ -2630,9 +2677,10 @@ function renderProductsTable(products) {
     const sizeTags = (p.product_sizes||[]).map(s =>
       `<span style="font-size:11px;background:#ede9fe;color:#7c3aed;padding:1px 6px;border-radius:10px;margin:1px">${s.size_label}</span>`
     ).join('') || '—';
-    const statusBadge = p.is_active
+    const statusBadge = (p.is_active
       ? `<span class="badge badge-active">${t('active')}</span>`
-      : `<span class="badge badge-inactive">${t('inactive')}</span>`;
+      : `<span class="badge badge-inactive">${t('inactive')}</span>`)
+      + (p.is_active !== p.is_live ? `<span class="pending-dot" title="${t('pendingPublish')}"></span>` : '');
     const firstImg = (p.product_media||[]).find(m => m.type === 'image');
     const firstVid = !firstImg && (p.product_media||[]).find(m => m.type === 'video');
     const mediaSrc = firstImg ? (SERVER_URL + firstImg.url) : null;
@@ -3238,6 +3286,7 @@ async function loadCategories() {
   if (!res) return;
   allCategories = res.data || [];
   renderCategoriesPage(res.data || []);
+  refreshPublishStatus();
 }
 
 function renderCategoriesPage(cats) {
@@ -3264,6 +3313,7 @@ function renderCategoriesPage(cats) {
                 <input type="checkbox" ${s.is_active ? 'checked' : ''} onchange="toggleSubVisibility(${s.id},this)">
                 <span class="vis-slider"></span>
               </label>
+              ${s.is_active !== s.is_live ? `<span class="pending-dot" title="${t('pendingPublish')}"></span>` : ''}
             </td>
             <td><div class="actions">
               <button class="btn btn-secondary btn-sm" onclick='openSubcategoryModal(${JSON.stringify(s).replace(/'/g,"\\'")})'>${t('edit')}</button>
@@ -3284,6 +3334,7 @@ function renderCategoriesPage(cats) {
             <input type="checkbox" ${cat.is_active ? 'checked' : ''} onchange="toggleCatVisibility(${cat.id},this)">
             <span class="vis-slider"></span>
           </label>
+          ${cat.is_active !== cat.is_live ? `<span class="pending-dot" title="${t('pendingPublish')}"></span>` : ''}
           <button class="btn btn-secondary btn-sm" onclick="openCategoryModal(${cat.id})">${t('edit')}</button>
           <button class="btn btn-primary btn-sm" onclick="openSubcategoryModal(null,${cat.id})">${t('addSubcatForCat')}</button>
           <button class="btn btn-danger btn-sm" onclick="confirmDeleteCategory(${cat.id},'${cat.label_fa.replace(/'/g,"\\'")}')">${t('del')}</button>
@@ -3343,12 +3394,14 @@ async function toggleCatVisibility(id, checkbox) {
   const section = checkbox.closest('.cat-section');
   if (section) section.style.opacity = res.data.is_active ? '' : '0.6';
   checkbox.closest('.vis-toggle').title = res.data.is_active ? t('visibleOnSite') : t('hiddenFromSite');
+  loadCategories();
 }
 
 async function toggleSubVisibility(id, checkbox) {
   const res = await api(`/admin/subcategories/${id}/toggle`, { method:'PATCH' });
   if (!res?.success) { checkbox.checked = !checkbox.checked; showToast(t('saveError'), 'error'); return; }
   checkbox.closest('.vis-toggle').title = res.data.is_active ? t('visibleOnSite') : t('hiddenFromSite');
+  loadCategories();
 }
 
 async function confirmDeleteCategory(id, name) {

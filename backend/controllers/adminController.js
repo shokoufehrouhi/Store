@@ -462,6 +462,39 @@ async function deleteMedia(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// ─── Publish ───────────────────────────────────────────────────────────────────
+
+async function getPublishStatus(req, res, next) {
+  try {
+    const [products, categories, subcategories] = await Promise.all([
+      prisma.products.findMany({ select: { is_active: true, is_live: true } }),
+      prisma.categories.findMany({ select: { is_active: true, is_live: true } }),
+      prisma.subcategories.findMany({ select: { is_active: true, is_live: true } }),
+    ]);
+    const pendingCount = rows => rows.filter(r => r.is_active !== r.is_live).length;
+    const pending = {
+      products: pendingCount(products),
+      categories: pendingCount(categories),
+      subcategories: pendingCount(subcategories),
+    };
+    res.json({ success: true, data: { pending_count: pending.products + pending.categories + pending.subcategories, pending } });
+  } catch (err) { next(err); }
+}
+
+async function publishChanges(req, res, next) {
+  try {
+    await prisma.$transaction([
+      prisma.products.updateMany({ where: { is_active: true },  data: { is_live: true } }),
+      prisma.products.updateMany({ where: { is_active: false }, data: { is_live: false } }),
+      prisma.categories.updateMany({ where: { is_active: true },  data: { is_live: true } }),
+      prisma.categories.updateMany({ where: { is_active: false }, data: { is_live: false } }),
+      prisma.subcategories.updateMany({ where: { is_active: true },  data: { is_live: true } }),
+      prisma.subcategories.updateMany({ where: { is_active: false }, data: { is_live: false } }),
+    ]);
+    res.json({ success: true });
+  } catch (err) { next(err); }
+}
+
 // ─── Products ──────────────────────────────────────────────────────────────────
 
 async function getProducts(req, res, next) {
@@ -1327,6 +1360,7 @@ async function getCouponReport(req, res, next) {
 
 module.exports = {
   login, uploadMedia, deleteMedia,
+  getPublishStatus, publishChanges,
   getCategories, createCategory, updateCategory, toggleCategory, deleteCategory,
   getSubcategories, createSubcategory, updateSubcategory, toggleSubcategory, deleteSubcategory,
   getColors, createColor, updateColor, deleteColor,

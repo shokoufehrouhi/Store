@@ -3,7 +3,7 @@ const prisma = require('../prisma/client');
 async function getAll(req, res, next) {
   try {
     const { category, subcategory, gender, tag } = req.query;
-    const where = { is_active: true };
+    const where = { is_live: true };
     if (gender) where.gender = gender;
     if (tag)    where.tag    = tag;
     if (category || subcategory) {
@@ -37,8 +37,8 @@ async function getAll(req, res, next) {
 
 async function getOne(req, res, next) {
   try {
-    const product = await prisma.products.findUnique({
-      where: { id: Number(req.params.id) },
+    const product = await prisma.products.findFirst({
+      where: { id: Number(req.params.id), is_live: true },
       include: {
         categories:        true,
         subcategories:     true,

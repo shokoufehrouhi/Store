@@ -61,6 +61,9 @@ router.post('/products',      c.createProduct);
 router.put('/products/:id',   c.updateProduct);
 router.delete('/products/:id', c.deleteProduct);
 
+router.get('/publish/status', c.getPublishStatus);
+router.post('/publish',       c.publishChanges);
+
 router.get('/orders',                    c.getAdminOrders);
 router.patch('/orders/:id/payment-info', c.setPaymentInfo);
 router.patch('/orders/:id/approve',      c.approvePayment);
