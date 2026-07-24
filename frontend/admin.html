@@ -2157,15 +2157,9 @@ async function loadDashboard() {
 
   function fmt(n) { return Number(n).toLocaleString('en-US'); }
 
-  const statusLabel = s => ({
-    preorder:'پیش‌سفارش', payment_needed:'نیاز به پرداخت', approval_needed:'در انتظار تأیید',
-    preparing:'در حال آماده‌سازی', delivery:'ارسال شده', delivered:'تحویل داده شده',
-    rejected:'رد شده', cancelled:'لغو شده',
-  }[s] || s);
-
   const statusBadge = s => {
     const cls = s === 'delivered' ? 'delivered' : ['preorder','payment_needed','approval_needed','preparing','delivery'].includes(s) ? 'active' : 'other';
-    return `<span class="db-badge ${cls}">${statusLabel(s)}</span>`;
+    return `<span class="db-badge ${cls}">${orderStatusLabel(s)}</span>`;
   };
 
   wrap.innerHTML = `
