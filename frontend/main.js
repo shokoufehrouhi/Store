@@ -530,29 +530,46 @@ function registerPreorder() {
 }
 
 function loadActivePreorder() {
-  var storedId = localStorage.getItem('mf_preorder_id');
-  if (!storedId) return;
   var token = getSession();
   if (!token) return;
+  var storedId = localStorage.getItem('mf_preorder_id');
 
-  fetch(API_BASE + '/orders/' + storedId, {
-    headers: { 'x-session-token': token },
-  }).then(function(res) { return res.json(); }).then(function(data) {
-    if (data.success && data.data) {
-      var st = data.data.status;
-      if (st !== 'delivered' && st !== 'cancelled') {
-        currentPreorder = data.data;
-        renderCart();
+  if (storedId) {
+    fetch(API_BASE + '/orders/' + storedId, {
+      headers: { 'x-session-token': token },
+    }).then(function(res) { return res.json(); }).then(function(data) {
+      if (data.success && data.data) {
+        var st = data.data.status;
+        if (st !== 'delivered' && st !== 'cancelled' && st !== 'rejected') {
+          currentPreorder = data.data;
+          renderCart();
+        } else {
+          localStorage.removeItem('mf_preorder_id');
+          currentPreorder = null;
+        }
       } else {
         localStorage.removeItem('mf_preorder_id');
         currentPreorder = null;
       }
-    } else {
-      localStorage.removeItem('mf_preorder_id');
-      currentPreorder = null;
-    }
-    updateOrderStatusBtn();
-  }).catch(function() {});
+      updateOrderStatusBtn();
+    }).catch(function() {});
+  } else {
+    // No stored ID — check server for any active order
+    fetch(API_BASE + '/orders/my', {
+      headers: { 'x-session-token': token },
+    }).then(function(res) { return res.json(); }).then(function(data) {
+      if (data.success && data.data) {
+        var TERMINAL = { delivered: 1, cancelled: 1, rejected: 1 };
+        var active = data.data.find(function(o) { return !TERMINAL[o.status]; });
+        if (active) {
+          currentPreorder = active;
+          localStorage.setItem('mf_preorder_id', String(active.id));
+          renderCart();
+        }
+      }
+      updateOrderStatusBtn();
+    }).catch(function() {});
+  }
 }
 
 function cancelPreorder() {
