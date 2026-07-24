@@ -3,6 +3,80 @@ const path    = require('path');
 const fs      = require('fs');
 const { sendOrderEmail, sendLoyaltyEmail, sendPrizeEarnedEmail, label } = require('../utils/mailer');
 
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+async function getDashboard(req, res, next) {
+  try {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const [
+      totalCustomers,
+      newCustomersMonth,
+      totalLeads,
+      newLeadsMonth,
+      totalReturns,
+      pendingReturns,
+      activeOrders,
+      completedOrders,
+      totalOrders,
+      revenueAll,
+      revenueMonth,
+      revenueToday,
+      ordersToday,
+      topProducts,
+      recentOrders,
+    ] = await Promise.all([
+      prisma.customers.count(),
+      prisma.customers.count({ where: { created_at: { gte: startOfMonth } } }),
+      prisma.leads.count(),
+      prisma.leads.count({ where: { created_at: { gte: startOfMonth } } }),
+      prisma.order_returns.count(),
+      prisma.order_returns.count({ where: { status: { in: ['requested', 'approved'] } } }),
+      prisma.orders.count({ where: { status: { in: ['preorder','payment_needed','approval_needed','preparing','delivery'] } } }),
+      prisma.orders.count({ where: { status: 'delivered' } }),
+      prisma.orders.count({ where: { status: { not: 'cancelled' } } }),
+      prisma.orders.aggregate({ where: { status: 'delivered' }, _sum: { total_amount: true } }),
+      prisma.orders.aggregate({ where: { status: 'delivered', created_at: { gte: startOfMonth } }, _sum: { total_amount: true } }),
+      prisma.orders.aggregate({ where: { status: 'delivered', created_at: { gte: startOfToday } }, _sum: { total_amount: true } }),
+      prisma.orders.count({ where: { created_at: { gte: startOfToday } } }),
+      prisma.$queryRaw`
+        SELECT oi.product_id, SUM(oi.qty)::int AS total_qty,
+               p.name_fa, p.name_en, p.name_tr, p.code
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        JOIN products p ON p.id = oi.product_id
+        WHERE o.status = 'delivered'
+        GROUP BY oi.product_id, p.name_fa, p.name_en, p.name_tr, p.code
+        ORDER BY total_qty DESC LIMIT 5`,
+      prisma.orders.findMany({
+        where: { status: { not: 'cancelled' } },
+        orderBy: { created_at: 'desc' },
+        take: 5,
+        include: { customers: { select: { full_name: true } } },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        customers: { total: totalCustomers, newThisMonth: newCustomersMonth },
+        leads:     { total: totalLeads,     newThisMonth: newLeadsMonth },
+        returns:   { total: totalReturns,   pending: pendingReturns },
+        orders:    { active: activeOrders,  completed: completedOrders, total: totalOrders, today: ordersToday },
+        revenue:   {
+          total:      Number(revenueAll._sum.total_amount   || 0),
+          thisMonth:  Number(revenueMonth._sum.total_amount || 0),
+          today:      Number(revenueToday._sum.total_amount || 0),
+        },
+        topProducts: topProducts.map(r => ({ product_id: r.product_id, qty: Number(r.total_qty), name_fa: r.name_fa, name_en: r.name_en, code: r.code })),
+        recentOrders: recentOrders.map(o => ({ id: o.id, customer: o.customers?.full_name, status: o.status, amount: Number(o.total_amount), created_at: o.created_at })),
+      },
+    });
+  } catch (err) { next(err); }
+}
+
 // ─── Auth ──────────────────────────────────────────────────────────────────────
 
 async function login(req, res) {
@@ -1100,6 +1174,7 @@ module.exports = {
   getProducts, createProduct, updateProduct, deleteProduct,
   getAdminOrders, setPaymentInfo, approvePayment, rejectPayment, rejectPreorder, setShipping, markDelivered,
   getBankAccounts, createBankAccount, updateBankAccount, deleteBankAccount,
+  getDashboard,
   getReports, getFinancialReport, getCustomerReports, getCouponReport,
   listPrizeOrders, shipPrizeOrder, deliverPrizeOrder, updatePrizeNote,
 };

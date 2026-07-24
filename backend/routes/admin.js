@@ -7,6 +7,8 @@ router.post('/login', c.login);
 
 router.use(adminAuth);
 
+router.get('/dashboard', c.getDashboard);
+
 router.post('/upload', (req, res, next) => {
   const upload = getUploadMiddleware();
   if (!upload) return res.status(503).json({ success: false, message: 'multer not installed — run: npm install multer' });
