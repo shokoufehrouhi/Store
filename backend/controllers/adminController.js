@@ -8,11 +8,17 @@ const { sendOrderEmail, sendLoyaltyEmail, sendPrizeEarnedEmail, label } = requir
 async function getNotifications(req, res, next) {
   try {
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const [orders, returns, customers, leads] = await Promise.all([
+    const [orders, prizes, returns, customers, leads] = await Promise.all([
       prisma.orders.findMany({
-        where: { updated_at: { gte: since } },
+        where: { updated_at: { gte: since }, is_prize: false },
         orderBy: { updated_at: 'desc' },
         take: 30,
+        include: { customers: { select: { full_name: true, mobile: true } } },
+      }),
+      prisma.orders.findMany({
+        where: { updated_at: { gte: since }, is_prize: true },
+        orderBy: { updated_at: 'desc' },
+        take: 20,
         include: { customers: { select: { full_name: true, mobile: true } } },
       }),
       prisma.order_returns.findMany({
@@ -48,6 +54,20 @@ async function getNotifications(req, res, next) {
         amount: Number(o.total_amount),
         timestamp: isNew ? o.created_at : o.updated_at,
         tab: 'active-orders',
+        action_id: o.id,
+      });
+    }
+
+    for (const o of prizes) {
+      const diffMs = Math.abs(new Date(o.updated_at) - new Date(o.created_at));
+      const isNew = diffMs < 10000;
+      notifications.push({
+        type: isNew ? 'new_prize' : 'prize_update',
+        id: o.id,
+        customer: o.customers?.full_name || o.customers?.mobile || '—',
+        status: o.status,
+        timestamp: isNew ? o.created_at : o.updated_at,
+        tab: 'prizes',
         action_id: o.id,
       });
     }
