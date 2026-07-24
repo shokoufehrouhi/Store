@@ -787,7 +787,7 @@
         </div>
       </div>
       <div class="page-body">
-        <div id="communications-content"><div style="text-align:center;padding:40px;color:#888">در حال بارگذاری...</div></div>
+        <div id="communications-content"><div style="text-align:center;padding:40px;color:#888" data-i18n="loading">در حال بارگذاری...</div></div>
       </div>
     </div>
 
@@ -2312,8 +2312,13 @@ async function loadCommunications(page = 1) {
   wrap.innerHTML = `<div style="text-align:center;padding:40px;color:#888">${t('loading')}</div>`;
   const typeFilter = document.getElementById('comm-type-filter')?.value || '';
   const qs = `page=${page}${typeFilter ? '&type=' + typeFilter : ''}`;
-  const res = await api(`/admin/communications?${qs}`);
-  if (!res?.success) { wrap.innerHTML = `<div style="padding:20px;color:#ef4444">${t('loadError')}</div>`; return; }
+  let res;
+  try {
+    res = await api(`/admin/communications?${qs}`);
+  } catch(e) {
+    wrap.innerHTML = `<div style="padding:20px;color:#ef4444">Error: ${e.message}</div>`; return;
+  }
+  if (!res?.success) { wrap.innerHTML = `<div style="padding:20px;color:#ef4444">${t('loadError')} (${res?.message || 'no response'})</div>`; return; }
   if (!res.data.length) { wrap.innerHTML = `<div style="text-align:center;padding:60px;color:#aaa">✉️ ${t('commEmpty')}</div>`; return; }
 
   const rows = res.data.map(e => `
