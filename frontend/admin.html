@@ -2673,15 +2673,15 @@ async function loadDashboard() {
         ${d.topProducts.length === 0 ? `<div style="color:#aaa;font-size:13px;padding:12px 0">${t('noData')}</div>` : `
         <table class="db-table">
           <thead><tr><th>#</th><th>${t('dbProduct')}</th><th>${t('dbQty')}</th></tr></thead>
-          <tbody>${d.topProducts.map((p,i) => `
+          <tbody>${d.topProducts.map((p,i) => { const _nameKey = currentLang === 'fa' ? 'name_fa' : currentLang === 'tr' ? 'name_tr' : 'name_en'; return `
             <tr>
               <td><span class="db-rank${i===0?' top1':i===1?' top2':i===2?' top3':''}">${i+1}</span></td>
               <td>
-                <div style="font-weight:700;font-size:13px;color:var(--text)">${p.name_fa||p.name_en||'—'}</div>
+                <div style="font-weight:700;font-size:13px;color:var(--text)">${p[_nameKey]||p.name_fa||p.name_en||'—'}</div>
                 ${p.code ? `<div style="font-size:11px;color:#aaa;margin-top:1px">${p.code}</div>` : ''}
               </td>
               <td><span style="font-weight:800;font-size:14px;color:var(--text)">${fmt(p.qty)}</span></td>
-            </tr>`).join('')}
+            </tr>`; }).join('')}
           </tbody>
         </table>`}
       </div>
