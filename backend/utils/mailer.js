@@ -3,17 +3,20 @@ const path = require('path');
 const prisma = require('../prisma/client');
 
 async function sendAndLog(transporter, mailOpts, logData = {}) {
-  await transporter.sendMail(mailOpts);
-  prisma.email_logs.create({
-    data: {
-      to:          mailOpts.to,
-      subject:     mailOpts.subject || '',
-      html_body:   mailOpts.html   || '',
-      type:        logData.type    || 'unknown',
-      customer_id: logData.customer_id || null,
-      order_id:    logData.order_id    || null,
-    },
-  }).catch(e => console.error('[email_log]', e.message));
+  try {
+    await transporter.sendMail(mailOpts);
+  } finally {
+    prisma.email_logs.create({
+      data: {
+        to:          mailOpts.to,
+        subject:     mailOpts.subject || '',
+        html_body:   mailOpts.html   || '',
+        type:        logData.type    || 'unknown',
+        customer_id: logData.customer_id || null,
+        order_id:    logData.order_id    || null,
+      },
+    }).catch(e => console.error('[email_log]', e.message));
+  }
 }
 
 const IMAGES_DIR = path.join(__dirname, '../../frontend/images');

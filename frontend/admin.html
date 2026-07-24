@@ -767,18 +767,21 @@
         <h2>✉️ <span data-i18n="navCommunications">ارتباطات</span></h2>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <select id="comm-type-filter" onchange="loadCommunications(1)" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);font-size:13px;background:var(--white)">
-            <option value="" data-i18n="commAllTypes">همه</option>
-            <option value="order_confirmed">سفارش تایید</option>
-            <option value="order_payment_received">پرداخت دریافت</option>
-            <option value="order_shipping">ارسال</option>
-            <option value="order_delivered">تحویل</option>
-            <option value="reply">پاسخ پیام</option>
-            <option value="loyalty">وفاداری</option>
-            <option value="birthday">تولد</option>
-            <option value="welcome">خوش‌آمد</option>
-            <option value="prize_earned">جایزه</option>
-            <option value="invite">دعوت دوست</option>
-            <option value="verification">کد تایید</option>
+            <option value="" data-i18n="commAllTypes">همه انواع</option>
+            <option value="order_payment_needed" data-i18n="commTypePaymentNeeded">نیاز به پرداخت</option>
+            <option value="order_preparing" data-i18n="commTypePreparing">در حال آماده‌سازی</option>
+            <option value="order_delivery" data-i18n="commTypeDelivery">ارسال</option>
+            <option value="order_delivered" data-i18n="commTypeDelivered">تحویل داده شد</option>
+            <option value="order_rejected" data-i18n="commTypeRejected">رد سفارش</option>
+            <option value="order_preorder_rejected" data-i18n="commTypePreorderRejected">رد پیش‌سفارش</option>
+            <option value="reply" data-i18n="commTypeReply">پاسخ پیام</option>
+            <option value="loyalty" data-i18n="commTypeLoyalty">وفاداری</option>
+            <option value="birthday" data-i18n="commTypeBirthday">تولد</option>
+            <option value="welcome" data-i18n="commTypeWelcome">خوش‌آمد</option>
+            <option value="prize_earned" data-i18n="commTypePrize">جایزه</option>
+            <option value="invite" data-i18n="commTypeInvite">دعوت دوست</option>
+            <option value="verification" data-i18n="commTypeVerification">کد تایید</option>
+            <option value="raw" data-i18n="commTypeRaw">ارسال مستقیم</option>
           </select>
           <button class="btn btn-secondary" onclick="loadCommunications(1)" style="font-size:12px">↻ <span data-i18n="refresh">بروزرسانی</span></button>
         </div>
@@ -1510,6 +1513,7 @@ const LANGS = {
     navGroupCatalog:'فروشگاه', navGroupConfig:'تنظیمات پایه', navGroupUsers:'کاربران',
     navDashboard:'داشبورد', navNotifications:'اعلان‌ها', navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navCustomers:'مشتریان', navLeads:'لیدها', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navProductPhotos:'عکس‌های خریداران', refresh:'بروزرسانی',
     navCommunications:'ارتباطات', commAllTypes:'همه انواع', commSubject:'موضوع', commTo:'گیرنده', commType:'نوع', commDate:'تاریخ', commCustomer:'مشتری', commView:'مشاهده', commEmpty:'ایمیلی ثبت نشده',
+    commTypePaymentNeeded:'نیاز به پرداخت', commTypePreparing:'در حال آماده‌سازی', commTypeDelivery:'ارسال', commTypeDelivered:'تحویل داده شد', commTypeRejected:'رد سفارش', commTypePreorderRejected:'رد پیش‌سفارش', commTypeReply:'پاسخ پیام', commTypeLoyalty:'وفاداری', commTypeBirthday:'تولد', commTypeWelcome:'خوش‌آمد', commTypePrize:'جایزه', commTypeInvite:'دعوت دوست', commTypeVerification:'کد تایید', commTypeRaw:'ارسال مستقیم',
     notifMarkAll:'همه خوانده شد', notifNewOrder:'سفارش جدید', notifOrderUpdate:'بروزرسانی سفارش', notifNewPrize:'جایزه جدید', notifPrizeUpdate:'بروزرسانی جایزه', notifNewReturn:'درخواست مرجوعی', notifReturnUpdate:'بروزرسانی مرجوعی', notifNewCustomer:'مشتری جدید', notifNewLead:'لید جدید', notifView:'مشاهده', notifEmpty:'اعلانی وجود ندارد',
     dbTotalCustomers:'مشتریان', dbNewThisMonth:'این ماه', dbTotalRevenue:'فروش کل', dbRevenueMonth:'این ماه', dbRevenueToday:'امروز', dbActiveOrders:'سفارش فعال', dbCompletedOrders:'تحویل‌شده', dbOrdersToday:'سفارش امروز', dbTotalLeads:'لید', dbNewLeads:'این ماه', dbTotalReturns:'مرجوعی', dbPendingReturns:'در انتظار', dbTopProducts:'پرفروش‌ترین‌ها', dbRecentOrders:'سفارشات اخیر', dbOrderId:'شناسه', dbCustomer:'مشتری', dbProduct:'محصول', dbQty:'تعداد', dbStatus:'وضعیت', dbAmount:'مبلغ', dbDate:'تاریخ', loading:'در حال بارگذاری...', loadError:'خطا در بارگذاری داده‌ها', noData:'داده‌ای موجود نیست',
     leadsColName:'نام', leadsColEmail:'ایمیل', leadsColPhone:'تلفن', leadsColReferredBy:'معرف', leadsColStatus:'وضعیت', leadsColDate:'تاریخ',
@@ -1696,6 +1700,7 @@ const LANGS = {
     navGroupCatalog:'Store', navGroupConfig:'Configuration', navGroupUsers:'Users',
     navDashboard:'Dashboard', navNotifications:'Notifications', navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navCustomers:'Customers', navLeads:'Leads', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navProductPhotos:'Buyer Photos', refresh:'Refresh',
     navCommunications:'Communications', commAllTypes:'All types', commSubject:'Subject', commTo:'To', commType:'Type', commDate:'Date', commCustomer:'Customer', commView:'View', commEmpty:'No emails logged yet',
+    commTypePaymentNeeded:'Payment Needed', commTypePreparing:'Preparing', commTypeDelivery:'Shipping', commTypeDelivered:'Delivered', commTypeRejected:'Rejected', commTypePreorderRejected:'Preorder Rejected', commTypeReply:'Reply', commTypeLoyalty:'Loyalty', commTypeBirthday:'Birthday', commTypeWelcome:'Welcome', commTypePrize:'Prize', commTypeInvite:'Invite', commTypeVerification:'Verification', commTypeRaw:'Direct Send',
     notifMarkAll:'Mark all read', notifNewOrder:'New Order', notifOrderUpdate:'Order Updated', notifNewPrize:'New Prize', notifPrizeUpdate:'Prize Updated', notifNewReturn:'Return Request', notifReturnUpdate:'Return Updated', notifNewCustomer:'New Customer', notifNewLead:'New Lead', notifView:'View', notifEmpty:'No notifications',
     dbTotalCustomers:'Customers', dbNewThisMonth:'This Month', dbTotalRevenue:'Total Revenue', dbRevenueMonth:'This Month', dbRevenueToday:'Today', dbActiveOrders:'Active Orders', dbCompletedOrders:'Delivered', dbOrdersToday:'Today Orders', dbTotalLeads:'Leads', dbNewLeads:'This Month', dbTotalReturns:'Returns', dbPendingReturns:'Pending', dbTopProducts:'Top Products', dbRecentOrders:'Recent Orders', dbOrderId:'ID', dbCustomer:'Customer', dbProduct:'Product', dbQty:'Qty', dbStatus:'Status', dbAmount:'Amount', dbDate:'Date', loading:'Loading...', loadError:'Failed to load data', noData:'No data available',
     leadsColName:'Name', leadsColEmail:'Email', leadsColPhone:'Phone', leadsColReferredBy:'Referred By', leadsColStatus:'Status', leadsColDate:'Date',
@@ -1882,6 +1887,7 @@ const LANGS = {
     navGroupCatalog:'Mağaza', navGroupConfig:'Yapılandırma', navGroupUsers:'Kullanıcılar',
     navDashboard:'Gösterge Paneli', navNotifications:'Bildirimler', navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navCustomers:'Müşteriler', navLeads:'Adaylar', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navProductPhotos:'Alıcı Fotoğrafları', refresh:'Yenile',
     navCommunications:'İletişim', commAllTypes:'Tüm türler', commSubject:'Konu', commTo:'Alıcı', commType:'Tür', commDate:'Tarih', commCustomer:'Müşteri', commView:'Görüntüle', commEmpty:'Henüz e-posta kaydı yok',
+    commTypePaymentNeeded:'Ödeme Gerekli', commTypePreparing:'Hazırlanıyor', commTypeDelivery:'Kargo', commTypeDelivered:'Teslim Edildi', commTypeRejected:'Reddedildi', commTypePreorderRejected:'Ön Sipariş Reddedildi', commTypeReply:'Yanıt', commTypeLoyalty:'Sadakat', commTypeBirthday:'Doğum Günü', commTypeWelcome:'Hoş Geldin', commTypePrize:'Ödül', commTypeInvite:'Davet', commTypeVerification:'Doğrulama', commTypeRaw:'Doğrudan Gönderim',
     notifMarkAll:'Tümünü okundu say', notifNewOrder:'Yeni Sipariş', notifOrderUpdate:'Sipariş Güncellendi', notifNewPrize:'Yeni Ödül', notifPrizeUpdate:'Ödül Güncellendi', notifNewReturn:'İade Talebi', notifReturnUpdate:'İade Güncellendi', notifNewCustomer:'Yeni Müşteri', notifNewLead:'Yeni Aday', notifView:'Görüntüle', notifEmpty:'Bildirim yok',
     dbTotalCustomers:'Müşteriler', dbNewThisMonth:'Bu Ay', dbTotalRevenue:'Toplam Satış', dbRevenueMonth:'Bu Ay', dbRevenueToday:'Bugün', dbActiveOrders:'Aktif Sipariş', dbCompletedOrders:'Teslim Edildi', dbOrdersToday:'Bugün Siparişler', dbTotalLeads:'Adaylar', dbNewLeads:'Bu Ay', dbTotalReturns:'İadeler', dbPendingReturns:'Beklemede', dbTopProducts:'En Çok Satanlar', dbRecentOrders:'Son Siparişler', dbOrderId:'ID', dbCustomer:'Müşteri', dbProduct:'Ürün', dbQty:'Adet', dbStatus:'Durum', dbAmount:'Tutar', dbDate:'Tarih', loading:'Yükleniyor...', loadError:'Veri yüklenemedi', noData:'Veri yok',
     leadsColName:'Ad', leadsColEmail:'E-posta', leadsColPhone:'Telefon', leadsColReferredBy:'Referans', leadsColStatus:'Durum', leadsColDate:'Tarih',
@@ -2271,15 +2277,32 @@ function openModal(title, bodyHtml, footerHtml) {
 let _commPage = 1;
 
 const COMM_TYPE_LABELS = {
-  order_confirmed:'سفارش تایید', order_payment_received:'پرداخت', order_shipping:'ارسال',
-  order_delivered:'تحویل', order_rejected:'رد سفارش', order_cancelled:'لغو',
-  reply:'پاسخ پیام', loyalty:'وفاداری', birthday:'تولد', welcome:'خوش‌آمد',
-  prize_earned:'جایزه', invite:'دعوت', verification:'کد تایید', raw:'ارسال مستقیم',
+  fa: {
+    order_payment_needed:'نیاز به پرداخت', order_preparing:'در حال آماده‌سازی',
+    order_delivery:'ارسال', order_delivered:'تحویل داده شد',
+    order_rejected:'رد سفارش', order_preorder_rejected:'رد پیش‌سفارش',
+    reply:'پاسخ پیام', loyalty:'وفاداری', birthday:'تولد', welcome:'خوش‌آمد',
+    prize_earned:'جایزه', invite:'دعوت دوست', verification:'کد تایید', raw:'ارسال مستقیم',
+  },
+  en: {
+    order_payment_needed:'Payment Needed', order_preparing:'Preparing',
+    order_delivery:'Shipping', order_delivered:'Delivered',
+    order_rejected:'Rejected', order_preorder_rejected:'Preorder Rejected',
+    reply:'Reply', loyalty:'Loyalty', birthday:'Birthday', welcome:'Welcome',
+    prize_earned:'Prize', invite:'Invite', verification:'Verification', raw:'Direct Send',
+  },
+  tr: {
+    order_payment_needed:'Ödeme Gerekli', order_preparing:'Hazırlanıyor',
+    order_delivery:'Kargo', order_delivered:'Teslim Edildi',
+    order_rejected:'Reddedildi', order_preorder_rejected:'Ön Sipariş Reddedildi',
+    reply:'Yanıt', loyalty:'Sadakat', birthday:'Doğum Günü', welcome:'Hoş Geldin',
+    prize_earned:'Ödül', invite:'Davet', verification:'Doğrulama', raw:'Doğrudan Gönderim',
+  },
 };
 
 function commTypeBadge(type) {
   const cls = type.startsWith('order') ? 'order' : type === 'reply' ? 'reply' : type === 'loyalty' ? 'loyalty' : type === 'birthday' ? 'birthday' : type === 'welcome' ? 'welcome' : type === 'prize_earned' ? 'prize' : type === 'invite' ? 'invite' : 'verif';
-  const label = COMM_TYPE_LABELS[type] || type;
+  const label = (COMM_TYPE_LABELS[currentLang] || COMM_TYPE_LABELS.fa)[type] || type;
   return `<span class="comm-type-badge ${cls}">${label}</span>`;
 }
 
