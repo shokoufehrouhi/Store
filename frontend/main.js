@@ -1792,6 +1792,12 @@ function fillContactInfo() {
   document.querySelectorAll('.js-tg-link').forEach(function(el) {
     el.href = 'https://t.me/' + CONTACT.telegram;
   });
+  document.querySelectorAll('.js-ig-link').forEach(function(el) {
+    el.href = 'https://instagram.com/' + CONTACT.instagram;
+  });
+  document.querySelectorAll('.js-tt-link').forEach(function(el) {
+    el.href = 'https://www.tiktok.com/@' + CONTACT.tiktok;
+  });
 }
 
 // ─── Smooth Scroll ────────────────────────────────────────────────────────────

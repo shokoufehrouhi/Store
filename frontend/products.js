@@ -7,6 +7,8 @@ const CONTACT = {
   phoneDisplayLatin: '+90 555 040 1737',
   whatsapp: '905550401737',
   telegram: 'Shilistaa',
+  instagram: 'shilistaa',
+  tiktok: 'shilista8',
 };
 
 // =====================================================

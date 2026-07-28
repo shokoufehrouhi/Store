@@ -24,11 +24,13 @@ const IMAGES_DIR = path.join(__dirname, '../../frontend/images');
 const EMAIL_LOGO_URL      = 'cid:email-logo@shilista';
 const EMAIL_ICON_TELEGRAM = 'cid:icon-telegram@shilista';
 const EMAIL_ICON_INSTAGRAM= 'cid:icon-instagram@shilista';
+const EMAIL_ICON_TIKTOK   = 'cid:icon-tiktok@shilista';
 
 const EMAIL_ATTACHMENTS = [
   { filename: 'shilista_email_logo.jpg', path: path.join(IMAGES_DIR, 'shilista_email_logo.jpg'), cid: 'email-logo@shilista' },
   { filename: 'icon_telegram.png',       path: path.join(IMAGES_DIR, 'icon_telegram.png'),       cid: 'icon-telegram@shilista' },
   { filename: 'icon_instagram.png',      path: path.join(IMAGES_DIR, 'icon_instagram.png'),      cid: 'icon-instagram@shilista' },
+  { filename: 'icon_tiktok.png',         path: path.join(IMAGES_DIR, 'icon_tiktok.png'),         cid: 'icon-tiktok@shilista' },
 ];
 
 const FOOTER_TR = `
@@ -55,6 +57,17 @@ const FOOTER_TR = `
                       <td style="vertical-align:middle">
                         <img src="${EMAIL_ICON_TELEGRAM}" alt="Telegram" width="32" height="32" style="width:32px;height:32px;display:inline-block;vertical-align:middle">
                         <span style="color:#fff;font-size:13px;font-weight:700;font-family:Arial,sans-serif;vertical-align:middle;margin-left:6px">@Shilistaa</span>
+                      </td>
+                    </tr>
+                  </table>
+                </a>
+                <!-- TikTok -->
+                <a href="https://www.tiktok.com/@shilista8" style="display:inline-block;margin:0 8px;text-decoration:none;vertical-align:middle">
+                  <table cellpadding="0" cellspacing="0" style="display:inline-table">
+                    <tr>
+                      <td style="vertical-align:middle">
+                        <img src="${EMAIL_ICON_TIKTOK}" alt="TikTok" width="32" height="32" style="width:32px;height:32px;display:inline-block;vertical-align:middle;border-radius:8px">
+                        <span style="color:#fff;font-size:13px;font-weight:700;font-family:Arial,sans-serif;vertical-align:middle;margin-left:6px">@shilista8</span>
                       </td>
                     </tr>
                   </table>
