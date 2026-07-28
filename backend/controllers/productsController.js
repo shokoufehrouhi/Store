@@ -92,6 +92,78 @@ async function getOne(req, res, next) {
   }
 }
 
+// ─── Facebook/Instagram Commerce data feed ─────────────────────────────────────
+// Public CSV that Facebook Commerce Manager polls on a schedule ("Data Feed").
+// Only is_live products appear here — same publish gate as the storefront.
+const SITE_BASE = 'https://shilista.com';
+
+function csvEscape(val) {
+  const s = String(val ?? '');
+  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function absoluteMediaUrl(url) {
+  if (!url) return '';
+  return /^https?:\/\//i.test(url) ? url : SITE_BASE + url;
+}
+
+async function getFacebookFeed(req, res, next) {
+  try {
+    const lang = ['fa', 'en', 'tr'].includes(req.query.lang) ? req.query.lang : 'tr';
+    const nameKey = 'name_' + lang;
+    const descKey = 'desc_' + lang;
+
+    const rows = await prisma.products.findMany({
+      where: { is_live: true },
+      select: { id: true, published_data: true },
+      orderBy: { created_at: 'desc' },
+    });
+    const ids = rows.map(r => r.id);
+    const inventory = ids.length
+      ? await prisma.product_inventory.findMany({ where: { product_id: { in: ids } }, select: { product_id: true, quantity: true } })
+      : [];
+    const inventoryQtyByProduct = new Map();
+    for (const inv of inventory) {
+      inventoryQtyByProduct.set(inv.product_id, (inventoryQtyByProduct.get(inv.product_id) || 0) + inv.quantity);
+    }
+
+    const header = [
+      'id', 'title', 'description', 'availability', 'condition', 'price', 'sale_price',
+      'link', 'image_link', 'additional_image_link', 'brand', 'google_product_category', 'identifier_exists',
+    ];
+    const lines = [header.join(',')];
+
+    for (const r of rows) {
+      const p = r.published_data || {};
+      const images = (p.product_media || []).filter(m => m.type === 'image');
+      const title = p[nameKey] || p.name_fa || '';
+      if (!images.length || !title) continue; // Facebook requires both
+
+      const desc = (p[descKey] || p.desc_fa || title).replace(/\s+/g, ' ').trim();
+      const qty = inventoryQtyByProduct.has(r.id) ? inventoryQtyByProduct.get(r.id) : Number(p.stock || 0);
+      const availability = qty > 0 ? 'in stock' : 'out of stock';
+      const price = Number(p.price || 0).toFixed(2) + ' TRY';
+      const hasSale = p.discounted_price != null && Number(p.discounted_price) < Number(p.price || 0);
+      const salePrice = hasSale ? Number(p.discounted_price).toFixed(2) + ' TRY' : '';
+      const link = `${SITE_BASE}/product.html?id=${r.id}&lang=${lang}`;
+      const imageLink = absoluteMediaUrl(images[0].url);
+      const additionalImages = images.slice(1, 10).map(m => absoluteMediaUrl(m.url)).join(',');
+      const brand = p.brand || 'Shilista';
+
+      lines.push([
+        r.id, title, desc, availability, 'new', price, salePrice,
+        link, imageLink, additionalImages, brand, 'Apparel & Accessories > Clothing', 'no',
+      ].map(csvEscape).join(','));
+    }
+
+    res.set('Content-Type', 'text/csv; charset=utf-8');
+    res.set('Cache-Control', 'public, max-age=1800');
+    res.send(lines.join('\n'));
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function create(req, res, next) {
   try {
     const { category_id, subcategory_id, gender, name_fa, name_en, name_tr,
@@ -149,4 +221,4 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { getAll, getOne, create, update, remove };
+module.exports = { getAll, getOne, create, update, remove, getFacebookFeed };

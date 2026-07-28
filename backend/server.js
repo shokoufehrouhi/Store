@@ -44,6 +44,7 @@ const forgotLimiter = rateLimit({
 });
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
+app.get('/api/facebook-feed.csv', require('./controllers/productsController').getFacebookFeed);
 app.use('/api/products',                   require('./routes/products'));
 app.use('/api/customers/login',            authLimiter);
 app.use('/api/customers/register',         authLimiter);
