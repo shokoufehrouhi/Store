@@ -188,6 +188,9 @@ async function getDashboard(req, res, next) {
       ordersToday,
       topProducts,
       recentOrders,
+      totalViews,
+      viewsToday,
+      viewsMonth,
     ] = await Promise.all([
       prisma.customers.count(),
       prisma.customers.count({ where: { created_at: { gte: startOfMonth } } }),
@@ -217,6 +220,9 @@ async function getDashboard(req, res, next) {
         take: 5,
         include: { customers: { select: { full_name: true } } },
       }),
+      prisma.site_views.count(),
+      prisma.site_views.count({ where: { created_at: { gte: startOfToday } } }),
+      prisma.site_views.count({ where: { created_at: { gte: startOfMonth } } }),
     ]);
 
     res.json({
@@ -231,6 +237,7 @@ async function getDashboard(req, res, next) {
           thisMonth:  Number(revenueMonth._sum.total_amount || 0),
           today:      Number(revenueToday._sum.total_amount || 0),
         },
+        siteViews: { total: totalViews, today: viewsToday, thisMonth: viewsMonth },
         topProducts: topProducts.map(r => ({ product_id: r.product_id, qty: Number(r.total_qty), name_fa: r.name_fa, name_en: r.name_en, code: r.code })),
         recentOrders: recentOrders.map(o => ({ id: o.id, customer: o.customers?.full_name, status: o.status, amount: Number(o.total_amount), created_at: o.created_at })),
       },

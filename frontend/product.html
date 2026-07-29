@@ -566,6 +566,12 @@ var API = SRV + '/api';
 var WA  = '905550401737';
 var TG  = 'Shilistaa';
 
+fetch(API + '/track-view', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ path: location.pathname }),
+}).catch(function(){});
+
 // ── cart ──────────────────────────────────────────────────────────────────────
 function getCart(){ try{ return JSON.parse(localStorage.getItem('cart')||'[]'); }catch(e){ return []; } }
 function saveCart(c){ localStorage.setItem('cart', JSON.stringify(c)); }

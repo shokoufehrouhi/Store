@@ -5121,7 +5121,16 @@ function reloadProducts(forceRender) {
     .catch(function() {});
 }
 
+function trackPageView() {
+  fetch(API_BASE + '/track-view', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: location.pathname }),
+  }).catch(function() {});
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+  trackPageView();
   // ── Profile page: skip shop init ─────────────────────────────────────────
   if (window.IS_PROFILE_PAGE) {
     initLangSwitcher();

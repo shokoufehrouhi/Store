@@ -42,6 +42,13 @@ const forgotLimiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, message: 'Too many requests, try again in 1 hour' },
 });
+const viewLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false },
+});
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.get('/api/facebook-feed.csv', require('./controllers/productsController').getFacebookFeed);
@@ -92,6 +99,16 @@ app.get('/api/bank-accounts', async (req, res, next) => {
       select: { id: true, bank_name: true, account_holder: true, iban: true },
     });
     res.json({ success: true, data: accounts });
+  } catch (err) { next(err); }
+});
+
+// ─── Site view tracking (public, no auth) ─────────────────────────────────────
+app.post('/api/track-view', viewLimiter, async (req, res, next) => {
+  try {
+    const prisma = require('./prisma/client');
+    const path = typeof req.body?.path === 'string' ? req.body.path.slice(0, 200) : null;
+    await prisma.site_views.create({ data: { path } });
+    res.json({ success: true });
   } catch (err) { next(err); }
 });
 

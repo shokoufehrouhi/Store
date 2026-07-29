@@ -279,6 +279,7 @@
     .db-card.c-teal   { --db-color: #0d9488; }
     .db-card.c-purple { --db-color: #8b5cf6; }
     .db-card.c-red    { --db-color: #ef4444; }
+    .db-card.c-cyan   { --db-color: #0891b2; }
     .db-section-title { font-size: 14px; font-weight: 700; margin-bottom: 16px; color: var(--text); display: flex; align-items: center; gap: 8px; }
     .db-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
     .db-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -1598,7 +1599,7 @@ const LANGS = {
     navCommunications:'ارتباطات', commAllTypes:'همه انواع', commSubject:'موضوع', commTo:'گیرنده', commType:'نوع', commDate:'تاریخ', commCustomer:'مشتری', commView:'مشاهده', commEmpty:'ایمیلی ثبت نشده',
     commTypePaymentNeeded:'نیاز به پرداخت', commTypePreparing:'در حال آماده‌سازی', commTypeDelivery:'ارسال', commTypeDelivered:'تحویل داده شد', commTypeRejected:'رد سفارش', commTypePreorderRejected:'رد پیش‌سفارش', commTypeReply:'پاسخ پیام', commTypeLoyalty:'وفاداری', commTypeBirthday:'تولد', commTypeWelcome:'خوش‌آمد', commTypePrize:'جایزه', commTypeInvite:'دعوت دوست', commTypeVerification:'کد تایید', commTypeRaw:'ارسال مستقیم',
     notifMarkAll:'همه خوانده شد', notifNewOrder:'سفارش جدید', notifOrderUpdate:'بروزرسانی سفارش', notifNewPrize:'جایزه جدید', notifPrizeUpdate:'بروزرسانی جایزه', notifNewReturn:'درخواست مرجوعی', notifReturnUpdate:'بروزرسانی مرجوعی', notifNewCustomer:'مشتری جدید', notifNewLead:'لید جدید', notifView:'مشاهده', notifEmpty:'اعلانی وجود ندارد',
-    dbTotalCustomers:'مشتریان', dbNewThisMonth:'این ماه', dbTotalRevenue:'فروش کل', dbRevenueMonth:'این ماه', dbRevenueToday:'امروز', dbActiveOrders:'سفارش فعال', dbCompletedOrders:'تحویل‌شده', dbOrdersToday:'سفارش امروز', dbTotalLeads:'لید', dbNewLeads:'این ماه', dbTotalReturns:'مرجوعی', dbPendingReturns:'در انتظار', dbTopProducts:'پرفروش‌ترین‌ها', dbRecentOrders:'سفارشات اخیر', dbOrderId:'شناسه', dbCustomer:'مشتری', dbProduct:'محصول', dbQty:'تعداد', dbStatus:'وضعیت', dbAmount:'مبلغ', dbDate:'تاریخ', loading:'در حال بارگذاری...', loadError:'خطا در بارگذاری داده‌ها', noData:'داده‌ای موجود نیست',
+    dbTotalCustomers:'مشتریان', dbNewThisMonth:'این ماه', dbTotalRevenue:'فروش کل', dbRevenueMonth:'این ماه', dbRevenueToday:'امروز', dbActiveOrders:'سفارش فعال', dbCompletedOrders:'تحویل‌شده', dbOrdersToday:'سفارش امروز', dbTotalLeads:'لید', dbNewLeads:'این ماه', dbTotalReturns:'مرجوعی', dbPendingReturns:'در انتظار', dbSiteViews:'بازدید سایت', dbViewsToday:'امروز', dbViewsMonth:'این ماه', dbTopProducts:'پرفروش‌ترین‌ها', dbRecentOrders:'سفارشات اخیر', dbOrderId:'شناسه', dbCustomer:'مشتری', dbProduct:'محصول', dbQty:'تعداد', dbStatus:'وضعیت', dbAmount:'مبلغ', dbDate:'تاریخ', loading:'در حال بارگذاری...', loadError:'خطا در بارگذاری داده‌ها', noData:'داده‌ای موجود نیست',
     leadsColName:'نام', leadsColEmail:'ایمیل', leadsColPhone:'تلفن', leadsColReferredBy:'معرف', leadsColStatus:'وضعیت', leadsColDate:'تاریخ',
     leadsStatusPending:'در انتظار', leadsStatusEmailSent:'ایمیل ارسال شد', leadsStatusOpened:'بازشده', leadsStatusRegistered:'ثبت‌نام کرد',
     leadsEmpty:'هنوز لیدی وجود ندارد', leadsError:'خطا در بارگذاری',
@@ -1786,7 +1787,7 @@ const LANGS = {
     navCommunications:'Communications', commAllTypes:'All types', commSubject:'Subject', commTo:'To', commType:'Type', commDate:'Date', commCustomer:'Customer', commView:'View', commEmpty:'No emails logged yet',
     commTypePaymentNeeded:'Payment Needed', commTypePreparing:'Preparing', commTypeDelivery:'Shipping', commTypeDelivered:'Delivered', commTypeRejected:'Rejected', commTypePreorderRejected:'Preorder Rejected', commTypeReply:'Reply', commTypeLoyalty:'Loyalty', commTypeBirthday:'Birthday', commTypeWelcome:'Welcome', commTypePrize:'Prize', commTypeInvite:'Invite', commTypeVerification:'Verification', commTypeRaw:'Direct Send',
     notifMarkAll:'Mark all read', notifNewOrder:'New Order', notifOrderUpdate:'Order Updated', notifNewPrize:'New Prize', notifPrizeUpdate:'Prize Updated', notifNewReturn:'Return Request', notifReturnUpdate:'Return Updated', notifNewCustomer:'New Customer', notifNewLead:'New Lead', notifView:'View', notifEmpty:'No notifications',
-    dbTotalCustomers:'Customers', dbNewThisMonth:'This Month', dbTotalRevenue:'Total Revenue', dbRevenueMonth:'This Month', dbRevenueToday:'Today', dbActiveOrders:'Active Orders', dbCompletedOrders:'Delivered', dbOrdersToday:'Today Orders', dbTotalLeads:'Leads', dbNewLeads:'This Month', dbTotalReturns:'Returns', dbPendingReturns:'Pending', dbTopProducts:'Top Products', dbRecentOrders:'Recent Orders', dbOrderId:'ID', dbCustomer:'Customer', dbProduct:'Product', dbQty:'Qty', dbStatus:'Status', dbAmount:'Amount', dbDate:'Date', loading:'Loading...', loadError:'Failed to load data', noData:'No data available',
+    dbTotalCustomers:'Customers', dbNewThisMonth:'This Month', dbTotalRevenue:'Total Revenue', dbRevenueMonth:'This Month', dbRevenueToday:'Today', dbActiveOrders:'Active Orders', dbCompletedOrders:'Delivered', dbOrdersToday:'Today Orders', dbTotalLeads:'Leads', dbNewLeads:'This Month', dbTotalReturns:'Returns', dbPendingReturns:'Pending', dbSiteViews:'Site Views', dbViewsToday:'today', dbViewsMonth:'this month', dbTopProducts:'Top Products', dbRecentOrders:'Recent Orders', dbOrderId:'ID', dbCustomer:'Customer', dbProduct:'Product', dbQty:'Qty', dbStatus:'Status', dbAmount:'Amount', dbDate:'Date', loading:'Loading...', loadError:'Failed to load data', noData:'No data available',
     leadsColName:'Name', leadsColEmail:'Email', leadsColPhone:'Phone', leadsColReferredBy:'Referred By', leadsColStatus:'Status', leadsColDate:'Date',
     leadsStatusPending:'Pending', leadsStatusEmailSent:'Email Sent', leadsStatusOpened:'Opened', leadsStatusRegistered:'Registered',
     leadsEmpty:'No leads yet', leadsError:'Error loading leads',
@@ -1974,7 +1975,7 @@ const LANGS = {
     navCommunications:'İletişim', commAllTypes:'Tüm türler', commSubject:'Konu', commTo:'Alıcı', commType:'Tür', commDate:'Tarih', commCustomer:'Müşteri', commView:'Görüntüle', commEmpty:'Henüz e-posta kaydı yok',
     commTypePaymentNeeded:'Ödeme Gerekli', commTypePreparing:'Hazırlanıyor', commTypeDelivery:'Kargo', commTypeDelivered:'Teslim Edildi', commTypeRejected:'Reddedildi', commTypePreorderRejected:'Ön Sipariş Reddedildi', commTypeReply:'Yanıt', commTypeLoyalty:'Sadakat', commTypeBirthday:'Doğum Günü', commTypeWelcome:'Hoş Geldin', commTypePrize:'Ödül', commTypeInvite:'Davet', commTypeVerification:'Doğrulama', commTypeRaw:'Doğrudan Gönderim',
     notifMarkAll:'Tümünü okundu say', notifNewOrder:'Yeni Sipariş', notifOrderUpdate:'Sipariş Güncellendi', notifNewPrize:'Yeni Ödül', notifPrizeUpdate:'Ödül Güncellendi', notifNewReturn:'İade Talebi', notifReturnUpdate:'İade Güncellendi', notifNewCustomer:'Yeni Müşteri', notifNewLead:'Yeni Aday', notifView:'Görüntüle', notifEmpty:'Bildirim yok',
-    dbTotalCustomers:'Müşteriler', dbNewThisMonth:'Bu Ay', dbTotalRevenue:'Toplam Satış', dbRevenueMonth:'Bu Ay', dbRevenueToday:'Bugün', dbActiveOrders:'Aktif Sipariş', dbCompletedOrders:'Teslim Edildi', dbOrdersToday:'Bugün Siparişler', dbTotalLeads:'Adaylar', dbNewLeads:'Bu Ay', dbTotalReturns:'İadeler', dbPendingReturns:'Beklemede', dbTopProducts:'En Çok Satanlar', dbRecentOrders:'Son Siparişler', dbOrderId:'ID', dbCustomer:'Müşteri', dbProduct:'Ürün', dbQty:'Adet', dbStatus:'Durum', dbAmount:'Tutar', dbDate:'Tarih', loading:'Yükleniyor...', loadError:'Veri yüklenemedi', noData:'Veri yok',
+    dbTotalCustomers:'Müşteriler', dbNewThisMonth:'Bu Ay', dbTotalRevenue:'Toplam Satış', dbRevenueMonth:'Bu Ay', dbRevenueToday:'Bugün', dbActiveOrders:'Aktif Sipariş', dbCompletedOrders:'Teslim Edildi', dbOrdersToday:'Bugün Siparişler', dbTotalLeads:'Adaylar', dbNewLeads:'Bu Ay', dbTotalReturns:'İadeler', dbPendingReturns:'Beklemede', dbSiteViews:'Site Ziyareti', dbViewsToday:'bugün', dbViewsMonth:'bu ay', dbTopProducts:'En Çok Satanlar', dbRecentOrders:'Son Siparişler', dbOrderId:'ID', dbCustomer:'Müşteri', dbProduct:'Ürün', dbQty:'Adet', dbStatus:'Durum', dbAmount:'Tutar', dbDate:'Tarih', loading:'Yükleniyor...', loadError:'Veri yüklenemedi', noData:'Veri yok',
     leadsColName:'Ad', leadsColEmail:'E-posta', leadsColPhone:'Telefon', leadsColReferredBy:'Referans', leadsColStatus:'Durum', leadsColDate:'Tarih',
     leadsStatusPending:'Beklemede', leadsStatusEmailSent:'E-posta Gönderildi', leadsStatusOpened:'Açıldı', leadsStatusRegistered:'Kayıt Oldu',
     leadsEmpty:'Henüz aday yok', leadsError:'Yükleme hatası',
@@ -2672,6 +2673,12 @@ async function loadDashboard() {
         <div class="db-card-value">${fmt(d.returns.total)}</div>
         <div class="db-card-sub">⏳ ${fmt(d.returns.pending)} ${t('dbPendingReturns')}</div>
         <div class="db-card-icon">↩️</div>
+      </div>
+      <div class="db-card c-cyan">
+        <div class="db-card-label">${t('dbSiteViews')}</div>
+        <div class="db-card-value">${fmt(d.siteViews.total)}</div>
+        <div class="db-card-sub">📅 ${fmt(d.siteViews.today)} ${t('dbViewsToday')} · ${fmt(d.siteViews.thisMonth)} ${t('dbViewsMonth')}</div>
+        <div class="db-card-icon">👁️</div>
       </div>
     </div>
 
