@@ -252,48 +252,34 @@
     .db-card {
       background: var(--white); border-radius: 18px;
       border: 1px solid var(--border);
-      padding: 22px 24px 18px;
-      display: flex; flex-direction: column; gap: 0; align-items: center; text-align: center;
+      padding: 20px 22px;
+      display: flex; flex-direction: row; align-items: center; gap: 14px; text-align: start;
       position: relative; overflow: hidden;
       transition: box-shadow .25s, transform .25s;
       cursor: default;
     }
-    .db-card::before {
-      content: ''; position: absolute; inset-inline-end: -18px; top: -18px;
-      width: 90px; height: 90px; border-radius: 50%;
-      opacity: .08; background: var(--db-color, #3b82f6);
-    }
-    .db-card::after {
-      content: ''; position: absolute; inset-inline-end: 8px; top: 14px;
-      width: 44px; height: 44px; border-radius: 12px;
-      background: var(--db-color, #3b82f6); opacity: .12;
-    }
+    [dir="rtl"] .db-card { flex-direction: row-reverse; }
     .db-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,.10); transform: translateY(-3px); }
     .db-card-icon {
-      font-size: 20px; position: absolute; inset-inline-end: 19px; top: 18px;
+      font-size: 20px; position: relative; flex-shrink: 0;
       width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
       border-radius: 12px; background: var(--db-color, #3b82f6);
       box-shadow: 0 4px 12px color-mix(in srgb, var(--db-color, #3b82f6) 40%, transparent);
       z-index: 1;
     }
-    .db-card-label { font-size: 11px; color: var(--text-muted); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 8px; }
-    .rpt-overview-card {
-      flex-direction: row; align-items: center; justify-content: flex-start;
-      gap: 12px; text-align: start; padding: 20px 22px;
+    .db-card-icon::before {
+      content: ''; position: absolute; inset: -20px; z-index: -1;
+      border-radius: 50%; opacity: .12; background: var(--db-color, #3b82f6);
     }
-    .rpt-overview-card .db-card-icon { position: static; flex-shrink: 0; }
-    .rpt-overview-card .db-card-label {
-      margin-bottom: 0; font-size: 14px; font-weight: 700;
-      text-transform: none; letter-spacing: normal; color: var(--text);
-    }
-    [dir="rtl"] .rpt-overview-card { flex-direction: row-reverse; }
-    .db-card-value { font-size: 30px; font-weight: 900; color: var(--text); line-height: 1; margin-bottom: 10px; }
+    .db-card-content { display: flex; flex-direction: column; min-width: 0; }
+    .db-card-label { font-size: 13px; color: var(--text); font-weight: 700; }
+    .db-card-value { font-size: 24px; font-weight: 900; color: var(--text); line-height: 1.2; }
     .db-card-sub {
       display: inline-flex; align-items: center; gap: 4px;
       font-size: 11px; font-weight: 600;
       background: color-mix(in srgb, var(--db-color, #3b82f6) 12%, transparent);
       color: var(--db-color, #3b82f6);
-      padding: 3px 9px; border-radius: 20px; width: fit-content;
+      padding: 3px 9px; border-radius: 20px; width: fit-content; margin-top: 4px;
     }
     .db-card.c-blue   { --db-color: #3b82f6; }
     .db-card.c-green  { --db-color: #16a34a; }
@@ -1383,25 +1369,25 @@
         <!-- Overview: one card per report -->
         <div id="rpt-section-overview">
           <div class="db-grid">
-            <div class="db-card rpt-overview-card c-orange" style="cursor:pointer" onclick="goToReportSubtab('sales')">
+            <div class="db-card c-orange" style="cursor:pointer" onclick="goToReportSubtab('sales')">
               <div class="db-card-icon">💰</div>
-              <div class="db-card-label" data-i18n="rptSubSales">گزارش فروش</div>
+              <div class="db-card-content"><div class="db-card-label" data-i18n="rptSubSales">گزارش فروش</div></div>
             </div>
-            <div class="db-card rpt-overview-card c-blue" style="cursor:pointer" onclick="goToReportSubtab('customers')">
+            <div class="db-card c-blue" style="cursor:pointer" onclick="goToReportSubtab('customers')">
               <div class="db-card-icon">👥</div>
-              <div class="db-card-label" data-i18n="rptSubCustomers">گزارش مشتریان</div>
+              <div class="db-card-content"><div class="db-card-label" data-i18n="rptSubCustomers">گزارش مشتریان</div></div>
             </div>
-            <div class="db-card rpt-overview-card c-green" style="cursor:pointer" onclick="goToReportSubtab('financial')">
+            <div class="db-card c-green" style="cursor:pointer" onclick="goToReportSubtab('financial')">
               <div class="db-card-icon">📈</div>
-              <div class="db-card-label" data-i18n="rptSubFinancial">گزارش مالی</div>
+              <div class="db-card-content"><div class="db-card-label" data-i18n="rptSubFinancial">گزارش مالی</div></div>
             </div>
-            <div class="db-card rpt-overview-card c-purple" style="cursor:pointer" onclick="goToReportSubtab('coupons')">
+            <div class="db-card c-purple" style="cursor:pointer" onclick="goToReportSubtab('coupons')">
               <div class="db-card-icon">🎟️</div>
-              <div class="db-card-label" data-i18n="rptSubCoupons">گزارش کدهای تخفیف</div>
+              <div class="db-card-content"><div class="db-card-label" data-i18n="rptSubCoupons">گزارش کدهای تخفیف</div></div>
             </div>
-            <div class="db-card rpt-overview-card c-cyan" style="cursor:pointer" onclick="goToReportSubtab('views')">
+            <div class="db-card c-cyan" style="cursor:pointer" onclick="goToReportSubtab('views')">
               <div class="db-card-icon">👁️</div>
-              <div class="db-card-label" data-i18n="rptSubViews">بازدید سایت</div>
+              <div class="db-card-content"><div class="db-card-label" data-i18n="rptSubViews">بازدید سایت</div></div>
             </div>
           </div>
         </div><!-- /rpt-section-overview -->
@@ -2746,46 +2732,60 @@ async function loadDashboard() {
   wrap.innerHTML = `
     <div class="db-grid">
       <div class="db-card c-blue">
-        <div class="db-card-label">${t('dbTotalCustomers')}</div>
-        <div class="db-card-value">${fmt(d.customers.total)}</div>
-        <div class="db-card-sub">↑ ${fmt(d.customers.newThisMonth)} ${t('dbNewThisMonth')}</div>
         <div class="db-card-icon">👥</div>
+        <div class="db-card-content">
+          <div class="db-card-label">${t('dbTotalCustomers')}</div>
+          <div class="db-card-value">${fmt(d.customers.total)}</div>
+          <div class="db-card-sub">↑ ${fmt(d.customers.newThisMonth)} ${t('dbNewThisMonth')}</div>
+        </div>
       </div>
       <div class="db-card c-green">
-        <div class="db-card-label">${t('dbTotalRevenue')}</div>
-        <div class="db-card-value">${fmt(d.revenue.total)}</div>
-        <div class="db-card-sub">↑ ${fmt(d.revenue.thisMonth)} ${t('dbRevenueMonth')}</div>
         <div class="db-card-icon">💰</div>
+        <div class="db-card-content">
+          <div class="db-card-label">${t('dbTotalRevenue')}</div>
+          <div class="db-card-value">${fmt(d.revenue.total)}</div>
+          <div class="db-card-sub">↑ ${fmt(d.revenue.thisMonth)} ${t('dbRevenueMonth')}</div>
+        </div>
       </div>
       <div class="db-card c-orange">
-        <div class="db-card-label">${t('dbActiveOrders')}</div>
-        <div class="db-card-value">${fmt(d.orders.active)}</div>
-        <div class="db-card-sub">✓ ${fmt(d.orders.completed)} ${t('dbCompletedOrders')}</div>
         <div class="db-card-icon">🔥</div>
+        <div class="db-card-content">
+          <div class="db-card-label">${t('dbActiveOrders')}</div>
+          <div class="db-card-value">${fmt(d.orders.active)}</div>
+          <div class="db-card-sub">✓ ${fmt(d.orders.completed)} ${t('dbCompletedOrders')}</div>
+        </div>
       </div>
       <div class="db-card c-teal">
-        <div class="db-card-label">${t('dbOrdersToday')}</div>
-        <div class="db-card-value">${fmt(d.orders.today)}</div>
-        <div class="db-card-sub">💵 ${fmt(d.revenue.today)} ${t('dbRevenueToday')}</div>
         <div class="db-card-icon">📋</div>
+        <div class="db-card-content">
+          <div class="db-card-label">${t('dbOrdersToday')}</div>
+          <div class="db-card-value">${fmt(d.orders.today)}</div>
+          <div class="db-card-sub">💵 ${fmt(d.revenue.today)} ${t('dbRevenueToday')}</div>
+        </div>
       </div>
       <div class="db-card c-purple">
-        <div class="db-card-label">${t('dbTotalLeads')}</div>
-        <div class="db-card-value">${fmt(d.leads.total)}</div>
-        <div class="db-card-sub">↑ ${fmt(d.leads.newThisMonth)} ${t('dbNewLeads')}</div>
         <div class="db-card-icon">🧲</div>
+        <div class="db-card-content">
+          <div class="db-card-label">${t('dbTotalLeads')}</div>
+          <div class="db-card-value">${fmt(d.leads.total)}</div>
+          <div class="db-card-sub">↑ ${fmt(d.leads.newThisMonth)} ${t('dbNewLeads')}</div>
+        </div>
       </div>
       <div class="db-card c-red">
-        <div class="db-card-label">${t('dbTotalReturns')}</div>
-        <div class="db-card-value">${fmt(d.returns.total)}</div>
-        <div class="db-card-sub">⏳ ${fmt(d.returns.pending)} ${t('dbPendingReturns')}</div>
         <div class="db-card-icon">↩️</div>
+        <div class="db-card-content">
+          <div class="db-card-label">${t('dbTotalReturns')}</div>
+          <div class="db-card-value">${fmt(d.returns.total)}</div>
+          <div class="db-card-sub">⏳ ${fmt(d.returns.pending)} ${t('dbPendingReturns')}</div>
+        </div>
       </div>
       <div class="db-card c-cyan">
-        <div class="db-card-label">${t('dbSiteViews')}</div>
-        <div class="db-card-value">${fmt(d.siteViews.total)}</div>
-        <div class="db-card-sub">📅 ${fmt(d.siteViews.today)} ${t('dbViewsToday')} · ${fmt(d.siteViews.thisMonth)} ${t('dbViewsMonth')}</div>
         <div class="db-card-icon">👁️</div>
+        <div class="db-card-content">
+          <div class="db-card-label">${t('dbSiteViews')}</div>
+          <div class="db-card-value">${fmt(d.siteViews.total)}</div>
+          <div class="db-card-sub">📅 ${fmt(d.siteViews.today)} ${t('dbViewsToday')} · ${fmt(d.siteViews.thisMonth)} ${t('dbViewsMonth')}</div>
+        </div>
       </div>
     </div>
 
