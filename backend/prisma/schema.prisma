@@ -433,9 +433,13 @@ model email_logs {
 model site_views {
   id         Int      @id @default(autoincrement())
   path       String?  @db.VarChar(200)
+  ip         String?  @db.VarChar(45)
+  city       String?  @db.VarChar(100)
+  country    String?  @db.VarChar(2)
   created_at DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([created_at])
+  @@index([ip])
 }
 
 enum gender_type {

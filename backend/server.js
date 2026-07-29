@@ -2,6 +2,7 @@ require('dotenv').config();
 const express      = require('express');
 const cors         = require('cors');
 const rateLimit    = require('express-rate-limit');
+const geoip        = require('geoip-lite');
 const errorHandler = require('./middleware/errorHandler');
 
 const app  = express();
@@ -107,7 +108,11 @@ app.post('/api/track-view', viewLimiter, async (req, res, next) => {
   try {
     const prisma = require('./prisma/client');
     const path = typeof req.body?.path === 'string' ? req.body.path.slice(0, 200) : null;
-    await prisma.site_views.create({ data: { path } });
+    const ip = (req.headers['x-real-ip'] || req.socket.remoteAddress || '').replace(/^::ffff:/, '');
+    const geo = ip ? geoip.lookup(ip) : null;
+    await prisma.site_views.create({
+      data: { path, ip: ip || null, city: geo?.city || null, country: geo?.country || null },
+    });
     res.json({ success: true });
   } catch (err) { next(err); }
 });

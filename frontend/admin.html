@@ -1342,6 +1342,7 @@
           <button class="rpt-subtab"        id="rpt-subtab-customers"  onclick="switchReportSubtab('customers')" data-i18n="rptSubCustomers">گزارش مشتریان</button>
           <button class="rpt-subtab"        id="rpt-subtab-financial"  onclick="switchReportSubtab('financial')" data-i18n="rptSubFinancial">گزارش مالی</button>
           <button class="rpt-subtab"        id="rpt-subtab-coupons"    onclick="switchReportSubtab('coupons')"   data-i18n="rptSubCoupons">گزارش کدهای تخفیف</button>
+          <button class="rpt-subtab"        id="rpt-subtab-views"      onclick="switchReportSubtab('views')"     data-i18n="rptSubViews">بازدید سایت</button>
         </div>
 
         <!-- Sales sub-tab -->
@@ -1531,6 +1532,48 @@
 
         </div><!-- /rpt-section-coupons -->
 
+        <div id="rpt-section-views" style="display:none">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+            <select id="sv-days" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;max-width:180px" onchange="loadSiteViewsReport()">
+              <option value="7">7</option>
+              <option value="30" selected>30</option>
+              <option value="90">90</option>
+              <option value="365">365</option>
+            </select>
+          </div>
+
+          <div class="rpt-kpi-row" style="margin-bottom:20px">
+            <div class="rpt-kpi-card"><div class="rpt-kpi-icon">👁️</div><div class="rpt-kpi-val" id="sv-total">—</div><div class="rpt-kpi-lbl" data-i18n="svTotalViews">کل بازدید در بازه</div></div>
+          </div>
+
+          <div class="db-two-col" style="margin-bottom:20px">
+            <div class="db-box">
+              <div class="db-section-title">🏙️ <span data-i18n="svByCity">بازدید به تفکیک شهر</span></div>
+              <div id="sv-city-list"><div style="text-align:center;padding:20px;color:#aaa">—</div></div>
+            </div>
+            <div class="db-box">
+              <div class="db-section-title">🌍 <span data-i18n="svByCountry">بازدید به تفکیک کشور</span></div>
+              <div id="sv-country-list"><div style="text-align:center;padding:20px;color:#aaa">—</div></div>
+            </div>
+          </div>
+
+          <div class="card" style="padding:20px">
+            <h3 style="margin:0 0 16px;font-size:15px;font-weight:700" data-i18n="svByIp">بازدید به تفکیک IP</h3>
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:13px" id="sv-ip-table">
+                <thead><tr style="background:var(--bg)">
+                  <th style="padding:8px 12px;text-align:right;font-weight:600;color:#888">IP</th>
+                  <th style="padding:8px 12px;text-align:right;font-weight:600;color:#888" data-i18n="svCity">شهر</th>
+                  <th style="padding:8px 12px;text-align:right;font-weight:600;color:#888" data-i18n="svCountry">کشور</th>
+                  <th style="padding:8px 12px;text-align:right;font-weight:600;color:#888" data-i18n="svCount">تعداد</th>
+                  <th style="padding:8px 12px;text-align:right;font-weight:600;color:#888" data-i18n="svLastSeen">آخرین بازدید</th>
+                </tr></thead>
+                <tbody id="sv-ip-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div><!-- /rpt-section-views -->
+
       </div>
     </div>
 
@@ -1624,7 +1667,8 @@ const LANGS = {
     cpConfirmDel:'حذف این کد تخفیف؟', cpErrRequired:'کد و مقدار تخفیف الزامی است',
     cpErrPercent:'درصد باید بین ۱ تا ۱۰۰ باشد', cpErrNoCust:'حداقل یک مشتری انتخاب کنید',
     cpBannerLabel:'بنر', cpSelAtLeast1:'حداقل یک مشتری',
-    rptSubSales:'گزارش فروش', rptSubCustomers:'گزارش مشتریان', rptSubFinancial:'گزارش مالی', rptSubCoupons:'گزارش تخفیف‌ها',
+    rptSubSales:'گزارش فروش', rptSubCustomers:'گزارش مشتریان', rptSubFinancial:'گزارش مالی', rptSubCoupons:'گزارش تخفیف‌ها', rptSubViews:'بازدید سایت',
+    svTotalViews:'کل بازدید در بازه', svByCity:'بازدید به تفکیک شهر', svByCountry:'بازدید به تفکیک کشور', svByIp:'بازدید به تفکیک IP', svCity:'شهر', svCountry:'کشور', svCount:'تعداد', svLastSeen:'آخرین بازدید',
     crTotalUsed:'سفارشات با تخفیف', crTotalDiscount:'مجموع تخفیف', crTotalRevenue:'فروش با تخفیف', crByCode:'عملکرد هر کد',
     crOrders:'سفارشات', crDiscount:'تخفیف', crOriginal:'مبلغ اصلی', crFinal:'مبلغ نهایی', crDate:'تاریخ', crCustomer:'مشتری', crStatus:'وضعیت',
     crNoOrders:'سفارشی با این کد ثبت نشده', crActive:'فعال', crInactive:'غیرفعال', crForAll:'همه', crSpecific:'خاص',
@@ -1812,7 +1856,8 @@ const LANGS = {
     cpConfirmDel:'Delete this coupon?', cpErrRequired:'Code and value are required',
     cpErrPercent:'Percent must be between 1 and 100', cpErrNoCust:'Select at least one customer',
     cpBannerLabel:'Banner',
-    rptSubSales:'Sales Report', rptSubCustomers:'Customer Report', rptSubFinancial:'Financial Report', rptSubCoupons:'Coupon Report',
+    rptSubSales:'Sales Report', rptSubCustomers:'Customer Report', rptSubFinancial:'Financial Report', rptSubCoupons:'Coupon Report', rptSubViews:'Site Views',
+    svTotalViews:'Total views in range', svByCity:'Views by city', svByCountry:'Views by country', svByIp:'Views by IP', svCity:'City', svCountry:'Country', svCount:'Count', svLastSeen:'Last seen',
     crTotalUsed:'Discounted Orders', crTotalDiscount:'Total Discount Given', crTotalRevenue:'Revenue w/ Discount', crByCode:'Per-Code Performance',
     crOrders:'Orders', crDiscount:'Discount', crOriginal:'Original', crFinal:'Final', crDate:'Date', crCustomer:'Customer', crStatus:'Status',
     crNoOrders:'No orders with this code', crActive:'Active', crInactive:'Inactive', crForAll:'All', crSpecific:'Specific',
@@ -2000,7 +2045,8 @@ const LANGS = {
     cpConfirmDel:'Bu kuponu silmek istiyor musunuz?', cpErrRequired:'Kod ve değer zorunludur',
     cpErrPercent:'Yüzde 1 ile 100 arasında olmalıdır', cpErrNoCust:'En az bir müşteri seçin',
     cpBannerLabel:'Banner',
-    rptSubSales:'Satış Raporu', rptSubCustomers:'Müşteri Raporu', rptSubFinancial:'Mali Rapor', rptSubCoupons:'İndirim Raporu',
+    rptSubSales:'Satış Raporu', rptSubCustomers:'Müşteri Raporu', rptSubFinancial:'Mali Rapor', rptSubCoupons:'İndirim Raporu', rptSubViews:'Site Ziyaretleri',
+    svTotalViews:'Aralıktaki toplam ziyaret', svByCity:'Şehre göre ziyaret', svByCountry:'Ülkeye göre ziyaret', svByIp:'IP\'ye göre ziyaret', svCity:'Şehir', svCountry:'Ülke', svCount:'Adet', svLastSeen:'Son ziyaret',
     crTotalUsed:'İndirimli Siparişler', crTotalDiscount:'Toplam İndirim', crTotalRevenue:'İndirimli Satış', crByCode:'Kod Bazlı Performans',
     crOrders:'Siparişler', crDiscount:'İndirim', crOriginal:'Orijinal', crFinal:'Son Tutar', crDate:'Tarih', crCustomer:'Müşteri', crStatus:'Durum',
     crNoOrders:'Bu kodla sipariş yok', crActive:'Aktif', crInactive:'Pasif', crForAll:'Tümü', crSpecific:'Özel',
@@ -5292,7 +5338,7 @@ function initReports() {
 function switchReportSubtab(sub) {
   _reportSubtab = sub;
   localStorage.setItem('admin_report_sub', sub);
-  ['sales','customers','financial','coupons'].forEach(function(s) {
+  ['sales','customers','financial','coupons','views'].forEach(function(s) {
     document.getElementById('rpt-subtab-' + s).classList.toggle('active', s === sub);
     document.getElementById('rpt-section-' + s).style.display = s === sub ? '' : 'none';
   });
@@ -5300,6 +5346,7 @@ function switchReportSubtab(sub) {
   if (sub === 'customers') loadCustomerReports();
   if (sub === 'financial') setFinPeriod('today');
   if (sub === 'coupons')   loadCouponReport();
+  if (sub === 'views')     loadSiteViewsReport();
 }
 
 async function loadCustomerReports() {
@@ -5944,6 +5991,51 @@ async function loadCouponReport() {
       '<div id="' + uid + '" style="display:none;padding:0 16px 12px">' + rowsHtml + '</div>' +
     '</div>';
   }).join('');
+}
+
+// ─── Site views report ──────────────────────────────────────────────────────────
+
+var COUNTRY_NAMES = { TR:'Türkiye', US:'United States', DE:'Germany', GB:'United Kingdom', FR:'France', NL:'Netherlands', IR:'Iran', AZ:'Azerbaijan', RU:'Russia', GR:'Greece', BG:'Bulgaria', CY:'Cyprus', IQ:'Iraq' };
+function countryLabel(code) { return COUNTRY_NAMES[code] || code || '—'; }
+
+async function loadSiteViewsReport() {
+  var days = document.getElementById('sv-days')?.value || 30;
+  var res = await api('/admin/site-views-report?days=' + days);
+  if (!res?.success) return;
+  var d = res.data;
+
+  document.getElementById('sv-total').textContent = d.total.toLocaleString('en-US');
+
+  var cityList = document.getElementById('sv-city-list');
+  cityList.innerHTML = !d.byCity.length
+    ? '<div style="text-align:center;padding:20px;color:#aaa">' + t('noData') + '</div>'
+    : d.byCity.map(function(r) {
+        return '<div style="display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px solid var(--border);font-size:13px">' +
+          '<span>' + esc(r.city) + '<span style="color:#aaa;margin-inline-start:6px">' + countryLabel(r.country) + '</span></span>' +
+          '<span style="font-weight:700">' + r.count.toLocaleString('en-US') + '</span></div>';
+      }).join('');
+
+  var countryList = document.getElementById('sv-country-list');
+  countryList.innerHTML = !d.byCountry.length
+    ? '<div style="text-align:center;padding:20px;color:#aaa">' + t('noData') + '</div>'
+    : d.byCountry.map(function(r) {
+        return '<div style="display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px solid var(--border);font-size:13px">' +
+          '<span>' + esc(countryLabel(r.country)) + '</span>' +
+          '<span style="font-weight:700">' + r.count.toLocaleString('en-US') + '</span></div>';
+      }).join('');
+
+  var tbody = document.getElementById('sv-ip-tbody');
+  tbody.innerHTML = !d.byIp.length
+    ? '<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa">' + t('noData') + '</td></tr>'
+    : d.byIp.map(function(r) {
+        return '<tr style="border-top:1px solid var(--border)">' +
+          '<td style="padding:8px 12px;direction:ltr;text-align:right;font-family:monospace">' + esc(r.ip) + '</td>' +
+          '<td style="padding:8px 12px">' + esc(r.city || '—') + '</td>' +
+          '<td style="padding:8px 12px">' + esc(countryLabel(r.country)) + '</td>' +
+          '<td style="padding:8px 12px;font-weight:700">' + r.count.toLocaleString('en-US') + '</td>' +
+          '<td style="padding:8px 12px;direction:ltr;text-align:right">' + new Date(r.lastSeen).toLocaleString(currentLang === 'fa' ? 'fa-IR' : currentLang === 'tr' ? 'tr-TR' : 'en-US') + '</td>' +
+        '</tr>';
+      }).join('');
 }
 
 function toggleCrDetail(uid) {

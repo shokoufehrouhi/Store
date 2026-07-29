@@ -1052,6 +1052,50 @@ async function deleteBankAccount(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// ─── Site views report (by IP / city / country) ────────────────────────────────
+
+async function getSiteViewsReport(req, res, next) {
+  try {
+    const days = Math.min(Number(req.query.days) || 30, 365);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const [total, byCity, byCountry, byIp] = await Promise.all([
+      prisma.site_views.count({ where: { created_at: { gte: since } } }),
+      prisma.$queryRaw`
+        SELECT city, country, COUNT(*)::int AS cnt
+        FROM site_views
+        WHERE created_at >= ${since} AND city IS NOT NULL
+        GROUP BY city, country
+        ORDER BY cnt DESC
+        LIMIT 50`,
+      prisma.$queryRaw`
+        SELECT country, COUNT(*)::int AS cnt
+        FROM site_views
+        WHERE created_at >= ${since} AND country IS NOT NULL
+        GROUP BY country
+        ORDER BY cnt DESC
+        LIMIT 50`,
+      prisma.$queryRaw`
+        SELECT ip, city, country, COUNT(*)::int AS cnt, MAX(created_at) AS last_seen
+        FROM site_views
+        WHERE created_at >= ${since} AND ip IS NOT NULL
+        GROUP BY ip, city, country
+        ORDER BY cnt DESC
+        LIMIT 100`,
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        total,
+        byCity:    byCity.map(r => ({ city: r.city, country: r.country, count: Number(r.cnt) })),
+        byCountry: byCountry.map(r => ({ country: r.country, count: Number(r.cnt) })),
+        byIp:      byIp.map(r => ({ ip: r.ip, city: r.city, country: r.country, count: Number(r.cnt), lastSeen: r.last_seen })),
+      },
+    });
+  } catch (err) { next(err); }
+}
+
 // ─── Reports ───────────────────────────────────────────────────────────────────
 
 async function getReports(req, res, next) {
@@ -1393,7 +1437,7 @@ module.exports = {
   getCommunications, getCommunicationBody,
   getNotifications,
   getDashboard,
-  getReports, getFinancialReport, getCustomerReports, getCouponReport,
+  getReports, getFinancialReport, getCustomerReports, getCouponReport, getSiteViewsReport,
   listPrizeOrders, shipPrizeOrder, deliverPrizeOrder, updatePrizeNote,
 };
 
