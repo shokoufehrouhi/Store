@@ -277,6 +277,16 @@
       z-index: 1;
     }
     .db-card-label { font-size: 11px; color: var(--text-muted); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 8px; }
+    .rpt-overview-card {
+      flex-direction: row; align-items: center; justify-content: flex-start;
+      gap: 12px; text-align: start; padding: 20px 22px;
+    }
+    .rpt-overview-card .db-card-icon { position: static; flex-shrink: 0; }
+    .rpt-overview-card .db-card-label {
+      margin-bottom: 0; font-size: 14px; font-weight: 700;
+      text-transform: none; letter-spacing: normal; color: var(--text);
+    }
+    [dir="rtl"] .rpt-overview-card { flex-direction: row-reverse; }
     .db-card-value { font-size: 30px; font-weight: 900; color: var(--text); line-height: 1; margin-bottom: 10px; }
     .db-card-sub {
       display: inline-flex; align-items: center; gap: 4px;
@@ -1373,25 +1383,25 @@
         <!-- Overview: one card per report -->
         <div id="rpt-section-overview">
           <div class="db-grid">
-            <div class="db-card c-orange" style="cursor:pointer" onclick="goToReportSubtab('sales')">
-              <div class="db-card-label" data-i18n="rptSubSales">گزارش فروش</div>
+            <div class="db-card rpt-overview-card c-orange" style="cursor:pointer" onclick="goToReportSubtab('sales')">
               <div class="db-card-icon">💰</div>
+              <div class="db-card-label" data-i18n="rptSubSales">گزارش فروش</div>
             </div>
-            <div class="db-card c-blue" style="cursor:pointer" onclick="goToReportSubtab('customers')">
-              <div class="db-card-label" data-i18n="rptSubCustomers">گزارش مشتریان</div>
+            <div class="db-card rpt-overview-card c-blue" style="cursor:pointer" onclick="goToReportSubtab('customers')">
               <div class="db-card-icon">👥</div>
+              <div class="db-card-label" data-i18n="rptSubCustomers">گزارش مشتریان</div>
             </div>
-            <div class="db-card c-green" style="cursor:pointer" onclick="goToReportSubtab('financial')">
-              <div class="db-card-label" data-i18n="rptSubFinancial">گزارش مالی</div>
+            <div class="db-card rpt-overview-card c-green" style="cursor:pointer" onclick="goToReportSubtab('financial')">
               <div class="db-card-icon">📈</div>
+              <div class="db-card-label" data-i18n="rptSubFinancial">گزارش مالی</div>
             </div>
-            <div class="db-card c-purple" style="cursor:pointer" onclick="goToReportSubtab('coupons')">
-              <div class="db-card-label" data-i18n="rptSubCoupons">گزارش کدهای تخفیف</div>
+            <div class="db-card rpt-overview-card c-purple" style="cursor:pointer" onclick="goToReportSubtab('coupons')">
               <div class="db-card-icon">🎟️</div>
+              <div class="db-card-label" data-i18n="rptSubCoupons">گزارش کدهای تخفیف</div>
             </div>
-            <div class="db-card c-cyan" style="cursor:pointer" onclick="goToReportSubtab('views')">
-              <div class="db-card-label" data-i18n="rptSubViews">بازدید سایت</div>
+            <div class="db-card rpt-overview-card c-cyan" style="cursor:pointer" onclick="goToReportSubtab('views')">
               <div class="db-card-icon">👁️</div>
+              <div class="db-card-label" data-i18n="rptSubViews">بازدید سایت</div>
             </div>
           </div>
         </div><!-- /rpt-section-overview -->
