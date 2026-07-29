@@ -143,6 +143,18 @@
     .nav-section-label:hover { color: #ccc; }
     .nav-section-arrow { font-size: 9px; transition: transform .15s; }
     .nav-section.collapsed .nav-section-arrow { transform: rotate(-90deg); }
+    .nav-item-submenu-arrow { font-size: 9px; margin-inline-start: auto; transition: transform .15s; }
+    .nav-submenu.collapsed .nav-item-submenu-arrow { transform: rotate(-90deg); }
+    .nav-submenu-items { padding-inline-start: 22px; }
+    .nav-submenu.collapsed .nav-submenu-items { display: none; }
+    .nav-subitem {
+      display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+      border-radius: 7px; color: #888; font-size: 12.5px; font-weight: 500;
+      cursor: pointer; transition: all .2s; margin-bottom: 1px;
+      border: none; background: none; width: 100%; text-align: inherit;
+    }
+    .nav-subitem:hover { background: #2a2a2a; color: #fff; }
+    .nav-subitem.active { background: rgba(255,92,0,.15); color: var(--primary); font-weight: 700; }
     .nav-section.collapsed .nav-section-items { display: none; }
 
     .sidebar-footer { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
@@ -796,9 +808,29 @@
           <span class="nav-section-arrow">▾</span>
         </button>
         <div class="nav-section-items">
-          <button class="nav-item" onclick="showTab('reports')" id="nav-reports">
-            <span class="nav-icon">📊</span><span data-i18n="navReports">گزارش‌ها</span>
-          </button>
+          <div class="nav-submenu" id="nav-reports-submenu">
+            <button class="nav-item" onclick="toggleReportsSubmenu()" id="nav-reports">
+              <span class="nav-icon">📊</span><span data-i18n="navReports">گزارش‌ها</span>
+              <span class="nav-item-submenu-arrow">▾</span>
+            </button>
+            <div class="nav-submenu-items">
+              <button class="nav-subitem" onclick="goToReportSubtab('sales')"      id="nav-report-sales">
+                <span data-i18n="rptSubSales">گزارش فروش</span>
+              </button>
+              <button class="nav-subitem" onclick="goToReportSubtab('customers')" id="nav-report-customers">
+                <span data-i18n="rptSubCustomers">گزارش مشتریان</span>
+              </button>
+              <button class="nav-subitem" onclick="goToReportSubtab('financial')" id="nav-report-financial">
+                <span data-i18n="rptSubFinancial">گزارش مالی</span>
+              </button>
+              <button class="nav-subitem" onclick="goToReportSubtab('coupons')"   id="nav-report-coupons">
+                <span data-i18n="rptSubCoupons">گزارش کدهای تخفیف</span>
+              </button>
+              <button class="nav-subitem" onclick="goToReportSubtab('views')"     id="nav-report-views">
+                <span data-i18n="rptSubViews">بازدید سایت</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1336,14 +1368,6 @@
         <h2>📊 <span data-i18n="navReports">گزارش‌ها</span></h2>
       </div>
       <div class="page-body">
-        <!-- Sub-tab nav -->
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:20px;border-bottom:2px solid var(--border)">
-          <button class="rpt-subtab active" id="rpt-subtab-sales"      onclick="switchReportSubtab('sales')"     data-i18n="rptSubSales">گزارش فروش</button>
-          <button class="rpt-subtab"        id="rpt-subtab-customers"  onclick="switchReportSubtab('customers')" data-i18n="rptSubCustomers">گزارش مشتریان</button>
-          <button class="rpt-subtab"        id="rpt-subtab-financial"  onclick="switchReportSubtab('financial')" data-i18n="rptSubFinancial">گزارش مالی</button>
-          <button class="rpt-subtab"        id="rpt-subtab-coupons"    onclick="switchReportSubtab('coupons')"   data-i18n="rptSubCoupons">گزارش کدهای تخفیف</button>
-          <button class="rpt-subtab"        id="rpt-subtab-views"      onclick="switchReportSubtab('views')"     data-i18n="rptSubViews">بازدید سایت</button>
-        </div>
 
         <!-- Sales sub-tab -->
         <div id="rpt-section-sales">
@@ -5335,13 +5359,23 @@ function initReports() {
   switchReportSubtab(_reportSubtab);
 }
 
+function toggleReportsSubmenu() {
+  document.getElementById('nav-reports-submenu').classList.toggle('collapsed');
+}
+
+function goToReportSubtab(sub) {
+  showTab('reports');
+  switchReportSubtab(sub);
+}
+
 function switchReportSubtab(sub) {
   _reportSubtab = sub;
   localStorage.setItem('admin_report_sub', sub);
   ['sales','customers','financial','coupons','views'].forEach(function(s) {
-    document.getElementById('rpt-subtab-' + s).classList.toggle('active', s === sub);
+    document.getElementById('nav-report-' + s).classList.toggle('active', s === sub);
     document.getElementById('rpt-section-' + s).style.display = s === sub ? '' : 'none';
   });
+  document.getElementById('nav-reports-submenu').classList.remove('collapsed');
   if (sub === 'sales')     setReportPeriod('today');
   if (sub === 'customers') loadCustomerReports();
   if (sub === 'financial') setFinPeriod('today');
