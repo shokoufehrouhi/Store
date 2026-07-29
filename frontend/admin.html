@@ -809,7 +809,7 @@
         </button>
         <div class="nav-section-items">
           <div class="nav-submenu" id="nav-reports-submenu">
-            <button class="nav-item" onclick="toggleReportsSubmenu()" id="nav-reports">
+            <button class="nav-item" onclick="goToReportSubtab('overview')" id="nav-reports">
               <span class="nav-icon">📊</span><span data-i18n="navReports">گزارش‌ها</span>
               <span class="nav-item-submenu-arrow">▾</span>
             </button>
@@ -1370,8 +1370,34 @@
       </div>
       <div class="page-body">
 
+        <!-- Overview: one card per report -->
+        <div id="rpt-section-overview">
+          <div class="db-grid">
+            <div class="db-card c-orange" style="cursor:pointer" onclick="goToReportSubtab('sales')">
+              <div class="db-card-label" data-i18n="rptSubSales">گزارش فروش</div>
+              <div class="db-card-icon">💰</div>
+            </div>
+            <div class="db-card c-blue" style="cursor:pointer" onclick="goToReportSubtab('customers')">
+              <div class="db-card-label" data-i18n="rptSubCustomers">گزارش مشتریان</div>
+              <div class="db-card-icon">👥</div>
+            </div>
+            <div class="db-card c-green" style="cursor:pointer" onclick="goToReportSubtab('financial')">
+              <div class="db-card-label" data-i18n="rptSubFinancial">گزارش مالی</div>
+              <div class="db-card-icon">📈</div>
+            </div>
+            <div class="db-card c-purple" style="cursor:pointer" onclick="goToReportSubtab('coupons')">
+              <div class="db-card-label" data-i18n="rptSubCoupons">گزارش کدهای تخفیف</div>
+              <div class="db-card-icon">🎟️</div>
+            </div>
+            <div class="db-card c-cyan" style="cursor:pointer" onclick="goToReportSubtab('views')">
+              <div class="db-card-label" data-i18n="rptSubViews">بازدید سایت</div>
+              <div class="db-card-icon">👁️</div>
+            </div>
+          </div>
+        </div><!-- /rpt-section-overview -->
+
         <!-- Sales sub-tab -->
-        <div id="rpt-section-sales">
+        <div id="rpt-section-sales" style="display:none">
 
         <!-- Period selector -->
         <div class="card" style="margin-bottom:16px">
@@ -5354,14 +5380,10 @@ async function deleteBankAccount(id) {
 // ─── Reports ──────────────────────────────────────────────────────────────────
 
 var _reportPeriod = 'today';
-var _reportSubtab = localStorage.getItem('admin_report_sub') || 'sales';
+var _reportSubtab = localStorage.getItem('admin_report_sub') || 'overview';
 
 function initReports() {
   switchReportSubtab(_reportSubtab);
-}
-
-function toggleReportsSubmenu() {
-  document.getElementById('nav-reports-submenu').classList.toggle('collapsed');
 }
 
 function goToReportSubtab(sub) {
@@ -5380,9 +5402,11 @@ function refreshCurrentReport() {
 function switchReportSubtab(sub) {
   _reportSubtab = sub;
   localStorage.setItem('admin_report_sub', sub);
-  ['sales','customers','financial','coupons','views'].forEach(function(s) {
-    document.getElementById('nav-report-' + s).classList.toggle('active', s === sub);
-    document.getElementById('rpt-section-' + s).style.display = s === sub ? '' : 'none';
+  ['overview','sales','customers','financial','coupons','views'].forEach(function(s) {
+    var section = document.getElementById('rpt-section-' + s);
+    if (section) section.style.display = s === sub ? '' : 'none';
+    var navBtn = document.getElementById('nav-report-' + s);
+    if (navBtn) navBtn.classList.toggle('active', s === sub);
   });
   document.getElementById('nav-reports-submenu').classList.remove('collapsed');
   if (sub === 'sales')     setReportPeriod('today');
