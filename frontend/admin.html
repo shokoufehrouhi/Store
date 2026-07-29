@@ -1366,6 +1366,7 @@
     <div id="tab-reports" class="hidden">
       <div class="page-header">
         <h2>📊 <span data-i18n="navReports">گزارش‌ها</span></h2>
+        <button class="btn btn-secondary" onclick="refreshCurrentReport()" style="font-size:13px">↻ <span data-i18n="refresh">بروزرسانی</span></button>
       </div>
       <div class="page-body">
 
@@ -5366,6 +5367,14 @@ function toggleReportsSubmenu() {
 function goToReportSubtab(sub) {
   showTab('reports');
   switchReportSubtab(sub);
+}
+
+function refreshCurrentReport() {
+  if (_reportSubtab === 'sales')      loadReports();
+  if (_reportSubtab === 'customers')  loadCustomerReports();
+  if (_reportSubtab === 'financial')  loadFinancialReport();
+  if (_reportSubtab === 'coupons')    loadCouponReport();
+  if (_reportSubtab === 'views')      loadSiteViewsReport();
 }
 
 function switchReportSubtab(sub) {
