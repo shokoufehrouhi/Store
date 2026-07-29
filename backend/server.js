@@ -109,6 +109,14 @@ app.post('/api/track-view', viewLimiter, async (req, res, next) => {
     const prisma = require('./prisma/client');
     const path = typeof req.body?.path === 'string' ? req.body.path.slice(0, 200) : null;
     const ip = (req.headers['x-real-ip'] || req.socket.remoteAddress || '').replace(/^::ffff:/, '');
+
+    if (ip) {
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const already = await prisma.site_views.findFirst({ where: { ip, created_at: { gte: startOfToday } } });
+      if (already) return res.json({ success: true });
+    }
+
     const geo = ip ? geoip.lookup(ip) : null;
     await prisma.site_views.create({
       data: { path, ip: ip || null, city: geo?.city || null, country: geo?.country || null },
