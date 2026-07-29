@@ -253,7 +253,7 @@
       background: var(--white); border-radius: 18px;
       border: 1px solid var(--border);
       padding: 20px 22px;
-      display: flex; flex-direction: row; align-items: center; gap: 18px; text-align: start;
+      display: flex; flex-direction: row; align-items: center; gap: 14px; text-align: start;
       position: relative; overflow: hidden;
       transition: box-shadow .25s, transform .25s;
       cursor: default;
@@ -268,12 +268,12 @@
       z-index: 1;
     }
     .db-card-icon::before {
-      content: ''; position: absolute; inset: -8px; z-index: -1;
+      content: ''; position: absolute; inset: -20px; z-index: -1;
       border-radius: 50%; opacity: .12; background: var(--db-color, #3b82f6);
     }
     .db-card-content { display: flex; flex-direction: column; justify-content: center; gap: 5px; min-width: 0; align-self: stretch; }
     .db-card-label { font-size: 13px; color: var(--text); font-weight: 700; }
-    .db-card-value { font-size: 24px; font-weight: 900; color: var(--text); line-height: 1.2; }
+    .db-card-value { font-size: 24px; font-weight: 900; color: var(--text); line-height: 1.2; margin-top: 4px; }
     .db-card-sub {
       display: inline-flex; align-items: center; gap: 4px;
       font-size: 11px; font-weight: 600;
