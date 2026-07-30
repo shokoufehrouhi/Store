@@ -3836,10 +3836,10 @@ function renderSizeChartsTable(charts) {
   }
   tbody.innerHTML = charts.map(c => `<tr>
     <td><img src="${SERVER_URL}${c.image_url_fa}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border)"></td>
-    <td>${esc(c.name_fa)}</td>
+    <td>${esc(c.name_en)}</td>
     <td><div class="actions">
       <button class="btn btn-secondary btn-sm" onclick='openSizeChartModal(${JSON.stringify(c).replace(/'/g,"&#39;")})'>${t('edit')}</button>
-      <button class="btn btn-danger btn-sm" onclick="confirmDeleteSizeChart(${c.id},'${esc(c.name_fa)}')">${t('del')}</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmDeleteSizeChart(${c.id},'${esc(c.name_en)}')">${t('del')}</button>
     </div></td>
   </tr>`).join('');
 }
