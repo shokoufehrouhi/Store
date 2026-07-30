@@ -409,25 +409,37 @@ async function deleteColor(req, res, next) {
 
 async function getSizeCharts(req, res, next) {
   try {
-    const charts = await prisma.size_charts.findMany({ orderBy: { name: 'asc' } });
+    const charts = await prisma.size_charts.findMany({ orderBy: { name_fa: 'asc' } });
     res.json({ success: true, data: charts });
   } catch (err) { next(err); }
 }
 
 async function createSizeChart(req, res, next) {
   try {
-    const { name, image_url } = req.body;
-    const chart = await prisma.size_charts.create({ data: { name, image_url } });
+    const { name_fa, name_en, name_tr, image_url_fa, image_url_en, image_url_tr } = req.body;
+    const chart = await prisma.size_charts.create({
+      data: {
+        name_fa, name_en: name_en || name_fa, name_tr: name_tr || name_fa,
+        image_url_fa,
+        image_url_en: image_url_en || image_url_fa,
+        image_url_tr: image_url_tr || image_url_fa,
+      },
+    });
     res.status(201).json({ success: true, data: chart });
   } catch (err) { next(err); }
 }
 
 async function updateSizeChart(req, res, next) {
   try {
-    const { name, image_url } = req.body;
+    const { name_fa, name_en, name_tr, image_url_fa, image_url_en, image_url_tr } = req.body;
     const chart = await prisma.size_charts.update({
       where: { id: Number(req.params.id) },
-      data: { name, image_url },
+      data: {
+        name_fa, name_en: name_en || name_fa, name_tr: name_tr || name_fa,
+        image_url_fa,
+        image_url_en: image_url_en || image_url_fa,
+        image_url_tr: image_url_tr || image_url_fa,
+      },
     });
     res.json({ success: true, data: chart });
   } catch (err) { next(err); }

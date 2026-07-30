@@ -731,7 +731,7 @@ function render(p){
   if(sizes.length){
     szH = '<div>'
       + '<span class="pd-sec-label">'+(T.sizes_label||'Beden')+'</span>'
-      + (p.size_chart ? '<button type="button" class="pd-size-guide-link" onclick="openSizeChartModal(\''+esc(p.size_chart.image_url)+'\',\''+esc(p.size_chart.name)+'\')">'+(T.size_guide||'Beden Tablosu')+'</button>' : '')
+      + (p.size_chart ? '<button type="button" class="pd-size-guide-link" onclick="openSizeChartModal(\''+esc(p.size_chart['image_url_'+CL]||p.size_chart.image_url_fa)+'\',\''+esc(p.size_chart['name_'+CL]||p.size_chart.name_fa)+'\')">'+(T.size_guide||'Beden Tablosu')+'</button>' : '')
       + '<div class="pd-sizes-row">'
       + sizes.map(function(ps){
           var unavail = !ps.is_available;

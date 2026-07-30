@@ -53,11 +53,15 @@ model colors {
 }
 
 model size_charts {
-  id         Int        @id @default(autoincrement())
-  name       String     @db.VarChar(100)
-  image_url  String     @db.VarChar(500)
-  created_at DateTime   @default(now()) @db.Timestamptz(6)
-  products   products[]
+  id           Int        @id @default(autoincrement())
+  name_fa      String     @db.VarChar(100)
+  name_en      String     @db.VarChar(100)
+  name_tr      String     @db.VarChar(100)
+  image_url_fa String     @db.VarChar(500)
+  image_url_en String     @db.VarChar(500)
+  image_url_tr String     @db.VarChar(500)
+  created_at   DateTime   @default(now()) @db.Timestamptz(6)
+  products     products[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

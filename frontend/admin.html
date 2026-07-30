@@ -1801,7 +1801,8 @@ const LANGS = {
     hexField:'کد رنگ (HEX) *', hexPlaceholder:'#000000', noColors:'هنوز رنگی تعریف نشده',
     addSizeChartBtn:'+ افزودن جدول سایز', addSizeChartTitle:'افزودن جدول سایز جدید', editSizeChartTitle:'ویرایش جدول سایز',
     sizeChartName:'عنوان', sizeChartNamePlh:'مثال: تیشرت زنانه', sizeChartImage:'تصویر جدول سایز',
-    noSizeCharts:'هنوز جدول سایزی تعریف نشده', valSizeChartFields:'عنوان و تصویر را کامل کنید',
+    noSizeCharts:'هنوز جدول سایزی تعریف نشده', valSizeChartFields:'عنوان و تصویر فارسی را کامل کنید',
+    sizeChartImageFallback:'اگر تصویر EN یا TR را آپلود نکنید، همان تصویر فارسی برای آن زبان نمایش داده می‌شود.',
     savedSizeChart:'جدول سایز ذخیره شد ✅', deletedSizeChart:'جدول سایز حذف شد', confirmDeleteSizeChart:'این جدول سایز حذف شود؟',
     nameFaPlh:'مثال: تیشرت ورزشی', nameEnPlh:'Sports T-Shirt', nameTrPlh:'Spor Tişört',
     descFaPlh:'ویژگی‌ها و مشخصات محصول...', descEnPlh:'Product description...', descTrPlh:'Ürün açıklaması...',
@@ -1994,7 +1995,8 @@ const LANGS = {
     hexField:'Color Code (HEX) *', hexPlaceholder:'#000000', noColors:'No colors defined yet',
     addSizeChartBtn:'+ Add Size Chart', addSizeChartTitle:'Add New Size Chart', editSizeChartTitle:'Edit Size Chart',
     sizeChartName:'Title', sizeChartNamePlh:'e.g. Women\'s T-Shirt', sizeChartImage:'Size Chart Image',
-    noSizeCharts:'No size charts defined yet', valSizeChartFields:'Fill in the title and image',
+    noSizeCharts:'No size charts defined yet', valSizeChartFields:'Fill in the Farsi title and image',
+    sizeChartImageFallback:'If you don\'t upload an EN or TR image, the Farsi image will be shown for that language instead.',
     savedSizeChart:'Size chart saved ✅', deletedSizeChart:'Size chart deleted', confirmDeleteSizeChart:'Delete this size chart?',
     nameFaPlh:'e.g. Sports T-Shirt (FA)', nameEnPlh:'Sports T-Shirt', nameTrPlh:'Spor Tişört',
     descFaPlh:'Features and specs...', descEnPlh:'Product description...', descTrPlh:'Ürün açıklaması...',
@@ -2187,7 +2189,8 @@ const LANGS = {
     hexField:'Renk Kodu (HEX) *', hexPlaceholder:'#000000', noColors:'Henüz renk tanımlanmadı',
     addSizeChartBtn:'+ Beden Tablosu Ekle', addSizeChartTitle:'Yeni Beden Tablosu Ekle', editSizeChartTitle:'Beden Tablosunu Düzenle',
     sizeChartName:'Başlık', sizeChartNamePlh:'örn. Kadın Tişört', sizeChartImage:'Beden Tablosu Görseli',
-    noSizeCharts:'Henüz beden tablosu tanımlanmadı', valSizeChartFields:'Başlık ve görseli doldurun',
+    noSizeCharts:'Henüz beden tablosu tanımlanmadı', valSizeChartFields:'Farsça başlık ve görseli doldurun',
+    sizeChartImageFallback:'EN veya TR görseli yüklemezseniz, o dil için Farsça görsel gösterilir.',
     savedSizeChart:'Beden tablosu kaydedildi ✅', deletedSizeChart:'Beden tablosu silindi', confirmDeleteSizeChart:'Bu beden tablosu silinsin mi?',
     nameFaPlh:'örn. Spor Tişört (FA)', nameEnPlh:'Sports T-Shirt', nameTrPlh:'Spor Tişört',
     descFaPlh:'Özellikler...', descEnPlh:'Product description...', descTrPlh:'Ürün açıklaması...',
@@ -3149,7 +3152,7 @@ async function openProductModal(id = null) {
       <div class="form-field">
         <select id="f-size-chart">
           <option value="">${t('noSizeChart')}</option>
-          ${allSizeCharts.map(c => `<option value="${c.id}" ${product?.size_chart_id===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}
+          ${allSizeCharts.map(c => `<option value="${c.id}" ${product?.size_chart_id===c.id?'selected':''}>${esc(c.name_fa)}</option>`).join('')}
         </select>
       </div>
     </div>
@@ -3832,33 +3835,51 @@ function renderSizeChartsTable(charts) {
     return;
   }
   tbody.innerHTML = charts.map(c => `<tr>
-    <td><img src="${SERVER_URL}${c.image_url}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border)"></td>
-    <td>${esc(c.name)}</td>
+    <td><img src="${SERVER_URL}${c.image_url_fa}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border)"></td>
+    <td>${esc(c.name_fa)}</td>
     <td><div class="actions">
       <button class="btn btn-secondary btn-sm" onclick='openSizeChartModal(${JSON.stringify(c).replace(/'/g,"\\'")})'>${t('edit')}</button>
-      <button class="btn btn-danger btn-sm" onclick="confirmDeleteSizeChart(${c.id},'${esc(c.name)}')">${t('del')}</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmDeleteSizeChart(${c.id},'${esc(c.name_fa)}')">${t('del')}</button>
     </div></td>
   </tr>`).join('');
 }
 
-let _editingSizeChartImage = '';
+let _editingSizeChartImages = { fa: '', en: '', tr: '' };
+
+function sizeChartImageField(lang, label, url) {
+  return `
+    <div class="form-field"><label>${label}</label>
+      <div id="scf-preview-wrap-${lang}">${url
+        ? `<img src="${SERVER_URL}${url}" style="width:100%;max-height:160px;object-fit:contain;border-radius:8px;margin-bottom:8px;border:1px solid var(--border)">`
+        : ''}</div>
+      <input type="file" id="scf-file-${lang}" accept="image/*" onchange="handleSizeChartFile('${lang}', this.files[0])">
+    </div>`;
+}
 
 function openSizeChartModal(chart = null) {
-  _editingSizeChartImage = chart?.image_url || '';
+  _editingSizeChartImages = { fa: chart?.image_url_fa || '', en: chart?.image_url_en || '', tr: chart?.image_url_tr || '' };
   const body = `
-    <div class="form-row cols-1">
-      <div class="form-field"><label>${t('sizeChartName')} *</label>
-        <input type="text" id="scf-name" value="${esc(chart?.name||'')}" placeholder="${t('sizeChartNamePlh')}">
+    <div class="form-row">
+      <div class="form-field"><label>${t('sizeChartName')} (FA) *</label>
+        <input type="text" id="scf-name-fa" value="${esc(chart?.name_fa||'')}" placeholder="${t('sizeChartNamePlh')}">
+      </div>
+      <div class="form-field"><label>${t('sizeChartName')} (EN)</label>
+        <input type="text" id="scf-name-en" value="${esc(chart?.name_en||'')}" style="direction:ltr">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-field"><label>${t('sizeChartName')} (TR)</label>
+        <input type="text" id="scf-name-tr" value="${esc(chart?.name_tr||'')}" style="direction:ltr">
       </div>
     </div>
     <div class="form-row cols-1">
-      <div class="form-field"><label>${t('sizeChartImage')} *</label>
-        <div id="scf-preview-wrap">${_editingSizeChartImage
-          ? `<img id="scf-preview" src="${SERVER_URL}${_editingSizeChartImage}" style="width:100%;max-height:220px;object-fit:contain;border-radius:8px;margin-bottom:8px;border:1px solid var(--border)">`
-          : ''}</div>
-        <input type="file" id="scf-file" accept="image/*" onchange="handleSizeChartFile(this.files[0])">
-      </div>
+      ${sizeChartImageField('fa', t('sizeChartImage') + ' (FA) *', _editingSizeChartImages.fa)}
     </div>
+    <div class="form-row">
+      ${sizeChartImageField('en', t('sizeChartImage') + ' (EN)', _editingSizeChartImages.en)}
+      ${sizeChartImageField('tr', t('sizeChartImage') + ' (TR)', _editingSizeChartImages.tr)}
+    </div>
+    <p style="font-size:12px;color:#999;margin-top:-4px">${t('sizeChartImageFallback')}</p>
   `;
   const footer = `
     <button class="btn btn-primary" onclick="saveSizeChart(${chart?.id||'null'})">${chart ? t('saveChanges') : t('addItem')}</button>
@@ -3867,7 +3888,7 @@ function openSizeChartModal(chart = null) {
   openModal(chart ? t('editSizeChartTitle') : t('addSizeChartTitle'), body, footer);
 }
 
-async function handleSizeChartFile(file) {
+async function handleSizeChartFile(lang, file) {
   if (!file) return;
   const form = new FormData();
   form.append('file', file);
@@ -3879,9 +3900,9 @@ async function handleSizeChartFile(file) {
     });
     const data = await res.json();
     if (data.success) {
-      _editingSizeChartImage = data.url;
-      document.getElementById('scf-preview-wrap').innerHTML =
-        `<img id="scf-preview" src="${SERVER_URL}${data.url}" style="width:100%;max-height:220px;object-fit:contain;border-radius:8px;margin-bottom:8px;border:1px solid var(--border)">`;
+      _editingSizeChartImages[lang] = data.url;
+      document.getElementById(`scf-preview-wrap-${lang}`).innerHTML =
+        `<img src="${SERVER_URL}${data.url}" style="width:100%;max-height:160px;object-fit:contain;border-radius:8px;margin-bottom:8px;border:1px solid var(--border)">`;
     } else {
       showToast(data.message || t('uploadErr'), 'error');
     }
@@ -3889,9 +3910,16 @@ async function handleSizeChartFile(file) {
 }
 
 async function saveSizeChart(id) {
-  const name = document.getElementById('scf-name')?.value?.trim();
-  if (!name || !_editingSizeChartImage) { showToast(t('valSizeChartFields'), 'error'); return; }
-  const payload = { name, image_url: _editingSizeChartImage };
+  const nameFa = document.getElementById('scf-name-fa')?.value?.trim();
+  if (!nameFa || !_editingSizeChartImages.fa) { showToast(t('valSizeChartFields'), 'error'); return; }
+  const payload = {
+    name_fa: nameFa,
+    name_en: document.getElementById('scf-name-en')?.value?.trim() || '',
+    name_tr: document.getElementById('scf-name-tr')?.value?.trim() || '',
+    image_url_fa: _editingSizeChartImages.fa,
+    image_url_en: _editingSizeChartImages.en || '',
+    image_url_tr: _editingSizeChartImages.tr || '',
+  };
   const res = id
     ? await api(`/admin/size-charts/${id}`, { method:'PUT', body:JSON.stringify(payload) })
     : await api('/admin/size-charts',        { method:'POST', body:JSON.stringify(payload) });
