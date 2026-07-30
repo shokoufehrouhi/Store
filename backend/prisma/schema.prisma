@@ -52,6 +52,14 @@ model colors {
   product_inventory product_inventory[]
 }
 
+model size_charts {
+  id         Int        @id @default(autoincrement())
+  name       String     @db.VarChar(100)
+  image_url  String     @db.VarChar(500)
+  created_at DateTime   @default(now()) @db.Timestamptz(6)
+  products   products[]
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model customers {
   id             Int         @id @default(autoincrement())
@@ -269,6 +277,7 @@ model products {
   id                Int                 @id @default(autoincrement())
   category_id       Int
   subcategory_id    Int?
+  size_chart_id     Int?
   gender            gender_type         @default(unisex)
   name_fa           String              @db.VarChar(120)
   name_en           String              @db.VarChar(120)
@@ -304,6 +313,7 @@ model products {
   product_categories product_categories[]
   categories         categories          @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   subcategories      subcategories?      @relation(fields: [subcategory_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  size_charts        size_charts?        @relation(fields: [size_chart_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@index([is_active], map: "idx_products_active")
   @@index([is_live], map: "idx_products_live")

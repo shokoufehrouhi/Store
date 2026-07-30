@@ -405,6 +405,41 @@ async function deleteColor(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// ─── Size Charts ───────────────────────────────────────────────────────────────
+
+async function getSizeCharts(req, res, next) {
+  try {
+    const charts = await prisma.size_charts.findMany({ orderBy: { name: 'asc' } });
+    res.json({ success: true, data: charts });
+  } catch (err) { next(err); }
+}
+
+async function createSizeChart(req, res, next) {
+  try {
+    const { name, image_url } = req.body;
+    const chart = await prisma.size_charts.create({ data: { name, image_url } });
+    res.status(201).json({ success: true, data: chart });
+  } catch (err) { next(err); }
+}
+
+async function updateSizeChart(req, res, next) {
+  try {
+    const { name, image_url } = req.body;
+    const chart = await prisma.size_charts.update({
+      where: { id: Number(req.params.id) },
+      data: { name, image_url },
+    });
+    res.json({ success: true, data: chart });
+  } catch (err) { next(err); }
+}
+
+async function deleteSizeChart(req, res, next) {
+  try {
+    await prisma.size_charts.delete({ where: { id: Number(req.params.id) } });
+    res.json({ success: true });
+  } catch (err) { next(err); }
+}
+
 // ─── Sizes ─────────────────────────────────────────────────────────────────────
 
 async function getSizes(req, res, next) {
@@ -538,7 +573,7 @@ async function getProducts(req, res, next) {
 async function createProduct(req, res, next) {
   try {
     const {
-      category_id, subcategory_id, gender, code, name_fa, name_en, name_tr,
+      category_id, subcategory_id, size_chart_id, gender, code, name_fa, name_en, name_tr,
       desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price, cost_price, stock, delivery_days,
       brand, supplier_shop_name, product_link, supplier_code, supplier_note,
       colors, sizes, media, inventory, extra_categories,
@@ -559,6 +594,7 @@ async function createProduct(req, res, next) {
       data: {
         category_id:    Number(category_id),
         subcategory_id: subcategory_id ? Number(subcategory_id) : null,
+        size_chart_id:  size_chart_id ? Number(size_chart_id) : null,
         gender:         gender || 'unisex',
         code:          finalCode,
         name_fa,
@@ -628,7 +664,7 @@ async function updateProduct(req, res, next) {
   try {
     const id = Number(req.params.id);
     const {
-      category_id, subcategory_id, gender, name_fa, name_en, name_tr,
+      category_id, subcategory_id, size_chart_id, gender, name_fa, name_en, name_tr,
       desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price, cost_price, stock, is_active, delivery_days,
       brand, supplier_shop_name, product_link, supplier_code, supplier_note,
       colors, sizes, media, inventory, extra_categories,
@@ -647,6 +683,7 @@ async function updateProduct(req, res, next) {
       data: {
         category_id:    Number(category_id),
         subcategory_id: subcategory_id ? Number(subcategory_id) : null,
+        size_chart_id:  size_chart_id ? Number(size_chart_id) : null,
         gender:         gender || 'unisex',
         name_fa,
         name_en: name_en || name_fa,
@@ -1429,6 +1466,7 @@ module.exports = {
   getCategories, createCategory, updateCategory, toggleCategory, deleteCategory,
   getSubcategories, createSubcategory, updateSubcategory, toggleSubcategory, deleteSubcategory,
   getColors, createColor, updateColor, deleteColor,
+  getSizeCharts, createSizeChart, updateSizeChart, deleteSizeChart,
   getSizes, createSize, updateSize, deleteSize,
   getAdminCustomers, updateAdminCustomer,
   getProducts, createProduct, updateProduct, deleteProduct,

@@ -857,6 +857,9 @@
           <button class="nav-item" onclick="showTab('sizes')" id="nav-sizes">
             <span class="nav-icon">📏</span><span data-i18n="navSizes">سایزها</span>
           </button>
+          <button class="nav-item" onclick="showTab('size-charts')" id="nav-size-charts">
+            <span class="nav-icon">📐</span><span data-i18n="navSizeCharts">جدول سایز</span>
+          </button>
         </div>
       </div>
     </nav>
@@ -1015,6 +1018,28 @@
               <th data-i18n="colActions">عملیات</th>
             </tr></thead>
             <tbody id="sizes-tbody">
+              <tr><td colspan="3" style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</td></tr>
+            </tbody>
+          </table>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- Size Charts -->
+    <div id="tab-size-charts" class="hidden">
+      <div class="page-header">
+        <h2>📐 <span data-i18n="navSizeCharts">جدول سایز</span></h2>
+        <button class="btn btn-primary" onclick="openSizeChartModal()" data-i18n="addSizeChartBtn">+ افزودن جدول سایز</button>
+      </div>
+      <div class="page-body">
+        <div class="card"><div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th data-i18n="sizeChartImage">تصویر</th>
+              <th data-i18n="sizeChartName">عنوان</th>
+              <th data-i18n="colActions">عملیات</th>
+            </tr></thead>
+            <tbody id="size-charts-tbody">
               <tr><td colspan="3" style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</td></tr>
             </tbody>
           </table>
@@ -1685,7 +1710,7 @@ const LANGS = {
     loginBtn:'ورود به پنل', username:'نام کاربری', password:'رمز عبور',
     connecting:'در حال ورود...', connFail:'اتصال به سرور ناموفق بود',
     navGroupOverview:'نمای کلی', navGroupCatalog:'فروشگاه', navGroupConfig:'تنظیمات پایه', navGroupUsers:'کاربران',
-    navDashboard:'داشبورد', navNotifications:'اعلان‌ها', navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navCustomers:'مشتریان', navLeads:'لیدها', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navProductPhotos:'عکس‌های خریداران', refresh:'بروزرسانی',
+    navDashboard:'داشبورد', navNotifications:'اعلان‌ها', navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navSizeCharts:'جدول سایز', navCustomers:'مشتریان', navLeads:'لیدها', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navProductPhotos:'عکس‌های خریداران', refresh:'بروزرسانی',
     navCommunications:'ارتباطات', commAllTypes:'همه انواع', commSubject:'موضوع', commTo:'گیرنده', commType:'نوع', commDate:'تاریخ', commCustomer:'مشتری', commView:'مشاهده', commEmpty:'ایمیلی ثبت نشده',
     commTypePaymentNeeded:'نیاز به پرداخت', commTypePreparing:'در حال آماده‌سازی', commTypeDelivery:'ارسال', commTypeDelivered:'تحویل داده شد', commTypeRejected:'رد سفارش', commTypePreorderRejected:'رد پیش‌سفارش', commTypeReply:'پاسخ پیام', commTypeLoyalty:'وفاداری', commTypeBirthday:'تولد', commTypeWelcome:'خوش‌آمد', commTypePrize:'جایزه', commTypeInvite:'دعوت دوست', commTypeVerification:'کد تایید', commTypeRaw:'ارسال مستقیم',
     notifMarkAll:'همه خوانده شد', notifNewOrder:'سفارش جدید', notifOrderUpdate:'بروزرسانی سفارش', notifNewPrize:'جایزه جدید', notifPrizeUpdate:'بروزرسانی جایزه', notifNewReturn:'درخواست مرجوعی', notifReturnUpdate:'بروزرسانی مرجوعی', notifNewCustomer:'مشتری جدید', notifNewLead:'لید جدید', notifView:'مشاهده', notifEmpty:'اعلانی وجود ندارد',
@@ -1734,7 +1759,7 @@ const LANGS = {
     addProductTitle:'افزودن محصول جدید', editProductTitle:'ویرایش محصول',
     saveChanges:'ذخیره تغییرات', addItem:'➕ افزودن', cancel:'انصراف',
     basicInfo:'اطلاعات اصلی', categorization:'دسته‌بندی', priceStock:'قیمت و موجودی',
-    colorsSection:'رنگ‌ها', sizesSection:'سایزها', mediaSection:'تصاویر و ویدیو', appearance:'ظاهر',
+    colorsSection:'رنگ‌ها', sizesSection:'سایزها', sizeChartSection:'جدول سایز', noSizeChart:'بدون جدول سایز', mediaSection:'تصاویر و ویدیو', appearance:'ظاهر',
     uploadImage:'+ آپلود تصویر', uploadVideo:'+ آپلود ویدیو', addVideoUrl:'افزودن لینک',
     videoUrlLbl:'لینک ویدیو (اختیاری)', videoUrlPlh:'https://youtu.be/... یا لینک مستقیم mp4',
     uploading:'در حال آپلود...', uploadErr:'خطا در آپلود',
@@ -1774,6 +1799,10 @@ const LANGS = {
     colorEn:'نام انگلیسی', colorTr:'نام ترکی', colorHex:'کد رنگ',
     addColorBtn:'+ افزودن رنگ', addColorTitle:'افزودن رنگ جدید', editColorTitle:'ویرایش رنگ',
     hexField:'کد رنگ (HEX) *', hexPlaceholder:'#000000', noColors:'هنوز رنگی تعریف نشده',
+    addSizeChartBtn:'+ افزودن جدول سایز', addSizeChartTitle:'افزودن جدول سایز جدید', editSizeChartTitle:'ویرایش جدول سایز',
+    sizeChartName:'عنوان', sizeChartNamePlh:'مثال: تیشرت زنانه', sizeChartImage:'تصویر جدول سایز',
+    noSizeCharts:'هنوز جدول سایزی تعریف نشده', valSizeChartFields:'عنوان و تصویر را کامل کنید',
+    savedSizeChart:'جدول سایز ذخیره شد ✅', deletedSizeChart:'جدول سایز حذف شد', confirmDeleteSizeChart:'این جدول سایز حذف شود؟',
     nameFaPlh:'مثال: تیشرت ورزشی', nameEnPlh:'Sports T-Shirt', nameTrPlh:'Spor Tişört',
     descFaPlh:'ویژگی‌ها و مشخصات محصول...', descEnPlh:'Product description...', descTrPlh:'Ürün açıklaması...',
     gradientPlh:'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -1874,7 +1903,7 @@ const LANGS = {
     loginBtn:'Login', username:'Username', password:'Password',
     connecting:'Logging in...', connFail:'Could not connect to server',
     navGroupOverview:'Overview', navGroupCatalog:'Store', navGroupConfig:'Configuration', navGroupUsers:'Users',
-    navDashboard:'Dashboard', navNotifications:'Notifications', navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navCustomers:'Customers', navLeads:'Leads', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navProductPhotos:'Buyer Photos', refresh:'Refresh',
+    navDashboard:'Dashboard', navNotifications:'Notifications', navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navSizeCharts:'Size Charts', navCustomers:'Customers', navLeads:'Leads', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navProductPhotos:'Buyer Photos', refresh:'Refresh',
     navCommunications:'Communications', commAllTypes:'All types', commSubject:'Subject', commTo:'To', commType:'Type', commDate:'Date', commCustomer:'Customer', commView:'View', commEmpty:'No emails logged yet',
     commTypePaymentNeeded:'Payment Needed', commTypePreparing:'Preparing', commTypeDelivery:'Shipping', commTypeDelivered:'Delivered', commTypeRejected:'Rejected', commTypePreorderRejected:'Preorder Rejected', commTypeReply:'Reply', commTypeLoyalty:'Loyalty', commTypeBirthday:'Birthday', commTypeWelcome:'Welcome', commTypePrize:'Prize', commTypeInvite:'Invite', commTypeVerification:'Verification', commTypeRaw:'Direct Send',
     notifMarkAll:'Mark all read', notifNewOrder:'New Order', notifOrderUpdate:'Order Updated', notifNewPrize:'New Prize', notifPrizeUpdate:'Prize Updated', notifNewReturn:'Return Request', notifReturnUpdate:'Return Updated', notifNewCustomer:'New Customer', notifNewLead:'New Lead', notifView:'View', notifEmpty:'No notifications',
@@ -1923,7 +1952,7 @@ const LANGS = {
     addProductTitle:'Add New Product', editProductTitle:'Edit Product',
     saveChanges:'Save Changes', addItem:'➕ Add', cancel:'Cancel',
     basicInfo:'Basic Info', categorization:'Category', priceStock:'Price & Stock',
-    colorsSection:'Colors', sizesSection:'Sizes', mediaSection:'Images & Video', appearance:'Appearance',
+    colorsSection:'Colors', sizesSection:'Sizes', sizeChartSection:'Size Chart', noSizeChart:'No size chart', mediaSection:'Images & Video', appearance:'Appearance',
     uploadImage:'+ Upload Image', uploadVideo:'+ Upload Video', addVideoUrl:'Add Link',
     videoUrlLbl:'Video URL (optional)', videoUrlPlh:'https://youtu.be/... or direct mp4 link',
     uploading:'Uploading...', uploadErr:'Upload error',
@@ -1963,6 +1992,10 @@ const LANGS = {
     colorEn:'English Name', colorTr:'Turkish Name', colorHex:'Hex Code',
     addColorBtn:'+ Add Color', addColorTitle:'Add New Color', editColorTitle:'Edit Color',
     hexField:'Color Code (HEX) *', hexPlaceholder:'#000000', noColors:'No colors defined yet',
+    addSizeChartBtn:'+ Add Size Chart', addSizeChartTitle:'Add New Size Chart', editSizeChartTitle:'Edit Size Chart',
+    sizeChartName:'Title', sizeChartNamePlh:'e.g. Women\'s T-Shirt', sizeChartImage:'Size Chart Image',
+    noSizeCharts:'No size charts defined yet', valSizeChartFields:'Fill in the title and image',
+    savedSizeChart:'Size chart saved ✅', deletedSizeChart:'Size chart deleted', confirmDeleteSizeChart:'Delete this size chart?',
     nameFaPlh:'e.g. Sports T-Shirt (FA)', nameEnPlh:'Sports T-Shirt', nameTrPlh:'Spor Tişört',
     descFaPlh:'Features and specs...', descEnPlh:'Product description...', descTrPlh:'Ürün açıklaması...',
     gradientPlh:'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -2063,7 +2096,7 @@ const LANGS = {
     loginBtn:'Giriş Yap', username:'Kullanıcı Adı', password:'Şifre',
     connecting:'Giriş yapılıyor...', connFail:'Sunucuya bağlanılamadı',
     navGroupOverview:'Genel Bakış', navGroupCatalog:'Mağaza', navGroupConfig:'Yapılandırma', navGroupUsers:'Kullanıcılar',
-    navDashboard:'Gösterge Paneli', navNotifications:'Bildirimler', navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navCustomers:'Müşteriler', navLeads:'Adaylar', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navProductPhotos:'Alıcı Fotoğrafları', refresh:'Yenile',
+    navDashboard:'Gösterge Paneli', navNotifications:'Bildirimler', navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navSizeCharts:'Beden Tablosu', navCustomers:'Müşteriler', navLeads:'Adaylar', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navProductPhotos:'Alıcı Fotoğrafları', refresh:'Yenile',
     navCommunications:'İletişim', commAllTypes:'Tüm türler', commSubject:'Konu', commTo:'Alıcı', commType:'Tür', commDate:'Tarih', commCustomer:'Müşteri', commView:'Görüntüle', commEmpty:'Henüz e-posta kaydı yok',
     commTypePaymentNeeded:'Ödeme Gerekli', commTypePreparing:'Hazırlanıyor', commTypeDelivery:'Kargo', commTypeDelivered:'Teslim Edildi', commTypeRejected:'Reddedildi', commTypePreorderRejected:'Ön Sipariş Reddedildi', commTypeReply:'Yanıt', commTypeLoyalty:'Sadakat', commTypeBirthday:'Doğum Günü', commTypeWelcome:'Hoş Geldin', commTypePrize:'Ödül', commTypeInvite:'Davet', commTypeVerification:'Doğrulama', commTypeRaw:'Doğrudan Gönderim',
     notifMarkAll:'Tümünü okundu say', notifNewOrder:'Yeni Sipariş', notifOrderUpdate:'Sipariş Güncellendi', notifNewPrize:'Yeni Ödül', notifPrizeUpdate:'Ödül Güncellendi', notifNewReturn:'İade Talebi', notifReturnUpdate:'İade Güncellendi', notifNewCustomer:'Yeni Müşteri', notifNewLead:'Yeni Aday', notifView:'Görüntüle', notifEmpty:'Bildirim yok',
@@ -2112,7 +2145,7 @@ const LANGS = {
     addProductTitle:'Yeni Ürün Ekle', editProductTitle:'Ürünü Düzenle',
     saveChanges:'Değişiklikleri Kaydet', addItem:'➕ Ekle', cancel:'İptal',
     basicInfo:'Temel Bilgiler', categorization:'Kategori', priceStock:'Fiyat & Stok',
-    colorsSection:'Renkler', sizesSection:'Bedenler', mediaSection:'Görseller & Video', appearance:'Görünüm',
+    colorsSection:'Renkler', sizesSection:'Bedenler', sizeChartSection:'Beden Tablosu', noSizeChart:'Beden tablosu yok', mediaSection:'Görseller & Video', appearance:'Görünüm',
     uploadImage:'+ Görsel Yükle', uploadVideo:'+ Video Yükle', addVideoUrl:'Bağlantı Ekle',
     videoUrlLbl:'Video Bağlantısı (isteğe bağlı)', videoUrlPlh:'https://youtu.be/... veya doğrudan mp4',
     uploading:'Yükleniyor...', uploadErr:'Yükleme hatası',
@@ -2152,6 +2185,10 @@ const LANGS = {
     colorEn:'İngilizce Ad', colorTr:'Türkçe Ad', colorHex:'Renk Kodu',
     addColorBtn:'+ Renk Ekle', addColorTitle:'Yeni Renk Ekle', editColorTitle:'Rengi Düzenle',
     hexField:'Renk Kodu (HEX) *', hexPlaceholder:'#000000', noColors:'Henüz renk tanımlanmadı',
+    addSizeChartBtn:'+ Beden Tablosu Ekle', addSizeChartTitle:'Yeni Beden Tablosu Ekle', editSizeChartTitle:'Beden Tablosunu Düzenle',
+    sizeChartName:'Başlık', sizeChartNamePlh:'örn. Kadın Tişört', sizeChartImage:'Beden Tablosu Görseli',
+    noSizeCharts:'Henüz beden tablosu tanımlanmadı', valSizeChartFields:'Başlık ve görseli doldurun',
+    savedSizeChart:'Beden tablosu kaydedildi ✅', deletedSizeChart:'Beden tablosu silindi', confirmDeleteSizeChart:'Bu beden tablosu silinsin mi?',
     nameFaPlh:'örn. Spor Tişört (FA)', nameEnPlh:'Sports T-Shirt', nameTrPlh:'Spor Tişört',
     descFaPlh:'Özellikler...', descEnPlh:'Product description...', descTrPlh:'Ürün açıklaması...',
     gradientPlh:'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -2399,7 +2436,7 @@ function showTab(tab) {
   currentTab = tab;
   localStorage.setItem('admin_tab', tab);
   if (window.innerWidth <= 768) closeSidebar();
-  ['communications','notifications','dashboard','products','categories','colors','sizes','customers','active-orders','orders','prizes','returns','product-photos','suppliers','bank-accounts','coupons','leads','reports'].forEach(t2 => {
+  ['communications','notifications','dashboard','products','categories','colors','sizes','size-charts','customers','active-orders','orders','prizes','returns','product-photos','suppliers','bank-accounts','coupons','leads','reports'].forEach(t2 => {
     const el = document.getElementById(`tab-${t2}`);
     const nav = document.getElementById(`nav-${t2}`);
     if (el)  el.classList.add('hidden');
@@ -2416,6 +2453,7 @@ function showTab(tab) {
   if (tab === 'categories')     loadCategories();
   if (tab === 'colors')         loadColors();
   if (tab === 'sizes')          loadSizes();
+  if (tab === 'size-charts')    loadSizeCharts();
   if (tab === 'customers')      loadCustomers();
   if (tab === 'active-orders')  loadAdminOrders();
   if (tab === 'orders')         loadAdminOrders();
@@ -2830,13 +2868,14 @@ async function loadDashboard() {
 async function loadProducts() {
   const searchEl = document.getElementById('product-search');
   if (searchEl) searchEl.value = '';
-  const [pR, cR, colR, szR] = await Promise.all([
-    api('/admin/products'), api('/admin/categories'), api('/admin/colors'), api('/admin/sizes')
+  const [pR, cR, colR, szR, scR] = await Promise.all([
+    api('/admin/products'), api('/admin/categories'), api('/admin/colors'), api('/admin/sizes'), api('/admin/size-charts')
   ]);
   if (!pR) return;
   allCategories = cR?.data  || [];
   allColors     = colR?.data || [];
   allSizes      = szR?.data  || [];
+  allSizeCharts = scR?.data  || [];
   _allProducts = pR.data || [];
   renderProductsTable(_allProducts);
   refreshPublishStatus();
@@ -2937,6 +2976,7 @@ async function openProductModal(id = null) {
     api('/admin/categories').then(r => { allCategories = r?.data || []; }),
     api('/admin/colors').then(r => { allColors = r?.data || []; }),
     api('/admin/sizes').then(r => { allSizes  = r?.data || []; }),
+    api('/admin/size-charts').then(r => { allSizeCharts = r?.data || []; }),
   );
   if (!_allSuppliers.length) fetchList.push(
     api('/admin/suppliers').then(r => { if (r?.success) _allSuppliers = r.data; }),
@@ -3103,6 +3143,16 @@ async function openProductModal(id = null) {
         }).join('')
       : `<p style="color:#999;font-size:13px">${t('noSizesDefined')}</p>`
     }</div>
+
+    <div class="form-section-title">${t('sizeChartSection')}</div>
+    <div class="form-row cols-1">
+      <div class="form-field">
+        <select id="f-size-chart">
+          <option value="">${t('noSizeChart')}</option>
+          ${allSizeCharts.map(c => `<option value="${c.id}" ${product?.size_chart_id===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
 
     <div class="form-section-title">${t('inventorySection')}</div>
     <div id="inventory-matrix-section"></div>
@@ -3331,6 +3381,7 @@ async function saveProduct(id) {
   const payload = {
     category_id: Number(catId),
     subcategory_id: document.getElementById('f-subcategory')?.value || null,
+    size_chart_id: document.getElementById('f-size-chart')?.value || null,
     gender:  document.getElementById('f-gender')?.value || 'unisex',
     code:    null,
     name_fa: nameFA,
@@ -3760,6 +3811,98 @@ async function confirmDeleteColor(id, name) {
   showConfirm(`"${name}" — ${t('confirmDeleteColor')}`, async () => {
     const res = await api(`/admin/colors/${id}`, { method:'DELETE' });
     if (res?.success) { showToast(t('deletedColor')); loadColors(); }
+    else showToast(t('deleteError'), 'error');
+  });
+}
+
+// ─── SIZE CHARTS ──────────────────────────────────────────────────────────────
+let allSizeCharts = [];
+
+async function loadSizeCharts() {
+  const res = await api('/admin/size-charts');
+  if (!res) return;
+  allSizeCharts = res.data || [];
+  renderSizeChartsTable(allSizeCharts);
+}
+
+function renderSizeChartsTable(charts) {
+  const tbody = document.getElementById('size-charts-tbody');
+  if (!charts.length) {
+    tbody.innerHTML = `<tr><td colspan="3"><div class="empty-state"><div class="icon">📐</div><p>${t('noSizeCharts')}</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = charts.map(c => `<tr>
+    <td><img src="${SERVER_URL}${c.image_url}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border)"></td>
+    <td>${esc(c.name)}</td>
+    <td><div class="actions">
+      <button class="btn btn-secondary btn-sm" onclick='openSizeChartModal(${JSON.stringify(c).replace(/'/g,"\\'")})'>${t('edit')}</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmDeleteSizeChart(${c.id},'${esc(c.name)}')">${t('del')}</button>
+    </div></td>
+  </tr>`).join('');
+}
+
+let _editingSizeChartImage = '';
+
+function openSizeChartModal(chart = null) {
+  _editingSizeChartImage = chart?.image_url || '';
+  const body = `
+    <div class="form-row cols-1">
+      <div class="form-field"><label>${t('sizeChartName')} *</label>
+        <input type="text" id="scf-name" value="${esc(chart?.name||'')}" placeholder="${t('sizeChartNamePlh')}">
+      </div>
+    </div>
+    <div class="form-row cols-1">
+      <div class="form-field"><label>${t('sizeChartImage')} *</label>
+        <div id="scf-preview-wrap">${_editingSizeChartImage
+          ? `<img id="scf-preview" src="${SERVER_URL}${_editingSizeChartImage}" style="width:100%;max-height:220px;object-fit:contain;border-radius:8px;margin-bottom:8px;border:1px solid var(--border)">`
+          : ''}</div>
+        <input type="file" id="scf-file" accept="image/*" onchange="handleSizeChartFile(this.files[0])">
+      </div>
+    </div>
+  `;
+  const footer = `
+    <button class="btn btn-primary" onclick="saveSizeChart(${chart?.id||'null'})">${chart ? t('saveChanges') : t('addItem')}</button>
+    <button class="btn btn-secondary" onclick="closeModal()">${t('cancel')}</button>
+  `;
+  openModal(chart ? t('editSizeChartTitle') : t('addSizeChartTitle'), body, footer);
+}
+
+async function handleSizeChartFile(file) {
+  if (!file) return;
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const res = await fetch(`${API}/admin/upload`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: form,
+    });
+    const data = await res.json();
+    if (data.success) {
+      _editingSizeChartImage = data.url;
+      document.getElementById('scf-preview-wrap').innerHTML =
+        `<img id="scf-preview" src="${SERVER_URL}${data.url}" style="width:100%;max-height:220px;object-fit:contain;border-radius:8px;margin-bottom:8px;border:1px solid var(--border)">`;
+    } else {
+      showToast(data.message || t('uploadErr'), 'error');
+    }
+  } catch (err) { showToast(t('uploadErr'), 'error'); }
+}
+
+async function saveSizeChart(id) {
+  const name = document.getElementById('scf-name')?.value?.trim();
+  if (!name || !_editingSizeChartImage) { showToast(t('valSizeChartFields'), 'error'); return; }
+  const payload = { name, image_url: _editingSizeChartImage };
+  const res = id
+    ? await api(`/admin/size-charts/${id}`, { method:'PUT', body:JSON.stringify(payload) })
+    : await api('/admin/size-charts',        { method:'POST', body:JSON.stringify(payload) });
+  if (res?.success) { closeModal(); showToast(t('savedSizeChart')); loadSizeCharts(); }
+  else showToast(res?.message || t('saveError'), 'error');
+}
+
+async function confirmDeleteSizeChart(id, name) {
+  showConfirm(`"${name}" — ${t('confirmDeleteSizeChart')}`, async () => {
+    const res = await api(`/admin/size-charts/${id}`, { method:'DELETE' });
+    if (res?.success) { showToast(t('deletedSizeChart')); loadSizeCharts(); }
     else showToast(t('deleteError'), 'error');
   });
 }

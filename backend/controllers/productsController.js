@@ -2,13 +2,15 @@ const prisma = require('../prisma/client');
 
 // Merges a frozen published_data snapshot with data that must always stay
 // live/real-time regardless of publish state: product_inventory (orders
-// decrement it directly, see ordersController.js) and the shared colors
-// table (never itself publish-gated, so color hex/name edits stay instant).
-function mergeLiveColors(snapshot, colorsById) {
+// decrement it directly, see ordersController.js) and the shared colors /
+// size_charts tables (never themselves publish-gated, so color hex/name and
+// size-chart image/name edits apply instantly to every product using them).
+function mergeLiveRefs(snapshot, colorsById, sizeChartsById) {
   const data = { ...snapshot };
   if (Array.isArray(data.product_colors)) {
     data.product_colors = data.product_colors.map(pc => ({ ...pc, colors: colorsById.get(pc.color_id) || null }));
   }
+  data.size_chart = data.size_chart_id ? (sizeChartsById.get(data.size_chart_id) || null) : null;
   return data;
 }
 
@@ -16,7 +18,7 @@ async function getAll(req, res, next) {
   try {
     const { category, subcategory, gender, tag } = req.query;
 
-    const [rows, allColors] = await Promise.all([
+    const [rows, allColors, allSizeCharts] = await Promise.all([
       prisma.products.findMany({
         where: { is_live: true },
         select: {
@@ -26,8 +28,10 @@ async function getAll(req, res, next) {
         orderBy: { created_at: 'desc' },
       }),
       prisma.colors.findMany(),
+      prisma.size_charts.findMany(),
     ]);
     const colorsById = new Map(allColors.map(c => [c.id, c]));
+    const sizeChartsById = new Map(allSizeCharts.map(s => [s.id, s]));
     const ids = rows.map(r => r.id);
     const inventory = ids.length
       ? await prisma.product_inventory.findMany({ where: { product_id: { in: ids } }, select: { product_id: true, color_id: true, size_label: true, quantity: true } })
@@ -40,7 +44,7 @@ async function getAll(req, res, next) {
 
     let products = rows.map(r => ({
       id: r.id,
-      ...mergeLiveColors(r.published_data || {}, colorsById),
+      ...mergeLiveRefs(r.published_data || {}, colorsById, sizeChartsById),
       product_inventory: inventoryByProduct.get(r.id) || [],
       sales: r._count.order_items,
       has_customer_photos: r._count.customer_product_photos > 0,
@@ -73,17 +77,19 @@ async function getOne(req, res, next) {
     });
     if (!row) return res.status(404).json({ success: false, message: 'Product not found' });
 
-    const [inventory, allColors] = await Promise.all([
+    const [inventory, allColors, allSizeCharts] = await Promise.all([
       prisma.product_inventory.findMany({ where: { product_id: row.id }, select: { color_id: true, size_label: true, quantity: true } }),
       prisma.colors.findMany(),
+      prisma.size_charts.findMany(),
     ]);
     const colorsById = new Map(allColors.map(c => [c.id, c]));
+    const sizeChartsById = new Map(allSizeCharts.map(s => [s.id, s]));
 
     res.json({
       success: true,
       data: {
         id: row.id,
-        ...mergeLiveColors(row.published_data || {}, colorsById),
+        ...mergeLiveRefs(row.published_data || {}, colorsById, sizeChartsById),
         product_inventory: inventory,
       },
     });

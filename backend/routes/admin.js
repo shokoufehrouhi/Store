@@ -53,6 +53,11 @@ router.post('/sizes',       c.createSize);
 router.put('/sizes/:id',    c.updateSize);
 router.delete('/sizes/:id', c.deleteSize);
 
+router.get('/size-charts',        c.getSizeCharts);
+router.post('/size-charts',       c.createSizeChart);
+router.put('/size-charts/:id',    c.updateSizeChart);
+router.delete('/size-charts/:id', c.deleteSizeChart);
+
 router.get('/customers',        c.getAdminCustomers);
 router.put('/customers/:id',   c.updateAdminCustomer);
 
