@@ -642,6 +642,8 @@ function catBadgeStyle(key){
 }
 function priceStr(n){ return Number(n).toLocaleString('tr-TR')+'₺'; }
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// For values embedded as single-quoted JS string args inside a double-quoted onclick="" attribute.
+function escJs(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function getInv(inv, cId, sz){
   if(!inv||!inv.length) return null;
@@ -728,17 +730,23 @@ function render(p){
 
   // sizes
   var szH = '';
-  if(sizes.length){
+  if(sizes.length || p.size_chart){
+    var sizeGuideBtn = '';
+    if(p.size_chart){
+      var scImg  = p.size_chart['image_url_'+CL] || p.size_chart.image_url_fa;
+      var scName = p.size_chart['name_'+CL] || p.size_chart.name_fa;
+      sizeGuideBtn = '<button type="button" class="pd-size-guide-link" onclick="openSizeChartModal(\''+escJs(scImg)+'\',\''+escJs(scName)+'\')">'+(T.size_guide||'Beden Tablosunu Gör')+'</button>';
+    }
     szH = '<div>'
       + '<span class="pd-sec-label">'+(T.sizes_label||'Beden')+'</span>'
-      + (p.size_chart ? '<button type="button" class="pd-size-guide-link" onclick="openSizeChartModal(\''+esc(p.size_chart['image_url_'+CL]||p.size_chart.image_url_fa)+'\',\''+esc(p.size_chart['name_'+CL]||p.size_chart.name_fa)+'\')">'+(T.size_guide||'Beden Tablosu')+'</button>' : '')
-      + '<div class="pd-sizes-row">'
-      + sizes.map(function(ps){
-          var unavail = !ps.is_available;
-          return '<button class="modal-size-chip'+(unavail?' unavailable':'')+'" data-sz="'+ps.size_label+'"'
-            +(unavail?' disabled':'')+' onclick="selSize(this)">'+esc(ps.size_label)+'</button>';
-        }).join('')
-      + '</div>'
+      + sizeGuideBtn
+      + (sizes.length ? '<div class="pd-sizes-row">'
+        + sizes.map(function(ps){
+            var unavail = !ps.is_available;
+            return '<button class="modal-size-chip'+(unavail?' unavailable':'')+'" data-sz="'+ps.size_label+'"'
+              +(unavail?' disabled':'')+' onclick="selSize(this)">'+esc(ps.size_label)+'</button>';
+          }).join('')
+        + '</div>' : '')
       + '</div>';
   }
 
