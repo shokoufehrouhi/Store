@@ -3152,7 +3152,7 @@ async function openProductModal(id = null) {
       <div class="form-field">
         <select id="f-size-chart">
           <option value="">${t('noSizeChart')}</option>
-          ${allSizeCharts.map(c => `<option value="${c.id}" ${product?.size_chart_id===c.id?'selected':''}>${esc(c.name_fa)}</option>`).join('')}
+          ${allSizeCharts.map(c => `<option value="${c.id}" ${product?.size_chart_id===c.id?'selected':''}>${esc(c.name_en)}</option>`).join('')}
         </select>
       </div>
     </div>
