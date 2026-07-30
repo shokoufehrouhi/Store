@@ -3569,7 +3569,7 @@ function renderCategoriesPage(cats) {
               ${s.is_dirty ? `<span class="pending-dot" title="${t('pendingPublish')}"></span>` : ''}
             </td>
             <td><div class="actions">
-              <button class="btn btn-secondary btn-sm" onclick='openSubcategoryModal(${JSON.stringify(s).replace(/'/g,"\\'")})'>${t('edit')}</button>
+              <button class="btn btn-secondary btn-sm" onclick='openSubcategoryModal(${JSON.stringify(s).replace(/'/g,"&#39;")})'>${t('edit')}</button>
               <button class="btn btn-danger btn-sm" onclick="confirmDeleteSubcategory(${s.id},'${s.label_fa.replace(/'/g,"\\'")}')">${t('del')}</button>
             </div></td>
           </tr>`).join('')}</tbody>
@@ -3746,7 +3746,7 @@ function renderColorsTable(colors) {
     <td style="direction:ltr">${c.name_tr}</td>
     <td style="direction:ltr">${c.hex}</td>
     <td><div class="actions">
-      <button class="btn btn-secondary btn-sm" onclick='openColorModal(${JSON.stringify(c).replace(/'/g,"\\'")})'>${t('edit')}</button>
+      <button class="btn btn-secondary btn-sm" onclick='openColorModal(${JSON.stringify(c).replace(/'/g,"&#39;")})'>${t('edit')}</button>
       <button class="btn btn-danger btn-sm" onclick="confirmDeleteColor(${c.id},'${c.name_fa}')">${t('del')}</button>
     </div></td>
   </tr>`).join('');
@@ -3838,7 +3838,7 @@ function renderSizeChartsTable(charts) {
     <td><img src="${SERVER_URL}${c.image_url_fa}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--border)"></td>
     <td>${esc(c.name_fa)}</td>
     <td><div class="actions">
-      <button class="btn btn-secondary btn-sm" onclick='openSizeChartModal(${JSON.stringify(c).replace(/'/g,"\\'")})'>${t('edit')}</button>
+      <button class="btn btn-secondary btn-sm" onclick='openSizeChartModal(${JSON.stringify(c).replace(/'/g,"&#39;")})'>${t('edit')}</button>
       <button class="btn btn-danger btn-sm" onclick="confirmDeleteSizeChart(${c.id},'${esc(c.name_fa)}')">${t('del')}</button>
     </div></td>
   </tr>`).join('');
@@ -3966,7 +3966,7 @@ function renderCustomersTable(customers) {
       <td>${statusBadge}</td>
       <td style="font-size:12px;color:#999">${joined}</td>
       <td style="font-size:12px;color:#059669">${(c.birthday_email_sent_at && c.birthday_email_year && c.birth_date) ? new Date(c.birthday_email_year, new Date(c.birth_date).getMonth(), new Date(c.birth_date).getDate()).toLocaleDateString('en-GB') : '—'}</td>
-      <td><button class="btn btn-secondary btn-sm" onclick='openCustomerModal(${JSON.stringify(c).replace(/'/g,"\\'")})'>${t('edit')}</button></td>
+      <td><button class="btn btn-secondary btn-sm" onclick='openCustomerModal(${JSON.stringify(c).replace(/'/g,"&#39;")})'>${t('edit')}</button></td>
     </tr>`;
   }).join('');
 }
@@ -4067,7 +4067,7 @@ function renderSizesTable(sizes) {
     <td><span style="display:inline-block;background:#ede9fe;color:#7c3aed;padding:4px 14px;border-radius:20px;font-weight:700">${s.label}</span></td>
     <td>${s.sort_order}</td>
     <td><div class="actions">
-      <button class="btn btn-secondary btn-sm" onclick='openSizeModal(${JSON.stringify(s).replace(/'/g,"\\'")})'>${t('edit')}</button>
+      <button class="btn btn-secondary btn-sm" onclick='openSizeModal(${JSON.stringify(s).replace(/'/g,"&#39;")})'>${t('edit')}</button>
       <button class="btn btn-danger btn-sm" onclick="confirmDeleteSize(${s.id},'${s.label}')">${t('del')}</button>
     </div></td>
   </tr>`).join('');
