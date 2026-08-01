@@ -1129,7 +1129,7 @@ async function getSiteViewsReport(req, res, next) {
         FROM site_views
         WHERE created_at >= ${since} AND ip IS NOT NULL
         GROUP BY ip, city, country
-        ORDER BY cnt DESC
+        ORDER BY last_seen DESC
         LIMIT 100`,
     ]);
 
