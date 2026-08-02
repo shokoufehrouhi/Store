@@ -775,6 +775,7 @@ function render(p){
     +    '<div class="pd-main-img" id="pd-frame">'+mainContent+'</div>'
     +    arrows
     +  '</div>'
+    +  '<div class="pd-shipping-note"><p>'+(T.pd_note_shipping||'')+'</p><p>'+(T.pd_note_currency||'')+'</p></div>'
     +  thumbs
     +  '<div id="pd-cph"></div>'
     +'</div>'
@@ -787,7 +788,6 @@ function render(p){
     +  '</div>'
     +  '<h1 class="pd-name">'+esc(name)+'</h1>'
     +  ph
-    +  '<div class="pd-shipping-note"><p>'+(T.pd_note_shipping||'')+'</p><p>'+(T.pd_note_currency||'')+'</p></div>'
     +  (p.code ? '<div class="product-code-badge copyable" onclick="copyCode()" title="Copy"><span class="product-code-label">'+(T.product_code_label||'Ürün Kodu')+':</span> '+esc(p.code)+'</div>' : '')
     +  (desc ? '<div id="pd-desc-wrap"><p class="pd-desc" id="pd-desc-text">'+esc(desc)+'</p></div>' : '')
     +  colH
