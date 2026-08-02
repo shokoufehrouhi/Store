@@ -2329,7 +2329,7 @@ function openLegalModal(type) {
       '</table>';
   } else if (type === 'terms') {
     html = '<h2>' + t.terms_title + '</h2>' +
-      [1,2,3,4,5].map(function(i) {
+      [1,2,3,4,5,6,7].map(function(i) {
         return '<div class="legal-section"><h3>' + t['terms_' + i + '_title'] + '</h3><p>' + t['terms_' + i + '_body'] + '</p></div>';
       }).join('');
   } else if (type === 'privacy') {
@@ -2341,7 +2341,9 @@ function openLegalModal(type) {
     html = '<h2>' + t.policy_title + '</h2>' +
       '<div class="legal-section"><h3>' + t.policy_rule1_title + '</h3><p>' + t.policy_rule1_desc + '</p></div>' +
       '<div class="legal-section"><h3>' + t.policy_rule2_title + '</h3><p>' + t.policy_rule2_desc + '</p></div>' +
-      '<div class="legal-section"><h3>' + t.policy_rule3_title + '</h3><p>' + t.policy_rule3_desc + '</p></div>';
+      '<div class="legal-section"><h3>' + t.policy_rule3_title + '</h3><p>' + t.policy_rule3_desc + '</p></div>' +
+      '<div class="legal-section"><h3>' + t.policy_rule4_title + '</h3><p>' + t.policy_rule4_desc + '</p></div>' +
+      '<div class="legal-section"><h3>' + t.policy_rule5_title + '</h3><p>' + t.policy_rule5_desc + '</p></div>';
   }
 
   var box = document.getElementById('legal-modal-content');
