@@ -4332,7 +4332,7 @@ function submitReturnShipping(returnId, orderId) {
 }
 
 // ─── Customer product photos ──────────────────────────────────────────────────
-var _uploadedPhotos = {}; // orderId_productId => true
+var _uploadedPhotos = {}; // orderId_productId => count
 
 function buildProductPhotoUploadSection(order) {
   var t = TRANSLATIONS[currentLang] || TRANSLATIONS['fa'];
@@ -4343,16 +4343,16 @@ function buildProductPhotoUploadSection(order) {
     var pid   = oi.product_id || (oi.products && oi.products.id);
     var pname = oi.products ? (oi.products[nameKey] || oi.products.name_fa || '') : '';
     var key   = order.id + '_' + pid;
-    var already = _uploadedPhotos[key];
+    var count = _uploadedPhotos[key] || 0;
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f6">' +
       '<span style="font-size:13px;color:#374151">' + pname + '</span>' +
-      (already
-        ? '<span style="font-size:12px;color:#16a34a">✓ ' + (t.cphoto_uploaded || 'ثبت شد') + '</span>'
-        : '<label style="cursor:pointer;background:var(--primary);color:#fff;font-size:12px;padding:4px 10px;border-radius:6px">' +
-            (t.cphoto_btn || '📷 آپلود') +
-            '<input type="file" accept="image/*" style="display:none" onchange="submitProductPhoto(this,' + order.id + ',' + pid + ')">' +
-          '</label>'
-      ) +
+      '<span style="display:flex;align-items:center;gap:8px">' +
+        '<span id="cphoto-count-' + key + '" style="font-size:12px;color:#16a34a">' + (count ? '✓ ' + count : '') + '</span>' +
+        '<label style="cursor:pointer;background:var(--primary);color:#fff;font-size:12px;padding:4px 10px;border-radius:6px">' +
+          (t.cphoto_btn || '📷 آپلود') +
+          '<input type="file" accept="image/*" multiple style="display:none" onchange="submitProductPhoto(this,' + order.id + ',' + pid + ')">' +
+        '</label>' +
+      '</span>' +
     '</div>';
   }).join('');
   return '<div style="margin-top:12px;padding:12px 14px;background:#f8fafc;border:1px solid var(--border);border-radius:10px">' +
@@ -4366,30 +4366,34 @@ function submitProductPhoto(inputEl, orderId, productId) {
   var t     = TRANSLATIONS[currentLang] || TRANSLATIONS['fa'];
   var token = getSession();
   if (!token) { openAuthModal('login'); return; }
-  var file = inputEl.files[0];
-  if (!file) return;
-  var fd = new FormData();
-  fd.append('photo', file);
-  fd.append('product_id', productId);
-  fetch(API_BASE + '/orders/' + orderId + '/product-photos', {
-    method: 'POST', headers: { 'x-session-token': token }, body: fd,
-  }).then(function(r) { return r.json(); }).then(function(data) {
-    if (data.success) {
-      _uploadedPhotos[orderId + '_' + productId] = true;
-      showToast(t.cphoto_uploaded || 'ثبت شد');
-      var label = inputEl.closest('label');
-      if (label) {
-        var span = document.createElement('span');
-        span.style.cssText = 'font-size:12px;color:#16a34a';
-        span.textContent = '✓ ' + (t.cphoto_uploaded || 'ثبت شد');
-        label.parentNode.replaceChild(span, label);
+  var files = Array.prototype.slice.call(inputEl.files || []);
+  if (!files.length) return;
+  var key      = orderId + '_' + productId;
+  var uploaded = 0;
+
+  function uploadNext(i) {
+    if (i >= files.length) {
+      inputEl.value = '';
+      if (uploaded) {
+        _uploadedPhotos[key] = (_uploadedPhotos[key] || 0) + uploaded;
+        var countEl = document.getElementById('cphoto-count-' + key);
+        if (countEl) countEl.textContent = '✓ ' + _uploadedPhotos[key];
+        showToast(t.cphoto_uploaded || 'ثبت شد');
       }
-    } else if (data.message === 'already_uploaded') {
-      showToast(t.cphoto_already || 'قبلاً آپلود کرده‌اید', 'error');
-    } else {
-      showToast(data.message || 'خطا', 'error');
+      return;
     }
-  }).catch(function() { showToast('خطا', 'error'); });
+    var fd = new FormData();
+    fd.append('photo', files[i]);
+    fd.append('product_id', productId);
+    fetch(API_BASE + '/orders/' + orderId + '/product-photos', {
+      method: 'POST', headers: { 'x-session-token': token }, body: fd,
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      if (data.success) uploaded++;
+      else showToast(data.message || 'خطا', 'error');
+      uploadNext(i + 1);
+    }).catch(function() { showToast('خطا', 'error'); uploadNext(i + 1); });
+  }
+  uploadNext(0);
 }
 
 function loadProductPhotos(productId, containerEl) {

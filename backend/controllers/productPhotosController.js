@@ -50,15 +50,6 @@ async function uploadProductPhoto(req, res, next) {
       return res.status(403).json({ success: false, message: 'not_eligible' });
     }
 
-    // one photo per customer per product per order
-    const existing = await prisma.customer_product_photos.findFirst({
-      where: { customer_id: customerId, product_id: Number(product_id), order_id: orderId },
-    });
-    if (existing) {
-      fs.unlink(req.file.path, () => {});
-      return res.status(409).json({ success: false, message: 'already_uploaded' });
-    }
-
     const { compressUploadedImage } = require('../middleware/upload');
     const photoUrl = await compressUploadedImage(req);
     const photo = await prisma.customer_product_photos.create({
