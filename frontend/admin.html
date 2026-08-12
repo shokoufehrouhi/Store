@@ -5299,14 +5299,15 @@ async function toggleProductPhoto(id, approved) {
   }
 }
 
-async function deleteProductPhoto(id) {
-  if (!confirm(t('ppConfirmDelete'))) return;
-  const data = await api(`/admin/product-photos/${id}`, { method: 'DELETE' });
-  if (data?.success) {
-    _allProductPhotos = _allProductPhotos.filter(p => p.id !== id);
-    renderProductPhotosAdmin();
-    showToast(t('ppDeleted'));
-  }
+function deleteProductPhoto(id) {
+  showConfirm(t('ppConfirmDelete'), async () => {
+    const data = await api(`/admin/product-photos/${id}`, { method: 'DELETE' });
+    if (data?.success) {
+      _allProductPhotos = _allProductPhotos.filter(p => p.id !== id);
+      renderProductPhotosAdmin();
+      showToast(t('ppDeleted'));
+    }
+  });
 }
 
 // ─── Suppliers ────────────────────────────────────────────────────────────────
