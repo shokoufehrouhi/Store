@@ -934,7 +934,7 @@ function loadCph(pid){
     document.getElementById('pd-cph').innerHTML =
       '<p class="pd-cph-title">📷 '+lbl+' ('+d.data.length+')</p>'
       +'<div class="pd-cph-grid">'+d.data.map(function(ph){
-        return '<img class="pd-cph-img" src="'+SRV+ph.url+'" onclick="window.open(\''+SRV+ph.url+'\',\'_blank\')">';
+        return '<img class="pd-cph-img" src="'+SRV+ph.photo_url+'" onclick="window.open(\''+SRV+ph.photo_url+'\',\'_blank\')">';
       }).join('')+'</div>';
   }).catch(function(){});
 }
