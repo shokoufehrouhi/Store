@@ -8,7 +8,7 @@ function errorHandler(err, req, res, next) {
   if (err.code === 'P2025') {
     return res.status(404).json({ success: false, message: 'Not found' });
   }
-  if (err.code && err.code.startsWith('P')) {
+  if (typeof err.code === 'string' && err.code.startsWith('P')) {
     return res.status(400).json({ success: false, message: 'Database error' });
   }
 

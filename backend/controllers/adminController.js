@@ -597,7 +597,11 @@ async function getDeployStatus(req, res, next) {
       getRepoCommit(DEPLOY_PROD_DIR),
       getRepoCommit(DEPLOY_STAGING_DIR),
     ]);
-    const pending = await getPendingCommits(DEPLOY_PROD_DIR, production.hash, staging.hash);
+    // Resolved against the staging clone, not production's — production's local
+    // .git doesn't have staging's newer commit objects until it actually fetches
+    // during a deploy, so `git log prod..staging` only works run from staging
+    // (which, tracking the same linear main history, already has both).
+    const pending = await getPendingCommits(DEPLOY_STAGING_DIR, production.hash, staging.hash);
     res.json({ success: true, data: { production, staging, pending } });
   } catch (err) { next(err); }
 }
