@@ -1,6 +1,9 @@
 const prisma  = require('../prisma/client');
 const path    = require('path');
 const fs      = require('fs');
+const util    = require('util');
+const { execFile } = require('child_process');
+const execFileAsync = util.promisify(execFile);
 const { sendOrderEmail, sendLoyaltyEmail, sendPrizeEarnedEmail, label } = require('../utils/mailer');
 
 // ─── Communications ────────────────────────────────────────────────────────────
@@ -559,6 +562,71 @@ async function publishChanges(req, res, next) {
       })),
     ]);
     res.json({ success: true });
+  } catch (err) { next(err); }
+}
+
+// ─── Deploy (staging preview → production) ──────────────────────────────────────
+// staging (Store-staging) auto-pulls main every 2 min via cron (auto-pull.sh) and
+// serves it at staging.shilista.com. These two endpoints let the admin panel show
+// what's pending there and push it live to production (Store → /var/www/html).
+const DEPLOY_PROD_DIR    = '/home/admin/Store';
+const DEPLOY_STAGING_DIR = '/home/admin/Store-staging';
+const DEPLOY_WEB_ROOT    = '/var/www/html';
+
+async function getRepoCommit(dir) {
+  const { stdout } = await execFileAsync('git', ['log', '-1', '--format=%H%x1f%an%x1f%ad%x1f%s', '--date=short'], { cwd: dir });
+  const [hash, author, date, message] = stdout.trim().split('\x1f');
+  return { hash, short: hash.slice(0, 7), author, date, message };
+}
+
+async function getPendingCommits(dir, fromHash, toHash) {
+  if (!fromHash || !toHash || fromHash === toHash) return [];
+  const { stdout } = await execFileAsync(
+    'git', ['log', `${fromHash}..${toHash}`, '--format=%h%x1f%s%x1f%ad', '--date=short'], { cwd: dir }
+  );
+  if (!stdout.trim()) return [];
+  return stdout.trim().split('\n').map(line => {
+    const [hash, message, date] = line.split('\x1f');
+    return { hash, message, date };
+  });
+}
+
+async function getDeployStatus(req, res, next) {
+  try {
+    const [production, staging] = await Promise.all([
+      getRepoCommit(DEPLOY_PROD_DIR),
+      getRepoCommit(DEPLOY_STAGING_DIR),
+    ]);
+    const pending = await getPendingCommits(DEPLOY_PROD_DIR, production.hash, staging.hash);
+    res.json({ success: true, data: { production, staging, pending } });
+  } catch (err) { next(err); }
+}
+
+async function deployToProduction(req, res, next) {
+  try {
+    const before = await getRepoCommit(DEPLOY_PROD_DIR);
+
+    await execFileAsync('git', ['fetch', 'origin', 'main'], { cwd: DEPLOY_PROD_DIR });
+    await execFileAsync('git', ['reset', '--hard', 'origin/main'], { cwd: DEPLOY_PROD_DIR });
+
+    const after = await getRepoCommit(DEPLOY_PROD_DIR);
+    const deployed = before.hash !== after.hash;
+
+    if (deployed) {
+      const { stdout: changed } = await execFileAsync(
+        'git', ['diff', '--name-only', before.hash, after.hash], { cwd: DEPLOY_PROD_DIR }
+      );
+      const files = changed.trim().split('\n').filter(Boolean);
+
+      await execFileAsync('rsync', ['-a', '--exclude=.git', `${DEPLOY_PROD_DIR}/frontend/`, `${DEPLOY_WEB_ROOT}/`]);
+
+      if (files.some(f => f.startsWith('backend/'))) {
+        await execFileAsync('npm', ['install', '--omit=dev'], { cwd: `${DEPLOY_PROD_DIR}/backend` });
+        await execFileAsync('pm2', ['restart', 'shilista-api', '--update-env']);
+      }
+    }
+
+    res.json({ success: true, data: { deployed, before, after } });
   } catch (err) { next(err); }
 }
 
@@ -1475,6 +1543,7 @@ async function getCouponReport(req, res, next) {
 module.exports = {
   login, uploadMedia, deleteMedia,
   getPublishStatus, publishChanges,
+  getDeployStatus, deployToProduction,
   getCategories, createCategory, updateCategory, toggleCategory, deleteCategory,
   getSubcategories, createSubcategory, updateSubcategory, toggleSubcategory, deleteSubcategory,
   getColors, createColor, updateColor, deleteColor,

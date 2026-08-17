@@ -862,6 +862,18 @@
           </button>
         </div>
       </div>
+
+      <div class="nav-section" id="navsec-system">
+        <button class="nav-section-label" onclick="toggleNavSection('system')">
+          <span data-i18n="navGroupSystem">سیستم</span>
+          <span class="nav-section-arrow">▾</span>
+        </button>
+        <div class="nav-section-items">
+          <button class="nav-item" onclick="showTab('deploy')" id="nav-deploy">
+            <span class="nav-icon">🚀</span><span data-i18n="navDeploy">استقرار</span>
+          </button>
+        </div>
+      </div>
     </nav>
     <div class="sidebar-footer">
       <button class="btn-publish" id="btn-publish" onclick="openPublishConfirm()">
@@ -1220,6 +1232,35 @@
       <div class="page-body">
         <div class="card" style="padding:0">
           <div id="product-photos-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Deploy Tab -->
+    <div id="tab-deploy" class="hidden">
+      <div class="page-header">
+        <h2>🚀 <span data-i18n="navDeploy">استقرار</span></h2>
+        <button class="btn btn-secondary btn-sm" onclick="loadDeployStatus()" data-i18n="ordersRefresh">🔄 بروزرسانی</button>
+      </div>
+      <div class="page-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+          <div class="card">
+            <div style="font-size:12px;font-weight:700;color:#999;text-transform:uppercase;margin-bottom:8px" data-i18n="deployProduction">تولید (زنده)</div>
+            <div id="deploy-prod-commit" style="font-size:13px;color:#555">…</div>
+          </div>
+          <div class="card">
+            <div style="font-size:12px;font-weight:700;color:#999;text-transform:uppercase;margin-bottom:8px" data-i18n="deployStaging">پیش‌نمایش</div>
+            <div id="deploy-staging-commit" style="font-size:13px;color:#555">…</div>
+            <a href="https://staging.shilista.com" target="_blank" style="display:inline-block;margin-top:8px;font-size:12px" data-i18n="deployOpenStaging">🔗 باز کردن پیش‌نمایش ↗</a>
+          </div>
+        </div>
+        <div class="card">
+          <div id="deploy-uptodate" class="hidden" style="text-align:center;padding:24px;color:#16a34a;font-weight:700" data-i18n="deployUpToDate">✓ تولید با آخرین تغییرات همگام است</div>
+          <div id="deploy-pending-wrap" class="hidden">
+            <div style="font-weight:700;font-size:14px;margin-bottom:10px" data-i18n="deployPendingTitle">تغییرات در انتظار استقرار:</div>
+            <div id="deploy-pending-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px"></div>
+            <button class="btn btn-primary" id="deploy-btn" onclick="deployProduction()" data-i18n="deployBtn">🚀 استقرار روی تولید</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1709,8 +1750,8 @@ const LANGS = {
     storeAdmin:'پنل مدیریت فروشگاه', adminPanel:'پنل مدیریت',
     loginBtn:'ورود به پنل', username:'نام کاربری', password:'رمز عبور',
     connecting:'در حال ورود...', connFail:'اتصال به سرور ناموفق بود',
-    navGroupOverview:'نمای کلی', navGroupCatalog:'فروشگاه', navGroupConfig:'تنظیمات پایه', navGroupUsers:'کاربران',
-    navDashboard:'داشبورد', navNotifications:'اعلان‌ها', navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navSizeCharts:'جدول سایز', navCustomers:'مشتریان', navLeads:'لیدها', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navProductPhotos:'عکس‌های خریداران', refresh:'بروزرسانی',
+    navGroupOverview:'نمای کلی', navGroupCatalog:'فروشگاه', navGroupConfig:'تنظیمات پایه', navGroupUsers:'کاربران', navGroupSystem:'سیستم',
+    navDashboard:'داشبورد', navNotifications:'اعلان‌ها', navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navSizeCharts:'جدول سایز', navCustomers:'مشتریان', navLeads:'لیدها', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navProductPhotos:'عکس‌های خریداران', navDeploy:'استقرار', refresh:'بروزرسانی',
     navCommunications:'ارتباطات', commAllTypes:'همه انواع', commSubject:'موضوع', commTo:'گیرنده', commType:'نوع', commDate:'تاریخ', commCustomer:'مشتری', commView:'مشاهده', commEmpty:'ایمیلی ثبت نشده',
     commTypePaymentNeeded:'نیاز به پرداخت', commTypePreparing:'در حال آماده‌سازی', commTypeDelivery:'ارسال', commTypeDelivered:'تحویل داده شد', commTypeRejected:'رد سفارش', commTypePreorderRejected:'رد پیش‌سفارش', commTypeReply:'پاسخ پیام', commTypeLoyalty:'وفاداری', commTypeBirthday:'تولد', commTypeWelcome:'خوش‌آمد', commTypePrize:'جایزه', commTypeInvite:'دعوت دوست', commTypeVerification:'کد تایید', commTypeRaw:'ارسال مستقیم',
     notifMarkAll:'همه خوانده شد', notifNewOrder:'سفارش جدید', notifOrderUpdate:'بروزرسانی سفارش', notifNewPrize:'جایزه جدید', notifPrizeUpdate:'بروزرسانی جایزه', notifNewReturn:'درخواست مرجوعی', notifReturnUpdate:'بروزرسانی مرجوعی', notifNewCustomer:'مشتری جدید', notifNewLead:'لید جدید', notifView:'مشاهده', notifEmpty:'اعلانی وجود ندارد',
@@ -1838,6 +1879,7 @@ const LANGS = {
     valHexFormat:'کد رنگ باید به فرمت #RRGGBB باشد',
     deleteItem:'حذف آیتم', confirmYes:'بله، حذف کن', confirmNo:'انصراف',
     publishChanges:'انتشار تغییرات', confirmPublish:'آیا مطمئنید تغییرات روی سایت منتشر شوند؟', publishedOk:'تغییرات با موفقیت منتشر شد', pendingPublish:'منتشر نشده — منتظر انتشار',
+    deployProduction:'تولید (زنده)', deployStaging:'پیش‌نمایش', deployOpenStaging:'🔗 باز کردن پیش‌نمایش ↗', deployUpToDate:'✓ تولید با آخرین تغییرات همگام است', deployPendingTitle:'تغییرات در انتظار استقرار:', deployBtn:'🚀 استقرار روی تولید', deployConfirm:'این تغییرات روی سایت اصلی (shilista.com) اعمال شوند؟', deployInProgress:'در حال استقرار…', deployDone:'با موفقیت روی تولید مستقر شد', deployError:'خطا در استقرار',
     confirmDeleteProduct:'این محصول حذف شود؟', confirmDeleteSubcat:'این زیردسته حذف شود؟',
     confirmDeleteColor:'این رنگ حذف شود؟',
     bestseller:'پرفروش', newTag:'جدید',
@@ -1903,8 +1945,8 @@ const LANGS = {
     storeAdmin:'Store Admin Panel', adminPanel:'Admin Panel',
     loginBtn:'Login', username:'Username', password:'Password',
     connecting:'Logging in...', connFail:'Could not connect to server',
-    navGroupOverview:'Overview', navGroupCatalog:'Store', navGroupConfig:'Configuration', navGroupUsers:'Users',
-    navDashboard:'Dashboard', navNotifications:'Notifications', navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navSizeCharts:'Size Charts', navCustomers:'Customers', navLeads:'Leads', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navProductPhotos:'Buyer Photos', refresh:'Refresh',
+    navGroupOverview:'Overview', navGroupCatalog:'Store', navGroupConfig:'Configuration', navGroupUsers:'Users', navGroupSystem:'System',
+    navDashboard:'Dashboard', navNotifications:'Notifications', navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navSizeCharts:'Size Charts', navCustomers:'Customers', navLeads:'Leads', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navProductPhotos:'Buyer Photos', navDeploy:'Deploy', refresh:'Refresh',
     navCommunications:'Communications', commAllTypes:'All types', commSubject:'Subject', commTo:'To', commType:'Type', commDate:'Date', commCustomer:'Customer', commView:'View', commEmpty:'No emails logged yet',
     commTypePaymentNeeded:'Payment Needed', commTypePreparing:'Preparing', commTypeDelivery:'Shipping', commTypeDelivered:'Delivered', commTypeRejected:'Rejected', commTypePreorderRejected:'Preorder Rejected', commTypeReply:'Reply', commTypeLoyalty:'Loyalty', commTypeBirthday:'Birthday', commTypeWelcome:'Welcome', commTypePrize:'Prize', commTypeInvite:'Invite', commTypeVerification:'Verification', commTypeRaw:'Direct Send',
     notifMarkAll:'Mark all read', notifNewOrder:'New Order', notifOrderUpdate:'Order Updated', notifNewPrize:'New Prize', notifPrizeUpdate:'Prize Updated', notifNewReturn:'Return Request', notifReturnUpdate:'Return Updated', notifNewCustomer:'New Customer', notifNewLead:'New Lead', notifView:'View', notifEmpty:'No notifications',
@@ -2032,6 +2074,7 @@ const LANGS = {
     valHexFormat:'Color code must be in #RRGGBB format',
     deleteItem:'Delete Item', confirmYes:'Yes, Delete', confirmNo:'Cancel',
     publishChanges:'Publish Changes', confirmPublish:'Are you sure you want to publish these changes to the live site?', publishedOk:'Changes published successfully', pendingPublish:'Not published yet — waiting for publish',
+    deployProduction:'Production (live)', deployStaging:'Preview', deployOpenStaging:'🔗 Open preview ↗', deployUpToDate:'✓ Production is up to date', deployPendingTitle:'Changes pending deploy:', deployBtn:'🚀 Deploy to Production', deployConfirm:'Push these changes live to shilista.com?', deployInProgress:'Deploying…', deployDone:'Deployed to production successfully', deployError:'Deploy failed',
     confirmDeleteProduct:'Delete this product?', confirmDeleteSubcat:'Delete this subcategory?',
     confirmDeleteColor:'Delete this color?',
     bestseller:'Bestseller', newTag:'New',
@@ -2097,8 +2140,8 @@ const LANGS = {
     storeAdmin:'Mağaza Yönetim Paneli', adminPanel:'Yönetim Paneli',
     loginBtn:'Giriş Yap', username:'Kullanıcı Adı', password:'Şifre',
     connecting:'Giriş yapılıyor...', connFail:'Sunucuya bağlanılamadı',
-    navGroupOverview:'Genel Bakış', navGroupCatalog:'Mağaza', navGroupConfig:'Yapılandırma', navGroupUsers:'Kullanıcılar',
-    navDashboard:'Gösterge Paneli', navNotifications:'Bildirimler', navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navSizeCharts:'Beden Tablosu', navCustomers:'Müşteriler', navLeads:'Adaylar', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navProductPhotos:'Alıcı Fotoğrafları', refresh:'Yenile',
+    navGroupOverview:'Genel Bakış', navGroupCatalog:'Mağaza', navGroupConfig:'Yapılandırma', navGroupUsers:'Kullanıcılar', navGroupSystem:'Sistem',
+    navDashboard:'Gösterge Paneli', navNotifications:'Bildirimler', navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navSizeCharts:'Beden Tablosu', navCustomers:'Müşteriler', navLeads:'Adaylar', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navProductPhotos:'Alıcı Fotoğrafları', navDeploy:'Dağıtım', refresh:'Yenile',
     navCommunications:'İletişim', commAllTypes:'Tüm türler', commSubject:'Konu', commTo:'Alıcı', commType:'Tür', commDate:'Tarih', commCustomer:'Müşteri', commView:'Görüntüle', commEmpty:'Henüz e-posta kaydı yok',
     commTypePaymentNeeded:'Ödeme Gerekli', commTypePreparing:'Hazırlanıyor', commTypeDelivery:'Kargo', commTypeDelivered:'Teslim Edildi', commTypeRejected:'Reddedildi', commTypePreorderRejected:'Ön Sipariş Reddedildi', commTypeReply:'Yanıt', commTypeLoyalty:'Sadakat', commTypeBirthday:'Doğum Günü', commTypeWelcome:'Hoş Geldin', commTypePrize:'Ödül', commTypeInvite:'Davet', commTypeVerification:'Doğrulama', commTypeRaw:'Doğrudan Gönderim',
     notifMarkAll:'Tümünü okundu say', notifNewOrder:'Yeni Sipariş', notifOrderUpdate:'Sipariş Güncellendi', notifNewPrize:'Yeni Ödül', notifPrizeUpdate:'Ödül Güncellendi', notifNewReturn:'İade Talebi', notifReturnUpdate:'İade Güncellendi', notifNewCustomer:'Yeni Müşteri', notifNewLead:'Yeni Aday', notifView:'Görüntüle', notifEmpty:'Bildirim yok',
@@ -2226,6 +2269,7 @@ const LANGS = {
     valHexFormat:'Renk kodu #RRGGBB formatında olmalı',
     deleteItem:'Öğeyi Sil', confirmYes:'Evet, Sil', confirmNo:'İptal',
     publishChanges:'Değişiklikleri Yayınla', confirmPublish:'Bu değişiklikleri canlı siteye yayınlamak istediğinize emin misiniz?', publishedOk:'Değişiklikler başarıyla yayınlandı', pendingPublish:'Henüz yayınlanmadı — yayın bekleniyor',
+    deployProduction:'Üretim (canlı)', deployStaging:'Ön izleme', deployOpenStaging:'🔗 Ön izlemeyi aç ↗', deployUpToDate:'✓ Üretim güncel', deployPendingTitle:'Dağıtım bekleyen değişiklikler:', deployBtn:'🚀 Üretime Dağıt', deployConfirm:'Bu değişiklikler canlı siteye (shilista.com) uygulansın mı?', deployInProgress:'Dağıtılıyor…', deployDone:'Üretime başarıyla dağıtıldı', deployError:'Dağıtım başarısız',
     confirmDeleteProduct:'Bu ürün silinsin mi?', confirmDeleteSubcat:'Bu alt kategori silinsin mi?',
     confirmDeleteColor:'Bu renk silinsin mi?',
     bestseller:'Çok Satan', newTag:'Yeni',
@@ -2439,7 +2483,7 @@ function showTab(tab) {
   currentTab = tab;
   localStorage.setItem('admin_tab', tab);
   if (window.innerWidth <= 768) closeSidebar();
-  ['communications','notifications','dashboard','products','categories','colors','sizes','size-charts','customers','active-orders','orders','prizes','returns','product-photos','suppliers','bank-accounts','coupons','leads','reports'].forEach(t2 => {
+  ['communications','notifications','dashboard','products','categories','colors','sizes','size-charts','customers','active-orders','orders','prizes','returns','product-photos','suppliers','bank-accounts','coupons','leads','reports','deploy'].forEach(t2 => {
     const el = document.getElementById(`tab-${t2}`);
     const nav = document.getElementById(`nav-${t2}`);
     if (el)  el.classList.add('hidden');
@@ -2468,6 +2512,7 @@ function showTab(tab) {
   if (tab === 'coupons')        initCoupons();
   if (tab === 'leads')          loadLeads();
   if (tab === 'reports')        initReports();
+  if (tab === 'deploy')         loadDeployStatus();
 }
 
 // ─── API helper ───────────────────────────────────────────────────────────────
@@ -5308,6 +5353,51 @@ function deleteProductPhoto(id) {
       showToast(t('ppDeleted'));
     }
   });
+}
+
+// ─── Deploy (staging preview → production) ─────────────────────────────────────
+async function loadDeployStatus() {
+  const data = await api('/admin/deploy/status');
+  if (!data?.success) return;
+  renderDeployStatus(data.data);
+}
+
+function deployCommitLine(c) {
+  if (!c) return '—';
+  return `<code style="font-size:11px;color:#999">${esc(c.short || '')}</code> ${esc(c.message || '')}`
+       + `<br><span style="font-size:11px;color:#aaa">${esc(c.author || '')} · ${esc(c.date || '')}</span>`;
+}
+
+function renderDeployStatus(data) {
+  document.getElementById('deploy-prod-commit').innerHTML    = deployCommitLine(data.production);
+  document.getElementById('deploy-staging-commit').innerHTML = deployCommitLine(data.staging);
+
+  const pending = data.pending || [];
+  document.getElementById('deploy-uptodate').classList.toggle('hidden', pending.length > 0);
+  document.getElementById('deploy-pending-wrap').classList.toggle('hidden', pending.length === 0);
+
+  document.getElementById('deploy-pending-list').innerHTML = pending.map(c => `
+    <div style="display:flex;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px solid #f3f4f6">
+      <code style="font-size:11px;color:#999;flex-shrink:0">${esc(c.hash)}</code>
+      <span style="font-size:13px;flex:1">${esc(c.message)}</span>
+      <span style="font-size:11px;color:#aaa;flex-shrink:0">${esc(c.date)}</span>
+    </div>
+  `).join('');
+}
+
+function deployProduction() {
+  showConfirm(t('deployConfirm'), async () => {
+    const btn = document.getElementById('deploy-btn');
+    if (btn) { btn.disabled = true; btn.textContent = t('deployInProgress'); }
+    const data = await api('/admin/deploy', { method: 'POST' });
+    if (data?.success) {
+      showToast(t('deployDone'));
+      loadDeployStatus();
+    } else {
+      showToast(data?.message || t('deployError'), 'error');
+    }
+    if (btn) { btn.disabled = false; btn.textContent = t('deployBtn'); }
+  }, { icon: '🚀', title: t('deployBtn') });
 }
 
 // ─── Suppliers ────────────────────────────────────────────────────────────────

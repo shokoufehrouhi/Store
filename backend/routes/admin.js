@@ -69,6 +69,9 @@ router.delete('/products/:id', c.deleteProduct);
 router.get('/publish/status', c.getPublishStatus);
 router.post('/publish',       c.publishChanges);
 
+router.get('/deploy/status', c.getDeployStatus);
+router.post('/deploy',       c.deployToProduction);
+
 router.get('/orders',                    c.getAdminOrders);
 router.patch('/orders/:id/payment-info', c.setPaymentInfo);
 router.patch('/orders/:id/approve',      c.approvePayment);
