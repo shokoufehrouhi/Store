@@ -4085,7 +4085,7 @@ function _renderOrdersList(apiOrders) {
     return;
   }
   if (!combined) {
-    container.innerHTML =
+    container.innerHTML = filterBar +
       '<div class="empty-banner empty-banner--orders">' +
       '<div class="empty-banner-bg"></div>' +
       '<div class="empty-banner-body">' +
