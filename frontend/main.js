@@ -3657,36 +3657,80 @@ function toggleOrdersActiveFilter() {
 }
 
 // ─── Link-based pre-order request modal ────────────────────────────────────────
+// ─── Link-based pre-order request — full page (same shell/classes as checkout) ─
 function openLinkRequestModal() {
   var token = getSession();
   if (!token) { openAuthModal('login'); return; }
+  if (document.getElementById('linkreq-page-overlay')) return;
   var t = TRANSLATIONS[currentLang];
+  var backArrow = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>';
+
   var overlay = document.createElement('div');
-  overlay.className = 'link-req-overlay';
+  overlay.className = 'checkout-overlay open';
+  overlay.id = 'linkreq-page-overlay';
   overlay.innerHTML =
-    '<div class="link-req-card">' +
-      '<button class="link-req-close" onclick="this.closest(\'.link-req-overlay\').remove()">&#x2715;</button>' +
-      '<div class="link-req-title">' + t.link_req_modal_title + '</div>' +
-      '<div class="link-req-desc">' + t.link_req_modal_desc + '</div>' +
-      '<div class="form-field" style="margin-bottom:12px">' +
-        '<label>' + t.link_req_link_label + '</label>' +
-        '<input id="link-req-url" type="url" placeholder="' + t.link_req_link_ph + '" style="direction:ltr;text-align:left">' +
-        '<span class="auth-field-error" id="link-req-url-err"></span>' +
+    '<div class="checkout-page">' +
+      '<div class="checkout-header">' +
+        '<button class="checkout-back-btn" onclick="closeLinkRequestModal()">' + backArrow + '<span>' + t.link_req_back_btn + '</span></button>' +
+        '<h2 class="checkout-title">' + t.link_req_modal_title + '</h2>' +
       '</div>' +
-      '<div class="form-field" style="margin-bottom:16px">' +
-        '<label>' + t.link_req_note_label + '</label>' +
-        '<textarea id="link-req-note" placeholder="' + t.link_req_note_ph + '" rows="3"></textarea>' +
+      '<div class="checkout-body">' +
+
+        '<div class="checkout-section">' +
+          '<div class="checkout-section-title">' + t.link_req_link_label + '</div>' +
+          '<p style="font-size:13px;color:#888;margin:-4px 0 12px;line-height:1.6">' + t.link_req_modal_desc + '</p>' +
+          '<input id="link-req-url" class="checkout-text-input" type="url" placeholder="' + t.link_req_link_ph + '" style="direction:ltr;text-align:left">' +
+          '<div class="checkout-err" id="link-req-url-err"></div>' +
+        '</div>' +
+
+        '<div class="checkout-section">' +
+          '<div class="checkout-section-title">' + t.link_req_details_section + '</div>' +
+          '<div class="checkout-note-coupon-row" style="margin-bottom:14px">' +
+            '<div>' +
+              '<label class="checkout-field-label">' + t.order_size_lbl + '</label>' +
+              '<input id="link-req-size" class="checkout-text-input" placeholder="' + t.link_req_size_ph + '">' +
+            '</div>' +
+            '<div>' +
+              '<label class="checkout-field-label">' + t.color_label + '</label>' +
+              '<input id="link-req-color" class="checkout-text-input" placeholder="' + t.link_req_color_ph + '">' +
+            '</div>' +
+          '</div>' +
+          '<div style="max-width:140px">' +
+            '<label class="checkout-field-label">' + t.cart_qty + '</label>' +
+            '<input id="link-req-qty" class="checkout-text-input" type="number" min="1" step="1" value="1" placeholder="' + t.link_req_qty_ph + '">' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="checkout-section">' +
+          '<div class="checkout-section-title">' + t.link_req_note_label + '</div>' +
+          '<textarea id="link-req-note" class="checkout-note-input" placeholder="' + t.link_req_note_ph + '" rows="4"></textarea>' +
+        '</div>' +
+
+        '<div class="checkout-footer">' +
+          '<button class="checkout-submit-btn" id="link-req-submit-btn" onclick="submitLinkRequest()">' + t.link_req_submit_btn + '</button>' +
+        '</div>' +
+
       '</div>' +
-      '<button class="auth-submit-btn" id="link-req-submit-btn" onclick="submitLinkRequest()" style="width:100%">' + t.link_req_submit_btn + '</button>' +
     '</div>';
   document.body.appendChild(overlay);
-  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+  document.documentElement.style.overflow = 'hidden';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLinkRequestModal() {
+  var overlay = document.getElementById('linkreq-page-overlay');
+  if (overlay) overlay.remove();
+  document.documentElement.style.overflow = '';
+  document.body.style.overflow = '';
 }
 
 function submitLinkRequest() {
   var t       = TRANSLATIONS[currentLang];
   var token   = getSession();
   var urlEl   = document.getElementById('link-req-url');
+  var sizeEl  = document.getElementById('link-req-size');
+  var colorEl = document.getElementById('link-req-color');
+  var qtyEl   = document.getElementById('link-req-qty');
   var noteEl  = document.getElementById('link-req-note');
   var errEl   = document.getElementById('link-req-url-err');
   var btn     = document.getElementById('link-req-submit-btn');
@@ -3701,17 +3745,30 @@ function submitLinkRequest() {
     return;
   }
 
+  // Size/color/qty have no dedicated columns on the order (it's not a
+  // catalog product) — folded into the same free-text note field the admin
+  // already sees, using the site's existing size/color/qty labels.
+  var size  = (sizeEl.value  || '').trim();
+  var color = (colorEl.value || '').trim();
+  var qty   = Math.max(1, parseInt(qtyEl.value, 10) || 1);
+  var extra = (noteEl.value || '').trim();
+  var noteParts = [];
+  if (size)  noteParts.push(t.order_size_lbl.trim() + ': ' + size);
+  if (color) noteParts.push(t.color_label.replace(/:$/, '') + ': ' + color);
+  noteParts.push(t.cart_qty.replace(/:$/, '') + ': ' + qty);
+  if (extra) noteParts.push(extra);
+  var composedNote = noteParts.join('\n');
+
   btn.disabled = true;
   fetch(API_BASE + '/orders/link-request', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'x-session-token': token },
-    body:    JSON.stringify({ product_link: link, note: (noteEl.value || '').trim(), lang: currentLang }),
+    body:    JSON.stringify({ product_link: link, note: composedNote, lang: currentLang }),
   }).then(function(r) { return r.json().then(function(d) { return { status: r.status, data: d }; }); })
     .then(function(r) {
       btn.disabled = false;
       if (r.data.success) {
-        var overlay = document.querySelector('.link-req-overlay');
-        if (overlay) overlay.remove();
+        closeLinkRequestModal();
         showToast(t.link_req_success);
         renderOrders();
       } else if (r.data.message === 'active_link_request_exists') {
