@@ -3948,9 +3948,11 @@ function _renderOrdersList(apiOrders) {
           if (it.size)  metaParts.push(t.order_size_lbl.trim() + ': ' + it.size);
           if (it.color) metaParts.push(t.color_label.replace(/:$/, '') + ': ' + it.color);
           metaParts.push(t.cart_qty.replace(/:$/, '') + ': ' + it.qty);
-          var priceLine = it.unit_price
+          var priceLine = it.unit_price != null
             ? '<div class="linkreq-order-item-price">' + (t.quote_price_label || 'قیمت واحد') + ': ' + formatPrice(it.unit_price) + ' × ' + it.qty + ' = ' + formatPrice(Number(it.unit_price) * it.qty) + '</div>'
-            : '';
+            : it.rejected
+              ? '<div class="linkreq-order-item-price" style="color:#dc2626">🚫 ' + (t.link_item_rejected_label || 'این مورد رد شد') + (it.rejection_reason ? ': ' + it.rejection_reason : '') + '</div>'
+              : '';
           return '<div class="linkreq-order-item">' +
             (order.link_request_items.length > 1 ? '<strong>#' + (i + 1) + '</strong> ' : '') +
             '<a href="' + it.product_link + '" target="_blank" rel="noopener" style="direction:ltr;display:inline-block">' + it.product_link + '</a>' +

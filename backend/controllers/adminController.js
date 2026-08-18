@@ -932,6 +932,62 @@ async function getAdminOrders(req, res, next) {
 // order has a unit_price, the order auto-transitions link_requested ->
 // price_quoted (starting the customer's 14-day response clock) with
 // total_amount = sum(unit_price * qty) across all items.
+// Called after either pricing or rejecting one item — checks whether every
+// item on the order is now resolved (priced or rejected) and, if so,
+// transitions the order and sends the matching email. Returns the updated
+// order if it transitioned, or null if some items are still pending.
+async function finalizeLinkRequestOrderIfReady(orderId, resolvedItems) {
+  const allResolved = resolvedItems.every((it) => it.unit_price != null || it.rejected);
+  if (!allResolved) return null;
+
+  const now = new Date();
+  const pricedItems = resolvedItems.filter((it) => !it.rejected);
+
+  if (!pricedItems.length) {
+    // Every single item was rejected — nothing left to quote, so the whole
+    // order is rejected, same terminal state as an admin-side preorder reject.
+    const updated = await prisma.orders.update({
+      where: { id: orderId },
+      data:  { status: 'rejected', rejected_at: now, updated_at: now },
+      include: ADMIN_ORDER_INCLUDE,
+    });
+    if (updated.customers) {
+      const ol = updated.lang || 'fa';
+      const reasons = resolvedItems
+        .map((it, i) => (resolvedItems.length > 1 ? `#${i + 1}: ` : '') + (it.rejection_reason || ''))
+        .filter(Boolean);
+      const extraInfo = reasons.length ? [{ label: label('reject_reason', ol), value: reasons.join(' / ') }] : [];
+      sendOrderEmail(updated.customers, updated, 'preorder_rejected', extraInfo).catch(() => {});
+    }
+    return updated;
+  }
+
+  const total = Math.round(pricedItems.reduce((sum, it) => sum + Number(it.unit_price) * it.qty, 0));
+  const updated = await prisma.orders.update({
+    where: { id: orderId },
+    data:  { status: 'price_quoted', quoted_at: now, total_amount: total, updated_at: now },
+    include: ADMIN_ORDER_INCLUDE,
+  });
+  if (updated.customers) {
+    const ol = updated.lang || 'fa';
+    const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' TL';
+    const multi = updated.link_request_items.length > 1;
+    const extraInfo = updated.link_request_items.flatMap((it, i) => {
+      const prefix = multi ? `#${i + 1} ` : '';
+      if (it.rejected) {
+        return [{ label: prefix + label('product_link', ol), value: `${it.product_link} — ${label('reject_reason', ol)}: ${it.rejection_reason || '—'}`, dir: 'ltr' }];
+      }
+      return [
+        { label: prefix + label('product_link', ol), value: it.product_link, dir: 'ltr' },
+        { label: prefix + label('unit_price', ol), value: `${fmt(it.unit_price)} × ${it.qty}`, dir: 'ltr' },
+      ];
+    });
+    extraInfo.push({ label: label('order_total', ol), value: fmt(total), dir: 'ltr' });
+    sendOrderEmail(updated.customers, updated, 'price_quoted', extraInfo).catch(() => {});
+  }
+  return updated;
+}
+
 async function setLinkItemPrice(req, res, next) {
   try {
     const orderId = Number(req.params.orderId);
@@ -946,6 +1002,9 @@ async function setLinkItemPrice(req, res, next) {
     }
     const item = order.link_request_items.find((it) => it.id === itemId);
     if (!item) return res.status(404).json({ success: false, message: 'Item not found' });
+    if (item.unit_price != null || item.rejected) {
+      return res.status(400).json({ success: false, message: 'item_already_resolved' });
+    }
 
     const amount = Number(req.body.amount);
     if (!amount || amount <= 0) {
@@ -961,34 +1020,45 @@ async function setLinkItemPrice(req, res, next) {
       data:  { unit_price: roundedUnit },
     });
 
-    const allItems = order.link_request_items.map((it) => (it.id === itemId ? { ...it, unit_price: roundedUnit } : it));
-    const allPriced = allItems.every((it) => it.unit_price != null);
+    const resolvedItems = order.link_request_items.map((it) => (it.id === itemId ? { ...it, unit_price: roundedUnit } : it));
+    const finalized = await finalizeLinkRequestOrderIfReady(orderId, resolvedItems);
+    const updated = finalized || await prisma.orders.findUnique({ where: { id: orderId }, include: ADMIN_ORDER_INCLUDE });
+    res.json({ success: true, data: updated });
+  } catch (err) { next(err); }
+}
 
-    let updated;
-    if (allPriced) {
-      const total = Math.round(allItems.reduce((sum, it) => sum + Number(it.unit_price) * it.qty, 0));
-      const now = new Date();
-      updated = await prisma.orders.update({
-        where: { id: orderId },
-        data:  { status: 'price_quoted', quoted_at: now, total_amount: total, updated_at: now },
-        include: ADMIN_ORDER_INCLUDE,
-      });
-      if (updated.customers) {
-        const ol = updated.lang || 'fa';
-        const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' TL';
-        const extraInfo = updated.link_request_items.flatMap((it, i) => {
-          const prefix = updated.link_request_items.length > 1 ? `#${i + 1} ` : '';
-          return [
-            { label: prefix + label('product_link', ol), value: it.product_link, dir: 'ltr' },
-            { label: prefix + label('unit_price', ol), value: `${fmt(it.unit_price)} × ${it.qty}`, dir: 'ltr' },
-          ];
-        });
-        extraInfo.push({ label: label('order_total', ol), value: fmt(total), dir: 'ltr' });
-        sendOrderEmail(updated.customers, updated, 'price_quoted', extraInfo).catch(() => {});
-      }
-    } else {
-      updated = await prisma.orders.findUnique({ where: { id: orderId }, include: ADMIN_ORDER_INCLUDE });
+// PATCH /api/admin/orders/:orderId/link-items/:itemId/reject — declines ONE
+// link (e.g. it's out of stock at the supplier, or we don't ship that brand).
+// Mirrors setLinkItemPrice's resolution/transition logic exactly, just marking
+// the item rejected instead of priced.
+async function rejectLinkItem(req, res, next) {
+  try {
+    const orderId = Number(req.params.orderId);
+    const itemId  = Number(req.params.itemId);
+    const order = await prisma.orders.findUnique({
+      where: { id: orderId },
+      include: { link_request_items: { orderBy: { id: 'asc' } } },
+    });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.status !== 'link_requested') {
+      return res.status(400).json({ success: false, message: 'Order must be in link_requested status' });
     }
+    const item = order.link_request_items.find((it) => it.id === itemId);
+    if (!item) return res.status(404).json({ success: false, message: 'Item not found' });
+    if (item.unit_price != null || item.rejected) {
+      return res.status(400).json({ success: false, message: 'item_already_resolved' });
+    }
+
+    const reason = req.body.reason ? String(req.body.reason).trim().slice(0, 1000) : null;
+    const now = new Date();
+    await prisma.link_request_items.update({
+      where: { id: itemId },
+      data:  { rejected: true, rejection_reason: reason, rejected_at: now },
+    });
+
+    const resolvedItems = order.link_request_items.map((it) => (it.id === itemId ? { ...it, rejected: true, rejection_reason: reason } : it));
+    const finalized = await finalizeLinkRequestOrderIfReady(orderId, resolvedItems);
+    const updated = finalized || await prisma.orders.findUnique({ where: { id: orderId }, include: ADMIN_ORDER_INCLUDE });
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
 }
@@ -1644,7 +1714,7 @@ module.exports = {
   getSizes, createSize, updateSize, deleteSize,
   getAdminCustomers, updateAdminCustomer,
   getProducts, createProduct, updateProduct, deleteProduct,
-  getAdminOrders, setPaymentInfo, setLinkItemPrice, approvePayment, rejectPayment, rejectPreorder, setShipping, markDelivered,
+  getAdminOrders, setPaymentInfo, setLinkItemPrice, rejectLinkItem, approvePayment, rejectPayment, rejectPreorder, setShipping, markDelivered,
   getBankAccounts, createBankAccount, updateBankAccount, deleteBankAccount,
   getCommunications, getCommunicationBody,
   getNotifications,

@@ -1896,7 +1896,7 @@ const LANGS = {
     orderDetails:'جزئیات', orderClose:'✕', orderDetailTitle:'جزئیات سفارش',
     orderCustomerLbl:'مشتری', orderMobileLbl:'موبایل', orderItemsLbl:'اقلام سفارش',
     orderAddrLbl:'آدرس تحویل', orderNoAddr:'آدرس ثبت نشده', orderNoteLbl:'یادداشت', orderTotalLbl:'جمع کل',
-    orderLinkLbl:'لینک محصول', orderMoreLinks:'لینک دیگر', orderItemNotPricedYet:'هنوز قیمت‌گذاری نشده', statusLinkRequested:'در انتظار اعلام قیمت', statusPriceQuoted:'قیمت اعلام شد',
+    orderLinkLbl:'لینک محصول', orderMoreLinks:'لینک دیگر', orderItemNotPricedYet:'هنوز قیمت‌گذاری نشده', orderItemRejected:'این مورد رد شد', orderRejectItemBtn:'رد این لینک', statusLinkRequested:'در انتظار اعلام قیمت', statusPriceQuoted:'قیمت اعلام شد',
     orderActionQuote:'اعلام قیمت محصول', orderQuoteAmountLbl:'قیمت واحد (لیر ترکیه)', orderSendQuoteBtn:'ارسال قیمت به مشتری',
     orderQuoteAmountRequired:'مبلغ معتبر وارد کنید', orderQuoteSent:'قیمت برای مشتری ارسال شد',
     orderQuoteWaitingMsg:'در انتظار پاسخ مشتری (تایید یا رد)', orderQuoteDeadlineLbl:'مهلت باقیمانده', orderQuoteDaysLeftSuffix:'روز',
@@ -2095,7 +2095,7 @@ const LANGS = {
     orderDetails:'Details', orderClose:'✕', orderDetailTitle:'Order Details',
     orderCustomerLbl:'Customer', orderMobileLbl:'Mobile', orderItemsLbl:'Order Items',
     orderAddrLbl:'Delivery Address', orderNoAddr:'No address saved', orderNoteLbl:'Note', orderTotalLbl:'Total',
-    orderLinkLbl:'Product Link', orderMoreLinks:'more', orderItemNotPricedYet:'Not priced yet', statusLinkRequested:'Awaiting Price Quote', statusPriceQuoted:'Price Quoted',
+    orderLinkLbl:'Product Link', orderMoreLinks:'more', orderItemNotPricedYet:'Not priced yet', orderItemRejected:'This item was rejected', orderRejectItemBtn:'Reject This Link', statusLinkRequested:'Awaiting Price Quote', statusPriceQuoted:'Price Quoted',
     orderActionQuote:'Announce Product Price', orderQuoteAmountLbl:'Unit Price (Turkish Lira)', orderSendQuoteBtn:'Send Price to Customer',
     orderQuoteAmountRequired:'Enter a valid amount', orderQuoteSent:'Price sent to customer',
     orderQuoteWaitingMsg:'Awaiting customer response (approve or reject)', orderQuoteDeadlineLbl:'Time remaining', orderQuoteDaysLeftSuffix:'days',
@@ -2294,7 +2294,7 @@ const LANGS = {
     orderDetails:'Detaylar', orderClose:'✕', orderDetailTitle:'Sipariş Detayları',
     orderCustomerLbl:'Müşteri', orderMobileLbl:'Telefon', orderItemsLbl:'Sipariş Kalemleri',
     orderAddrLbl:'Teslimat Adresi', orderNoAddr:'Adres kaydedilmedi', orderNoteLbl:'Not', orderTotalLbl:'Toplam',
-    orderLinkLbl:'Ürün Linki', orderMoreLinks:'daha fazla link', orderItemNotPricedYet:'Henüz fiyatlandırılmadı', statusLinkRequested:'Fiyat Teklifi Bekleniyor', statusPriceQuoted:'Fiyat Teklif Edildi',
+    orderLinkLbl:'Ürün Linki', orderMoreLinks:'daha fazla link', orderItemNotPricedYet:'Henüz fiyatlandırılmadı', orderItemRejected:'Bu ürün reddedildi', orderRejectItemBtn:'Bu Linki Reddet', statusLinkRequested:'Fiyat Teklifi Bekleniyor', statusPriceQuoted:'Fiyat Teklif Edildi',
     orderActionQuote:'Ürün Fiyatını Bildir', orderQuoteAmountLbl:'Birim Fiyat (Türk Lirası)', orderSendQuoteBtn:'Fiyatı Müşteriye Gönder',
     orderQuoteAmountRequired:'Geçerli bir tutar girin', orderQuoteSent:'Fiyat müşteriye gönderildi',
     orderQuoteWaitingMsg:'Müşteri yanıtı bekleniyor (onay veya red)', orderQuoteDeadlineLbl:'Kalan süre', orderQuoteDaysLeftSuffix:'gün',
@@ -5036,9 +5036,11 @@ function renderOrderDetail() {
       if (it.size)  metaParts.push(`${t('sizeLbl')}: ${esc(it.size)}`);
       if (it.color) metaParts.push(`${t('colorLbl')}: ${esc(it.color)}`);
       metaParts.push(`${t('qtyLbl')}: ${it.qty}`);
-      const priceLine = it.unit_price
+      const priceLine = it.unit_price != null
         ? `<div style="margin-top:4px;font-weight:700">${t('orderQuoteAmountLbl')}: ${Number(it.unit_price).toLocaleString('en-US')} TL × ${it.qty} = ${(Number(it.unit_price) * it.qty).toLocaleString('en-US')} TL</div>`
-        : `<div style="margin-top:4px;color:#9ca3af">${t('orderItemNotPricedYet')}</div>`;
+        : it.rejected
+          ? `<div style="margin-top:4px;color:#b91c1c">🚫 ${t('orderItemRejected')}${it.rejection_reason ? `: ${esc(it.rejection_reason)}` : ''}</div>`
+          : `<div style="margin-top:4px;color:#9ca3af">${t('orderItemNotPricedYet')}</div>`;
       return `<div style="background:#f5f3ff;border-right:3px solid #a855f7;border-radius:8px;padding:10px 16px;margin-bottom:8px;font-size:13px">
         ${order.link_request_items.length > 1 ? `<strong>#${i + 1}</strong> ` : ''}<a href="${esc(it.product_link)}" target="_blank" rel="noopener" style="direction:ltr;display:inline-block;word-break:break-all;color:#7c3aed">${esc(it.product_link)}</a>
         <div style="color:#6b7280;margin-top:3px">${metaParts.join(' · ')}</div>
@@ -5086,9 +5088,14 @@ function renderOrderDetail() {
     const lItems = order.link_request_items || [];
     html += `<div style="font-weight:700;font-size:14px;margin-bottom:10px">${t('orderActionQuote')}</div>`;
     lItems.forEach((it, i) => {
+      const tag = lItems.length > 1 ? `<strong>#${i + 1}</strong> ` : '';
       if (it.unit_price != null) {
         html += `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px">
-          ${lItems.length > 1 ? `<strong>#${i + 1}</strong> ` : ''}${t('orderQuoteAmountLbl')}: <strong>${Number(it.unit_price).toLocaleString('en-US')} TL</strong> × ${it.qty} = <strong>${(Number(it.unit_price) * it.qty).toLocaleString('en-US')} TL</strong>
+          ${tag}${t('orderQuoteAmountLbl')}: <strong>${Number(it.unit_price).toLocaleString('en-US')} TL</strong> × ${it.qty} = <strong>${(Number(it.unit_price) * it.qty).toLocaleString('en-US')} TL</strong>
+        </div>`;
+      } else if (it.rejected) {
+        html += `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px;color:#b91c1c">
+          ${tag}🚫 ${t('orderItemRejected')}${it.rejection_reason ? `: ${esc(it.rejection_reason)}` : ''}
         </div>`;
       } else {
         html += `<div style="border:1px solid #eee;border-radius:8px;padding:10px 14px;margin-bottom:8px">
@@ -5098,7 +5105,14 @@ function renderOrderDetail() {
             <input id="quote-amount-input-${it.id}" type="number" min="0" step="1" placeholder="0" style="direction:ltr" oninput="adminUpdateQuoteTotalPreview(${it.id},${it.qty})">
           </div>
           <div id="quote-total-preview-${it.id}" style="font-size:13px;color:#666;margin-bottom:8px"></div>
-          <button class="btn btn-primary btn-sm" onclick="adminSetLinkItemPrice(${order.id},${it.id})">${t('orderSendQuoteBtn')}</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary btn-sm" onclick="adminSetLinkItemPrice(${order.id},${it.id})">${t('orderSendQuoteBtn')}</button>
+            <button class="btn btn-danger btn-sm" onclick="adminShowLinkItemRejectForm(${it.id})">${t('orderRejectItemBtn')}</button>
+          </div>
+          <div id="linkitem-reject-form-${it.id}" style="display:none;margin-top:10px">
+            <div class="form-field" style="margin-bottom:8px"><label>${t('orderRejectReasonLbl')}</label><textarea id="linkitem-reject-reason-${it.id}" rows="2" placeholder="${t('orderRejectReasonPlh')}"></textarea></div>
+            <button class="btn btn-danger btn-sm" onclick="adminConfirmRejectLinkItem(${order.id},${it.id})" style="width:100%">${t('orderConfirmRejectPreorder')}</button>
+          </div>
         </div>`;
       }
     });
@@ -5333,6 +5347,25 @@ async function adminSetLinkItemPrice(orderId, itemId) {
   const res = await api(`/admin/orders/${orderId}/link-items/${itemId}/price`, {
     method: 'PATCH',
     body:   JSON.stringify({ amount }),
+  });
+  if (res?.success) {
+    showToast(t('orderQuoteSent'));
+    _selectedOrder = res.data;
+    renderOrderDetail();
+    loadAdminOrders();
+  } else showToast(res?.message || t('orderSaveError'), 'error');
+}
+
+function adminShowLinkItemRejectForm(itemId) {
+  const f = document.getElementById(`linkitem-reject-form-${itemId}`);
+  if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+async function adminConfirmRejectLinkItem(orderId, itemId) {
+  const reason = document.getElementById(`linkitem-reject-reason-${itemId}`)?.value?.trim() || '';
+  const res = await api(`/admin/orders/${orderId}/link-items/${itemId}/reject`, {
+    method: 'PATCH',
+    body:   JSON.stringify({ reason }),
   });
   if (res?.success) {
     showToast(t('orderQuoteSent'));

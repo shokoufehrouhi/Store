@@ -73,7 +73,8 @@ router.get('/deploy/status', c.getDeployStatus);
 router.post('/deploy',       c.deployToProduction);
 
 router.get('/orders',                    c.getAdminOrders);
-router.patch('/orders/:orderId/link-items/:itemId/price', c.setLinkItemPrice);
+router.patch('/orders/:orderId/link-items/:itemId/price',  c.setLinkItemPrice);
+router.patch('/orders/:orderId/link-items/:itemId/reject', c.rejectLinkItem);
 router.patch('/orders/:id/payment-info', c.setPaymentInfo);
 router.patch('/orders/:id/approve',      c.approvePayment);
 router.patch('/orders/:id/reject',          c.rejectPayment);

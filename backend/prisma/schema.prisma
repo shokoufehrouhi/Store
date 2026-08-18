@@ -160,20 +160,26 @@ model orders {
 
 // One row per link the customer submitted on a link-based pre-order request —
 // an order can hold 1-5 of these (see ordersController.createLinkRequest).
-// Each is priced independently by the admin (adminController.setLinkItemPrice);
-// once every item on the order has a unit_price, the order auto-transitions
-// link_requested -> price_quoted with total_amount = sum(unit_price * qty).
+// Each is resolved independently by the admin — either priced
+// (adminController.setLinkItemPrice) or rejected (adminController.rejectLinkItem).
+// Once every item on the order is resolved (priced or rejected), the order
+// auto-transitions: to price_quoted (total_amount = sum of unit_price*qty over
+// the non-rejected items) if at least one was priced, or straight to rejected
+// if every single item was rejected — see finalizeLinkRequestOrderIfReady.
 model link_request_items {
-  id           Int       @id @default(autoincrement())
-  order_id     Int
-  product_link String    @db.VarChar(500)
-  size         String?   @db.VarChar(50)
-  color        String?   @db.VarChar(50)
-  qty          Int       @default(1) @db.SmallInt
-  note         String?
-  unit_price   Decimal?  @db.Decimal(12, 2)
-  created_at   DateTime  @default(now()) @db.Timestamptz(6)
-  orders       orders    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  id                Int       @id @default(autoincrement())
+  order_id          Int
+  product_link      String    @db.VarChar(500)
+  size              String?   @db.VarChar(50)
+  color             String?   @db.VarChar(50)
+  qty               Int       @default(1) @db.SmallInt
+  note              String?
+  unit_price        Decimal?  @db.Decimal(12, 2)
+  rejected          Boolean   @default(false)
+  rejection_reason  String?
+  rejected_at       DateTime? @db.Timestamptz(6)
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+  orders            orders    @relation(fields: [order_id], references: [id], onDelete: Cascade)
 
   @@index([order_id], map: "idx_link_request_items_order")
 }
