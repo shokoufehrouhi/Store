@@ -1088,9 +1088,10 @@
               <th data-i18n="ordersColStatus">وضعیت</th>
               <th data-i18n="ordersColTotal">مبلغ کل</th>
               <th data-i18n="ordersColDate">تاریخ</th>
+              <th></th>
             </tr></thead>
             <tbody id="active-orders-tbody">
-              <tr><td colspan="6" style="text-align:center;padding:40px;color:#999" data-i18n="ordersLoading">در حال بارگذاری...</td></tr>
+              <tr><td colspan="7" style="text-align:center;padding:40px;color:#999" data-i18n="ordersLoading">در حال بارگذاری...</td></tr>
             </tbody>
           </table>
         </div></div>
@@ -1121,9 +1122,10 @@
               <th data-i18n="ordersColStatus">وضعیت</th>
               <th data-i18n="ordersColTotal">مبلغ کل</th>
               <th data-i18n="ordersColDate">تاریخ</th>
+              <th></th>
             </tr></thead>
             <tbody id="orders-tbody">
-              <tr><td colspan="6" style="text-align:center;padding:40px;color:#999" data-i18n="ordersLoading">در حال بارگذاری...</td></tr>
+              <tr><td colspan="7" style="text-align:center;padding:40px;color:#999" data-i18n="ordersLoading">در حال بارگذاری...</td></tr>
             </tbody>
           </table>
         </div></div>
@@ -4209,9 +4211,9 @@ const ORDER_STATUS_COLORS = {
 async function loadAdminOrders() {
   const tbody = document.getElementById('orders-tbody');
   if (!tbody) return;
-  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#999">${t('ordersLoading')}</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:#999">${t('ordersLoading')}</td></tr>`;
   const res = await api('/admin/orders');
-  if (!res?.success) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#f00">${t('ordersLoadError')}</td></tr>`; return; }
+  if (!res?.success) { tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:#f00">${t('ordersLoadError')}</td></tr>`; return; }
   _allAdminOrders = res.data;
   renderOrdersTable();
 
@@ -4269,7 +4271,7 @@ function _renderOrderRows(tbodyId, orders) {
   if (!tbody) return;
 
   if (!orders.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#999">${t('ordersEmpty')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:#999">${t('ordersEmpty')}</td></tr>`;
     return;
   }
 
@@ -4300,14 +4302,14 @@ function _renderOrderRows(tbodyId, orders) {
            ${rejectedAt ? `<span style="display:block;color:#9ca3af;font-size:11px;margin-top:1px">${rejectedAt}</span>` : ''}
          </div>`
       : '';
-    const _oc = `openOrderDetail(${order.id})`;
-    return `<tr style="cursor:pointer">
-      <td style="font-family:monospace;font-weight:700" onclick="${_oc}">ORD-${order.id}</td>
-      <td onclick="${_oc}">${cust}<br><span style="font-size:12px;color:#888">${esc(order.customers?.mobile||'')}</span></td>
-      <td><div onclick="${_oc}" style="cursor:pointer">${productLinks || '-'}</div></td>
-      <td onclick="${_oc}"><span style="background:${color}20;color:${color};border:1px solid ${color}40;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700">${label}</span></td>
-      <td style="direction:ltr;text-align:left" onclick="${_oc}">${total}</td>
-      <td style="font-size:13px;color:#888" onclick="${_oc}">${date}</td>
+    return `<tr>
+      <td style="font-family:monospace;font-weight:700">ORD-${order.id}</td>
+      <td>${cust}<br><span style="font-size:12px;color:#888">${esc(order.customers?.mobile||'')}</span></td>
+      <td>${productLinks || '-'}</td>
+      <td><span style="background:${color}20;color:${color};border:1px solid ${color}40;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700">${label}</span></td>
+      <td style="direction:ltr;text-align:left">${total}</td>
+      <td style="font-size:13px;color:#888">${date}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick="openOrderDetail(${order.id})">${t('orderDetails')}</button></td>
     </tr>`;
   }).join('');
 }

@@ -3496,16 +3496,23 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 
 /* ─── Order Cards ─────────────────────────────────────────────────────────── */
 .order-card { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 12px; transition: box-shadow .2s; }
-.order-card:has(.order-header--clickable:hover) { box-shadow: 0 2px 12px rgba(0,0,0,.08); }
 .order-header {
   display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;
   margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
 }
-.order-header--clickable { cursor: pointer; user-select: none; }
-.order-toggle-arrow { font-size: 11px; color: var(--text-muted); margin-inline-start: auto; }
+.order-toggle-arrow { font-size: 10px; }
 .order-id   { font-size: 13px; font-weight: 700; color: var(--primary); }
 .order-date { font-size: 12px; color: var(--text-muted); }
 .order-total-badge { font-size: 12px; font-weight: 700; color: var(--primary); direction: ltr; }
+.order-detail-btn {
+  margin-inline-start: auto; display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: 1.5px solid var(--border); color: var(--text-light);
+  font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 8px;
+  cursor: pointer; font-family: inherit; transition: border-color .15s, color .15s;
+}
+.order-detail-btn:hover { border-color: var(--primary); color: var(--primary); }
+.order-item-product-link { color: var(--text-light); text-decoration: none; }
+.order-item-product-link:hover { color: var(--primary); text-decoration: underline; }
 .order-item-row {
   display: flex; gap: 10px; font-size: 13px;
   color: var(--text-light); padding: 3px 0; flex-wrap: wrap;

@@ -3808,7 +3808,9 @@ function _renderOrdersList(apiOrders) {
     var isExpanded = (_profileExpandedId === order.id);
 
     var itemsHtml = (order.order_items || []).map(function(oi) {
+      var pid   = oi.products ? oi.products.id : null;
       var pname = oi.products ? (oi.products[nameKey] || oi.products.name_fa || '') : '';
+      var pnameHtml = pid ? '<a href="/product.html?id=' + pid + '" class="order-item-product-link">' + pname + '</a>' : pname;
       var pcode = oi.products && oi.products.code ? oi.products.code : '';
       var colorDot = oi.colors && oi.colors.hex
         ? '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + oi.colors.hex + ';border:1px solid #ddd;margin-inline-end:4px;vertical-align:middle"></span>'
@@ -3818,7 +3820,7 @@ function _renderOrdersList(apiOrders) {
         : '';
       var linePrice = oi.unit_price ? formatPrice(Number(oi.unit_price) * oi.qty) : '';
       return '<div class="order-item-row">' +
-        '<span>' + colorDot + pname +
+        '<span>' + colorDot + pnameHtml +
           (pcode ? '<span onclick="copyProductCode(\'' + pcode + '\')" title="Copy" style="font-size:11px;color:#9ca3af;font-family:monospace;margin-right:4px;cursor:pointer"> [' + pcode + ']</span>' : '') +
           (colorName ? '<span style="font-size:11px;color:#9ca3af;margin-right:4px"> · ' + colorName + '</span>' : '') +
         '</span>' +
@@ -4031,13 +4033,14 @@ function _renderOrdersList(apiOrders) {
     }
 
     var orderTotal = order.total_amount ? formatPrice(order.total_amount) : '';
+    var detailsLbl = t.order_details_btn || (currentLang==='fa'?'جزئیات':currentLang==='tr'?'Detaylar':'Details');
     return '<div class="order-card" id="porder-' + order.id + '">' +
-      '<div class="order-header order-header--clickable" onclick="toggleProfileOrder(' + order.id + ')">' +
+      '<div class="order-header">' +
       '<span class="order-id">ORD-' + order.id + '</span>' +
       '<span style="background:' + badgeColor + '20;color:' + badgeColor + ';border:1px solid ' + badgeColor + '40;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700">' + badgeLabel + '</span>' +
       (orderTotal ? '<span class="order-total-badge">' + orderTotal + '</span>' : '') +
       '<span class="order-date">' + dateStr + '</span>' +
-      '<span class="order-toggle-arrow">' + (isExpanded ? '▲' : '▼') + '</span>' +
+      '<button class="order-detail-btn" onclick="toggleProfileOrder(' + order.id + ')">' + detailsLbl + ' <span class="order-toggle-arrow">' + (isExpanded ? '▲' : '▼') + '</span></button>' +
       '</div>' +
       itemsHtml +
       detailHtml +
