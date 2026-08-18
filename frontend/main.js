@@ -83,6 +83,8 @@ function updateOrderStatusBtn() {
   btn.style.display = 'flex';
   btn.classList.add('has-order');
   var statusColors = {
+    link_requested:  '#a855f7',
+    price_quoted:    '#0ea5e9',
     preorder:        '#f97316',
     payment_needed:  '#ef4444',
     approval_needed: '#3b82f6',
@@ -3636,7 +3638,7 @@ var _cachedApiOrders      = [];
 var _profileExpandedId    = null;
 var _ordersActiveOnly     = false;
 var _pendingScrollOrderId = null;
-var ACTIVE_ORDER_STATUSES = ['preorder','payment_needed','approval_needed','preparing','delivery'];
+var ACTIVE_ORDER_STATUSES = ['preorder','payment_needed','approval_needed','preparing','delivery','link_requested','price_quoted'];
 
 function openActiveOrder() {
   if (!currentPreorder) return;
@@ -3652,6 +3654,101 @@ function openActiveOrder() {
 function toggleOrdersActiveFilter() {
   _ordersActiveOnly = !_ordersActiveOnly;
   _renderOrdersList(_cachedApiOrders);
+}
+
+// ─── Link-based pre-order request modal ────────────────────────────────────────
+function openLinkRequestModal() {
+  var token = getSession();
+  if (!token) { openAuthModal('login'); return; }
+  var t = TRANSLATIONS[currentLang];
+  var overlay = document.createElement('div');
+  overlay.className = 'link-req-overlay';
+  overlay.innerHTML =
+    '<div class="link-req-card">' +
+      '<button class="link-req-close" onclick="this.closest(\'.link-req-overlay\').remove()">&#x2715;</button>' +
+      '<div class="link-req-title">' + t.link_req_modal_title + '</div>' +
+      '<div class="link-req-desc">' + t.link_req_modal_desc + '</div>' +
+      '<div class="form-field" style="margin-bottom:12px">' +
+        '<label>' + t.link_req_link_label + '</label>' +
+        '<input id="link-req-url" type="url" placeholder="' + t.link_req_link_ph + '" style="direction:ltr;text-align:left">' +
+        '<span class="auth-field-error" id="link-req-url-err"></span>' +
+      '</div>' +
+      '<div class="form-field" style="margin-bottom:16px">' +
+        '<label>' + t.link_req_note_label + '</label>' +
+        '<textarea id="link-req-note" placeholder="' + t.link_req_note_ph + '" rows="3"></textarea>' +
+      '</div>' +
+      '<button class="auth-submit-btn" id="link-req-submit-btn" onclick="submitLinkRequest()" style="width:100%">' + t.link_req_submit_btn + '</button>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+}
+
+function submitLinkRequest() {
+  var t       = TRANSLATIONS[currentLang];
+  var token   = getSession();
+  var urlEl   = document.getElementById('link-req-url');
+  var noteEl  = document.getElementById('link-req-note');
+  var errEl   = document.getElementById('link-req-url-err');
+  var btn     = document.getElementById('link-req-submit-btn');
+  var link    = (urlEl.value || '').trim();
+  if (errEl) errEl.textContent = '';
+
+  var isValidUrl = false;
+  try { var u = new URL(link); isValidUrl = (u.protocol === 'http:' || u.protocol === 'https:'); } catch (e) { isValidUrl = false; }
+  if (!isValidUrl) {
+    if (errEl) errEl.textContent = t.link_req_invalid_link;
+    urlEl.focus();
+    return;
+  }
+
+  btn.disabled = true;
+  fetch(API_BASE + '/orders/link-request', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'x-session-token': token },
+    body:    JSON.stringify({ product_link: link, note: (noteEl.value || '').trim(), lang: currentLang }),
+  }).then(function(r) { return r.json().then(function(d) { return { status: r.status, data: d }; }); })
+    .then(function(r) {
+      btn.disabled = false;
+      if (r.data.success) {
+        var overlay = document.querySelector('.link-req-overlay');
+        if (overlay) overlay.remove();
+        showToast(t.link_req_success);
+        renderOrders();
+      } else if (r.data.message === 'active_link_request_exists') {
+        showToast(t.active_link_request_exists, 'error');
+      } else if (r.data.message === 'invalid_product_link') {
+        if (errEl) errEl.textContent = t.link_req_invalid_link;
+      } else {
+        showToast(t.link_req_invalid_link, 'error');
+      }
+    }).catch(function() {
+      btn.disabled = false;
+      showToast(t.link_req_invalid_link, 'error');
+    });
+}
+
+function approveQuote(orderId) {
+  var t     = TRANSLATIONS[currentLang];
+  var token = getSession();
+  fetch(API_BASE + '/orders/' + orderId + '/quote/approve', {
+    method: 'POST', headers: { 'x-session-token': token },
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) { showToast(t.quote_approved_toast); renderOrders(); }
+    else showToast(d.message || t.quote_approve_btn, 'error');
+  }).catch(function() { showToast('Network error', 'error'); });
+}
+
+function rejectQuote(orderId) {
+  var t = TRANSLATIONS[currentLang];
+  showConfirm(t.cancel_confirm || 'آیا مطمئنید؟', function() {
+    var token = getSession();
+    fetch(API_BASE + '/orders/' + orderId + '/quote/reject', {
+      method: 'POST', headers: { 'x-session-token': token },
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.success) { showToast(t.quote_rejected_toast); renderOrders(); }
+      else showToast(d.message || t.quote_reject_btn, 'error');
+    }).catch(function() { showToast('Network error', 'error'); });
+  });
 }
 
 function _renderOrdersList(apiOrders) {
@@ -3670,12 +3767,15 @@ function _renderOrdersList(apiOrders) {
 
   var ORDER_COLORS = {
     confirmed:'#FF5C00', shipped:'#8b5cf6',
+    link_requested:'#a855f7', price_quoted:'#0ea5e9',
     preorder:'#3b82f6', payment_needed:'#f59e0b', approval_needed:'#eab308',
     preparing:'#22c55e', delivery:'#8b5cf6', delivered:'#16a34a', cancelled:'#9ca3af', rejected:'#dc2626',
   };
   var ORDER_LABELS = {
     confirmed:        t.prize_confirmed     || 'Confirmed',
     shipped:          t.prize_shipped       || 'Shipped',
+    link_requested:  t.status_link_requested || 'در انتظار اعلام قیمت',
+    price_quoted:    t.status_price_quoted   || 'قیمت اعلام شد',
     preorder:        t.preorder_registered || 'پیش‌سفارش',
     payment_needed:  t.payment_info_title  || 'در انتظار پرداخت',
     approval_needed: t.receipt_uploaded    || 'در انتظار تأیید',
@@ -3754,12 +3854,38 @@ function _renderOrdersList(apiOrders) {
         '</div>';
       }
 
+      // ─── External product link (link-based pre-order requests) ────────────────
+      if (order.external_product_link) {
+        detailHtml += '<div class="order-note-block">' +
+          '<span class="order-note-block-label">' + (t.link_req_link_label || 'لینک محصول') + ': </span>' +
+          '<a href="' + order.external_product_link + '" target="_blank" rel="noopener" style="direction:ltr;display:inline-block;word-break:break-all">' + order.external_product_link + '</a>' +
+        '</div>';
+      }
+
       // ─── Total ───────────────────────────────────────────────────────────────
       if (order.total_amount) {
         detailHtml += '<div class="order-detail-total">' +
           '<span>' + (t.checkout_total || 'جمع کل') + '</span>' +
           '<strong>' + formatPrice(order.total_amount) + '</strong>' +
         '</div>';
+      }
+
+      if (st === 'link_requested') {
+        detailHtml += '<p class="order-detail-hint">' + (t.link_req_wait_price || 'لینک شما دریافت شد. به‌زودی قیمت این محصول اعلام می‌شود.') + '</p>';
+        detailHtml += '<button class="order-action-btn order-action-cancel" onclick="profileCancelOrder(' + order.id + ')">' + (t.link_req_cancel_btn || 'لغو درخواست') + '</button>';
+      }
+
+      if (st === 'price_quoted') {
+        var quotedDeadline = order.quoted_at ? new Date(new Date(order.quoted_at).getTime() + 14 * 24 * 60 * 60 * 1000) : null;
+        var daysLeft = quotedDeadline ? Math.max(0, Math.ceil((quotedDeadline - new Date()) / (24 * 60 * 60 * 1000))) : null;
+        detailHtml += '<div class="order-payment-info-box">' +
+          '<div class="order-payment-row"><span>' + (t.quote_price_label || 'قیمت پیشنهادی') + ':</span><strong>' + formatPrice(order.quoted_price || order.total_amount) + '</strong></div>' +
+          (daysLeft !== null ? '<div class="order-payment-row"><span>' + (t.quote_deadline_label || 'مهلت پاسخ') + ':</span><strong>' + (daysLeft > 0 ? (localizeNumber(String(daysLeft)) + ' ' + (t.quote_days_left_suffix || 'روز مانده')) : (t.quote_expires_today || 'امروز آخرین مهلت است')) + '</strong></div>' : '') +
+          '</div>';
+        detailHtml += '<div style="display:flex;gap:8px;margin-top:10px">' +
+          '<button class="order-action-btn" style="background:#16a34a;color:#fff;flex:1" onclick="approveQuote(' + order.id + ')">' + (t.quote_approve_btn || 'تایید قیمت') + '</button>' +
+          '<button class="order-action-btn order-action-cancel" style="flex:1" onclick="rejectQuote(' + order.id + ')">' + (t.quote_reject_btn || 'رد کردن') + '</button>' +
+          '</div>';
       }
 
       if (st === 'preorder') {
@@ -3944,11 +4070,12 @@ function _renderOrdersList(apiOrders) {
       '</div>';
   }).join('');
 
-  var filterBar = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:10px 14px;background:var(--card,#fff);border-radius:12px;border:1px solid #e5e7eb">' +
+  var filterBar = '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--card,#fff);border-radius:12px;border:1px solid #e5e7eb">' +
     '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#374151;user-select:none">' +
     '<input type="checkbox" id="orders-active-filter" ' + (_ordersActiveOnly ? 'checked' : '') + ' onchange="toggleOrdersActiveFilter()" style="width:16px;height:16px;cursor:pointer;accent-color:#3b82f6">' +
     (t.orders_active_only || 'فقط سفارش‌های فعال') +
     '</label>' +
+    '<button class="link-req-open-btn" onclick="openLinkRequestModal()">' + t.link_req_open_btn + '</button>' +
     '</div>';
 
   var combined = apiHtml + localHtml;

@@ -201,7 +201,7 @@ async function getDashboard(req, res, next) {
       prisma.leads.count({ where: { created_at: { gte: startOfMonth } } }),
       prisma.order_returns.count(),
       prisma.order_returns.count({ where: { status: { in: ['requested', 'approved'] } } }),
-      prisma.orders.count({ where: { status: { in: ['preorder','payment_needed','approval_needed','preparing','delivery'] } } }),
+      prisma.orders.count({ where: { status: { in: ['link_requested','price_quoted','preorder','payment_needed','approval_needed','preparing','delivery'] } } }),
       prisma.orders.count({ where: { status: 'delivered' } }),
       prisma.orders.count({ where: { status: { not: 'cancelled' } } }),
       prisma.orders.aggregate({ where: { status: 'delivered' }, _sum: { total_amount: true } }),
@@ -918,6 +918,51 @@ async function getAdminOrders(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// ─── announceQuotePrice: PATCH /api/admin/orders/:id/quote-price ──────────────
+// Admin sources the externally-linked product and tells the customer what it
+// costs. Starts the 14-day response clock (quoted_at) — see
+// backend/scripts/declineStaleQuotes.js for the auto-decline side of that.
+async function announceQuotePrice(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const order = await prisma.orders.findUnique({ where: { id } });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.status !== 'link_requested') {
+      return res.status(400).json({ success: false, message: 'Order must be in link_requested status' });
+    }
+    const amount = Number(req.body.amount);
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ success: false, message: 'valid_amount_required' });
+    }
+    // orders.total_amount is Decimal(14,0) — whole Lira only (same as every other
+    // order total in this app) — round explicitly rather than let the DB truncate
+    // silently, since quoted_price (Decimal(12,2)) would otherwise keep the cents
+    // while total_amount quietly drops them.
+    const roundedAmount = Math.round(amount);
+    const now = new Date();
+    const updated = await prisma.orders.update({
+      where: { id },
+      // total_amount is set here too (not just quoted_price) so every existing
+      // screen/email that already reads order.total_amount — admin order list,
+      // customer profile card, the email footer's total line — shows the right
+      // number without needing a new special case for this status.
+      data:  { quoted_price: roundedAmount, quoted_at: now, total_amount: roundedAmount, status: 'price_quoted', updated_at: now },
+      include: ADMIN_ORDER_INCLUDE,
+    });
+    if (updated.customers) {
+      const ol = updated.lang || 'fa';
+      const extraInfo = [
+        { label: label('order_total', ol), value: Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' TL', dir: 'ltr' },
+      ];
+      if (updated.external_product_link) {
+        extraInfo.push({ label: label('product_link', ol), value: updated.external_product_link, dir: 'ltr' });
+      }
+      sendOrderEmail(updated.customers, updated, 'price_quoted', extraInfo).catch(() => {});
+    }
+    res.json({ success: true, data: updated });
+  } catch (err) { next(err); }
+}
+
 async function setPaymentInfo(req, res, next) {
   try {
     const id = Number(req.params.id);
@@ -1242,7 +1287,7 @@ async function getReports(req, res, next) {
       prisma.orders.count({ where: { ...orderWhere, status: 'delivered' } }),
       prisma.orders.count({ where: { ...orderWhere, status: 'rejected' } }),
       prisma.orders.count({ where: { ...orderWhere, status: 'cancelled' } }),
-      prisma.orders.count({ where: { ...orderWhere, status: { in: ['preorder','payment_needed','approval_needed','preparing','delivery'] } } }),
+      prisma.orders.count({ where: { ...orderWhere, status: { in: ['link_requested','price_quoted','preorder','payment_needed','approval_needed','preparing','delivery'] } } }),
       prisma.orders.aggregate({
         where: { ...orderWhere, status: 'delivered' },
         _sum: { total_amount: true },
@@ -1555,7 +1600,7 @@ module.exports = {
   getSizes, createSize, updateSize, deleteSize,
   getAdminCustomers, updateAdminCustomer,
   getProducts, createProduct, updateProduct, deleteProduct,
-  getAdminOrders, setPaymentInfo, approvePayment, rejectPayment, rejectPreorder, setShipping, markDelivered,
+  getAdminOrders, setPaymentInfo, announceQuotePrice, approvePayment, rejectPayment, rejectPreorder, setShipping, markDelivered,
   getBankAccounts, createBankAccount, updateBankAccount, deleteBankAccount,
   getCommunications, getCommunicationBody,
   getNotifications,

@@ -1,7 +1,7 @@
 const prisma  = require('../prisma/client');
 const fs      = require('fs');
 const path    = require('path');
-const { sendOrderEmail } = require('../utils/mailer');
+const { sendOrderEmail, label } = require('../utils/mailer');
 
 // ─── Shared include for order queries ─────────────────────────────────────────
 const ORDER_INCLUDE = {
@@ -210,7 +210,7 @@ async function cancelOrder(req, res, next) {
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
     if (order.customer_id !== customerId) return res.status(403).json({ success: false, message: 'Forbidden' });
 
-    if (order.status !== 'preorder' && order.status !== 'payment_needed') {
+    if (order.status !== 'preorder' && order.status !== 'payment_needed' && order.status !== 'link_requested') {
       return res.status(400).json({ success: false, message: 'Cannot cancel order in current status' });
     }
 
@@ -306,4 +306,127 @@ async function uploadReceipt(req, res, next) {
   }
 }
 
-module.exports = { createPreorder, getMyOrders, getMyOrder, cancelOrder, uploadReceipt };
+
+// ─── createLinkRequest: POST /api/orders/link-request ────────────────────────
+// Customer asks us to source a product from an external link (not in our own
+// catalog, so there's no product_id/price yet) — an admin manually announces a
+// price afterward (see adminController.announceQuotePrice), and the customer
+// then approves or rejects it (below). This intentionally does not create any
+// order_items (order_items.product_id is required/FK'd to our own catalog).
+async function createLinkRequest(req, res, next) {
+  try {
+    const customerId = await getCustomerFromSession(req, res);
+    if (!customerId) return;
+
+    const { product_link, note, lang } = req.body;
+    if (!product_link || !product_link.trim()) {
+      return res.status(400).json({ success: false, message: 'product_link_required' });
+    }
+    const trimmedLink = product_link.trim();
+    if (trimmedLink.length > 500) {
+      return res.status(400).json({ success: false, message: 'product_link_too_long' });
+    }
+    try {
+      const u = new URL(trimmedLink);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('bad_protocol');
+    } catch (e) {
+      return res.status(400).json({ success: false, message: 'invalid_product_link' });
+    }
+    const safeLang = ['fa', 'en', 'tr'].includes(lang) ? lang : 'fa';
+
+    // Block if customer already has a link-request awaiting a price or a response —
+    // mirrors the "one active preorder" rule on createPreorder above.
+    const activeRequest = await prisma.orders.findFirst({
+      where:  { customer_id: customerId, status: { in: ['link_requested', 'price_quoted'] } },
+      select: { id: true },
+    });
+    if (activeRequest) {
+      return res.status(409).json({ success: false, message: 'active_link_request_exists' });
+    }
+
+    const order = await prisma.orders.create({
+      data: {
+        customer_id:            customerId,
+        status:                 'link_requested',
+        channel:                'online',
+        note:                   note ? String(note).slice(0, 2000) : null,
+        lang:                   safeLang,
+        total_amount:           0,
+        external_product_link:  trimmedLink,
+      },
+      include: ORDER_INCLUDE,
+    });
+
+    const ol = order.lang || 'fa';
+    const extraInfo = [{ label: label('product_link', ol), value: trimmedLink, dir: 'ltr' }];
+    sendOrderEmail(order.customers, order, 'link_requested', extraInfo).catch(() => {});
+    res.status(201).json({ success: true, data: order });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── approveQuote: POST /api/orders/:id/quote/approve ─────────────────────────
+// Customer accepts the price an admin announced — rejoins the regular preorder
+// pipeline exactly where a cart-based order would be (status 'preorder'), so
+// the existing admin "send payment info" step (setPaymentInfo) needs no changes.
+async function approveQuote(req, res, next) {
+  try {
+    const customerId = await getCustomerFromSession(req, res);
+    if (!customerId) return;
+
+    const order = await prisma.orders.findUnique({ where: { id: Number(req.params.id) } });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.customer_id !== customerId) return res.status(403).json({ success: false, message: 'Forbidden' });
+    if (order.status !== 'price_quoted') {
+      return res.status(400).json({ success: false, message: 'Order must be in price_quoted status' });
+    }
+
+    const updated = await prisma.orders.update({
+      where:   { id: order.id },
+      data:    { status: 'preorder', updated_at: new Date() },
+      include: ORDER_INCLUDE,
+    });
+    sendOrderEmail(updated.customers, updated, 'preorder', []).catch(() => {});
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── rejectQuote: POST /api/orders/:id/quote/reject ───────────────────────────
+// Customer declines the announced price — same terminal state (and reused
+// reason field) as an admin-side preorder rejection, so it drops out of every
+// "active order" list the same way.
+async function rejectQuote(req, res, next) {
+  try {
+    const customerId = await getCustomerFromSession(req, res);
+    if (!customerId) return;
+
+    const order = await prisma.orders.findUnique({ where: { id: Number(req.params.id) } });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (order.customer_id !== customerId) return res.status(403).json({ success: false, message: 'Forbidden' });
+    if (order.status !== 'price_quoted') {
+      return res.status(400).json({ success: false, message: 'Order must be in price_quoted status' });
+    }
+
+    const ol = order.lang || 'fa';
+    const reasonText = ({
+      fa: 'مشتری با قیمت اعلام‌شده موافقت نکرد.',
+      en: 'Customer did not accept the quoted price.',
+      tr: 'Müşteri teklif edilen fiyatı kabul etmedi.',
+    })[ol] || 'Customer rejected the quote.';
+
+    const updated = await prisma.orders.update({
+      where:   { id: order.id },
+      data:    { status: 'rejected', payment_rejection_reason: reasonText, rejected_at: new Date(), updated_at: new Date() },
+      include: ORDER_INCLUDE,
+    });
+    sendOrderEmail(updated.customers, updated, 'preorder_rejected', []).catch(() => {});
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { createPreorder, getMyOrders, getMyOrder, cancelOrder, uploadReceipt, createLinkRequest, approveQuote, rejectQuote };

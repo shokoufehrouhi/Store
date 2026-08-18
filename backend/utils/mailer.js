@@ -176,6 +176,16 @@ const L = {
     preorder_rejected_subject: 'پیش‌سفارش رد شد — Shilista #{{id}}',
     preorder_rejected_title:   'پیش‌سفارش شما تأیید نشد',
     preorder_rejected_body:    'متأسفانه پیش‌سفارش شما پس از بررسی تأیید نشد. در صورت نیاز به اطلاعات بیشتر با ما تماس بگیرید.',
+
+    product_link:    'لینک محصول',
+
+    link_requested_subject: 'درخواست شما دریافت شد — Shilista #{{id}}',
+    link_requested_title:   'درخواست پیش‌سفارش شما دریافت شد',
+    link_requested_body:    'لینک محصولی که ارسال کردید دریافت شد. پس از استعلام قیمت، مبلغ نهایی برای تایید شما ارسال می‌شود.',
+
+    price_quoted_subject: 'قیمت محصول شما اعلام شد — Shilista #{{id}}',
+    price_quoted_title:   'قیمت محصول درخواستی شما اعلام شد',
+    price_quoted_body:    'قیمت محصولی که درخواست داده بودید مشخص شد. لطفاً ظرف ۱۴ روز از طریق پروفایل خود آن را تایید یا رد کنید؛ در غیر این صورت درخواست به‌طور خودکار لغو خواهد شد.',
   },
   en: {
     order_num:       'Order Number',
@@ -231,6 +241,16 @@ const L = {
     preorder_rejected_subject: 'Pre-order Rejected — Shilista #{{id}}',
     preorder_rejected_title:   'Your pre-order was not approved',
     preorder_rejected_body:    'Unfortunately your pre-order was not approved after review. Please contact us for more information.',
+
+    product_link:    'Product Link',
+
+    link_requested_subject: 'Your Request Was Received — Shilista #{{id}}',
+    link_requested_title:   'Your pre-order request has been received',
+    link_requested_body:    'We received the product link you sent. Once we source the price, we will send it to you for approval.',
+
+    price_quoted_subject: 'Your Product Price Is Ready — Shilista #{{id}}',
+    price_quoted_title:   'The price for your requested product is ready',
+    price_quoted_body:    'The price for the product you requested is now available. Please approve or reject it from your profile within 14 days, otherwise the request will be automatically declined.',
   },
   tr: {
     order_num:       'Sipariş Numarası',
@@ -286,6 +306,16 @@ const L = {
     preorder_rejected_subject: 'Ön Sipariş Reddedildi — Shilista #{{id}}',
     preorder_rejected_title:   'Ön siparişiniz onaylanmadı',
     preorder_rejected_body:    'Maalesef ön siparişiniz inceleme sonucunda onaylanmadı. Daha fazla bilgi için bizimle iletişime geçin.',
+
+    product_link:    'Ürün Linki',
+
+    link_requested_subject: 'Talebiniz Alındı — Shilista #{{id}}',
+    link_requested_title:   'Ön sipariş talebiniz alındı',
+    link_requested_body:    'Gönderdiğiniz ürün linki alındı. Fiyat araştırması tamamlandığında onayınız için size gönderilecektir.',
+
+    price_quoted_subject: 'Ürün Fiyatınız Hazır — Shilista #{{id}}',
+    price_quoted_title:   'Talep ettiğiniz ürünün fiyatı belirlendi',
+    price_quoted_body:    'Talep ettiğiniz ürünün fiyatı belirlendi. Lütfen 14 gün içinde profilinizden onaylayın veya reddedin; aksi takdirde talep otomatik olarak iptal edilecektir.',
   },
 };
 
@@ -398,7 +428,9 @@ function buildHtml(type, order, customer, extraInfo) {
     lang === 'fa' ? 'fa-IR' : lang === 'tr' ? 'tr-TR' : 'en-US'
   );
 
-  const itemsTable  = buildItemsTable(order, lang, l);
+  // Link-requested/quoted orders have no order_items (nothing in our own
+  // catalog to list yet) — skip the table entirely rather than show empty rows.
+  const itemsTable  = (order.order_items && order.order_items.length) ? buildItemsTable(order, lang, l) : '';
   const infoBlock   = buildInfoBlock(extraInfo);
   const totalAmount = fmt(order.total_amount);
 

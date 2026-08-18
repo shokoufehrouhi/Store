@@ -4479,6 +4479,43 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 .lp-icon { font-size: 50px; margin-bottom: 10px; }
 .lp-title { font-size: 18px; font-weight: 700; color: #FFD34E; margin-bottom: 6px; }
 .lp-desc  { font-size: 13px; color: rgba(255,255,255,.5); margin-bottom: 20px; line-height: 1.5; }
+
+/* ─── Link-based pre-order request modal ──────────────────────────────────── */
+.link-req-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  animation: lp-fade-in .22s ease;
+}
+.link-req-card {
+  background: var(--card);
+  border-radius: 20px;
+  padding: 28px 24px 24px;
+  width: min(420px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 24px 80px rgba(0,0,0,.35);
+}
+.link-req-close {
+  position: absolute; top: 14px; inset-inline-end: 16px;
+  background: none; border: none;
+  color: var(--text-muted); font-size: 20px;
+  cursor: pointer; line-height: 1; padding: 4px 6px;
+}
+.link-req-title { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.link-req-desc  { font-size: 13px; color: var(--text-light); margin-bottom: 18px; line-height: 1.6; }
+.link-req-open-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: 1.5px dashed var(--primary);
+  color: var(--primary); font-size: 12.5px; font-weight: 700;
+  padding: 7px 12px; border-radius: 10px; cursor: pointer;
+  font-family: inherit; white-space: nowrap;
+}
+.link-req-open-btn:hover { background: rgba(255,92,0,.06); }
+
 .lp-code-box {
   background: rgba(255,184,0,.09);
   border: 1.5px dashed rgba(255,184,0,.5);

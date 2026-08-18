@@ -17,9 +17,12 @@ function withUpload(field, handler) {
 }
 
 router.post('/', c.createPreorder);
+router.post('/link-request', c.createLinkRequest);
 router.get('/my', c.getMyOrders);
 router.get('/:id', c.getMyOrder);
 router.delete('/:id', c.cancelOrder);
+router.post('/:id/quote/approve', c.approveQuote);
+router.post('/:id/quote/reject',  c.rejectQuote);
 router.post('/:id/receipt', function(req, res, next) {
   const upload = getReceiptUploadMiddleware();
   if (!upload) return res.status(503).json({ success: false, message: 'upload not available' });
