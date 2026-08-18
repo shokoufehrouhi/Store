@@ -3687,7 +3687,7 @@ function openLinkRequestModal() {
           '<div class="checkout-section-title">' + t.link_req_details_section + '</div>' +
           '<div class="checkout-note-coupon-row" style="margin-bottom:14px">' +
             '<div>' +
-              '<label class="checkout-field-label">' + t.order_size_lbl + '</label>' +
+              '<label class="checkout-field-label">' + t.order_size_lbl.trim() + ':</label>' +
               '<input id="link-req-size" class="checkout-text-input" placeholder="' + t.link_req_size_ph + '">' +
             '</div>' +
             '<div>' +
