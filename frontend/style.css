@@ -4532,6 +4532,23 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 }
 .linkreq-item-remove:hover { color: #ef4444; }
 
+/* ─── Link-request cards — accordion (collapse previous card on "add another") ─ */
+.linkreq-item-header {
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; user-select: none;
+}
+.linkreq-item-header-title { display: flex; align-items: baseline; min-width: 0; }
+.linkreq-item-summary {
+  font-size: 12px; font-weight: 400; color: #9ca3af;
+  margin-inline-start: 4px; direction: ltr; unicode-bidi: plaintext;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px;
+}
+.linkreq-item-header-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.linkreq-item-chevron { display: flex; color: #9ca3af; transition: transform .18s; }
+.linkreq-item-card.collapsed .linkreq-item-chevron { transform: rotate(-90deg); }
+.linkreq-item-card.collapsed .linkreq-item-header { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.linkreq-item-card.collapsed .linkreq-item-body { display: none; }
+
 .lp-code-box {
   background: rgba(255,184,0,.09);
   border: 1.5px dashed rgba(255,184,0,.5);

@@ -3696,32 +3696,82 @@ var _linkReqNextIdx = 0;
 function _linkReqItemCardHtml(idx, isFirst) {
   var t = TRANSLATIONS[currentLang];
   var removeBtn = !isFirst
-    ? '<button type="button" class="linkreq-item-remove" onclick="removeLinkRequestItem(' + idx + ')" aria-label="Remove">&#x2715;</button>'
+    ? '<button type="button" class="linkreq-item-remove" onclick="event.stopPropagation(); removeLinkRequestItem(' + idx + ')" aria-label="Remove">&#x2715;</button>'
     : '';
+  var chevron = '<span class="linkreq-item-chevron"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg></span>';
+  // Header stays visible when the card collapses (accordion-style — see
+  // toggleLinkRequestItem) so the customer can still see/reopen it. The
+  // whole header row toggles; the remove (×) button stops propagation so
+  // it deletes the card instead of just toggling it.
   return '<div class="checkout-section linkreq-item-card" id="linkreq-item-' + idx + '" data-idx="' + idx + '">' +
-    '<div class="checkout-section-title" style="display:flex;justify-content:space-between;align-items:center">' +
-      '<span>' + t.link_req_link_label + '</span>' + removeBtn +
+    '<div class="checkout-section-title linkreq-item-header" onclick="toggleLinkRequestItem(' + idx + ')">' +
+      '<span class="linkreq-item-header-title"><span id="linkreq-item-num-' + idx + '">' + t.link_req_link_label + ' ' + localizeNumber(String(idx + 1)) + '</span><span class="linkreq-item-summary" id="linkreq-item-summary-' + idx + '"></span></span>' +
+      '<span class="linkreq-item-header-actions">' + removeBtn + chevron + '</span>' +
     '</div>' +
-    (isFirst ? '<p style="font-size:13px;color:#888;margin:-4px 0 12px;line-height:1.6">' + t.link_req_modal_desc + '</p>' : '') +
-    '<input id="link-req-url-' + idx + '" class="checkout-text-input" type="url" placeholder="' + t.link_req_link_ph + '" style="direction:ltr;text-align:left;margin-bottom:6px">' +
-    '<div class="checkout-err" id="link-req-url-err-' + idx + '"></div>' +
-    '<div class="checkout-note-coupon-row" style="margin:10px 0 14px">' +
-      '<div>' +
-        '<label class="checkout-field-label">' + t.order_size_lbl.trim() + ':</label>' +
-        '<input id="link-req-size-' + idx + '" class="checkout-text-input" placeholder="' + t.link_req_size_ph + '">' +
+    '<div class="linkreq-item-body" id="linkreq-item-body-' + idx + '">' +
+      (isFirst ? '<p style="font-size:13px;color:#888;margin:-4px 0 12px;line-height:1.6">' + t.link_req_modal_desc + '</p>' : '') +
+      '<input id="link-req-url-' + idx + '" class="checkout-text-input" type="url" placeholder="' + t.link_req_link_ph + '" style="direction:ltr;text-align:left;margin-bottom:6px">' +
+      '<div class="checkout-err" id="link-req-url-err-' + idx + '"></div>' +
+      '<div class="checkout-note-coupon-row" style="margin:10px 0 14px">' +
+        '<div>' +
+          '<label class="checkout-field-label">' + t.order_size_lbl.trim() + ':</label>' +
+          '<input id="link-req-size-' + idx + '" class="checkout-text-input" placeholder="' + t.link_req_size_ph + '">' +
+        '</div>' +
+        '<div>' +
+          '<label class="checkout-field-label">' + t.color_label + '</label>' +
+          '<input id="link-req-color-' + idx + '" class="checkout-text-input" placeholder="' + t.link_req_color_ph + '">' +
+        '</div>' +
       '</div>' +
-      '<div>' +
-        '<label class="checkout-field-label">' + t.color_label + '</label>' +
-        '<input id="link-req-color-' + idx + '" class="checkout-text-input" placeholder="' + t.link_req_color_ph + '">' +
+      '<div style="max-width:140px;margin-bottom:14px">' +
+        '<label class="checkout-field-label">' + t.cart_qty + '</label>' +
+        '<input id="link-req-qty-' + idx + '" class="checkout-text-input" type="number" min="1" step="1" value="1" placeholder="' + t.link_req_qty_ph + '">' +
       '</div>' +
+      '<label class="checkout-field-label">' + t.link_req_note_label + '</label>' +
+      '<textarea id="link-req-note-' + idx + '" class="checkout-note-input" placeholder="' + t.link_req_note_ph + '" rows="3"></textarea>' +
     '</div>' +
-    '<div style="max-width:140px;margin-bottom:14px">' +
-      '<label class="checkout-field-label">' + t.cart_qty + '</label>' +
-      '<input id="link-req-qty-' + idx + '" class="checkout-text-input" type="number" min="1" step="1" value="1" placeholder="' + t.link_req_qty_ph + '">' +
-    '</div>' +
-    '<label class="checkout-field-label">' + t.link_req_note_label + '</label>' +
-    '<textarea id="link-req-note-' + idx + '" class="checkout-note-input" placeholder="' + t.link_req_note_ph + '" rows="3"></textarea>' +
   '</div>';
+}
+
+// Expands/collapses one link card (accordion-style). Collapsing snapshots
+// the entered product link into the header as a summary so the customer can
+// tell cards apart without reopening each one.
+function toggleLinkRequestItem(idx, forceCollapse) {
+  var card = document.getElementById('linkreq-item-' + idx);
+  if (!card) return;
+  var collapse = forceCollapse !== undefined ? forceCollapse : !card.classList.contains('collapsed');
+  if (collapse) {
+    var urlInput  = document.getElementById('link-req-url-' + idx);
+    var summaryEl = document.getElementById('linkreq-item-summary-' + idx);
+    if (summaryEl) {
+      var val = urlInput ? urlInput.value.trim() : '';
+      summaryEl.textContent = val ? (' — ' + (val.length > 40 ? val.slice(0, 40) + '…' : val)) : '';
+    }
+    card.classList.add('collapsed');
+  } else {
+    card.classList.remove('collapsed');
+  }
+}
+
+// Card ids never get reused/compacted after a removal (see note above
+// _linkReqNextIdx), so the visible "Product Link N" number is derived from
+// DOM position, not the underlying idx — otherwise removing a middle card
+// would leave a gap (1, 3, 4 instead of 1, 2, 3).
+function _renumberLinkRequestItems() {
+  var t = TRANSLATIONS[currentLang];
+  document.querySelectorAll('#linkreq-items-container .linkreq-item-card').forEach(function(card, i) {
+    var idx   = Number(card.dataset.idx);
+    var numEl = document.getElementById('linkreq-item-num-' + idx);
+    if (numEl) numEl.textContent = t.link_req_link_label + ' ' + localizeNumber(String(i + 1));
+  });
+}
+
+// Collapses every other card, leaving only keepIdx expanded — called after
+// adding a new link so the customer isn't scrolling past several open forms.
+function _collapseOtherLinkRequestItems(keepIdx) {
+  document.querySelectorAll('#linkreq-items-container .linkreq-item-card').forEach(function(card) {
+    var idx = Number(card.dataset.idx);
+    if (idx !== keepIdx) toggleLinkRequestItem(idx, true);
+  });
 }
 
 function openLinkRequestModal() {
@@ -3772,7 +3822,13 @@ function addLinkRequestItem() {
   var idx = _linkReqNextIdx++;
   var wrap = document.createElement('div');
   wrap.innerHTML = _linkReqItemCardHtml(idx, false);
-  container.appendChild(wrap.firstChild);
+  var card = wrap.firstChild;
+  container.appendChild(card);
+  // Collapse every previously-added card so only the new one is open —
+  // still reopenable any time via its header/chevron.
+  _collapseOtherLinkRequestItems(idx);
+  _renumberLinkRequestItems();
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   if (count + 1 >= LINK_REQ_MAX_ITEMS) {
     var addBtn = document.getElementById('linkreq-add-btn');
     if (addBtn) addBtn.style.display = 'none';
@@ -3784,6 +3840,7 @@ function removeLinkRequestItem(idx) {
   if (card) card.remove();
   var addBtn = document.getElementById('linkreq-add-btn');
   if (addBtn) addBtn.style.display = '';
+  _renumberLinkRequestItems();
 }
 
 function submitLinkRequest() {
@@ -3804,6 +3861,9 @@ function submitLinkRequest() {
     try { var u = new URL(link); isValidUrl = (u.protocol === 'http:' || u.protocol === 'https:'); } catch (e) { isValidUrl = false; }
     if (!isValidUrl) {
       if (errEl) errEl.textContent = t.link_req_invalid_link;
+      // Force this card open — its error text lives inside the collapsible
+      // body, invisible to the customer while collapsed.
+      toggleLinkRequestItem(Number(idx), false);
       hasError = true;
       return;
     }
