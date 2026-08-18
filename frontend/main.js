@@ -3645,6 +3645,7 @@ function openActiveOrder() {
   var id = currentPreorder.id;
   _profileExpandedId    = id;
   _pendingScrollOrderId = id;
+  _ordersActiveOnly     = true;
   if (!window.IS_PROFILE_PAGE) {
     openProfileModal();
   }

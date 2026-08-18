@@ -464,7 +464,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   align-items: center;
   background: rgba(255,92,0,.14);
   color: #fff;
-  border: 1.5px solid var(--primary);
+  /* inset shadow instead of a real border — same outlined look without
+     adding to the box's own size, so this stays pixel-identical in
+     height/width to .btn-hero-primary (which has no border) */
+  box-shadow: inset 0 0 0 1.5px var(--primary);
   padding: 10px 22px;
   border-radius: 30px;
   font-size: 14px;
