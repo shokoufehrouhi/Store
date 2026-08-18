@@ -3889,6 +3889,13 @@ function submitLinkRequest() {
         closeLinkRequestModal();
         showToast(t.link_req_success);
         renderOrders();
+        // Same bookkeeping the cart-checkout flows do after creating an
+        // order — the header's active-order dot only reads currentPreorder,
+        // so without this a fresh link-request order stays invisible there
+        // until the customer manually reloads the page.
+        currentPreorder = r.data.data;
+        localStorage.setItem('mf_preorder_id', String(r.data.data.id));
+        updateOrderStatusBtn();
       } else if (r.data.message === 'active_link_request_exists') {
         showToast(t.active_link_request_exists, 'error');
       } else {
