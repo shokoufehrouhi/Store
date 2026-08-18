@@ -626,6 +626,10 @@ async function deployToProduction(req, res, next) {
 
       if (files.some(f => f.startsWith('backend/'))) {
         await execFileAsync('npm', ['install', '--omit=dev'], { cwd: `${DEPLOY_PROD_DIR}/backend` });
+        // npm install does NOT regenerate the Prisma client on its own — without this,
+        // a schema.prisma change ships but the running server keeps using the stale
+        // generated client and 500s on anything touching the new fields/enum values.
+        await execFileAsync('npx', ['prisma', 'generate'], { cwd: `${DEPLOY_PROD_DIR}/backend` });
         await execFileAsync('pm2', ['restart', 'shilista-api', '--update-env']);
       }
     }
