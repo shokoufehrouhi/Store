@@ -934,15 +934,21 @@ async function announceQuotePrice(req, res, next) {
     if (order.status !== 'link_requested') {
       return res.status(400).json({ success: false, message: 'Order must be in link_requested status' });
     }
+    // "amount" here is the UNIT price — total_amount is derived by multiplying
+    // by the customer's requested qty (link_qty, defaults to 1 for older rows
+    // created before qty was collected), so both are always in sync and neither
+    // screen (admin/customer/email) has to redo this math itself.
     const amount = Number(req.body.amount);
     if (!amount || amount <= 0) {
       return res.status(400).json({ success: false, message: 'valid_amount_required' });
     }
+    const qty = order.link_qty || 1;
     // orders.total_amount is Decimal(14,0) — whole Lira only (same as every other
     // order total in this app) — round explicitly rather than let the DB truncate
     // silently, since quoted_price (Decimal(12,2)) would otherwise keep the cents
     // while total_amount quietly drops them.
-    const roundedAmount = Math.round(amount);
+    const roundedUnit  = Math.round(amount * 100) / 100;
+    const roundedTotal = Math.round(roundedUnit * qty);
     const now = new Date();
     const updated = await prisma.orders.update({
       where: { id },
@@ -950,13 +956,16 @@ async function announceQuotePrice(req, res, next) {
       // screen/email that already reads order.total_amount — admin order list,
       // customer profile card, the email footer's total line — shows the right
       // number without needing a new special case for this status.
-      data:  { quoted_price: roundedAmount, quoted_at: now, total_amount: roundedAmount, status: 'price_quoted', updated_at: now },
+      data:  { quoted_price: roundedUnit, quoted_at: now, total_amount: roundedTotal, status: 'price_quoted', updated_at: now },
       include: ADMIN_ORDER_INCLUDE,
     });
     if (updated.customers) {
       const ol = updated.lang || 'fa';
+      const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' TL';
       const extraInfo = [
-        { label: label('order_total', ol), value: Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' TL', dir: 'ltr' },
+        { label: label('unit_price', ol), value: fmt(roundedUnit), dir: 'ltr' },
+        { label: label('qty', ol),        value: String(qty), dir: 'ltr' },
+        { label: label('order_total', ol), value: fmt(roundedTotal), dir: 'ltr' },
       ];
       if (updated.external_product_link) {
         extraInfo.push({ label: label('product_link', ol), value: updated.external_product_link, dir: 'ltr' });

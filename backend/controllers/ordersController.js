@@ -49,12 +49,11 @@ async function createPreorder(req, res, next) {
     }
     const safeLang = ['fa', 'en', 'tr'].includes(lang) ? lang : 'fa';
 
-    // Block if customer already has an active preorder
-    const activePreorder = await prisma.orders.findFirst({
+    // Cap concurrent active preorders per customer (was 1, raised to 3)
+    const activePreorderCount = await prisma.orders.count({
       where: { customer_id: customerId, status: 'preorder' },
-      select: { id: true },
     });
-    if (activePreorder) {
+    if (activePreorderCount >= 3) {
       return res.status(409).json({ success: false, message: 'active_preorder_exists' });
     }
 
@@ -318,7 +317,7 @@ async function createLinkRequest(req, res, next) {
     const customerId = await getCustomerFromSession(req, res);
     if (!customerId) return;
 
-    const { product_link, note, lang } = req.body;
+    const { product_link, note, lang, qty } = req.body;
     if (!product_link || !product_link.trim()) {
       return res.status(400).json({ success: false, message: 'product_link_required' });
     }
@@ -326,6 +325,9 @@ async function createLinkRequest(req, res, next) {
     if (trimmedLink.length > 500) {
       return res.status(400).json({ success: false, message: 'product_link_too_long' });
     }
+    // Kept as its own column (not folded into the note like size/color) because
+    // announceQuotePrice needs a real number to multiply the unit price by.
+    const safeQty = Math.min(999, Math.max(1, parseInt(qty, 10) || 1));
     try {
       const u = new URL(trimmedLink);
       if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('bad_protocol');
@@ -334,13 +336,12 @@ async function createLinkRequest(req, res, next) {
     }
     const safeLang = ['fa', 'en', 'tr'].includes(lang) ? lang : 'fa';
 
-    // Block if customer already has a link-request awaiting a price or a response —
-    // mirrors the "one active preorder" rule on createPreorder above.
-    const activeRequest = await prisma.orders.findFirst({
+    // Cap concurrent link-requests awaiting a price/response per customer
+    // (was 1, raised to 3 — mirrors the same cap on createPreorder above).
+    const activeRequestCount = await prisma.orders.count({
       where:  { customer_id: customerId, status: { in: ['link_requested', 'price_quoted'] } },
-      select: { id: true },
     });
-    if (activeRequest) {
+    if (activeRequestCount >= 3) {
       return res.status(409).json({ success: false, message: 'active_link_request_exists' });
     }
 
@@ -353,6 +354,7 @@ async function createLinkRequest(req, res, next) {
         lang:                   safeLang,
         total_amount:           0,
         external_product_link:  trimmedLink,
+        link_qty:                safeQty,
       },
       include: ORDER_INCLUDE,
     });

@@ -1897,7 +1897,7 @@ const LANGS = {
     orderCustomerLbl:'مشتری', orderMobileLbl:'موبایل', orderItemsLbl:'اقلام سفارش',
     orderAddrLbl:'آدرس تحویل', orderNoAddr:'آدرس ثبت نشده', orderNoteLbl:'یادداشت', orderTotalLbl:'جمع کل',
     orderLinkLbl:'لینک محصول', statusLinkRequested:'در انتظار اعلام قیمت', statusPriceQuoted:'قیمت اعلام شد',
-    orderActionQuote:'اعلام قیمت محصول', orderQuoteAmountLbl:'مبلغ (لیر ترکیه)', orderSendQuoteBtn:'ارسال قیمت به مشتری',
+    orderActionQuote:'اعلام قیمت محصول', orderQuoteAmountLbl:'قیمت واحد (لیر ترکیه)', orderSendQuoteBtn:'ارسال قیمت به مشتری',
     orderQuoteAmountRequired:'مبلغ معتبر وارد کنید', orderQuoteSent:'قیمت برای مشتری ارسال شد',
     orderQuoteWaitingMsg:'در انتظار پاسخ مشتری (تایید یا رد)', orderQuoteDeadlineLbl:'مهلت باقیمانده', orderQuoteDaysLeftSuffix:'روز',
     orderActionPayment:'ثبت اطلاعات پرداخت',
@@ -2096,7 +2096,7 @@ const LANGS = {
     orderCustomerLbl:'Customer', orderMobileLbl:'Mobile', orderItemsLbl:'Order Items',
     orderAddrLbl:'Delivery Address', orderNoAddr:'No address saved', orderNoteLbl:'Note', orderTotalLbl:'Total',
     orderLinkLbl:'Product Link', statusLinkRequested:'Awaiting Price Quote', statusPriceQuoted:'Price Quoted',
-    orderActionQuote:'Announce Product Price', orderQuoteAmountLbl:'Amount (Turkish Lira)', orderSendQuoteBtn:'Send Price to Customer',
+    orderActionQuote:'Announce Product Price', orderQuoteAmountLbl:'Unit Price (Turkish Lira)', orderSendQuoteBtn:'Send Price to Customer',
     orderQuoteAmountRequired:'Enter a valid amount', orderQuoteSent:'Price sent to customer',
     orderQuoteWaitingMsg:'Awaiting customer response (approve or reject)', orderQuoteDeadlineLbl:'Time remaining', orderQuoteDaysLeftSuffix:'days',
     orderActionPayment:'Set Payment Info',
@@ -2295,7 +2295,7 @@ const LANGS = {
     orderCustomerLbl:'Müşteri', orderMobileLbl:'Telefon', orderItemsLbl:'Sipariş Kalemleri',
     orderAddrLbl:'Teslimat Adresi', orderNoAddr:'Adres kaydedilmedi', orderNoteLbl:'Not', orderTotalLbl:'Toplam',
     orderLinkLbl:'Ürün Linki', statusLinkRequested:'Fiyat Teklifi Bekleniyor', statusPriceQuoted:'Fiyat Teklif Edildi',
-    orderActionQuote:'Ürün Fiyatını Bildir', orderQuoteAmountLbl:'Tutar (Türk Lirası)', orderSendQuoteBtn:'Fiyatı Müşteriye Gönder',
+    orderActionQuote:'Ürün Fiyatını Bildir', orderQuoteAmountLbl:'Birim Fiyat (Türk Lirası)', orderSendQuoteBtn:'Fiyatı Müşteriye Gönder',
     orderQuoteAmountRequired:'Geçerli bir tutar girin', orderQuoteSent:'Fiyat müşteriye gönderildi',
     orderQuoteWaitingMsg:'Müşteri yanıtı bekleniyor (onay veya red)', orderQuoteDeadlineLbl:'Kalan süre', orderQuoteDaysLeftSuffix:'gün',
     orderActionPayment:'Ödeme Bilgisi Ekle',
@@ -5065,11 +5065,14 @@ function renderOrderDetail() {
   html += '<div id="order-action-area">';
 
   if (st === 'link_requested') {
+    const reqQty = order.link_qty || 1;
     html += `<div style="font-weight:700;font-size:14px;margin-bottom:10px">${t('orderActionQuote')}</div>
-    <div class="form-field" style="margin-bottom:10px;max-width:260px">
+    <div style="font-size:13px;color:#666;margin-bottom:10px">${t('qtyLbl')}: <strong>${reqQty}</strong></div>
+    <div class="form-field" style="margin-bottom:6px;max-width:260px">
       <label>${t('orderQuoteAmountLbl')}</label>
-      <input id="quote-amount-input" type="number" min="0" step="1" placeholder="0" style="direction:ltr">
+      <input id="quote-amount-input" type="number" min="0" step="1" placeholder="0" style="direction:ltr" oninput="adminUpdateQuoteTotalPreview(${reqQty})">
     </div>
+    <div id="quote-total-preview" style="font-size:13px;color:#666;margin-bottom:10px"></div>
     <div style="display:flex;gap:10px;margin-top:4px">
       <button class="btn btn-primary" style="flex:1" onclick="adminAnnounceQuotePrice(${order.id})">${t('orderSendQuoteBtn')}</button>
       <button class="btn btn-danger" style="flex:1" onclick="adminShowPreorderRejectForm(${order.id})">${t('orderRejectPreorder')}</button>
@@ -5084,8 +5087,13 @@ function renderOrderDetail() {
     const quotedAt   = order.quoted_at ? new Date(order.quoted_at) : null;
     const deadline    = quotedAt ? new Date(quotedAt.getTime() + 14 * 24 * 60 * 60 * 1000) : null;
     const daysLeft    = deadline ? Math.max(0, Math.ceil((deadline - new Date()) / (24 * 60 * 60 * 1000))) : null;
+    const qQty   = order.link_qty || 1;
+    const qUnit  = Number(order.quoted_price || order.total_amount);
+    const qTotal = Number(order.total_amount);
     html += `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px 16px;font-size:13px">
-      <strong>${t('orderQuoteAmountLbl')}:</strong> ${Number(order.quoted_price || order.total_amount).toLocaleString('en-US')} TL<br>
+      <strong>${t('orderQuoteAmountLbl')}:</strong> ${qUnit.toLocaleString('en-US')} TL<br>
+      <strong>${t('qtyLbl')}:</strong> ${qQty}<br>
+      <strong>${t('orderTotalLbl')}:</strong> ${qTotal.toLocaleString('en-US')} TL<br>
       <strong>${t('orderQuoteWaitingMsg')}</strong>
       ${daysLeft !== null ? `<br><span style="color:#6b7280">${t('orderQuoteDeadlineLbl')}: ${daysLeft} ${t('orderQuoteDaysLeftSuffix')}</span>` : ''}
     </div>`;
@@ -5283,6 +5291,16 @@ function selectPaymentBank(bankId) {
 function openProductFromOrder(productId) {
   switchTab('products');
   setTimeout(function() { openProductModal(productId); }, 300);
+}
+
+function adminUpdateQuoteTotalPreview(qty) {
+  const input   = document.getElementById('quote-amount-input');
+  const preview = document.getElementById('quote-total-preview');
+  if (!input || !preview) return;
+  const unit = Number(input.value);
+  if (!unit || unit <= 0) { preview.textContent = ''; return; }
+  const total = Math.round(unit * qty);
+  preview.innerHTML = `<strong>${t('orderTotalLbl')}:</strong> ${unit.toLocaleString('en-US')} × ${qty} = ${total.toLocaleString('en-US')} TL`;
 }
 
 async function adminAnnounceQuotePrice(orderId) {

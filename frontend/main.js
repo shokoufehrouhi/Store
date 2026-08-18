@@ -3745,9 +3745,11 @@ function submitLinkRequest() {
     return;
   }
 
-  // Size/color/qty have no dedicated columns on the order (it's not a
-  // catalog product) — folded into the same free-text note field the admin
-  // already sees, using the site's existing size/color/qty labels.
+  // Size/color have no dedicated columns on the order (it's not a catalog
+  // product) — folded into the same free-text note field the admin already
+  // sees, using the site's existing size/color labels. Qty IS sent as its
+  // own field (below) since announceQuotePrice needs a real number to
+  // multiply the unit price by.
   var size  = (sizeEl.value  || '').trim();
   var color = (colorEl.value || '').trim();
   var qty   = Math.max(1, parseInt(qtyEl.value, 10) || 1);
@@ -3755,7 +3757,6 @@ function submitLinkRequest() {
   var noteParts = [];
   if (size)  noteParts.push(t.order_size_lbl.trim() + ': ' + size);
   if (color) noteParts.push(t.color_label.replace(/:$/, '') + ': ' + color);
-  noteParts.push(t.cart_qty.replace(/:$/, '') + ': ' + qty);
   if (extra) noteParts.push(extra);
   var composedNote = noteParts.join('\n');
 
@@ -3763,7 +3764,7 @@ function submitLinkRequest() {
   fetch(API_BASE + '/orders/link-request', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'x-session-token': token },
-    body:    JSON.stringify({ product_link: link, note: composedNote, lang: currentLang }),
+    body:    JSON.stringify({ product_link: link, note: composedNote, qty: qty, lang: currentLang }),
   }).then(function(r) { return r.json().then(function(d) { return { status: r.status, data: d }; }); })
     .then(function(r) {
       btn.disabled = false;
@@ -3937,8 +3938,11 @@ function _renderOrdersList(apiOrders) {
       if (st === 'price_quoted') {
         var quotedDeadline = order.quoted_at ? new Date(new Date(order.quoted_at).getTime() + 14 * 24 * 60 * 60 * 1000) : null;
         var daysLeft = quotedDeadline ? Math.max(0, Math.ceil((quotedDeadline - new Date()) / (24 * 60 * 60 * 1000))) : null;
+        var qQty = order.link_qty || 1;
         detailHtml += '<div class="order-payment-info-box">' +
-          '<div class="order-payment-row"><span>' + (t.quote_price_label || 'قیمت پیشنهادی') + ':</span><strong>' + formatPrice(order.quoted_price || order.total_amount) + '</strong></div>' +
+          '<div class="order-payment-row"><span>' + (t.quote_price_label || 'قیمت واحد') + ':</span><strong>' + formatPrice(order.quoted_price || order.total_amount) + '</strong></div>' +
+          '<div class="order-payment-row"><span>' + (t.cart_qty || 'تعداد:') + '</span><strong>' + localizeNumber(String(qQty)) + '</strong></div>' +
+          '<div class="order-payment-row"><span>' + (t.checkout_total || 'جمع کل') + ':</span><strong>' + formatPrice(order.total_amount) + '</strong></div>' +
           (daysLeft !== null ? '<div class="order-payment-row"><span>' + (t.quote_deadline_label || 'مهلت پاسخ') + ':</span><strong>' + (daysLeft > 0 ? (localizeNumber(String(daysLeft)) + ' ' + (t.quote_days_left_suffix || 'روز مانده')) : (t.quote_expires_today || 'امروز آخرین مهلت است')) + '</strong></div>' : '') +
           '</div>';
         detailHtml += '<div style="display:flex;gap:8px;margin-top:10px">' +
