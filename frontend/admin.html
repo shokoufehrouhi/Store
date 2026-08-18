@@ -1881,7 +1881,7 @@ const LANGS = {
     valSubcatFields:'دسته، کلید و نام فارسی الزامی‌اند',
     valColorFields:'کلید، نام فارسی و کد رنگ الزامی‌اند',
     valHexFormat:'کد رنگ باید به فرمت #RRGGBB باشد',
-    deleteItem:'حذف آیتم', confirmYes:'بله، حذف کن', confirmNo:'انصراف',
+    deleteItem:'حذف آیتم', confirmYes:'بله، حذف کن', confirmYesDeploy:'بله، استقرار کن', confirmYesPublish:'بله، منتشر کن', confirmNo:'انصراف',
     publishChanges:'انتشار تغییرات', confirmPublish:'آیا مطمئنید تغییرات روی سایت منتشر شوند؟', publishedOk:'تغییرات با موفقیت منتشر شد', pendingPublish:'منتشر نشده — منتظر انتشار',
     deployProduction:'تولید (زنده)', deployStaging:'پیش‌نمایش', deployOpenStaging:'🔗 باز کردن پیش‌نمایش ↗', deployUpToDate:'✓ تولید با آخرین تغییرات همگام است', deployPendingTitle:'تغییرات در انتظار استقرار:', deployBtn:'🚀 استقرار روی تولید', deployConfirm:'این تغییرات روی سایت اصلی (shilista.com) اعمال شوند؟', deployInProgress:'در حال استقرار…', deployDone:'با موفقیت روی تولید مستقر شد', deployError:'خطا در استقرار',
     confirmDeleteProduct:'این محصول حذف شود؟', confirmDeleteSubcat:'این زیردسته حذف شود؟',
@@ -2080,7 +2080,7 @@ const LANGS = {
     valSubcatFields:'Category, key and Farsi name are required',
     valColorFields:'Key, Farsi name and hex code are required',
     valHexFormat:'Color code must be in #RRGGBB format',
-    deleteItem:'Delete Item', confirmYes:'Yes, Delete', confirmNo:'Cancel',
+    deleteItem:'Delete Item', confirmYes:'Yes, Delete', confirmYesDeploy:'Yes, Deploy', confirmYesPublish:'Yes, Publish', confirmNo:'Cancel',
     publishChanges:'Publish Changes', confirmPublish:'Are you sure you want to publish these changes to the live site?', publishedOk:'Changes published successfully', pendingPublish:'Not published yet — waiting for publish',
     deployProduction:'Production (live)', deployStaging:'Preview', deployOpenStaging:'🔗 Open preview ↗', deployUpToDate:'✓ Production is up to date', deployPendingTitle:'Changes pending deploy:', deployBtn:'🚀 Deploy to Production', deployConfirm:'Push these changes live to shilista.com?', deployInProgress:'Deploying…', deployDone:'Deployed to production successfully', deployError:'Deploy failed',
     confirmDeleteProduct:'Delete this product?', confirmDeleteSubcat:'Delete this subcategory?',
@@ -2279,7 +2279,7 @@ const LANGS = {
     valSubcatFields:'Kategori, anahtar ve Farsça ad gereklidir',
     valColorFields:'Anahtar, Farsça ad ve renk kodu gereklidir',
     valHexFormat:'Renk kodu #RRGGBB formatında olmalı',
-    deleteItem:'Öğeyi Sil', confirmYes:'Evet, Sil', confirmNo:'İptal',
+    deleteItem:'Öğeyi Sil', confirmYes:'Evet, Sil', confirmYesDeploy:'Evet, Dağıt', confirmYesPublish:'Evet, Yayınla', confirmNo:'İptal',
     publishChanges:'Değişiklikleri Yayınla', confirmPublish:'Bu değişiklikleri canlı siteye yayınlamak istediğinize emin misiniz?', publishedOk:'Değişiklikler başarıyla yayınlandı', pendingPublish:'Henüz yayınlanmadı — yayın bekleniyor',
     deployProduction:'Üretim (canlı)', deployStaging:'Ön izleme', deployOpenStaging:'🔗 Ön izlemeyi aç ↗', deployUpToDate:'✓ Üretim güncel', deployPendingTitle:'Dağıtım bekleyen değişiklikler:', deployBtn:'🚀 Üretime Dağıt', deployConfirm:'Bu değişiklikler canlı siteye (shilista.com) uygulansın mı?', deployInProgress:'Dağıtılıyor…', deployDone:'Üretime başarıyla dağıtıldı', deployError:'Dağıtım başarısız',
     confirmDeleteProduct:'Bu ürün silinsin mi?', confirmDeleteSubcat:'Bu alt kategori silinsin mi?',
@@ -2560,11 +2560,17 @@ function showToast(msg, type = 'success') {
 function showConfirm(text, onYes, opts = {}) {
   document.getElementById('confirm-icon').textContent = opts.icon || '🗑️';
   document.getElementById('confirm-title').textContent = opts.title || t('deleteItem');
-  document.getElementById('confirm-yes-btn').textContent = t('confirmYes');
+  const yesBtn = document.getElementById('confirm-yes-btn');
+  // Yes-button text/color default to the delete styling (red, "Yes, Delete")
+  // since most confirms are destructive — non-destructive actions (deploy,
+  // publish, etc.) pass their own yesText/btnClass so the button doesn't
+  // misleadingly say "Delete" for something like a deploy.
+  yesBtn.textContent = opts.yesText || t('confirmYes');
+  yesBtn.className   = 'btn ' + (opts.btnClass || 'btn-danger');
   document.querySelector('#confirm-overlay .btn-secondary').textContent = t('confirmNo');
   document.getElementById('confirm-text').textContent = text;
   document.getElementById('confirm-overlay').classList.remove('hidden');
-  document.getElementById('confirm-yes-btn').onclick = () => { closeConfirm(); onYes(); };
+  yesBtn.onclick = () => { closeConfirm(); onYes(); };
 }
 function closeConfirm() { document.getElementById('confirm-overlay').classList.add('hidden'); }
 
@@ -2588,7 +2594,7 @@ function openPublishConfirm() {
     } else {
       showToast(res?.message || t('saveError'), 'error');
     }
-  }, { icon: '🚀', title: t('publishChanges') });
+  }, { icon: '🚀', title: t('publishChanges'), yesText: t('confirmYesPublish'), btnClass: 'btn-primary' });
 }
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
@@ -5546,7 +5552,7 @@ function deployProduction() {
       showToast(data?.message || t('deployError'), 'error');
     }
     if (btn) { btn.disabled = false; btn.textContent = t('deployBtn'); }
-  }, { icon: '🚀', title: t('deployBtn') });
+  }, { icon: '🚀', title: t('deployBtn'), yesText: t('confirmYesDeploy'), btnClass: 'btn-primary' });
 }
 
 // ─── Suppliers ────────────────────────────────────────────────────────────────
