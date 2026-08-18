@@ -4637,12 +4637,13 @@ function openCheckout() {
   if (!cart.length) { openCart(); return; }
   closeCart();
   var overlay = document.getElementById('checkout-overlay');
-  var header = document.querySelector('.header');
-  var headerBottom = header ? header.getBoundingClientRect().bottom : 64;
-  var bannerEl = document.getElementById('discount-banner');
-  var bannerH = (bannerEl && bannerEl.style.display !== 'none') ? bannerEl.getBoundingClientRect().height : 0;
-  overlay.style.top = (headerBottom + bannerH) + 'px';
   overlay.classList.add('open');
+  // Full-viewport takeover (z-index sits above the sticky header/announcement
+  // bar — see .checkout-overlay) — lock scroll on both <html> and <body> since
+  // browsers vary on which one is the actual document scrolling element; only
+  // locking body left <html> free to scroll behind the overlay's own inner
+  // .checkout-body scroll, i.e. two independent scrollbars at once.
+  document.documentElement.style.overflow = 'hidden';
   document.body.style.overflow = 'hidden';
   if (location.pathname !== '/checkout') {
     history.pushState({ page: 'checkout' }, '', '/checkout');
@@ -4671,6 +4672,7 @@ function openCheckout() {
 
 function closeCheckout() {
   document.getElementById('checkout-overlay').classList.remove('open');
+  document.documentElement.style.overflow = '';
   document.body.style.overflow = '';
   _appliedCoupon = null;
   if (location.pathname === '/checkout') history.back();
@@ -4680,6 +4682,7 @@ window.addEventListener('popstate', function(e) {
   var overlay = document.getElementById('checkout-overlay');
   if (overlay && overlay.classList.contains('open')) {
     overlay.classList.remove('open');
+    document.documentElement.style.overflow = '';
     document.body.style.overflow = '';
     _appliedCoupon = null;
   }
@@ -5400,11 +5403,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show overlay shell immediately so main page never flashes
     var _autoOverlay = document.getElementById('checkout-overlay');
     if (_autoOverlay) {
-      var _autoHeader = document.querySelector('.header');
-      var _autoTop    = _autoHeader ? _autoHeader.getBoundingClientRect().bottom : 64;
-      _autoOverlay.style.top      = _autoTop + 'px';
       _autoOverlay.style.transition = 'none';
       _autoOverlay.classList.add('open');
+      document.documentElement.style.overflow = 'hidden';
       document.body.style.overflow = 'hidden';
       history.pushState({ page: 'checkout' }, '', '/checkout');
       setTimeout(function() { _autoOverlay.style.transition = ''; }, 50);
