@@ -435,10 +435,28 @@ async function approveQuote(req, res, next) {
     const pricedItems = order.link_request_items.filter((it) => !it.rejected && it.unit_price != null);
 
     if (pricedItems.length) {
-      const requestedIds = Array.isArray(req.body && req.body.item_ids) ? req.body.item_ids.map(Number) : null;
-      const keepSet       = new Set(requestedIds === null ? pricedItems.map((it) => it.id) : requestedIds);
-      const keptItems     = pricedItems.filter((it) => keepSet.has(it.id));
-      const declinedItems = pricedItems.filter((it) => !keepSet.has(it.id));
+      // items: [{ id, qty }] — the customer's final pick per priced link,
+      // letting them raise or lower the quantity they originally asked for
+      // (or drop an item entirely with qty 0). Omitting the field entirely
+      // (older clients, or a single-priced-item order using the plain
+      // Approve button) keeps every priced item at its originally-requested
+      // quantity — full backward compat with the old approve-everything flow.
+      const rawItems = Array.isArray(req.body && req.body.items) ? req.body.items : null;
+      const qtyById  = new Map();
+      if (rawItems) {
+        for (const r of rawItems) {
+          const id = Number(r && r.id);
+          if (!Number.isInteger(id)) continue;
+          qtyById.set(id, Math.min(999, Math.max(0, parseInt(r && r.qty, 10) || 0)));
+        }
+      }
+
+      const resolvedItems = pricedItems.map((it) => ({
+        item: it,
+        qty:  rawItems ? (qtyById.has(it.id) ? qtyById.get(it.id) : 0) : it.qty,
+      }));
+      const keptItems     = resolvedItems.filter((r) => r.qty > 0);
+      const declinedItems = resolvedItems.filter((r) => r.qty === 0);
 
       if (!keptItems.length) {
         const updated = await rejectWholeOrder(order);
@@ -452,13 +470,23 @@ async function approveQuote(req, res, next) {
         tr: 'Müşteri onay sırasında bu ürünü seçmedi.',
       })[ol] || 'Customer did not select this item.';
       const now   = new Date();
-      const total = Math.round(keptItems.reduce((sum, it) => sum + Number(it.unit_price) * it.qty, 0));
+      const total = Math.round(keptItems.reduce((sum, r) => sum + Number(r.item.unit_price) * r.qty, 0));
 
       await prisma.$transaction([
-        ...declinedItems.map((it) => prisma.link_request_items.update({
-          where: { id: it.id },
+        ...declinedItems.map((r) => prisma.link_request_items.update({
+          where: { id: r.item.id },
           data:  { rejected: true, rejection_reason: declineReason, rejected_at: now },
         })),
+        // Persist the customer's final approved quantity — this row now
+        // represents what's actually being bought, feeding payment/shipping
+        // downstream, so it must reflect the post-approval qty, not the
+        // originally-requested one.
+        ...keptItems
+          .filter((r) => r.qty !== r.item.qty)
+          .map((r) => prisma.link_request_items.update({
+            where: { id: r.item.id },
+            data:  { qty: r.qty },
+          })),
         prisma.orders.update({
           where: { id: order.id },
           data:  { status: 'preorder', total_amount: total, updated_at: now },

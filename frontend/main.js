@@ -3840,14 +3840,38 @@ function submitLinkRequest() {
     });
 }
 
-function _doApproveQuote(orderId, itemIds) {
+// Recomputes the per-item subtotal + grand total shown live as the customer
+// edits a quantity field on a multi-item price_quoted order — purely a
+// client-side preview, the real total is always recalculated server-side
+// from whatever quantities actually get submitted.
+function updateLinkreqQuoteTotal(orderId) {
+  var inputs = document.querySelectorAll('[id^="linkreq-qty-"]');
+  if (!inputs.length) return;
+  var grand = 0;
+  inputs.forEach(function(inp) {
+    var itemId = inp.id.replace('linkreq-qty-', '');
+    var unit   = Number(inp.dataset.unitPrice) || 0;
+    var qty    = Math.max(0, Math.min(999, parseInt(inp.value, 10) || 0));
+    var sub    = unit * qty;
+    grand += sub;
+    var subEl = document.getElementById('linkreq-item-subtotal-' + itemId);
+    if (subEl) subEl.textContent = formatPrice(sub);
+  });
+  var rounded = Math.round(grand);
+  var totalEl = document.getElementById('linkreq-live-total-' + orderId);
+  if (totalEl) totalEl.textContent = formatPrice(rounded);
+  var topTotalEl = document.getElementById('linkreq-live-total-top-' + orderId);
+  if (topTotalEl) topTotalEl.textContent = formatPrice(rounded);
+}
+
+function _doApproveQuote(orderId, items) {
   var t     = TRANSLATIONS[currentLang];
   var token = getSession();
   var headers = { 'x-session-token': token };
   var opts    = { method: 'POST', headers: headers };
-  if (itemIds) {
+  if (items) {
     headers['Content-Type'] = 'application/json';
-    opts.body = JSON.stringify({ item_ids: itemIds });
+    opts.body = JSON.stringify({ items: items });
   }
   fetch(API_BASE + '/orders/' + orderId + '/quote/approve', opts)
     .then(function(r) { return r.json(); }).then(function(d) {
@@ -3858,21 +3882,24 @@ function _doApproveQuote(orderId, itemIds) {
 
 function approveQuote(orderId) {
   var t = TRANSLATIONS[currentLang];
-  // Multi-item orders show a per-item "I want this" checkbox (id="linkreq-pick-<itemId>")
-  // only when there's more than one priced item — gather the checked ones, if any exist.
-  var pickBoxes = document.querySelectorAll('[id^="linkreq-pick-"]');
-  if (pickBoxes.length) {
-    var itemIds = [];
-    pickBoxes.forEach(function(cb) {
-      if (cb.checked) itemIds.push(Number(cb.id.replace('linkreq-pick-', '')));
+  // Multi-item orders show a per-item final-quantity stepper (id="linkreq-qty-<itemId>")
+  // only when there's more than one priced item — gather the final quantities, if any exist.
+  var qtyInputs = document.querySelectorAll('[id^="linkreq-qty-"]');
+  if (qtyInputs.length) {
+    var items = [];
+    var anyKept = false;
+    qtyInputs.forEach(function(inp) {
+      var qty = Math.max(0, Math.min(999, parseInt(inp.value, 10) || 0));
+      if (qty > 0) anyKept = true;
+      items.push({ id: Number(inp.id.replace('linkreq-qty-', '')), qty: qty });
     });
-    if (!itemIds.length) {
-      showConfirm(t.quote_pick_none_confirm || 'هیچ موردی انتخاب نکرده‌اید، این معادل رد کردن کل قیمت است. ادامه می‌دهید؟', function() {
-        _doApproveQuote(orderId, itemIds);
+    if (!anyKept) {
+      showConfirm(t.quote_pick_none_confirm || 'تعداد همه موارد را صفر کرده‌اید، این معادل رد کردن کل قیمت است. ادامه می‌دهید؟', function() {
+        _doApproveQuote(orderId, items);
       });
       return;
     }
-    _doApproveQuote(orderId, itemIds);
+    _doApproveQuote(orderId, items);
     return;
   }
   _doApproveQuote(orderId, null);
@@ -3998,34 +4025,42 @@ function _renderOrdersList(apiOrders) {
 
       // ─── Link-based pre-order request items (1-5 links, each priced separately) ─
       var _pricedItems = (order.link_request_items || []).filter(function(it) { return !it.rejected && it.unit_price != null; });
-      var _showPickCheckboxes = (st === 'price_quoted' && _pricedItems.length > 1);
+      var _showQtyPicker = (st === 'price_quoted' && _pricedItems.length > 1);
       if (order.link_request_items && order.link_request_items.length) {
         detailHtml += order.link_request_items.map(function(it, i) {
+          var isEditable = _showQtyPicker && it.unit_price != null && !it.rejected;
           var metaParts = [];
           if (it.size)  metaParts.push(t.order_size_lbl.trim() + ': ' + it.size);
           if (it.color) metaParts.push(t.color_label.replace(/:$/, '') + ': ' + it.color);
-          metaParts.push(t.cart_qty.replace(/:$/, '') + ': ' + it.qty);
+          // Editable items show their own live quantity stepper below instead
+          // of a static qty in the meta row.
+          if (!isEditable) metaParts.push(t.cart_qty.replace(/:$/, '') + ': ' + it.qty);
+
           // Check rejected first — an item the customer declined at approval time
           // keeps its original unit_price on the row (that's how the total was
           // computed pre-decline), but it must show as declined, not as priced.
-          var priceLine = it.rejected
-            ? '<div class="linkreq-order-item-price" style="color:#dc2626">🚫 ' + (t.link_item_rejected_label || 'این مورد رد شد') + (it.rejection_reason ? ': ' + it.rejection_reason : '') + '</div>'
-            : it.unit_price != null
-              ? '<div class="linkreq-order-item-price">' + (t.quote_price_label || 'قیمت واحد') + ': ' + formatPrice(it.unit_price) + ' × ' + it.qty + ' = ' + formatPrice(Number(it.unit_price) * it.qty) + '</div>'
-              : '';
-          var checkbox = (_showPickCheckboxes && it.unit_price != null && !it.rejected)
-            ? '<label style="display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer;font-size:12.5px;font-weight:600;color:#4c1d95">' +
-                '<input type="checkbox" id="linkreq-pick-' + it.id + '" checked style="width:15px;height:15px;accent-color:#7c3aed">' +
-                (t.quote_pick_item_label || 'این مورد را می‌خواهم') +
-              '</label>'
-            : '';
+          var priceLine;
+          if (it.rejected) {
+            priceLine = '<div class="linkreq-order-item-price" style="color:#dc2626">🚫 ' + (t.link_item_rejected_label || 'این مورد رد شد') + (it.rejection_reason ? ': ' + it.rejection_reason : '') + '</div>';
+          } else if (isEditable) {
+            priceLine = '<div class="linkreq-order-item-price">' + (t.quote_price_label || 'قیمت واحد') + ': ' + formatPrice(it.unit_price) + '</div>' +
+              '<div style="display:flex;align-items:center;gap:8px;margin-top:6px">' +
+                '<label style="font-size:12.5px;font-weight:600;color:#4c1d95" for="linkreq-qty-' + it.id + '">' + (t.quote_final_qty_label || 'تعداد نهایی:') + '</label>' +
+                '<input type="number" min="0" max="999" step="1" value="' + it.qty + '" id="linkreq-qty-' + it.id + '" data-unit-price="' + it.unit_price + '" oninput="updateLinkreqQuoteTotal(' + order.id + ')" style="width:64px;padding:5px 6px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;text-align:center">' +
+              '</div>' +
+              '<div style="font-size:12px;color:#6b7280;margin-top:4px">' + (t.quote_item_subtotal_label || 'جمع این مورد') + ': <span id="linkreq-item-subtotal-' + it.id + '">' + formatPrice(Number(it.unit_price) * it.qty) + '</span></div>';
+          } else if (it.unit_price != null) {
+            priceLine = '<div class="linkreq-order-item-price">' + (t.quote_price_label || 'قیمت واحد') + ': ' + formatPrice(it.unit_price) + ' × ' + it.qty + ' = ' + formatPrice(Number(it.unit_price) * it.qty) + '</div>';
+          } else {
+            priceLine = '';
+          }
+
           return '<div class="linkreq-order-item">' +
             (order.link_request_items.length > 1 ? '<strong>#' + (i + 1) + '</strong> ' : '') +
             '<a href="' + it.product_link + '" target="_blank" rel="noopener" style="direction:ltr;display:inline-block">' + it.product_link + '</a>' +
             '<div class="linkreq-order-item-meta">' + metaParts.join(' · ') + '</div>' +
             (it.note ? '<div class="linkreq-order-item-note">' + it.note + '</div>' : '') +
             priceLine +
-            checkbox +
           '</div>';
         }).join('');
       }
@@ -4034,7 +4069,7 @@ function _renderOrdersList(apiOrders) {
       if (order.total_amount) {
         detailHtml += '<div class="order-detail-total">' +
           '<span>' + (t.checkout_total || 'جمع کل') + '</span>' +
-          '<strong>' + formatPrice(order.total_amount) + '</strong>' +
+          '<strong id="linkreq-live-total-top-' + order.id + '">' + formatPrice(order.total_amount) + '</strong>' +
         '</div>';
       }
 
@@ -4049,14 +4084,14 @@ function _renderOrdersList(apiOrders) {
         var quotedDeadline = order.quoted_at ? new Date(new Date(order.quoted_at).getTime() + 14 * 24 * 60 * 60 * 1000) : null;
         var daysLeft = quotedDeadline ? Math.max(0, Math.ceil((quotedDeadline - new Date()) / (24 * 60 * 60 * 1000))) : null;
         detailHtml += '<div class="order-payment-info-box">' +
-          '<div class="order-payment-row"><span>' + (t.checkout_total || 'جمع کل') + ':</span><strong>' + formatPrice(order.total_amount) + '</strong></div>' +
+          '<div class="order-payment-row"><span>' + (t.checkout_total || 'جمع کل') + ':</span><strong id="linkreq-live-total-' + order.id + '">' + formatPrice(order.total_amount) + '</strong></div>' +
           (daysLeft !== null ? '<div class="order-payment-row"><span>' + (t.quote_deadline_label || 'مهلت پاسخ') + ':</span><strong>' + (daysLeft > 0 ? (localizeNumber(String(daysLeft)) + ' ' + (t.quote_days_left_suffix || 'روز مانده')) : (t.quote_expires_today || 'امروز آخرین مهلت است')) + '</strong></div>' : '') +
           '</div>';
-        if (_showPickCheckboxes) {
-          detailHtml += '<p class="order-detail-hint">' + (t.quote_pick_hint || 'اگر فقط برخی از موارد را می‌خواهید، تیک آن‌ها را نگه دارید و بقیه را بردارید.') + '</p>';
+        if (_showQtyPicker) {
+          detailHtml += '<p class="order-detail-hint">' + (t.quote_pick_hint || 'تعداد نهایی هر مورد را مشخص کنید؛ برای انصراف از یک مورد عدد را صفر کنید.') + '</p>';
         }
         detailHtml += '<div style="display:flex;gap:8px;margin-top:10px">' +
-          '<button class="order-action-btn" style="background:#16a34a;color:#fff;flex:1" onclick="approveQuote(' + order.id + ')">' + (_showPickCheckboxes ? (t.quote_confirm_selection_btn || 'تایید موارد انتخابی') : (t.quote_approve_btn || 'تایید قیمت')) + '</button>' +
+          '<button class="order-action-btn" style="background:#16a34a;color:#fff;flex:1" onclick="approveQuote(' + order.id + ')">' + (_showQtyPicker ? (t.quote_confirm_selection_btn || 'تایید موارد انتخابی') : (t.quote_approve_btn || 'تایید قیمت')) + '</button>' +
           '<button class="order-action-btn order-action-cancel" style="flex:1" onclick="rejectQuote(' + order.id + ')">' + (t.quote_reject_btn || 'رد کردن') + '</button>' +
           '</div>';
       }
