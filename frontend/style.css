@@ -4576,11 +4576,14 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   display: flex; align-items: center; justify-content: space-between;
   cursor: pointer; user-select: none;
 }
-.linkreq-item-header-title { display: flex; align-items: baseline; min-width: 0; }
+/* Stacked (title above summary), not side-by-side — on narrow screens a
+   long product link squeezed next to "ÜRÜN LİNKİ 1" on one line forced the
+   title to wrap and the two overlapped/collided. */
+.linkreq-item-header-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .linkreq-item-summary {
   font-size: 12px; font-weight: 400; color: #9ca3af;
-  margin-inline-start: 4px; direction: ltr; unicode-bidi: plaintext;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px;
+  direction: ltr; unicode-bidi: plaintext;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .linkreq-item-header-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .linkreq-item-chevron { display: flex; color: #9ca3af; transition: transform .18s; }
