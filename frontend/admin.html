@@ -807,7 +807,7 @@
           <div class="nav-submenu" id="nav-reports-submenu">
             <button class="nav-item" onclick="goToReportSubtab('overview')" id="nav-reports">
               <span class="nav-icon">📊</span><span data-i18n="navReports">گزارش‌ها</span>
-              <span class="nav-item-submenu-arrow">▾</span>
+              <span class="nav-item-submenu-arrow" onclick="event.stopPropagation(); toggleReportsSubmenu()">▾</span>
             </button>
             <div class="nav-submenu-items">
               <button class="nav-subitem" onclick="goToReportSubtab('sales')"      id="nav-report-sales">
@@ -2415,9 +2415,25 @@ function toggleNavSection(name) {
   localStorage.setItem('admin_collapsed_sections', JSON.stringify([...collapsed]));
 }
 function applyCollapsedNavSections() {
-  getCollapsedNavSections().forEach(name => {
+  const collapsed = getCollapsedNavSections();
+  collapsed.forEach(name => {
     document.getElementById(`navsec-${name}`)?.classList.add('collapsed');
   });
+  if (collapsed.has('reports-submenu')) {
+    document.getElementById('nav-reports-submenu')?.classList.add('collapsed');
+  }
+}
+// The reports nav-item has its own nested submenu (sales/customers/financial/
+// coupons/views) — it's a second collapse level below the top-level nav
+// sections above, so it needs its own toggle rather than reusing
+// toggleNavSection (that one only ever expects `navsec-*` ids).
+function toggleReportsSubmenu() {
+  const el = document.getElementById('nav-reports-submenu');
+  if (!el) return;
+  const collapsed = getCollapsedNavSections();
+  if (el.classList.toggle('collapsed')) collapsed.add('reports-submenu');
+  else collapsed.delete('reports-submenu');
+  localStorage.setItem('admin_collapsed_sections', JSON.stringify([...collapsed]));
 }
 
 function toggleLangMenu(e) {
