@@ -3656,14 +3656,53 @@ function toggleOrdersActiveFilter() {
   _renderOrdersList(_cachedApiOrders);
 }
 
-// ─── Link-based pre-order request modal ────────────────────────────────────────
 // ─── Link-based pre-order request — full page (same shell/classes as checkout) ─
+// Up to LINK_REQ_MAX_ITEMS repeatable link+size+color+qty+note cards. Cards
+// are keyed by an ever-increasing index (not re-used/compacted after a
+// removal) so a removed card's DOM ids never collide with a later one —
+// submitLinkRequest() just reads whichever '.linkreq-item-card' elements
+// still exist, in whatever order they're in.
+var LINK_REQ_MAX_ITEMS = 5;
+var _linkReqNextIdx = 0;
+
+function _linkReqItemCardHtml(idx, isFirst) {
+  var t = TRANSLATIONS[currentLang];
+  var removeBtn = !isFirst
+    ? '<button type="button" class="linkreq-item-remove" onclick="removeLinkRequestItem(' + idx + ')" aria-label="Remove">&#x2715;</button>'
+    : '';
+  return '<div class="checkout-section linkreq-item-card" id="linkreq-item-' + idx + '" data-idx="' + idx + '">' +
+    '<div class="checkout-section-title" style="display:flex;justify-content:space-between;align-items:center">' +
+      '<span>' + t.link_req_link_label + '</span>' + removeBtn +
+    '</div>' +
+    (isFirst ? '<p style="font-size:13px;color:#888;margin:-4px 0 12px;line-height:1.6">' + t.link_req_modal_desc + '</p>' : '') +
+    '<input id="link-req-url-' + idx + '" class="checkout-text-input" type="url" placeholder="' + t.link_req_link_ph + '" style="direction:ltr;text-align:left;margin-bottom:6px">' +
+    '<div class="checkout-err" id="link-req-url-err-' + idx + '"></div>' +
+    '<div class="checkout-note-coupon-row" style="margin:10px 0 14px">' +
+      '<div>' +
+        '<label class="checkout-field-label">' + t.order_size_lbl.trim() + ':</label>' +
+        '<input id="link-req-size-' + idx + '" class="checkout-text-input" placeholder="' + t.link_req_size_ph + '">' +
+      '</div>' +
+      '<div>' +
+        '<label class="checkout-field-label">' + t.color_label + '</label>' +
+        '<input id="link-req-color-' + idx + '" class="checkout-text-input" placeholder="' + t.link_req_color_ph + '">' +
+      '</div>' +
+    '</div>' +
+    '<div style="max-width:140px;margin-bottom:14px">' +
+      '<label class="checkout-field-label">' + t.cart_qty + '</label>' +
+      '<input id="link-req-qty-' + idx + '" class="checkout-text-input" type="number" min="1" step="1" value="1" placeholder="' + t.link_req_qty_ph + '">' +
+    '</div>' +
+    '<label class="checkout-field-label">' + t.link_req_note_label + '</label>' +
+    '<textarea id="link-req-note-' + idx + '" class="checkout-note-input" placeholder="' + t.link_req_note_ph + '" rows="3"></textarea>' +
+  '</div>';
+}
+
 function openLinkRequestModal() {
   var token = getSession();
   if (!token) { openAuthModal('login'); return; }
   if (document.getElementById('linkreq-page-overlay')) return;
   var t = TRANSLATIONS[currentLang];
   var backArrow = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>';
+  _linkReqNextIdx = 1;
 
   var overlay = document.createElement('div');
   overlay.className = 'checkout-overlay open';
@@ -3675,41 +3714,14 @@ function openLinkRequestModal() {
         '<h2 class="checkout-title">' + t.link_req_modal_title + '</h2>' +
       '</div>' +
       '<div class="checkout-body">' +
-
-        '<div class="checkout-section">' +
-          '<div class="checkout-section-title">' + t.link_req_link_label + '</div>' +
-          '<p style="font-size:13px;color:#888;margin:-4px 0 12px;line-height:1.6">' + t.link_req_modal_desc + '</p>' +
-          '<input id="link-req-url" class="checkout-text-input" type="url" placeholder="' + t.link_req_link_ph + '" style="direction:ltr;text-align:left">' +
-          '<div class="checkout-err" id="link-req-url-err"></div>' +
+        '<div id="linkreq-items-container">' + _linkReqItemCardHtml(0, true) + '</div>' +
+        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 4px">' +
+          '<button type="button" class="link-req-open-btn" id="linkreq-add-btn" onclick="addLinkRequestItem()">' + t.link_req_add_another_btn + '</button>' +
+          '<span style="font-size:12px;color:var(--text-muted)">' + t.link_req_max_items_note + '</span>' +
         '</div>' +
-
-        '<div class="checkout-section">' +
-          '<div class="checkout-section-title">' + t.link_req_details_section + '</div>' +
-          '<div class="checkout-note-coupon-row" style="margin-bottom:14px">' +
-            '<div>' +
-              '<label class="checkout-field-label">' + t.order_size_lbl.trim() + ':</label>' +
-              '<input id="link-req-size" class="checkout-text-input" placeholder="' + t.link_req_size_ph + '">' +
-            '</div>' +
-            '<div>' +
-              '<label class="checkout-field-label">' + t.color_label + '</label>' +
-              '<input id="link-req-color" class="checkout-text-input" placeholder="' + t.link_req_color_ph + '">' +
-            '</div>' +
-          '</div>' +
-          '<div style="max-width:140px">' +
-            '<label class="checkout-field-label">' + t.cart_qty + '</label>' +
-            '<input id="link-req-qty" class="checkout-text-input" type="number" min="1" step="1" value="1" placeholder="' + t.link_req_qty_ph + '">' +
-          '</div>' +
-        '</div>' +
-
-        '<div class="checkout-section">' +
-          '<div class="checkout-section-title">' + t.link_req_note_label + '</div>' +
-          '<textarea id="link-req-note" class="checkout-note-input" placeholder="' + t.link_req_note_ph + '" rows="4"></textarea>' +
-        '</div>' +
-
         '<div class="checkout-footer">' +
           '<button class="checkout-submit-btn" id="link-req-submit-btn" onclick="submitLinkRequest()">' + t.link_req_submit_btn + '</button>' +
         '</div>' +
-
       '</div>' +
     '</div>';
   document.body.appendChild(overlay);
@@ -3724,47 +3736,64 @@ function closeLinkRequestModal() {
   document.body.style.overflow = '';
 }
 
-function submitLinkRequest() {
-  var t       = TRANSLATIONS[currentLang];
-  var token   = getSession();
-  var urlEl   = document.getElementById('link-req-url');
-  var sizeEl  = document.getElementById('link-req-size');
-  var colorEl = document.getElementById('link-req-color');
-  var qtyEl   = document.getElementById('link-req-qty');
-  var noteEl  = document.getElementById('link-req-note');
-  var errEl   = document.getElementById('link-req-url-err');
-  var btn     = document.getElementById('link-req-submit-btn');
-  var link    = (urlEl.value || '').trim();
-  if (errEl) errEl.textContent = '';
-
-  var isValidUrl = false;
-  try { var u = new URL(link); isValidUrl = (u.protocol === 'http:' || u.protocol === 'https:'); } catch (e) { isValidUrl = false; }
-  if (!isValidUrl) {
-    if (errEl) errEl.textContent = t.link_req_invalid_link;
-    urlEl.focus();
-    return;
+function addLinkRequestItem() {
+  var container = document.getElementById('linkreq-items-container');
+  if (!container) return;
+  var count = container.querySelectorAll('.linkreq-item-card').length;
+  if (count >= LINK_REQ_MAX_ITEMS) return;
+  var idx = _linkReqNextIdx++;
+  var wrap = document.createElement('div');
+  wrap.innerHTML = _linkReqItemCardHtml(idx, false);
+  container.appendChild(wrap.firstChild);
+  if (count + 1 >= LINK_REQ_MAX_ITEMS) {
+    var addBtn = document.getElementById('linkreq-add-btn');
+    if (addBtn) addBtn.style.display = 'none';
   }
+}
 
-  // Size/color have no dedicated columns on the order (it's not a catalog
-  // product) — folded into the same free-text note field the admin already
-  // sees, using the site's existing size/color labels. Qty IS sent as its
-  // own field (below) since announceQuotePrice needs a real number to
-  // multiply the unit price by.
-  var size  = (sizeEl.value  || '').trim();
-  var color = (colorEl.value || '').trim();
-  var qty   = Math.max(1, parseInt(qtyEl.value, 10) || 1);
-  var extra = (noteEl.value || '').trim();
-  var noteParts = [];
-  if (size)  noteParts.push(t.order_size_lbl.trim() + ': ' + size);
-  if (color) noteParts.push(t.color_label.replace(/:$/, '') + ': ' + color);
-  if (extra) noteParts.push(extra);
-  var composedNote = noteParts.join('\n');
+function removeLinkRequestItem(idx) {
+  var card = document.getElementById('linkreq-item-' + idx);
+  if (card) card.remove();
+  var addBtn = document.getElementById('linkreq-add-btn');
+  if (addBtn) addBtn.style.display = '';
+}
+
+function submitLinkRequest() {
+  var t     = TRANSLATIONS[currentLang];
+  var token = getSession();
+  var btn   = document.getElementById('link-req-submit-btn');
+  var cards = document.querySelectorAll('#linkreq-items-container .linkreq-item-card');
+  var items = [];
+  var hasError = false;
+
+  cards.forEach(function(card) {
+    var idx   = card.getAttribute('data-idx');
+    var urlEl = document.getElementById('link-req-url-' + idx);
+    var errEl = document.getElementById('link-req-url-err-' + idx);
+    if (errEl) errEl.textContent = '';
+    var link = (urlEl.value || '').trim();
+    var isValidUrl = false;
+    try { var u = new URL(link); isValidUrl = (u.protocol === 'http:' || u.protocol === 'https:'); } catch (e) { isValidUrl = false; }
+    if (!isValidUrl) {
+      if (errEl) errEl.textContent = t.link_req_invalid_link;
+      hasError = true;
+      return;
+    }
+    items.push({
+      product_link: link,
+      size:  (document.getElementById('link-req-size-'  + idx).value || '').trim(),
+      color: (document.getElementById('link-req-color-' + idx).value || '').trim(),
+      qty:   Math.max(1, parseInt(document.getElementById('link-req-qty-' + idx).value, 10) || 1),
+      note:  (document.getElementById('link-req-note-'  + idx).value || '').trim(),
+    });
+  });
+  if (hasError || !items.length) return;
 
   btn.disabled = true;
   fetch(API_BASE + '/orders/link-request', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'x-session-token': token },
-    body:    JSON.stringify({ product_link: link, note: composedNote, qty: qty, lang: currentLang }),
+    body:    JSON.stringify({ items: items, lang: currentLang }),
   }).then(function(r) { return r.json().then(function(d) { return { status: r.status, data: d }; }); })
     .then(function(r) {
       btn.disabled = false;
@@ -3774,8 +3803,6 @@ function submitLinkRequest() {
         renderOrders();
       } else if (r.data.message === 'active_link_request_exists') {
         showToast(t.active_link_request_exists, 'error');
-      } else if (r.data.message === 'invalid_product_link') {
-        if (errEl) errEl.textContent = t.link_req_invalid_link;
       } else {
         showToast(t.link_req_invalid_link, 'error');
       }
@@ -3914,12 +3941,24 @@ function _renderOrdersList(apiOrders) {
         '</div>';
       }
 
-      // ─── External product link (link-based pre-order requests) ────────────────
-      if (order.external_product_link) {
-        detailHtml += '<div class="order-note-block">' +
-          '<span class="order-note-block-label">' + (t.link_req_link_label || 'لینک محصول') + ': </span>' +
-          '<a href="' + order.external_product_link + '" target="_blank" rel="noopener" style="direction:ltr;display:inline-block;word-break:break-all">' + order.external_product_link + '</a>' +
-        '</div>';
+      // ─── Link-based pre-order request items (1-5 links, each priced separately) ─
+      if (order.link_request_items && order.link_request_items.length) {
+        detailHtml += order.link_request_items.map(function(it, i) {
+          var metaParts = [];
+          if (it.size)  metaParts.push(t.order_size_lbl.trim() + ': ' + it.size);
+          if (it.color) metaParts.push(t.color_label.replace(/:$/, '') + ': ' + it.color);
+          metaParts.push(t.cart_qty.replace(/:$/, '') + ': ' + it.qty);
+          var priceLine = it.unit_price
+            ? '<div class="linkreq-order-item-price">' + (t.quote_price_label || 'قیمت واحد') + ': ' + formatPrice(it.unit_price) + ' × ' + it.qty + ' = ' + formatPrice(Number(it.unit_price) * it.qty) + '</div>'
+            : '';
+          return '<div class="linkreq-order-item">' +
+            (order.link_request_items.length > 1 ? '<strong>#' + (i + 1) + '</strong> ' : '') +
+            '<a href="' + it.product_link + '" target="_blank" rel="noopener" style="direction:ltr;display:inline-block">' + it.product_link + '</a>' +
+            '<div class="linkreq-order-item-meta">' + metaParts.join(' · ') + '</div>' +
+            (it.note ? '<div class="linkreq-order-item-note">' + it.note + '</div>' : '') +
+            priceLine +
+          '</div>';
+        }).join('');
       }
 
       // ─── Total ───────────────────────────────────────────────────────────────
@@ -3936,12 +3975,11 @@ function _renderOrdersList(apiOrders) {
       }
 
       if (st === 'price_quoted') {
+        // Per-item unit price × qty is already shown above (one linkreq-order-item
+        // block per link) — this box is just the grand total + response deadline.
         var quotedDeadline = order.quoted_at ? new Date(new Date(order.quoted_at).getTime() + 14 * 24 * 60 * 60 * 1000) : null;
         var daysLeft = quotedDeadline ? Math.max(0, Math.ceil((quotedDeadline - new Date()) / (24 * 60 * 60 * 1000))) : null;
-        var qQty = order.link_qty || 1;
         detailHtml += '<div class="order-payment-info-box">' +
-          '<div class="order-payment-row"><span>' + (t.quote_price_label || 'قیمت واحد') + ':</span><strong>' + formatPrice(order.quoted_price || order.total_amount) + '</strong></div>' +
-          '<div class="order-payment-row"><span>' + (t.cart_qty || 'تعداد:') + '</span><strong>' + localizeNumber(String(qQty)) + '</strong></div>' +
           '<div class="order-payment-row"><span>' + (t.checkout_total || 'جمع کل') + ':</span><strong>' + formatPrice(order.total_amount) + '</strong></div>' +
           (daysLeft !== null ? '<div class="order-payment-row"><span>' + (t.quote_deadline_label || 'مهلت پاسخ') + ':</span><strong>' + (daysLeft > 0 ? (localizeNumber(String(daysLeft)) + ' ' + (t.quote_days_left_suffix || 'روز مانده')) : (t.quote_expires_today || 'امروز آخرین مهلت است')) + '</strong></div>' : '') +
           '</div>';

@@ -14,6 +14,7 @@ const ORDER_INCLUDE = {
     },
   },
   order_returns: { orderBy: { requested_at: 'desc' }, take: 1 },
+  link_request_items: { orderBy: { id: 'asc' } },
 };
 
 // ─── Session auth helper ──────────────────────────────────────────────────────
@@ -312,32 +313,48 @@ async function uploadReceipt(req, res, next) {
 // price afterward (see adminController.announceQuotePrice), and the customer
 // then approves or rejects it (below). This intentionally does not create any
 // order_items (order_items.product_id is required/FK'd to our own catalog).
+const MAX_LINK_ITEMS = 5;
+
 async function createLinkRequest(req, res, next) {
   try {
     const customerId = await getCustomerFromSession(req, res);
     if (!customerId) return;
 
-    const { product_link, note, lang, qty } = req.body;
-    if (!product_link || !product_link.trim()) {
-      return res.status(400).json({ success: false, message: 'product_link_required' });
+    const { items, lang } = req.body;
+    if (!Array.isArray(items) || !items.length) {
+      return res.status(400).json({ success: false, message: 'items_required' });
     }
-    const trimmedLink = product_link.trim();
-    if (trimmedLink.length > 500) {
-      return res.status(400).json({ success: false, message: 'product_link_too_long' });
+    if (items.length > MAX_LINK_ITEMS) {
+      return res.status(400).json({ success: false, message: 'too_many_items' });
     }
-    // Kept as its own column (not folded into the note like size/color) because
-    // announceQuotePrice needs a real number to multiply the unit price by.
-    const safeQty = Math.min(999, Math.max(1, parseInt(qty, 10) || 1));
-    try {
-      const u = new URL(trimmedLink);
-      if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('bad_protocol');
-    } catch (e) {
-      return res.status(400).json({ success: false, message: 'invalid_product_link' });
+
+    // Validate every item up front — one bad link fails the whole request
+    // rather than silently dropping it.
+    const cleanItems = [];
+    for (const raw of items) {
+      const link = (raw?.product_link || '').trim();
+      if (!link) return res.status(400).json({ success: false, message: 'product_link_required' });
+      if (link.length > 500) return res.status(400).json({ success: false, message: 'product_link_too_long' });
+      try {
+        const u = new URL(link);
+        if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('bad_protocol');
+      } catch (e) {
+        return res.status(400).json({ success: false, message: 'invalid_product_link' });
+      }
+      cleanItems.push({
+        product_link: link,
+        size:         raw.size  ? String(raw.size).trim().slice(0, 50)   || null : null,
+        color:        raw.color ? String(raw.color).trim().slice(0, 50)  || null : null,
+        qty:          Math.min(999, Math.max(1, parseInt(raw.qty, 10) || 1)),
+        note:         raw.note  ? String(raw.note).trim().slice(0, 2000) || null : null,
+      });
     }
     const safeLang = ['fa', 'en', 'tr'].includes(lang) ? lang : 'fa';
 
     // Cap concurrent link-requests awaiting a price/response per customer
     // (was 1, raised to 3 — mirrors the same cap on createPreorder above).
+    // This caps the number of open ORDERS, not links — each order can still
+    // hold up to MAX_LINK_ITEMS links.
     const activeRequestCount = await prisma.orders.count({
       where:  { customer_id: customerId, status: { in: ['link_requested', 'price_quoted'] } },
     });
@@ -347,20 +364,22 @@ async function createLinkRequest(req, res, next) {
 
     const order = await prisma.orders.create({
       data: {
-        customer_id:            customerId,
-        status:                 'link_requested',
-        channel:                'online',
-        note:                   note ? String(note).slice(0, 2000) : null,
-        lang:                   safeLang,
-        total_amount:           0,
-        external_product_link:  trimmedLink,
-        link_qty:                safeQty,
+        customer_id:  customerId,
+        status:       'link_requested',
+        channel:      'online',
+        lang:         safeLang,
+        total_amount: 0,
+        link_request_items: { create: cleanItems },
       },
       include: ORDER_INCLUDE,
     });
 
     const ol = order.lang || 'fa';
-    const extraInfo = [{ label: label('product_link', ol), value: trimmedLink, dir: 'ltr' }];
+    const extraInfo = order.link_request_items.map((it, i) => ({
+      label: `${label('product_link', ol)} ${order.link_request_items.length > 1 ? '#' + (i + 1) : ''}`.trim(),
+      value: it.product_link,
+      dir:   'ltr',
+    }));
     sendOrderEmail(order.customers, order, 'link_requested', extraInfo).catch(() => {});
     res.status(201).json({ success: true, data: order });
   } catch (err) {

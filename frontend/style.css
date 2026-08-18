@@ -3541,6 +3541,15 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   display: flex; justify-content: space-between; align-items: center;
   padding: 8px 0; margin-bottom: 10px; border-bottom: 1px solid #f0f0f0; font-size: 14px;
 }
+/* Link-based pre-order request items (1-5 per order) */
+.linkreq-order-item {
+  background: #f5f3ff; border-inline-start: 3px solid #a855f7;
+  border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; font-size: 13px; color: #4c1d95;
+}
+.linkreq-order-item a { color: #7c3aed; word-break: break-all; }
+.linkreq-order-item-meta { color: #6b7280; margin-top: 3px; }
+.linkreq-order-item-note { color: #6b7280; margin-top: 3px; font-style: italic; }
+.linkreq-order-item-price { margin-top: 4px; font-weight: 700; color: #4c1d95; }
 .order-rejection-box {
   background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px;
   padding: 10px 14px; margin-bottom: 12px; color: #dc2626; font-size: 13px;
@@ -4504,6 +4513,11 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   font-family: inherit; white-space: nowrap;
 }
 .link-req-open-btn:hover { background: rgba(255,92,0,.06); }
+.linkreq-item-remove {
+  background: none; border: none; color: #bbb; font-size: 15px;
+  cursor: pointer; padding: 2px 4px; line-height: 1; transition: color .15s;
+}
+.linkreq-item-remove:hover { color: #ef4444; }
 
 .lp-code-box {
   background: rgba(255,184,0,.09);

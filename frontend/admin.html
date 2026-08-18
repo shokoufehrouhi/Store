@@ -1896,7 +1896,7 @@ const LANGS = {
     orderDetails:'جزئیات', orderClose:'✕', orderDetailTitle:'جزئیات سفارش',
     orderCustomerLbl:'مشتری', orderMobileLbl:'موبایل', orderItemsLbl:'اقلام سفارش',
     orderAddrLbl:'آدرس تحویل', orderNoAddr:'آدرس ثبت نشده', orderNoteLbl:'یادداشت', orderTotalLbl:'جمع کل',
-    orderLinkLbl:'لینک محصول', statusLinkRequested:'در انتظار اعلام قیمت', statusPriceQuoted:'قیمت اعلام شد',
+    orderLinkLbl:'لینک محصول', orderMoreLinks:'لینک دیگر', orderItemNotPricedYet:'هنوز قیمت‌گذاری نشده', statusLinkRequested:'در انتظار اعلام قیمت', statusPriceQuoted:'قیمت اعلام شد',
     orderActionQuote:'اعلام قیمت محصول', orderQuoteAmountLbl:'قیمت واحد (لیر ترکیه)', orderSendQuoteBtn:'ارسال قیمت به مشتری',
     orderQuoteAmountRequired:'مبلغ معتبر وارد کنید', orderQuoteSent:'قیمت برای مشتری ارسال شد',
     orderQuoteWaitingMsg:'در انتظار پاسخ مشتری (تایید یا رد)', orderQuoteDeadlineLbl:'مهلت باقیمانده', orderQuoteDaysLeftSuffix:'روز',
@@ -2095,7 +2095,7 @@ const LANGS = {
     orderDetails:'Details', orderClose:'✕', orderDetailTitle:'Order Details',
     orderCustomerLbl:'Customer', orderMobileLbl:'Mobile', orderItemsLbl:'Order Items',
     orderAddrLbl:'Delivery Address', orderNoAddr:'No address saved', orderNoteLbl:'Note', orderTotalLbl:'Total',
-    orderLinkLbl:'Product Link', statusLinkRequested:'Awaiting Price Quote', statusPriceQuoted:'Price Quoted',
+    orderLinkLbl:'Product Link', orderMoreLinks:'more', orderItemNotPricedYet:'Not priced yet', statusLinkRequested:'Awaiting Price Quote', statusPriceQuoted:'Price Quoted',
     orderActionQuote:'Announce Product Price', orderQuoteAmountLbl:'Unit Price (Turkish Lira)', orderSendQuoteBtn:'Send Price to Customer',
     orderQuoteAmountRequired:'Enter a valid amount', orderQuoteSent:'Price sent to customer',
     orderQuoteWaitingMsg:'Awaiting customer response (approve or reject)', orderQuoteDeadlineLbl:'Time remaining', orderQuoteDaysLeftSuffix:'days',
@@ -2294,7 +2294,7 @@ const LANGS = {
     orderDetails:'Detaylar', orderClose:'✕', orderDetailTitle:'Sipariş Detayları',
     orderCustomerLbl:'Müşteri', orderMobileLbl:'Telefon', orderItemsLbl:'Sipariş Kalemleri',
     orderAddrLbl:'Teslimat Adresi', orderNoAddr:'Adres kaydedilmedi', orderNoteLbl:'Not', orderTotalLbl:'Toplam',
-    orderLinkLbl:'Ürün Linki', statusLinkRequested:'Fiyat Teklifi Bekleniyor', statusPriceQuoted:'Fiyat Teklif Edildi',
+    orderLinkLbl:'Ürün Linki', orderMoreLinks:'daha fazla link', orderItemNotPricedYet:'Henüz fiyatlandırılmadı', statusLinkRequested:'Fiyat Teklifi Bekleniyor', statusPriceQuoted:'Fiyat Teklif Edildi',
     orderActionQuote:'Ürün Fiyatını Bildir', orderQuoteAmountLbl:'Birim Fiyat (Türk Lirası)', orderSendQuoteBtn:'Fiyatı Müşteriye Gönder',
     orderQuoteAmountRequired:'Geçerli bir tutar girin', orderQuoteSent:'Fiyat müşteriye gönderildi',
     orderQuoteWaitingMsg:'Müşteri yanıtı bekleniyor (onay veya red)', orderQuoteDeadlineLbl:'Kalan süre', orderQuoteDaysLeftSuffix:'gün',
@@ -4291,9 +4291,14 @@ function _renderOrderRows(tbodyId, orders) {
       return `<a href="javascript:void(0)" onclick="event.stopPropagation();openProductFromOrder(${p.id})" style="color:#3b82f6;text-decoration:none;font-size:13px;display:block;line-height:1.6">${pname}</a>`;
     }).join('');
     // Link-based pre-order requests have no order_items — show the customer's
-    // submitted link instead, clipped to one line (title shows the full URL).
-    if (!productLinks && order.external_product_link) {
-      productLinks = `<a href="${esc(order.external_product_link)}" target="_blank" rel="noopener" title="${esc(order.external_product_link)}" onclick="event.stopPropagation()" style="color:#7c3aed;text-decoration:none;font-size:13px;display:block;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(order.external_product_link)}</a>`;
+    // submitted link(s) instead, clipped to one line each (title/click gives
+    // the full URL). Up to LINK_REQ_MAX_ITEMS links per order — show the first
+    // and note how many more if there are others.
+    const linkItems = order.link_request_items || [];
+    if (!productLinks && linkItems.length) {
+      const first = linkItems[0];
+      productLinks = `<a href="${esc(first.product_link)}" target="_blank" rel="noopener" title="${esc(first.product_link)}" onclick="event.stopPropagation()" style="color:#7c3aed;text-decoration:none;font-size:13px;display:block;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(first.product_link)}</a>`
+        + (linkItems.length > 1 ? `<span style="font-size:11px;color:#9ca3af">+${linkItems.length - 1} ${t('orderMoreLinks')}</span>` : '');
     }
     const noteHtml = order.note
       ? `<div style="margin-top:5px;font-size:12px;color:#92400e;background:#fffbeb;border-inline-start:2px solid #f59e0b;padding:2px 6px;border-radius:4px;line-height:1.5">💬 ${esc(order.note)}</div>`
@@ -5023,11 +5028,24 @@ function renderOrderDetail() {
     </div>`;
   }
 
-  // External product link (link-based pre-order requests — no order_items yet)
-  if (order.external_product_link) {
-    html += `<div style="background:#f5f3ff;border-right:3px solid #a855f7;border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:13px">
-      <strong>${t('orderLinkLbl')}:</strong> <a href="${esc(order.external_product_link)}" target="_blank" rel="noopener" style="direction:ltr;display:inline-block;word-break:break-all;color:#7c3aed">${esc(order.external_product_link)}</a>
-    </div>`;
+  // Link-based pre-order request items (1-5 links, each priced separately —
+  // no order_items for these, they're not from our own catalog)
+  if (order.link_request_items && order.link_request_items.length) {
+    html += order.link_request_items.map((it, i) => {
+      const metaParts = [];
+      if (it.size)  metaParts.push(`${t('sizeLbl')}: ${esc(it.size)}`);
+      if (it.color) metaParts.push(`${t('colorLbl')}: ${esc(it.color)}`);
+      metaParts.push(`${t('qtyLbl')}: ${it.qty}`);
+      const priceLine = it.unit_price
+        ? `<div style="margin-top:4px;font-weight:700">${t('orderQuoteAmountLbl')}: ${Number(it.unit_price).toLocaleString('en-US')} TL × ${it.qty} = ${(Number(it.unit_price) * it.qty).toLocaleString('en-US')} TL</div>`
+        : `<div style="margin-top:4px;color:#9ca3af">${t('orderItemNotPricedYet')}</div>`;
+      return `<div style="background:#f5f3ff;border-right:3px solid #a855f7;border-radius:8px;padding:10px 16px;margin-bottom:8px;font-size:13px">
+        ${order.link_request_items.length > 1 ? `<strong>#${i + 1}</strong> ` : ''}<a href="${esc(it.product_link)}" target="_blank" rel="noopener" style="direction:ltr;display:inline-block;word-break:break-all;color:#7c3aed">${esc(it.product_link)}</a>
+        <div style="color:#6b7280;margin-top:3px">${metaParts.join(' · ')}</div>
+        ${it.note ? `<div style="color:#6b7280;margin-top:3px;font-style:italic">${esc(it.note)}</div>` : ''}
+        ${priceLine}
+      </div>`;
+    }).join('');
   }
 
   // Order items
@@ -5065,18 +5083,26 @@ function renderOrderDetail() {
   html += '<div id="order-action-area">';
 
   if (st === 'link_requested') {
-    const reqQty = order.link_qty || 1;
-    html += `<div style="font-weight:700;font-size:14px;margin-bottom:10px">${t('orderActionQuote')}</div>
-    <div style="font-size:13px;color:#666;margin-bottom:10px">${t('qtyLbl')}: <strong>${reqQty}</strong></div>
-    <div class="form-field" style="margin-bottom:6px;max-width:260px">
-      <label>${t('orderQuoteAmountLbl')}</label>
-      <input id="quote-amount-input" type="number" min="0" step="1" placeholder="0" style="direction:ltr" oninput="adminUpdateQuoteTotalPreview(${reqQty})">
-    </div>
-    <div id="quote-total-preview" style="font-size:13px;color:#666;margin-bottom:10px"></div>
-    <div style="display:flex;gap:10px;margin-top:4px">
-      <button class="btn btn-primary" style="flex:1" onclick="adminAnnounceQuotePrice(${order.id})">${t('orderSendQuoteBtn')}</button>
-      <button class="btn btn-danger" style="flex:1" onclick="adminShowPreorderRejectForm(${order.id})">${t('orderRejectPreorder')}</button>
-    </div>
+    const lItems = order.link_request_items || [];
+    html += `<div style="font-weight:700;font-size:14px;margin-bottom:10px">${t('orderActionQuote')}</div>`;
+    lItems.forEach((it, i) => {
+      if (it.unit_price != null) {
+        html += `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px">
+          ${lItems.length > 1 ? `<strong>#${i + 1}</strong> ` : ''}${t('orderQuoteAmountLbl')}: <strong>${Number(it.unit_price).toLocaleString('en-US')} TL</strong> × ${it.qty} = <strong>${(Number(it.unit_price) * it.qty).toLocaleString('en-US')} TL</strong>
+        </div>`;
+      } else {
+        html += `<div style="border:1px solid #eee;border-radius:8px;padding:10px 14px;margin-bottom:8px">
+          ${lItems.length > 1 ? `<div style="font-size:12px;color:#888;margin-bottom:6px"><strong>#${i + 1}</strong> · ${t('qtyLbl')}: ${it.qty}</div>` : `<div style="font-size:12px;color:#888;margin-bottom:6px">${t('qtyLbl')}: ${it.qty}</div>`}
+          <div class="form-field" style="margin-bottom:6px;max-width:260px">
+            <label>${t('orderQuoteAmountLbl')}</label>
+            <input id="quote-amount-input-${it.id}" type="number" min="0" step="1" placeholder="0" style="direction:ltr" oninput="adminUpdateQuoteTotalPreview(${it.id},${it.qty})">
+          </div>
+          <div id="quote-total-preview-${it.id}" style="font-size:13px;color:#666;margin-bottom:8px"></div>
+          <button class="btn btn-primary btn-sm" onclick="adminSetLinkItemPrice(${order.id},${it.id})">${t('orderSendQuoteBtn')}</button>
+        </div>`;
+      }
+    });
+    html += `<button class="btn btn-danger" style="width:100%;margin-top:4px" onclick="adminShowPreorderRejectForm(${order.id})">${t('orderRejectPreorder')}</button>
     <div id="preorder-reject-form" style="display:none;margin-top:14px">
       <div class="form-field" style="margin-bottom:10px"><label>${t('orderRejectReasonLbl')}</label><textarea id="preorder-reject-reason" rows="3" placeholder="${t('orderRejectReasonPlh')}"></textarea></div>
       <button class="btn btn-danger" onclick="adminConfirmRejectPreorder(${order.id})" style="width:100%">${t('orderConfirmRejectPreorder')}</button>
@@ -5084,16 +5110,13 @@ function renderOrderDetail() {
   }
 
   if (st === 'price_quoted') {
-    const quotedAt   = order.quoted_at ? new Date(order.quoted_at) : null;
-    const deadline    = quotedAt ? new Date(quotedAt.getTime() + 14 * 24 * 60 * 60 * 1000) : null;
-    const daysLeft    = deadline ? Math.max(0, Math.ceil((deadline - new Date()) / (24 * 60 * 60 * 1000))) : null;
-    const qQty   = order.link_qty || 1;
-    const qUnit  = Number(order.quoted_price || order.total_amount);
-    const qTotal = Number(order.total_amount);
+    // Per-item unit price × qty is already shown above (one block per link) —
+    // this box is just the grand total + response deadline.
+    const quotedAt = order.quoted_at ? new Date(order.quoted_at) : null;
+    const deadline  = quotedAt ? new Date(quotedAt.getTime() + 14 * 24 * 60 * 60 * 1000) : null;
+    const daysLeft  = deadline ? Math.max(0, Math.ceil((deadline - new Date()) / (24 * 60 * 60 * 1000))) : null;
     html += `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px 16px;font-size:13px">
-      <strong>${t('orderQuoteAmountLbl')}:</strong> ${qUnit.toLocaleString('en-US')} TL<br>
-      <strong>${t('qtyLbl')}:</strong> ${qQty}<br>
-      <strong>${t('orderTotalLbl')}:</strong> ${qTotal.toLocaleString('en-US')} TL<br>
+      <strong>${t('orderTotalLbl')}:</strong> ${Number(order.total_amount).toLocaleString('en-US')} TL<br>
       <strong>${t('orderQuoteWaitingMsg')}</strong>
       ${daysLeft !== null ? `<br><span style="color:#6b7280">${t('orderQuoteDeadlineLbl')}: ${daysLeft} ${t('orderQuoteDaysLeftSuffix')}</span>` : ''}
     </div>`;
@@ -5293,9 +5316,9 @@ function openProductFromOrder(productId) {
   setTimeout(function() { openProductModal(productId); }, 300);
 }
 
-function adminUpdateQuoteTotalPreview(qty) {
-  const input   = document.getElementById('quote-amount-input');
-  const preview = document.getElementById('quote-total-preview');
+function adminUpdateQuoteTotalPreview(itemId, qty) {
+  const input   = document.getElementById(`quote-amount-input-${itemId}`);
+  const preview = document.getElementById(`quote-total-preview-${itemId}`);
   if (!input || !preview) return;
   const unit = Number(input.value);
   if (!unit || unit <= 0) { preview.textContent = ''; return; }
@@ -5303,11 +5326,11 @@ function adminUpdateQuoteTotalPreview(qty) {
   preview.innerHTML = `<strong>${t('orderTotalLbl')}:</strong> ${unit.toLocaleString('en-US')} × ${qty} = ${total.toLocaleString('en-US')} TL`;
 }
 
-async function adminAnnounceQuotePrice(orderId) {
-  const input = document.getElementById('quote-amount-input');
+async function adminSetLinkItemPrice(orderId, itemId) {
+  const input = document.getElementById(`quote-amount-input-${itemId}`);
   const amount = Number(input?.value);
   if (!amount || amount <= 0) { showToast(t('orderQuoteAmountRequired'), 'error'); return; }
-  const res = await api(`/admin/orders/${orderId}/quote-price`, {
+  const res = await api(`/admin/orders/${orderId}/link-items/${itemId}/price`, {
     method: 'PATCH',
     body:   JSON.stringify({ amount }),
   });

@@ -909,6 +909,7 @@ const ADMIN_ORDER_INCLUDE = {
       colors:   true,
     },
   },
+  link_request_items: { orderBy: { id: 'asc' } },
 };
 
 async function getAdminOrders(req, res, next) {
@@ -922,55 +923,71 @@ async function getAdminOrders(req, res, next) {
   } catch (err) { next(err); }
 }
 
-// ─── announceQuotePrice: PATCH /api/admin/orders/:id/quote-price ──────────────
-// Admin sources the externally-linked product and tells the customer what it
-// costs. Starts the 14-day response clock (quoted_at) — see
-// backend/scripts/declineStaleQuotes.js for the auto-decline side of that.
-async function announceQuotePrice(req, res, next) {
+// Admin sources each externally-linked product and tells the customer what it
+// costs. Starts the 14-day response clock (quoted_at) once every link on the
+// order is priced — see backend/scripts/declineStaleQuotes.js for the
+// auto-decline side of that.
+// PATCH /api/admin/orders/:orderId/link-items/:itemId/price — prices ONE link
+// on an order that can hold up to MAX_LINK_ITEMS links. Once every item on the
+// order has a unit_price, the order auto-transitions link_requested ->
+// price_quoted (starting the customer's 14-day response clock) with
+// total_amount = sum(unit_price * qty) across all items.
+async function setLinkItemPrice(req, res, next) {
   try {
-    const id = Number(req.params.id);
-    const order = await prisma.orders.findUnique({ where: { id } });
+    const orderId = Number(req.params.orderId);
+    const itemId  = Number(req.params.itemId);
+    const order = await prisma.orders.findUnique({
+      where: { id: orderId },
+      include: { link_request_items: { orderBy: { id: 'asc' } } },
+    });
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
     if (order.status !== 'link_requested') {
       return res.status(400).json({ success: false, message: 'Order must be in link_requested status' });
     }
-    // "amount" here is the UNIT price — total_amount is derived by multiplying
-    // by the customer's requested qty (link_qty, defaults to 1 for older rows
-    // created before qty was collected), so both are always in sync and neither
-    // screen (admin/customer/email) has to redo this math itself.
+    const item = order.link_request_items.find((it) => it.id === itemId);
+    if (!item) return res.status(404).json({ success: false, message: 'Item not found' });
+
     const amount = Number(req.body.amount);
     if (!amount || amount <= 0) {
       return res.status(400).json({ success: false, message: 'valid_amount_required' });
     }
-    const qty = order.link_qty || 1;
-    // orders.total_amount is Decimal(14,0) — whole Lira only (same as every other
-    // order total in this app) — round explicitly rather than let the DB truncate
-    // silently, since quoted_price (Decimal(12,2)) would otherwise keep the cents
-    // while total_amount quietly drops them.
-    const roundedUnit  = Math.round(amount * 100) / 100;
-    const roundedTotal = Math.round(roundedUnit * qty);
-    const now = new Date();
-    const updated = await prisma.orders.update({
-      where: { id },
-      // total_amount is set here too (not just quoted_price) so every existing
-      // screen/email that already reads order.total_amount — admin order list,
-      // customer profile card, the email footer's total line — shows the right
-      // number without needing a new special case for this status.
-      data:  { quoted_price: roundedUnit, quoted_at: now, total_amount: roundedTotal, status: 'price_quoted', updated_at: now },
-      include: ADMIN_ORDER_INCLUDE,
+    // unit_price is Decimal(12,2) — cents are fine per-item; total_amount is
+    // Decimal(14,0) (whole Lira, same as every other order total in this app),
+    // rounded explicitly at sum time below rather than left to the DB to truncate.
+    const roundedUnit = Math.round(amount * 100) / 100;
+
+    await prisma.link_request_items.update({
+      where: { id: itemId },
+      data:  { unit_price: roundedUnit },
     });
-    if (updated.customers) {
-      const ol = updated.lang || 'fa';
-      const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' TL';
-      const extraInfo = [
-        { label: label('unit_price', ol), value: fmt(roundedUnit), dir: 'ltr' },
-        { label: label('qty', ol),        value: String(qty), dir: 'ltr' },
-        { label: label('order_total', ol), value: fmt(roundedTotal), dir: 'ltr' },
-      ];
-      if (updated.external_product_link) {
-        extraInfo.push({ label: label('product_link', ol), value: updated.external_product_link, dir: 'ltr' });
+
+    const allItems = order.link_request_items.map((it) => (it.id === itemId ? { ...it, unit_price: roundedUnit } : it));
+    const allPriced = allItems.every((it) => it.unit_price != null);
+
+    let updated;
+    if (allPriced) {
+      const total = Math.round(allItems.reduce((sum, it) => sum + Number(it.unit_price) * it.qty, 0));
+      const now = new Date();
+      updated = await prisma.orders.update({
+        where: { id: orderId },
+        data:  { status: 'price_quoted', quoted_at: now, total_amount: total, updated_at: now },
+        include: ADMIN_ORDER_INCLUDE,
+      });
+      if (updated.customers) {
+        const ol = updated.lang || 'fa';
+        const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' TL';
+        const extraInfo = updated.link_request_items.flatMap((it, i) => {
+          const prefix = updated.link_request_items.length > 1 ? `#${i + 1} ` : '';
+          return [
+            { label: prefix + label('product_link', ol), value: it.product_link, dir: 'ltr' },
+            { label: prefix + label('unit_price', ol), value: `${fmt(it.unit_price)} × ${it.qty}`, dir: 'ltr' },
+          ];
+        });
+        extraInfo.push({ label: label('order_total', ol), value: fmt(total), dir: 'ltr' });
+        sendOrderEmail(updated.customers, updated, 'price_quoted', extraInfo).catch(() => {});
       }
-      sendOrderEmail(updated.customers, updated, 'price_quoted', extraInfo).catch(() => {});
+    } else {
+      updated = await prisma.orders.findUnique({ where: { id: orderId }, include: ADMIN_ORDER_INCLUDE });
     }
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
@@ -1627,7 +1644,7 @@ module.exports = {
   getSizes, createSize, updateSize, deleteSize,
   getAdminCustomers, updateAdminCustomer,
   getProducts, createProduct, updateProduct, deleteProduct,
-  getAdminOrders, setPaymentInfo, announceQuotePrice, approvePayment, rejectPayment, rejectPreorder, setShipping, markDelivered,
+  getAdminOrders, setPaymentInfo, setLinkItemPrice, approvePayment, rejectPayment, rejectPreorder, setShipping, markDelivered,
   getBankAccounts, createBankAccount, updateBankAccount, deleteBankAccount,
   getCommunications, getCommunicationBody,
   getNotifications,
