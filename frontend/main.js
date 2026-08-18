@@ -3812,15 +3812,42 @@ function submitLinkRequest() {
     });
 }
 
-function approveQuote(orderId) {
+function _doApproveQuote(orderId, itemIds) {
   var t     = TRANSLATIONS[currentLang];
   var token = getSession();
-  fetch(API_BASE + '/orders/' + orderId + '/quote/approve', {
-    method: 'POST', headers: { 'x-session-token': token },
-  }).then(function(r) { return r.json(); }).then(function(d) {
-    if (d.success) { showToast(t.quote_approved_toast); renderOrders(); }
-    else showToast(d.message || t.quote_approve_btn, 'error');
-  }).catch(function() { showToast('Network error', 'error'); });
+  var headers = { 'x-session-token': token };
+  var opts    = { method: 'POST', headers: headers };
+  if (itemIds) {
+    headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify({ item_ids: itemIds });
+  }
+  fetch(API_BASE + '/orders/' + orderId + '/quote/approve', opts)
+    .then(function(r) { return r.json(); }).then(function(d) {
+      if (d.success) { showToast(t.quote_approved_toast); renderOrders(); }
+      else showToast(d.message || t.quote_approve_btn, 'error');
+    }).catch(function() { showToast('Network error', 'error'); });
+}
+
+function approveQuote(orderId) {
+  var t = TRANSLATIONS[currentLang];
+  // Multi-item orders show a per-item "I want this" checkbox (id="linkreq-pick-<itemId>")
+  // only when there's more than one priced item — gather the checked ones, if any exist.
+  var pickBoxes = document.querySelectorAll('[id^="linkreq-pick-"]');
+  if (pickBoxes.length) {
+    var itemIds = [];
+    pickBoxes.forEach(function(cb) {
+      if (cb.checked) itemIds.push(Number(cb.id.replace('linkreq-pick-', '')));
+    });
+    if (!itemIds.length) {
+      showConfirm(t.quote_pick_none_confirm || 'هیچ موردی انتخاب نکرده‌اید، این معادل رد کردن کل قیمت است. ادامه می‌دهید؟', function() {
+        _doApproveQuote(orderId, itemIds);
+      });
+      return;
+    }
+    _doApproveQuote(orderId, itemIds);
+    return;
+  }
+  _doApproveQuote(orderId, null);
 }
 
 function rejectQuote(orderId) {
@@ -3942,6 +3969,8 @@ function _renderOrdersList(apiOrders) {
       }
 
       // ─── Link-based pre-order request items (1-5 links, each priced separately) ─
+      var _pricedItems = (order.link_request_items || []).filter(function(it) { return !it.rejected && it.unit_price != null; });
+      var _showPickCheckboxes = (st === 'price_quoted' && _pricedItems.length > 1);
       if (order.link_request_items && order.link_request_items.length) {
         detailHtml += order.link_request_items.map(function(it, i) {
           var metaParts = [];
@@ -3953,12 +3982,19 @@ function _renderOrdersList(apiOrders) {
             : it.rejected
               ? '<div class="linkreq-order-item-price" style="color:#dc2626">🚫 ' + (t.link_item_rejected_label || 'این مورد رد شد') + (it.rejection_reason ? ': ' + it.rejection_reason : '') + '</div>'
               : '';
+          var checkbox = (_showPickCheckboxes && it.unit_price != null)
+            ? '<label style="display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer;font-size:12.5px;font-weight:600;color:#4c1d95">' +
+                '<input type="checkbox" id="linkreq-pick-' + it.id + '" checked style="width:15px;height:15px;accent-color:#7c3aed">' +
+                (t.quote_pick_item_label || 'این مورد را می‌خواهم') +
+              '</label>'
+            : '';
           return '<div class="linkreq-order-item">' +
             (order.link_request_items.length > 1 ? '<strong>#' + (i + 1) + '</strong> ' : '') +
             '<a href="' + it.product_link + '" target="_blank" rel="noopener" style="direction:ltr;display:inline-block">' + it.product_link + '</a>' +
             '<div class="linkreq-order-item-meta">' + metaParts.join(' · ') + '</div>' +
             (it.note ? '<div class="linkreq-order-item-note">' + it.note + '</div>' : '') +
             priceLine +
+            checkbox +
           '</div>';
         }).join('');
       }
@@ -3985,8 +4021,11 @@ function _renderOrdersList(apiOrders) {
           '<div class="order-payment-row"><span>' + (t.checkout_total || 'جمع کل') + ':</span><strong>' + formatPrice(order.total_amount) + '</strong></div>' +
           (daysLeft !== null ? '<div class="order-payment-row"><span>' + (t.quote_deadline_label || 'مهلت پاسخ') + ':</span><strong>' + (daysLeft > 0 ? (localizeNumber(String(daysLeft)) + ' ' + (t.quote_days_left_suffix || 'روز مانده')) : (t.quote_expires_today || 'امروز آخرین مهلت است')) + '</strong></div>' : '') +
           '</div>';
+        if (_showPickCheckboxes) {
+          detailHtml += '<p class="order-detail-hint">' + (t.quote_pick_hint || 'اگر فقط برخی از موارد را می‌خواهید، تیک آن‌ها را نگه دارید و بقیه را بردارید.') + '</p>';
+        }
         detailHtml += '<div style="display:flex;gap:8px;margin-top:10px">' +
-          '<button class="order-action-btn" style="background:#16a34a;color:#fff;flex:1" onclick="approveQuote(' + order.id + ')">' + (t.quote_approve_btn || 'تایید قیمت') + '</button>' +
+          '<button class="order-action-btn" style="background:#16a34a;color:#fff;flex:1" onclick="approveQuote(' + order.id + ')">' + (_showPickCheckboxes ? (t.quote_confirm_selection_btn || 'تایید موارد انتخابی') : (t.quote_approve_btn || 'تایید قیمت')) + '</button>' +
           '<button class="order-action-btn order-action-cancel" style="flex:1" onclick="rejectQuote(' + order.id + ')">' + (t.quote_reject_btn || 'رد کردن') + '</button>' +
           '</div>';
       }

@@ -387,27 +387,89 @@ async function createLinkRequest(req, res, next) {
   }
 }
 
+// Shared terminal-rejection — used both when the customer explicitly rejects
+// the whole quote, and when they "approve" but deselect every priced item
+// (functionally the same outcome: nothing left to buy).
+async function rejectWholeOrder(order) {
+  const ol = order.lang || 'fa';
+  const reasonText = ({
+    fa: 'مشتری با قیمت اعلام‌شده موافقت نکرد.',
+    en: 'Customer did not accept the quoted price.',
+    tr: 'Müşteri teklif edilen fiyatı kabul etmedi.',
+  })[ol] || 'Customer rejected the quote.';
+
+  const updated = await prisma.orders.update({
+    where:   { id: order.id },
+    data:    { status: 'rejected', payment_rejection_reason: reasonText, rejected_at: new Date(), updated_at: new Date() },
+    include: ORDER_INCLUDE,
+  });
+  sendOrderEmail(updated.customers, updated, 'preorder_rejected', []).catch(() => {});
+  return updated;
+}
+
 // ─── approveQuote: POST /api/orders/:id/quote/approve ─────────────────────────
-// Customer accepts the price an admin announced — rejoins the regular preorder
-// pipeline exactly where a cart-based order would be (status 'preorder'), so
-// the existing admin "send payment info" step (setPaymentInfo) needs no changes.
+// Customer accepts the price an admin announced. With several priced links on
+// one order, they don't have to want all of them — body.item_ids picks which
+// link_request_items to keep; whichever priced ones are left out get marked
+// declined (same rejected/rejection_reason fields the admin's own per-item
+// reject uses) and are excluded from the recomputed total_amount. Omitting
+// item_ids keeps everything priced (the common single-link case). Either way
+// this rejoins the regular preorder pipeline exactly where a cart-based order
+// would be (status 'preorder'), so the existing admin "send payment info" step
+// needs no changes.
 async function approveQuote(req, res, next) {
   try {
     const customerId = await getCustomerFromSession(req, res);
     if (!customerId) return;
 
-    const order = await prisma.orders.findUnique({ where: { id: Number(req.params.id) } });
+    const order = await prisma.orders.findUnique({
+      where:   { id: Number(req.params.id) },
+      include: { link_request_items: { orderBy: { id: 'asc' } } },
+    });
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
     if (order.customer_id !== customerId) return res.status(403).json({ success: false, message: 'Forbidden' });
     if (order.status !== 'price_quoted') {
       return res.status(400).json({ success: false, message: 'Order must be in price_quoted status' });
     }
 
-    const updated = await prisma.orders.update({
-      where:   { id: order.id },
-      data:    { status: 'preorder', updated_at: new Date() },
-      include: ORDER_INCLUDE,
-    });
+    const pricedItems = order.link_request_items.filter((it) => !it.rejected && it.unit_price != null);
+
+    if (pricedItems.length) {
+      const requestedIds = Array.isArray(req.body && req.body.item_ids) ? req.body.item_ids.map(Number) : null;
+      const keepSet       = new Set(requestedIds === null ? pricedItems.map((it) => it.id) : requestedIds);
+      const keptItems     = pricedItems.filter((it) => keepSet.has(it.id));
+      const declinedItems = pricedItems.filter((it) => !keepSet.has(it.id));
+
+      if (!keptItems.length) {
+        const updated = await rejectWholeOrder(order);
+        return res.json({ success: true, data: updated });
+      }
+
+      const ol = order.lang || 'fa';
+      const declineReason = ({
+        fa: 'مشتری این مورد را هنگام تایید انتخاب نکرد.',
+        en: 'Customer did not select this item when approving.',
+        tr: 'Müşteri onay sırasında bu ürünü seçmedi.',
+      })[ol] || 'Customer did not select this item.';
+      const now   = new Date();
+      const total = Math.round(keptItems.reduce((sum, it) => sum + Number(it.unit_price) * it.qty, 0));
+
+      await prisma.$transaction([
+        ...declinedItems.map((it) => prisma.link_request_items.update({
+          where: { id: it.id },
+          data:  { rejected: true, rejection_reason: declineReason, rejected_at: now },
+        })),
+        prisma.orders.update({
+          where: { id: order.id },
+          data:  { status: 'preorder', total_amount: total, updated_at: now },
+        }),
+      ]);
+    } else {
+      // Not a link-based order (or somehow has none priced) — plain approve.
+      await prisma.orders.update({ where: { id: order.id }, data: { status: 'preorder', updated_at: new Date() } });
+    }
+
+    const updated = await prisma.orders.findUnique({ where: { id: order.id }, include: ORDER_INCLUDE });
     sendOrderEmail(updated.customers, updated, 'preorder', []).catch(() => {});
     res.json({ success: true, data: updated });
   } catch (err) {
@@ -416,9 +478,9 @@ async function approveQuote(req, res, next) {
 }
 
 // ─── rejectQuote: POST /api/orders/:id/quote/reject ───────────────────────────
-// Customer declines the announced price — same terminal state (and reused
-// reason field) as an admin-side preorder rejection, so it drops out of every
-// "active order" list the same way.
+// Customer declines the announced price entirely — same terminal state (and
+// reused reason field) as an admin-side preorder rejection, so it drops out
+// of every "active order" list the same way.
 async function rejectQuote(req, res, next) {
   try {
     const customerId = await getCustomerFromSession(req, res);
@@ -430,20 +492,7 @@ async function rejectQuote(req, res, next) {
     if (order.status !== 'price_quoted') {
       return res.status(400).json({ success: false, message: 'Order must be in price_quoted status' });
     }
-
-    const ol = order.lang || 'fa';
-    const reasonText = ({
-      fa: 'مشتری با قیمت اعلام‌شده موافقت نکرد.',
-      en: 'Customer did not accept the quoted price.',
-      tr: 'Müşteri teklif edilen fiyatı kabul etmedi.',
-    })[ol] || 'Customer rejected the quote.';
-
-    const updated = await prisma.orders.update({
-      where:   { id: order.id },
-      data:    { status: 'rejected', payment_rejection_reason: reasonText, rejected_at: new Date(), updated_at: new Date() },
-      include: ORDER_INCLUDE,
-    });
-    sendOrderEmail(updated.customers, updated, 'preorder_rejected', []).catch(() => {});
+    const updated = await rejectWholeOrder(order);
     res.json({ success: true, data: updated });
   } catch (err) {
     next(err);
