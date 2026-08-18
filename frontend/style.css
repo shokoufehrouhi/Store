@@ -4513,6 +4513,19 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   font-family: inherit; white-space: nowrap;
 }
 .link-req-open-btn:hover { background: rgba(255,92,0,.06); }
+
+/* ─── Orders tab — manual refresh button ─── */
+.orders-refresh-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: none; border: 1px solid #e5e7eb; color: #6b7280;
+  cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+  flex-shrink: 0;
+}
+.orders-refresh-btn:hover:not(:disabled) { background: rgba(59,130,246,.08); color: #3b82f6; border-color: #3b82f6; }
+.orders-refresh-btn:disabled { cursor: default; opacity: .7; }
+.orders-refresh-btn.spinning svg { animation: orders-refresh-spin .7s linear infinite; }
+@keyframes orders-refresh-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .linkreq-item-remove {
   background: none; border: none; color: #bbb; font-size: 15px;
   cursor: pointer; padding: 2px 4px; line-height: 1; transition: color .15s;

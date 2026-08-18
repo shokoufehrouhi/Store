@@ -3656,6 +3656,34 @@ function toggleOrdersActiveFilter() {
   _renderOrdersList(_cachedApiOrders);
 }
 
+// Manual refresh — re-fetches /orders/my instead of relying on the cached
+// list, so status changes made on the admin side (price quoted, shipped,
+// etc.) show up without the customer having to reload the whole page.
+function refreshOrdersList() {
+  var btn = document.getElementById('orders-refresh-btn');
+  if (btn) { btn.classList.add('spinning'); btn.disabled = true; }
+  var user = getCurrentUser();
+  var token = getSession();
+  if (!user || !token) {
+    if (btn) { btn.classList.remove('spinning'); btn.disabled = false; }
+    return;
+  }
+  fetch(API_BASE + '/orders/my', {
+    headers: { 'x-session-token': token },
+  }).then(function(res) { return res.json(); }).then(function(data) {
+    if (!data.success && (data.message === 'Session expired' || data.message === 'No session token')) {
+      doLogout(); openAuthModal('login'); return;
+    }
+    _renderOrdersList(data.success ? data.data : []);
+  }).catch(function() {
+    var t = TRANSLATIONS[currentLang];
+    showToast(t.network_error || 'خطای شبکه', 'error');
+  }).finally(function() {
+    var freshBtn = document.getElementById('orders-refresh-btn');
+    if (freshBtn) { freshBtn.classList.remove('spinning'); freshBtn.disabled = false; }
+  });
+}
+
 // ─── Link-based pre-order request — full page (same shell/classes as checkout) ─
 // Up to LINK_REQ_MAX_ITEMS repeatable link+size+color+qty+note cards. Cards
 // are keyed by an ever-increasing index (not re-used/compacted after a
@@ -3977,12 +4005,15 @@ function _renderOrdersList(apiOrders) {
           if (it.size)  metaParts.push(t.order_size_lbl.trim() + ': ' + it.size);
           if (it.color) metaParts.push(t.color_label.replace(/:$/, '') + ': ' + it.color);
           metaParts.push(t.cart_qty.replace(/:$/, '') + ': ' + it.qty);
-          var priceLine = it.unit_price != null
-            ? '<div class="linkreq-order-item-price">' + (t.quote_price_label || 'قیمت واحد') + ': ' + formatPrice(it.unit_price) + ' × ' + it.qty + ' = ' + formatPrice(Number(it.unit_price) * it.qty) + '</div>'
-            : it.rejected
-              ? '<div class="linkreq-order-item-price" style="color:#dc2626">🚫 ' + (t.link_item_rejected_label || 'این مورد رد شد') + (it.rejection_reason ? ': ' + it.rejection_reason : '') + '</div>'
+          // Check rejected first — an item the customer declined at approval time
+          // keeps its original unit_price on the row (that's how the total was
+          // computed pre-decline), but it must show as declined, not as priced.
+          var priceLine = it.rejected
+            ? '<div class="linkreq-order-item-price" style="color:#dc2626">🚫 ' + (t.link_item_rejected_label || 'این مورد رد شد') + (it.rejection_reason ? ': ' + it.rejection_reason : '') + '</div>'
+            : it.unit_price != null
+              ? '<div class="linkreq-order-item-price">' + (t.quote_price_label || 'قیمت واحد') + ': ' + formatPrice(it.unit_price) + ' × ' + it.qty + ' = ' + formatPrice(Number(it.unit_price) * it.qty) + '</div>'
               : '';
-          var checkbox = (_showPickCheckboxes && it.unit_price != null)
+          var checkbox = (_showPickCheckboxes && it.unit_price != null && !it.rejected)
             ? '<label style="display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer;font-size:12.5px;font-weight:600;color:#4c1d95">' +
                 '<input type="checkbox" id="linkreq-pick-' + it.id + '" checked style="width:15px;height:15px;accent-color:#7c3aed">' +
                 (t.quote_pick_item_label || 'این مورد را می‌خواهم') +
@@ -4214,10 +4245,15 @@ function _renderOrdersList(apiOrders) {
   }).join('');
 
   var filterBar = '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--card,#fff);border-radius:12px;border:1px solid #e5e7eb">' +
+    '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">' +
     '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#374151;user-select:none">' +
     '<input type="checkbox" id="orders-active-filter" ' + (_ordersActiveOnly ? 'checked' : '') + ' onchange="toggleOrdersActiveFilter()" style="width:16px;height:16px;cursor:pointer;accent-color:#3b82f6">' +
     (t.orders_active_only || 'فقط سفارش‌های فعال') +
     '</label>' +
+    '<button type="button" id="orders-refresh-btn" class="orders-refresh-btn" onclick="refreshOrdersList()" title="' + (t.orders_refresh_btn || 'بروزرسانی') + '" aria-label="' + (t.orders_refresh_btn || 'بروزرسانی') + '">' +
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>' +
+    '</button>' +
+    '</div>' +
     '<button class="link-req-open-btn" onclick="openLinkRequestModal()">' + t.link_req_open_btn + '</button>' +
     '</div>';
 
