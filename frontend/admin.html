@@ -5063,7 +5063,14 @@ function renderOrderDetail() {
       <label>${t('orderQuoteAmountLbl')}</label>
       <input id="quote-amount-input" type="number" min="0" step="1" placeholder="0" style="direction:ltr">
     </div>
-    <button class="btn btn-primary" onclick="adminAnnounceQuotePrice(${order.id})">${t('orderSendQuoteBtn')}</button>`;
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn btn-primary" style="flex:1" onclick="adminAnnounceQuotePrice(${order.id})">${t('orderSendQuoteBtn')}</button>
+      <button class="btn btn-danger" style="flex:1" onclick="adminShowPreorderRejectForm(${order.id})">${t('orderRejectPreorder')}</button>
+    </div>
+    <div id="preorder-reject-form" style="display:none;margin-top:14px">
+      <div class="form-field" style="margin-bottom:10px"><label>${t('orderRejectReasonLbl')}</label><textarea id="preorder-reject-reason" rows="3" placeholder="${t('orderRejectReasonPlh')}"></textarea></div>
+      <button class="btn btn-danger" onclick="adminConfirmRejectPreorder(${order.id})" style="width:100%">${t('orderConfirmRejectPreorder')}</button>
+    </div>`;
   }
 
   if (st === 'price_quoted') {

@@ -1070,8 +1070,8 @@ async function rejectPreorder(req, res, next) {
     const id = Number(req.params.id);
     const order = await prisma.orders.findUnique({ where: { id } });
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
-    if (order.status !== 'preorder') {
-      return res.status(400).json({ success: false, message: 'Order must be in preorder status' });
+    if (order.status !== 'preorder' && order.status !== 'link_requested') {
+      return res.status(400).json({ success: false, message: 'Order must be in preorder or link_requested status' });
     }
     const { reason } = req.body;
     const updated = await prisma.$transaction(async (tx) => {
