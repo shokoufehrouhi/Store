@@ -406,7 +406,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   position: relative;
   z-index: 1;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 40px;
   padding: 40px 0;
 }
@@ -420,6 +420,13 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .hero-col .hero-subtitle,
 .hero-col .hero-link-note { margin-inline: auto; }
+/* Column text lengths differ per language (the link-request note often
+   wraps to 2 lines where the main subtitle stays on 1), which used to
+   throw the two buttons out of horizontal alignment since the columns
+   were just vertically centered as a whole. Anchoring each button to the
+   bottom of its (now equal-height, align-items:stretch) column keeps
+   both buttons level regardless of how many lines the text above takes. */
+.hero-col > a { margin-top: auto; }
 .hero-col-title {
   font-size: clamp(21px, 3vw, 32px);
   font-weight: 900;
