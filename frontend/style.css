@@ -421,12 +421,12 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .hero-col .hero-subtitle,
 .hero-col .hero-link-note { margin-inline: auto; }
 .hero-col-title {
-  font-size: clamp(18px, 2.2vw, 24px);
-  font-weight: 800;
-  line-height: 1.35;
+  font-size: clamp(21px, 3vw, 32px);
+  font-weight: 900;
+  line-height: 1.25;
   color: #ffffff;
   margin-bottom: 10px;
-  max-width: 380px;
+  max-width: 400px;
 }
 .hero-divider {
   align-self: stretch;
@@ -455,16 +455,16 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .btn-hero-secondary {
   display: inline-flex;
   align-items: center;
-  background: rgba(255,255,255,.1);
+  background: rgba(255,92,0,.14);
   color: #fff;
-  border: 1px solid rgba(255,255,255,.2);
+  border: 1.5px solid var(--primary);
   padding: 10px 22px;
   border-radius: 30px;
   font-size: 14px;
-  font-weight: 600;
-  transition: background .2s, border-color .2s;
+  font-weight: 700;
+  transition: background .2s, transform .15s;
 }
-.btn-hero-secondary:hover { background: rgba(255,255,255,.18); border-color: rgba(255,255,255,.35); }
+.btn-hero-secondary:hover { background: rgba(255,92,0,.28); transform: translateY(-2px); }
 
 /* ─── Features Bar ───────────────────────────────────────────────────────── */
 .features-bar {
