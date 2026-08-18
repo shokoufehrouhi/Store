@@ -387,12 +387,12 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   max-width: 480px;
 }
 .hero-link-note {
-  font-size: 12.5px;
-  color: rgba(255,255,255,.5);
-  margin-bottom: 20px;
+  font-size: 13px;
+  color: rgba(255,255,255,.6);
+  margin-bottom: 18px;
   font-weight: 400;
-  max-width: 480px;
-  line-height: 1.6;
+  max-width: 400px;
+  line-height: 1.7;
 }
 .hero-cta {
   display: flex;
@@ -400,6 +400,45 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   flex-wrap: wrap;
   justify-content: center;
 }
+
+/* ─── Hero — two-column split (browse products / submit a product link) ─── */
+.hero-split {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  padding: 40px 0;
+}
+.hero-col {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.hero-col .hero-subtitle,
+.hero-col .hero-link-note { margin-inline: auto; }
+.hero-col-title {
+  font-size: clamp(18px, 2.2vw, 24px);
+  font-weight: 800;
+  line-height: 1.35;
+  color: #ffffff;
+  margin-bottom: 10px;
+  max-width: 380px;
+}
+.hero-divider {
+  align-self: stretch;
+  width: 1px;
+  background: rgba(255,255,255,.14);
+  flex: 0 0 auto;
+}
+@media (max-width: 860px) {
+  .hero-split { flex-direction: column; gap: 28px; padding: 32px 0; }
+  .hero-divider { width: 60%; height: 1px; }
+}
+
 .btn-hero-primary {
   display: inline-flex;
   align-items: center;
