@@ -4284,12 +4284,17 @@ function _renderOrderRows(tbodyId, orders) {
     const total  = (Math.floor(Number(order.total_amount)*100)/100).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' TL';
     const date   = new Date(order.created_at).toLocaleDateString(dateLocale);
     const items  = order.order_items || [];
-    const productLinks = items.map(item => {
+    let productLinks = items.map(item => {
       const p = item.products;
       if (!p) return '';
       const pname = p[nameKey] || p.name_fa || '-';
       return `<a href="javascript:void(0)" onclick="event.stopPropagation();openProductFromOrder(${p.id})" style="color:#3b82f6;text-decoration:none;font-size:13px;display:block;line-height:1.6">${pname}</a>`;
     }).join('');
+    // Link-based pre-order requests have no order_items — show the customer's
+    // submitted link instead, clipped to one line (title shows the full URL).
+    if (!productLinks && order.external_product_link) {
+      productLinks = `<a href="${esc(order.external_product_link)}" target="_blank" rel="noopener" title="${esc(order.external_product_link)}" onclick="event.stopPropagation()" style="color:#7c3aed;text-decoration:none;font-size:13px;display:block;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(order.external_product_link)}</a>`;
+    }
     const noteHtml = order.note
       ? `<div style="margin-top:5px;font-size:12px;color:#92400e;background:#fffbeb;border-inline-start:2px solid #f59e0b;padding:2px 6px;border-radius:4px;line-height:1.5">💬 ${esc(order.note)}</div>`
       : '';
