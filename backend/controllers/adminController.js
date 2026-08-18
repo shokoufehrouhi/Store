@@ -1013,11 +1013,18 @@ async function approvePayment(req, res, next) {
       const attachFiles = [];
       if (order.payment_receipt_url) {
         const receiptPath = path.join(__dirname, '../public', order.payment_receipt_url);
-        const ext = path.extname(order.payment_receipt_url).toLowerCase();
-        const mime = ext === '.pdf' ? 'application/pdf' : (ext === '.png' ? 'image/png' : 'image/jpeg');
-        const stat = fs.statSync(receiptPath);
-        if (stat.size <= 8 * 1024 * 1024) {
-          attachFiles.push({ filename: 'payment_receipt' + ext, path: receiptPath, contentType: mime });
+        try {
+          const stat = fs.statSync(receiptPath);
+          const ext = path.extname(order.payment_receipt_url).toLowerCase();
+          const mime = ext === '.pdf' ? 'application/pdf' : (ext === '.png' ? 'image/png' : 'image/jpeg');
+          if (stat.size <= 8 * 1024 * 1024) {
+            attachFiles.push({ filename: 'payment_receipt' + ext, path: receiptPath, contentType: mime });
+          }
+        } catch (e) {
+          // Receipt file missing on this server's disk (e.g. uploaded through
+          // staging, which writes to its own uploads/ dir, not production's) —
+          // don't let a missing attachment crash the whole approve/reject action.
+          console.error('[approvePayment] receipt file not found, skipping attachment:', receiptPath);
         }
       }
       sendOrderEmail(updated.customers, updated, 'preparing', [], attachFiles).catch(() => {});
@@ -1052,11 +1059,18 @@ async function rejectPayment(req, res, next) {
       const attachFiles = [];
       if (order.payment_receipt_url) {
         const receiptPath = path.join(__dirname, '../public', order.payment_receipt_url);
-        const ext = path.extname(order.payment_receipt_url).toLowerCase();
-        const mime = ext === '.pdf' ? 'application/pdf' : (ext === '.png' ? 'image/png' : 'image/jpeg');
-        const stat = fs.statSync(receiptPath);
-        if (stat.size <= 8 * 1024 * 1024) {
-          attachFiles.push({ filename: 'payment_receipt' + ext, path: receiptPath, contentType: mime });
+        try {
+          const stat = fs.statSync(receiptPath);
+          const ext = path.extname(order.payment_receipt_url).toLowerCase();
+          const mime = ext === '.pdf' ? 'application/pdf' : (ext === '.png' ? 'image/png' : 'image/jpeg');
+          if (stat.size <= 8 * 1024 * 1024) {
+            attachFiles.push({ filename: 'payment_receipt' + ext, path: receiptPath, contentType: mime });
+          }
+        } catch (e) {
+          // Receipt file missing on this server's disk (e.g. uploaded through
+          // staging, which writes to its own uploads/ dir, not production's) —
+          // don't let a missing attachment crash the whole approve/reject action.
+          console.error('[rejectPayment] receipt file not found, skipping attachment:', receiptPath);
         }
       }
       sendOrderEmail(updated.customers, updated, 'rejected', extraInfo, attachFiles).catch(() => {});
