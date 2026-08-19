@@ -544,6 +544,7 @@ enum payment_status {
 enum product_tag {
   bestseller
   new
+  original
 }
 
 model customer_product_photos {

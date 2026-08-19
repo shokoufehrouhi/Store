@@ -352,6 +352,7 @@
     .badge-accessories { background: #d1fae5; color: #047857; }
     .badge-new         { background: #fef3c7; color: #d97706; }
     .badge-bestseller  { background: #fee2e2; color: var(--danger); }
+    .badge-original    { background: #dcfce7; color: #16a34a; }
 
     /* ── Forms ──────────────────────────────────── */
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
@@ -1847,7 +1848,7 @@ const LANGS = {
     activeProduct:'محصول فعال باشد',
     selectCat:'انتخاب کنید...', noSub:'بدون زیردسته',
     genderAll:'همه', genderMale:'مردانه', genderFemale:'زنانه',
-    tagNone:'بدون برچسب', tagBestseller:'پرفروش', tagNew:'جدید',
+    tagNone:'بدون برچسب', tagBestseller:'پرفروش', tagNew:'جدید', tagOriginal:'اورجینال',
     noColorsDefined:'ابتدا از تب رنگ‌ها، رنگ تعریف کنید',
     availYes:'موجود', availNo:'ناموجود',
     inventorySection:'موجودی انبار', inventoryNoSelections:'ابتدا رنگ یا سایز انتخاب کنید',
@@ -2052,7 +2053,7 @@ const LANGS = {
     activeProduct:'Product is active',
     selectCat:'Select...', noSub:'No subcategory',
     genderAll:'Unisex', genderMale:'Male', genderFemale:'Female',
-    tagNone:'No tag', tagBestseller:'Bestseller', tagNew:'New',
+    tagNone:'No tag', tagBestseller:'Bestseller', tagNew:'New', tagOriginal:'Original',
     noColorsDefined:'First define colors in the Colors tab',
     availYes:'In Stock', availNo:'Out of Stock',
     inventorySection:'Inventory', inventoryNoSelections:'First select colors or sizes',
@@ -2257,7 +2258,7 @@ const LANGS = {
     activeProduct:'Ürün aktif olsun',
     selectCat:'Seçiniz...', noSub:'Alt kategori yok',
     genderAll:'Unisex', genderMale:'Erkek', genderFemale:'Kadın',
-    tagNone:'Etiket yok', tagBestseller:'Çok Satan', tagNew:'Yeni',
+    tagNone:'Etiket yok', tagBestseller:'Çok Satan', tagNew:'Yeni', tagOriginal:'Orijinal',
     noColorsDefined:'Önce Renkler sekmesinde renk tanımlayın',
     availYes:'Mevcut', availNo:'Stokta Yok',
     inventorySection:'Stok Takibi', inventoryNoSelections:'Önce renk veya beden seçin',
@@ -3040,7 +3041,8 @@ function renderProductsTable(products) {
   tbody.innerHTML = products.map(p => {
     const catKey   = p.categories?.key || '';
     const catLabel = p.categories?.label_fa || '—';
-    const tagHtml  = p.tag ? `<span class="badge badge-${p.tag}">${t(p.tag === 'bestseller' ? 'bestseller' : 'newTag')}</span>` : '';
+    const tagLabelKey = { bestseller: 'tagBestseller', new: 'tagNew', original: 'tagOriginal' };
+    const tagHtml  = p.tag ? `<span class="badge badge-${p.tag}">${t(tagLabelKey[p.tag] || p.tag)}</span>` : '';
     const colorDots = (p.product_colors||[]).map(pc =>
       `<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${pc.colors?.hex};border:1px solid rgba(0,0,0,.15);margin:0 1px" title="${pc.colors?.name_fa}"></span>`
     ).join('') || '—';
@@ -3233,6 +3235,7 @@ async function openProductModal(id = null) {
           <option value=""           ${!product?.tag                 ?'selected':''}>${t('tagNone')}</option>
           <option value="bestseller" ${product?.tag==='bestseller'   ?'selected':''}>${t('tagBestseller')}</option>
           <option value="new"        ${product?.tag==='new'          ?'selected':''}>${t('tagNew')}</option>
+          <option value="original"   ${product?.tag==='original'     ?'selected':''}>${t('tagOriginal')}</option>
         </select>
       </div>
     </div>
