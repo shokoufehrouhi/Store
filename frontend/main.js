@@ -4173,7 +4173,17 @@ function _renderOrdersList(apiOrders) {
         if (order.payment_rejection_reason) {
           detailHtml += '<div class="order-rejection-box"><strong>' + (t.payment_rejected || 'رد شد') + ':</strong> ' + order.payment_rejection_reason + '</div>';
         }
-        if (order.iban) {
+        if (order.payment_link_url) {
+          detailHtml += '<div class="order-payment-info-box">' +
+            '<div class="order-payment-info-title">' + (t.payment_link_title || 'پرداخت آنلاین') + '</div>' +
+            '<div class="order-payment-row"><span>' + (t.payment_link_via || 'از طریق') + ':</span><strong>' + (order.payment_link_label || order.payment_link_url) + '</strong></div>' +
+            '<a class="order-action-btn" href="' + order.payment_link_url + '" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:10px;background:#16a34a;color:#fff">' + (t.payment_link_btn || '🔗 پرداخت آنلاین') + '</a>' +
+            '<div style="margin-top:10px;padding:8px 10px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e;line-height:1.5">' +
+              (t.payment_ref_note || '⚠️ شماره سفارش را در توضیحات درج کنید:') +
+              '<strong style="display:block;font-size:14px;margin-top:4px;letter-spacing:1px">ORD-' + order.id + '</strong>' +
+            '</div>' +
+            '</div>';
+        } else if (order.iban) {
           detailHtml += '<div class="order-payment-info-box">' +
             '<div class="order-payment-info-title">' + (t.payment_info_title || 'اطلاعات پرداخت') + '</div>' +
             '<div class="order-payment-row"><span>' + (t.payment_iban || 'شبا') + ':</span><strong style="direction:ltr">' + order.iban + '</strong>' + copyBtn(order.iban) + '</div>' +

@@ -839,6 +839,9 @@
           <button class="nav-item" onclick="showTab('bank-accounts')" id="nav-bank-accounts">
             <span class="nav-icon">🏦</span><span data-i18n="navBankAccounts">حساب‌های بانکی</span>
           </button>
+          <button class="nav-item" onclick="showTab('payment-links')" id="nav-payment-links">
+            <span class="nav-icon">🔗</span><span data-i18n="navPaymentLinks">لینک‌های پرداخت</span>
+          </button>
           <button class="nav-item" onclick="showTab('coupons')" id="nav-coupons">
             <span class="nav-icon">🎟️</span><span data-i18n="navCoupons">کدهای تخفیف</span>
           </button>
@@ -1308,6 +1311,29 @@
       </div>
     </div>
 
+    <!-- Payment Links Tab -->
+    <div id="tab-payment-links" class="hidden">
+      <div class="page-header">
+        <h2>🔗 <span data-i18n="navPaymentLinks">لینک‌های پرداخت</span></h2>
+        <button class="btn btn-primary" onclick="openPaymentLinkModal()" data-i18n="paymentLinkAddBtn">+ افزودن لینک</button>
+      </div>
+      <div class="page-body">
+        <div class="card"><div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th data-i18n="paymentLinkColLabel">نام فروشگاه</th>
+              <th data-i18n="paymentLinkColUrl">لینک</th>
+              <th data-i18n="colStatus">وضعیت</th>
+              <th data-i18n="colActions">عملیات</th>
+            </tr></thead>
+            <tbody id="payment-links-tbody">
+              <tr><td colspan="4" style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</td></tr>
+            </tbody>
+          </table>
+        </div></div>
+      </div>
+    </div>
+
     <!-- Coupons Tab -->
     <div id="tab-coupons" class="hidden">
       <div class="card" style="padding:24px;margin-bottom:20px">
@@ -1755,7 +1781,7 @@ const LANGS = {
     loginBtn:'ورود به پنل', username:'نام کاربری', password:'رمز عبور',
     connecting:'در حال ورود...', connFail:'اتصال به سرور ناموفق بود',
     navGroupOverview:'نمای کلی', navGroupCatalog:'فروشگاه', navGroupConfig:'تنظیمات پایه', navGroupUsers:'کاربران', navGroupSystem:'سیستم',
-    navDashboard:'داشبورد', navNotifications:'اعلان‌ها', navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navSizeCharts:'جدول سایز', navCustomers:'مشتریان', navLeads:'لیدها', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navProductPhotos:'عکس‌های خریداران', navDeploy:'استقرار', refresh:'بروزرسانی',
+    navDashboard:'داشبورد', navNotifications:'اعلان‌ها', navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navSizeCharts:'جدول سایز', navCustomers:'مشتریان', navLeads:'لیدها', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navPaymentLinks:'لینک‌های پرداخت', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navProductPhotos:'عکس‌های خریداران', navDeploy:'استقرار', refresh:'بروزرسانی',
     navCommunications:'ارتباطات', commAllTypes:'همه انواع', commSubject:'موضوع', commTo:'گیرنده', commType:'نوع', commDate:'تاریخ', commCustomer:'مشتری', commView:'مشاهده', commEmpty:'ایمیلی ثبت نشده',
     commTypePaymentNeeded:'نیاز به پرداخت', commTypePreparing:'در حال آماده‌سازی', commTypeDelivery:'ارسال', commTypeDelivered:'تحویل داده شد', commTypeRejected:'رد سفارش', commTypePreorderRejected:'رد پیش‌سفارش', commTypeReply:'پاسخ پیام', commTypeLoyalty:'وفاداری', commTypeBirthday:'تولد', commTypeWelcome:'خوش‌آمد', commTypePrize:'جایزه', commTypeInvite:'دعوت دوست', commTypeVerification:'کد تایید', commTypeRaw:'ارسال مستقیم',
     notifMarkAll:'همه خوانده شد', notifNewOrder:'سفارش جدید', notifOrderUpdate:'بروزرسانی سفارش', notifNewPrize:'جایزه جدید', notifPrizeUpdate:'بروزرسانی جایزه', notifNewReturn:'درخواست مرجوعی', notifReturnUpdate:'بروزرسانی مرجوعی', notifNewCustomer:'مشتری جدید', notifNewLead:'لید جدید', notifView:'مشاهده', notifEmpty:'اعلانی وجود ندارد',
@@ -1870,6 +1896,12 @@ const LANGS = {
     bankSaved:'حساب ذخیره شد ✅', bankDeleted:'حساب حذف شد',
     bankRequired:'همه فیلدها الزامی است', bankConfirmDelete:'این حساب حذف شود؟', retIbanInvalid:'IBAN باید با TR شروع شده و ۲۴ رقم داشته باشد', copied:'کپی شد',
     noBankAccounts:'هیچ حسابی ثبت نشده',
+    paymentLinkAddBtn:'+ افزودن لینک', paymentLinkColLabel:'نام فروشگاه', paymentLinkColUrl:'لینک',
+    paymentLinkEditTitle:'ویرایش لینک پرداخت', paymentLinkAddTitle:'افزودن لینک پرداخت',
+    paymentLinkNameField:'نام فروشگاه / سرویس', paymentLinkUrlField:'لینک پرداخت',
+    paymentLinkSaved:'لینک ذخیره شد ✅', paymentLinkDeleted:'لینک حذف شد',
+    paymentLinkRequired:'نام و لینک الزامی است', paymentLinkInvalidUrl:'لینک معتبر نیست',
+    paymentLinkConfirmDelete:'این لینک حذف شود؟', noPaymentLinks:'هیچ لینکی ثبت نشده',
     custId:'شناسه مشتری', custName:'نام', custEmail:'ایمیل', custMobile:'موبایل',
     custRegBy:'نوع ثبت‌نام', custLang:'زبان', custStatus:'وضعیت', custJoined:'تاریخ عضویت', custBirthDate:'تاریخ تولد', custBirthdayEmailSent:'آخرین تولد',
     custRegEmail:'ایمیل', custRegMobile:'موبایل',
@@ -1954,7 +1986,7 @@ const LANGS = {
     loginBtn:'Login', username:'Username', password:'Password',
     connecting:'Logging in...', connFail:'Could not connect to server',
     navGroupOverview:'Overview', navGroupCatalog:'Store', navGroupConfig:'Configuration', navGroupUsers:'Users', navGroupSystem:'System',
-    navDashboard:'Dashboard', navNotifications:'Notifications', navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navSizeCharts:'Size Charts', navCustomers:'Customers', navLeads:'Leads', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navProductPhotos:'Buyer Photos', navDeploy:'Deploy', refresh:'Refresh',
+    navDashboard:'Dashboard', navNotifications:'Notifications', navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navSizeCharts:'Size Charts', navCustomers:'Customers', navLeads:'Leads', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navPaymentLinks:'Payment Links', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navProductPhotos:'Buyer Photos', navDeploy:'Deploy', refresh:'Refresh',
     navCommunications:'Communications', commAllTypes:'All types', commSubject:'Subject', commTo:'To', commType:'Type', commDate:'Date', commCustomer:'Customer', commView:'View', commEmpty:'No emails logged yet',
     commTypePaymentNeeded:'Payment Needed', commTypePreparing:'Preparing', commTypeDelivery:'Shipping', commTypeDelivered:'Delivered', commTypeRejected:'Rejected', commTypePreorderRejected:'Preorder Rejected', commTypeReply:'Reply', commTypeLoyalty:'Loyalty', commTypeBirthday:'Birthday', commTypeWelcome:'Welcome', commTypePrize:'Prize', commTypeInvite:'Invite', commTypeVerification:'Verification', commTypeRaw:'Direct Send',
     notifMarkAll:'Mark all read', notifNewOrder:'New Order', notifOrderUpdate:'Order Updated', notifNewPrize:'New Prize', notifPrizeUpdate:'Prize Updated', notifNewReturn:'Return Request', notifReturnUpdate:'Return Updated', notifNewCustomer:'New Customer', notifNewLead:'New Lead', notifView:'View', notifEmpty:'No notifications',
@@ -2069,6 +2101,12 @@ const LANGS = {
     bankSaved:'Account saved ✅', bankDeleted:'Account deleted',
     bankRequired:'All fields are required', bankConfirmDelete:'Delete this account?', retIbanInvalid:'IBAN must start with TR followed by 24 digits', copied:'Copied!',
     noBankAccounts:'No accounts defined yet',
+    paymentLinkAddBtn:'+ Add Link', paymentLinkColLabel:'Store Name', paymentLinkColUrl:'Link',
+    paymentLinkEditTitle:'Edit Payment Link', paymentLinkAddTitle:'Add Payment Link',
+    paymentLinkNameField:'Store / Service Name', paymentLinkUrlField:'Payment Link',
+    paymentLinkSaved:'Link saved ✅', paymentLinkDeleted:'Link deleted',
+    paymentLinkRequired:'Name and link are required', paymentLinkInvalidUrl:'Invalid link',
+    paymentLinkConfirmDelete:'Delete this link?', noPaymentLinks:'No links defined yet',
     custId:'Customer ID', custName:'Name', custEmail:'Email', custMobile:'Mobile',
     custRegBy:'Registered Via', custLang:'Language', custStatus:'Status', custJoined:'Joined', custBirthDate:'Birth Date', custBirthdayEmailSent:'Last Birthday',
     custRegEmail:'Email', custRegMobile:'Mobile',
@@ -2153,7 +2191,7 @@ const LANGS = {
     loginBtn:'Giriş Yap', username:'Kullanıcı Adı', password:'Şifre',
     connecting:'Giriş yapılıyor...', connFail:'Sunucuya bağlanılamadı',
     navGroupOverview:'Genel Bakış', navGroupCatalog:'Mağaza', navGroupConfig:'Yapılandırma', navGroupUsers:'Kullanıcılar', navGroupSystem:'Sistem',
-    navDashboard:'Gösterge Paneli', navNotifications:'Bildirimler', navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navSizeCharts:'Beden Tablosu', navCustomers:'Müşteriler', navLeads:'Adaylar', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navProductPhotos:'Alıcı Fotoğrafları', navDeploy:'Dağıtım', refresh:'Yenile',
+    navDashboard:'Gösterge Paneli', navNotifications:'Bildirimler', navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navSizeCharts:'Beden Tablosu', navCustomers:'Müşteriler', navLeads:'Adaylar', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navPaymentLinks:'Ödeme Linkleri', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navProductPhotos:'Alıcı Fotoğrafları', navDeploy:'Dağıtım', refresh:'Yenile',
     navCommunications:'İletişim', commAllTypes:'Tüm türler', commSubject:'Konu', commTo:'Alıcı', commType:'Tür', commDate:'Tarih', commCustomer:'Müşteri', commView:'Görüntüle', commEmpty:'Henüz e-posta kaydı yok',
     commTypePaymentNeeded:'Ödeme Gerekli', commTypePreparing:'Hazırlanıyor', commTypeDelivery:'Kargo', commTypeDelivered:'Teslim Edildi', commTypeRejected:'Reddedildi', commTypePreorderRejected:'Ön Sipariş Reddedildi', commTypeReply:'Yanıt', commTypeLoyalty:'Sadakat', commTypeBirthday:'Doğum Günü', commTypeWelcome:'Hoş Geldin', commTypePrize:'Ödül', commTypeInvite:'Davet', commTypeVerification:'Doğrulama', commTypeRaw:'Doğrudan Gönderim',
     notifMarkAll:'Tümünü okundu say', notifNewOrder:'Yeni Sipariş', notifOrderUpdate:'Sipariş Güncellendi', notifNewPrize:'Yeni Ödül', notifPrizeUpdate:'Ödül Güncellendi', notifNewReturn:'İade Talebi', notifReturnUpdate:'İade Güncellendi', notifNewCustomer:'Yeni Müşteri', notifNewLead:'Yeni Aday', notifView:'Görüntüle', notifEmpty:'Bildirim yok',
@@ -2268,6 +2306,12 @@ const LANGS = {
     bankSaved:'Hesap kaydedildi ✅', bankDeleted:'Hesap silindi',
     bankRequired:'Tüm alanlar zorunludur', bankConfirmDelete:'Bu hesap silinsin mi?', retIbanInvalid:'IBAN, TR ile başlamalı ve 24 rakam içermelidir', copied:'Kopyalandı!',
     noBankAccounts:'Henüz hesap tanımlanmadı',
+    paymentLinkAddBtn:'+ Link Ekle', paymentLinkColLabel:'Mağaza Adı', paymentLinkColUrl:'Link',
+    paymentLinkEditTitle:'Ödeme Linkini Düzenle', paymentLinkAddTitle:'Ödeme Linki Ekle',
+    paymentLinkNameField:'Mağaza / Hizmet Adı', paymentLinkUrlField:'Ödeme Linki',
+    paymentLinkSaved:'Link kaydedildi ✅', paymentLinkDeleted:'Link silindi',
+    paymentLinkRequired:'Ad ve link zorunludur', paymentLinkInvalidUrl:'Geçersiz link',
+    paymentLinkConfirmDelete:'Bu link silinsin mi?', noPaymentLinks:'Henüz link tanımlanmadı',
     custId:'Müşteri ID', custName:'Ad', custEmail:'E-posta', custMobile:'Telefon',
     custRegBy:'Kayıt Yöntemi', custLang:'Dil', custStatus:'Durum', custJoined:'Üyelik Tarihi', custBirthDate:'Doğum Tarihi', custBirthdayEmailSent:'Son Doğum Günü',
     custRegEmail:'E-posta', custRegMobile:'Telefon',
@@ -2502,6 +2546,7 @@ function showAdmin() {
   applyCollapsedNavSections();
   showTab(currentTab);
   loadBankAccounts();
+  loadPaymentLinks();
   refreshPublishStatus();
   api('/admin/notifications').then(res => {
     if (!res?.success) return;
@@ -2515,7 +2560,7 @@ function showTab(tab) {
   currentTab = tab;
   localStorage.setItem('admin_tab', tab);
   if (window.innerWidth <= 768) closeSidebar();
-  ['communications','notifications','dashboard','products','categories','colors','sizes','size-charts','customers','active-orders','orders','prizes','returns','product-photos','suppliers','bank-accounts','coupons','leads','reports','deploy'].forEach(t2 => {
+  ['communications','notifications','dashboard','products','categories','colors','sizes','size-charts','customers','active-orders','orders','prizes','returns','product-photos','suppliers','bank-accounts','payment-links','coupons','leads','reports','deploy'].forEach(t2 => {
     const el = document.getElementById(`tab-${t2}`);
     const nav = document.getElementById(`nav-${t2}`);
     if (el)  el.classList.add('hidden');
@@ -2541,6 +2586,7 @@ function showTab(tab) {
   if (tab === 'product-photos') loadProductPhotosAdmin();
   if (tab === 'suppliers')      loadSuppliers();
   if (tab === 'bank-accounts')  loadBankAccounts();
+  if (tab === 'payment-links')  loadPaymentLinks();
   if (tab === 'coupons')        initCoupons();
   if (tab === 'leads')          loadLeads();
   if (tab === 'reports')        initReports();
@@ -5005,6 +5051,7 @@ function renderOrderDetail() {
   const order = _selectedOrder;
   if (!order) return;
   _selectedPaymentBankId = null;
+  _selectedPaymentLinkId = null;
   const titleEl = document.getElementById('order-detail-title');
   const bodyEl  = document.getElementById('order-detail-body');
   if (!titleEl || !bodyEl) return;
@@ -5172,8 +5219,23 @@ function renderOrderDetail() {
         ).join('')
       : `<div style="color:#aaa;font-size:13px;padding:10px 0">${t('noBankAccounts')}</div>`;
 
+    const linkOptions = _paymentLinks.length
+      ? _paymentLinks.filter(l => l.is_active).map(l =>
+          `<div class="bank-select-card" id="plc-${l.id}" onclick="selectPaymentLink(${l.id})">
+            <div class="bank-select-radio" id="plr-${l.id}"><div class="bank-select-dot"></div></div>
+            <div style="flex:1">
+              <span style="font-weight:700;font-size:14px;display:block">${esc(l.label)}</span>
+              <span style="font-size:12px;color:#555;direction:ltr;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.url)}</span>
+            </div>
+          </div>`
+        ).join('')
+      : `<div style="color:#aaa;font-size:13px;padding:10px 0">${t('noPaymentLinks')}</div>`;
+
     html += `<div style="font-weight:700;font-size:14px;margin-bottom:10px">${t('orderActionPayment')}</div>
+    <div style="font-size:12px;font-weight:700;color:#999;text-transform:uppercase;margin-bottom:6px">${t('navBankAccounts')}</div>
     <div id="bank-select-list" style="margin-bottom:14px">${bankOptions}</div>
+    <div style="font-size:12px;font-weight:700;color:#999;text-transform:uppercase;margin-bottom:6px">${t('navPaymentLinks')}</div>
+    <div id="payment-link-select-list" style="margin-bottom:14px">${linkOptions}</div>
     <div style="display:flex;gap:10px;margin-top:4px">
       <button id="btn-save-payment" class="btn btn-primary" onclick="adminSetPaymentInfo(${order.id})" disabled style="flex:1;opacity:.4;cursor:not-allowed">${t('orderSavePayment')}</button>
       <button class="btn btn-danger" onclick="adminShowPreorderRejectForm(${order.id})" style="flex:1">${t('orderRejectPreorder')}</button>
@@ -5334,13 +5396,32 @@ async function adminConfirmRejectPreorder(orderId) {
 }
 
 var _selectedPaymentBankId = null;
+var _selectedPaymentLinkId = null;
 
+// Bank accounts and payment links are mutually exclusive per order — both
+// reuse the same .bank-select-card/.bank-select-radio classes, so clearing
+// them globally here (not scoped to just the bank list) is what keeps a
+// bank pick and a link pick from both showing "selected" at once.
 function selectPaymentBank(bankId) {
   _selectedPaymentBankId = bankId;
+  _selectedPaymentLinkId = null;
   document.querySelectorAll('.bank-select-card').forEach(c => c.classList.remove('selected'));
   document.querySelectorAll('.bank-select-radio').forEach(r => r.classList.remove('selected'));
   const card  = document.getElementById('bsc-' + bankId);
   const radio = document.getElementById('bsr-' + bankId);
+  if (card)  card.classList.add('selected');
+  if (radio) radio.classList.add('selected');
+  const btn = document.getElementById('btn-save-payment');
+  if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
+}
+
+function selectPaymentLink(linkId) {
+  _selectedPaymentLinkId = linkId;
+  _selectedPaymentBankId = null;
+  document.querySelectorAll('.bank-select-card').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('.bank-select-radio').forEach(r => r.classList.remove('selected'));
+  const card  = document.getElementById('plc-' + linkId);
+  const radio = document.getElementById('plr-' + linkId);
   if (card)  card.classList.add('selected');
   if (radio) radio.classList.add('selected');
   const btn = document.getElementById('btn-save-payment');
@@ -5399,14 +5480,19 @@ async function adminConfirmRejectLinkItem(orderId, itemId) {
 
 async function adminSetPaymentInfo(orderId) {
   const bank = _bankAccounts.find(b => b.id === _selectedPaymentBankId);
-  if (!bank) { showToast(t('noBankAccounts'), 'error'); return; }
+  const link = _paymentLinks.find(l => l.id === _selectedPaymentLinkId);
+  if (!bank && !link) { showToast(t('noBankAccounts'), 'error'); return; }
+  const body = link
+    ? { payment_link_label: link.label, payment_link_url: link.url }
+    : { iban: bank.iban, bank_name: bank.bank_name, account_holder: bank.account_holder };
   const res = await api(`/admin/orders/${orderId}/payment-info`, {
     method: 'PATCH',
-    body:   JSON.stringify({ iban: bank.iban, bank_name: bank.bank_name, account_holder: bank.account_holder }),
+    body:   JSON.stringify(body),
   });
   if (res?.success) {
     showToast(t('orderPaymentSaved'));
     _selectedPaymentBankId = null;
+    _selectedPaymentLinkId = null;
     _selectedOrder = res.data;
     renderOrderDetail();
     loadAdminOrders();
@@ -5816,6 +5902,95 @@ async function deleteBankAccount(id) {
   showConfirm(t('bankConfirmDelete'), async () => {
     const res = await api(`/admin/bank-accounts/${id}`, { method: 'DELETE' });
     if (res?.success) { showToast(t('bankDeleted')); loadBankAccounts(); }
+    else showToast(res?.message || t('orderSaveError'), 'error');
+  });
+}
+
+// ─── Payment Links ────────────────────────────────────────────────────────────
+var _paymentLinks   = [];
+var _editingLinkId  = null;
+
+async function loadPaymentLinks() {
+  const res = await api('/admin/payment-links');
+  if (!res) return;
+  _paymentLinks = res.data || [];
+  renderPaymentLinksTable();
+}
+
+function renderPaymentLinksTable() {
+  const tbody = document.getElementById('payment-links-tbody');
+  if (!tbody) return;
+  if (!_paymentLinks.length) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:40px;color:#999">${t('noPaymentLinks')}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = _paymentLinks.map(l => `
+    <tr>
+      <td><strong>${esc(l.label)}</strong></td>
+      <td><a href="${esc(l.url)}" target="_blank" style="direction:ltr;display:inline-block;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom">${esc(l.url)}</a></td>
+      <td><span class="badge" style="background:${l.is_active ? '#dcfce7' : '#fee2e2'};color:${l.is_active ? '#16a34a' : '#dc2626'}">${l.is_active ? t('active') : t('inactive')}</span></td>
+      <td>
+        <button class="btn btn-sm btn-secondary" onclick="openPaymentLinkModal(${l.id})" style="margin-inline-end:6px">${t('edit')}</button>
+        <button class="btn btn-sm btn-danger" onclick="deletePaymentLink(${l.id})">${t('del')}</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openPaymentLinkModal(id) {
+  _editingLinkId = id || null;
+  const link = id ? _paymentLinks.find(l => l.id === id) : null;
+  document.getElementById('modal-title').textContent = id ? t('paymentLinkEditTitle') : t('paymentLinkAddTitle');
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-field" style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:5px">${t('paymentLinkNameField')}</label>
+      <input id="pl-label" class="form-control" value="${esc(link?.label || '')}">
+    </div>
+    <div class="form-field" style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:5px">${t('paymentLinkUrlField')}</label>
+      <input id="pl-url" class="form-control" value="${esc(link?.url || '')}" dir="ltr" placeholder="https://...">
+    </div>
+    <div class="form-field" style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:5px">${t('bankSortField')}</label>
+      <input id="pl-sort-order" class="form-control" type="number" value="${link?.sort_order ?? 0}" style="width:100px">
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <input type="checkbox" id="pl-is-active" ${link ? (link.is_active ? 'checked' : '') : 'checked'}>
+      <label for="pl-is-active" style="font-size:13px;font-weight:600;cursor:pointer">${t('bankActiveField')}</label>
+    </div>
+  `;
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn btn-primary" onclick="savePaymentLink()">${t('saveChanges')}</button>
+    <button class="btn btn-secondary" onclick="closeModal()" style="margin-inline-start:8px">${t('cancel')}</button>
+  `;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+async function savePaymentLink() {
+  const label      = document.getElementById('pl-label')?.value?.trim();
+  const url        = document.getElementById('pl-url')?.value?.trim();
+  const sort_order = Number(document.getElementById('pl-sort-order')?.value) || 0;
+  const is_active  = document.getElementById('pl-is-active')?.checked;
+
+  if (!label || !url) { showToast(t('paymentLinkRequired'), 'error'); return; }
+  try { new URL(url); } catch { showToast(t('paymentLinkInvalidUrl'), 'error'); return; }
+
+  const body = JSON.stringify({ label, url, is_active, sort_order });
+  const res = _editingLinkId
+    ? await api(`/admin/payment-links/${_editingLinkId}`, { method: 'PUT',  body })
+    : await api('/admin/payment-links',                    { method: 'POST', body });
+
+  if (res?.success) {
+    showToast(t('paymentLinkSaved'));
+    closeModal();
+    loadPaymentLinks();
+  } else showToast(res?.message || t('orderSaveError'), 'error');
+}
+
+async function deletePaymentLink(id) {
+  showConfirm(t('paymentLinkConfirmDelete'), async () => {
+    const res = await api(`/admin/payment-links/${id}`, { method: 'DELETE' });
+    if (res?.success) { showToast(t('paymentLinkDeleted')); loadPaymentLinks(); }
     else showToast(res?.message || t('orderSaveError'), 'error');
   });
 }

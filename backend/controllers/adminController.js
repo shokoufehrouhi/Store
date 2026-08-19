@@ -1071,20 +1071,33 @@ async function setPaymentInfo(req, res, next) {
     if (order.status !== 'preorder') {
       return res.status(400).json({ success: false, message: 'Order must be in preorder status' });
     }
-    const { iban, bank_name, account_holder } = req.body;
+    const { iban, bank_name, account_holder, payment_link_label, payment_link_url } = req.body;
+    // Admin picks exactly one payment method per order — a bank account or a
+    // payment link, never both. Whichever one wasn't sent gets explicitly
+    // cleared so re-setting payment info (e.g. after a rejected payment)
+    // can't leave stale info from a previous method still on the order.
+    const usingLink = !!payment_link_url;
+    const data = usingLink
+      ? { iban: null, bank_name: null, account_holder: null, payment_link_label, payment_link_url, status: 'payment_needed', updated_at: new Date() }
+      : { iban, bank_name, account_holder, payment_link_label: null, payment_link_url: null, status: 'payment_needed', updated_at: new Date() };
     const updated = await prisma.orders.update({
       where: { id },
-      data:  { iban, bank_name, account_holder, status: 'payment_needed', updated_at: new Date() },
+      data,
       include: ADMIN_ORDER_INCLUDE,
     });
     if (updated.customers) {
       const ol = updated.lang || 'fa';
-      const extraInfo = [
-        { label: label('bank_name', ol),      value: bank_name },
-        { label: label('account_holder', ol), value: account_holder },
-        { label: label('iban', ol),           value: iban, dir: 'ltr' },
-        { label: label('order_total', ol),    value: Number(updated.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' TL', dir: 'ltr' },
-      ];
+      const extraInfo = usingLink
+        ? [
+            { label: label('payment_link', ol), value: `<a href="${payment_link_url}" target="_blank" style="color:#c0562a">${payment_link_label || payment_link_url}</a>`, dir: 'ltr' },
+            { label: label('order_total', ol),  value: Number(updated.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' TL', dir: 'ltr' },
+          ]
+        : [
+            { label: label('bank_name', ol),      value: bank_name },
+            { label: label('account_holder', ol), value: account_holder },
+            { label: label('iban', ol),           value: iban, dir: 'ltr' },
+            { label: label('order_total', ol),    value: Number(updated.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' TL', dir: 'ltr' },
+          ];
       sendOrderEmail(updated.customers, updated, 'payment_needed', extraInfo).catch(() => {});
     }
     res.json({ success: true, data: updated });
@@ -1328,6 +1341,49 @@ async function deleteBankAccount(req, res, next) {
   try {
     const id = Number(req.params.id);
     await prisma.bank_accounts.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (err) { next(err); }
+}
+
+// ─── Payment Links ──────────────────────────────────────────────────────────
+// Same shape/role as bank accounts above — an admin-managed list an order's
+// payment info can be set from, just carrying a label + external URL
+// (payment gateway checkout link, etc.) instead of bank details.
+async function getPaymentLinks(req, res, next) {
+  try {
+    const links = await prisma.payment_links.findMany({ orderBy: [{ sort_order: 'asc' }, { id: 'asc' }] });
+    res.json({ success: true, data: links });
+  } catch (err) { next(err); }
+}
+
+async function createPaymentLink(req, res, next) {
+  try {
+    const { label, url, is_active, sort_order } = req.body;
+    if (!label || !url)
+      return res.status(400).json({ success: false, message: 'label and url are required' });
+    const link = await prisma.payment_links.create({
+      data: { label, url, is_active: is_active !== false, sort_order: sort_order || 0 },
+    });
+    res.status(201).json({ success: true, data: link });
+  } catch (err) { next(err); }
+}
+
+async function updatePaymentLink(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const { label, url, is_active, sort_order } = req.body;
+    const link = await prisma.payment_links.update({
+      where: { id },
+      data: { label, url, is_active, sort_order },
+    });
+    res.json({ success: true, data: link });
+  } catch (err) { next(err); }
+}
+
+async function deletePaymentLink(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    await prisma.payment_links.delete({ where: { id } });
     res.json({ success: true });
   } catch (err) { next(err); }
 }
@@ -1716,6 +1772,7 @@ module.exports = {
   getProducts, createProduct, updateProduct, deleteProduct,
   getAdminOrders, setPaymentInfo, setLinkItemPrice, rejectLinkItem, approvePayment, rejectPayment, rejectPreorder, setShipping, markDelivered,
   getBankAccounts, createBankAccount, updateBankAccount, deleteBankAccount,
+  getPaymentLinks, createPaymentLink, updatePaymentLink, deletePaymentLink,
   getCommunications, getCommunicationBody,
   getNotifications,
   getDashboard,

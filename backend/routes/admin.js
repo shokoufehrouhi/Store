@@ -129,6 +129,11 @@ router.post('/bank-accounts',       c.createBankAccount);
 router.put('/bank-accounts/:id',    c.updateBankAccount);
 router.delete('/bank-accounts/:id', c.deleteBankAccount);
 
+router.get('/payment-links',        c.getPaymentLinks);
+router.post('/payment-links',       c.createPaymentLink);
+router.put('/payment-links/:id',    c.updatePaymentLink);
+router.delete('/payment-links/:id', c.deletePaymentLink);
+
 const pp = require('../controllers/productPhotosController');
 router.get('/product-photos',           pp.adminListPhotos);
 router.patch('/product-photos/:id',     pp.adminToggleApproval);

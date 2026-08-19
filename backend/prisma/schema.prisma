@@ -127,6 +127,8 @@ model orders {
   iban                     String?       @db.VarChar(40)
   bank_name                String?       @db.VarChar(60)
   account_holder           String?       @db.VarChar(120)
+  payment_link_label       String?       @db.VarChar(120)
+  payment_link_url         String?       @db.VarChar(500)
   payment_receipt_url      String?       @db.VarChar(300)
   payment_rejection_reason String?
   carrier_name             String?       @db.VarChar(60)
@@ -456,6 +458,19 @@ model bank_accounts {
   is_active      Boolean  @default(true)
   sort_order     Int      @default(0) @db.SmallInt
   created_at     DateTime @default(now()) @db.Timestamptz(6)
+}
+
+// Admin-managed list of external payment links (payment gateway checkout
+// links, etc.) — an alternative to a bank_accounts row when setting an
+// order's payment info (adminController.setPaymentInfo copies label+url
+// onto the order the same way bank details are copied, not a live FK).
+model payment_links {
+  id         Int      @id @default(autoincrement())
+  label      String   @db.VarChar(120)
+  url        String   @db.VarChar(500)
+  is_active  Boolean  @default(true)
+  sort_order Int      @default(0) @db.SmallInt
+  created_at DateTime @default(now()) @db.Timestamptz(6)
 }
 
 model email_logs {
