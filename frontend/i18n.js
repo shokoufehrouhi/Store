@@ -811,7 +811,7 @@ const TRANSLATIONS = {
     payment_link_title:   'Online Payment',
     payment_link_via:     'Via',
     payment_link_btn:     '🔗 Pay Online',
-    payment_ref_note:     '⚠️ Please make sure your mobile number and the amount paid match the information on file in the store.',
+    payment_ref_note:     '⚠️ Please make sure your mobile number and the amount paid match the information on your order in the store.',
     upload_receipt:           'Upload Payment Receipt',
     upload_receipt_btn:       'Choose & Upload Receipt',
     receipt_uploaded:         'Receipt uploaded, awaiting approval',
