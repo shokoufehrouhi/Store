@@ -167,7 +167,7 @@ git push main
 پیش‌نمایش داخلی
      │  بعد از بررسی، ادمین از پنل واقعی (تنها روی production) دکمه را می‌زند
      ▼
-POST /api/admin/deploy  ──▶  /home/admin/Store (git pull → rsync frontend → pm2 restart در صورت تغییر backend)
+POST /api/admin/deploy  ──▶  /home/admin/Store (git reset --hard → pm2 restart در صورت تغییر backend)
      ▼
 production (shilista.com)
 ```

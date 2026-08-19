@@ -568,10 +568,11 @@ async function publishChanges(req, res, next) {
 // ─── Deploy (staging preview → production) ──────────────────────────────────────
 // staging (Store-staging) auto-pulls main every 2 min via cron (auto-pull.sh) and
 // serves it at staging.shilista.com. These two endpoints let the admin panel show
-// what's pending there and push it live to production (Store → /var/www/html).
+// what's pending there and push it live to production (Store → git reset --hard).
+// nginx's shilista.conf `root` points directly at DEPLOY_PROD_DIR/frontend, so the
+// git reset below *is* the deploy for frontend files — no separate copy step.
 const DEPLOY_PROD_DIR    = '/home/admin/Store';
 const DEPLOY_STAGING_DIR = '/home/admin/Store-staging';
-const DEPLOY_WEB_ROOT    = '/var/www/html';
 
 async function getRepoCommit(dir) {
   const { stdout } = await execFileAsync('git', ['log', '-1', '--format=%H%x1f%an%x1f%ad%x1f%s', '--date=short'], { cwd: dir });
@@ -621,8 +622,6 @@ async function deployToProduction(req, res, next) {
         'git', ['diff', '--name-only', before.hash, after.hash], { cwd: DEPLOY_PROD_DIR }
       );
       const files = changed.trim().split('\n').filter(Boolean);
-
-      await execFileAsync('rsync', ['-a', '--exclude=.git', `${DEPLOY_PROD_DIR}/frontend/`, `${DEPLOY_WEB_ROOT}/`]);
 
       if (files.some(f => f.startsWith('backend/'))) {
         await execFileAsync('npm', ['install', '--omit=dev'], { cwd: `${DEPLOY_PROD_DIR}/backend` });
