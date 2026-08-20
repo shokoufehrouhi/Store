@@ -1,4 +1,13 @@
 const prisma = require('../prisma/client');
+const { PRODUCT_INCLUDE, buildProductSnapshot } = require('../utils/publishSnapshot');
+
+// Staging shares production's DB (see project memory) but sets this env var
+// (Store-staging/backend/.env only, never production's) so its public
+// storefront reads live/draft rows directly instead of the frozen
+// published_data snapshot — lets the admin preview an unpublished change
+// (new category, edited product, etc.) on staging before clicking Publish,
+// without production customers ever seeing draft content.
+const PREVIEW_MODE = process.env.PREVIEW_UNPUBLISHED === 'true';
 
 // Merges a frozen published_data snapshot with data that must always stay
 // live/real-time regardless of publish state: product_inventory (orders
@@ -19,14 +28,23 @@ async function getAll(req, res, next) {
     const { category, subcategory, gender, tag } = req.query;
 
     const [rows, allColors, allSizeCharts] = await Promise.all([
-      prisma.products.findMany({
-        where: { is_live: true },
-        select: {
-          id: true, created_at: true, published_data: true,
-          _count: { select: { order_items: true, customer_product_photos: { where: { is_approved: true } } } },
-        },
-        orderBy: { created_at: 'desc' },
-      }),
+      PREVIEW_MODE
+        ? prisma.products.findMany({
+            where: { is_active: true },
+            include: {
+              ...PRODUCT_INCLUDE,
+              _count: { select: { order_items: true, customer_product_photos: { where: { is_approved: true } } } },
+            },
+            orderBy: { created_at: 'desc' },
+          })
+        : prisma.products.findMany({
+            where: { is_live: true },
+            select: {
+              id: true, created_at: true, published_data: true,
+              _count: { select: { order_items: true, customer_product_photos: { where: { is_approved: true } } } },
+            },
+            orderBy: { created_at: 'desc' },
+          }),
       prisma.colors.findMany(),
       prisma.size_charts.findMany(),
     ]);
@@ -44,7 +62,7 @@ async function getAll(req, res, next) {
 
     let products = rows.map(r => ({
       id: r.id,
-      ...mergeLiveRefs(r.published_data || {}, colorsById, sizeChartsById),
+      ...mergeLiveRefs(PREVIEW_MODE ? buildProductSnapshot(r) : (r.published_data || {}), colorsById, sizeChartsById),
       product_inventory: inventoryByProduct.get(r.id) || [],
       sales: r._count.order_items,
       has_customer_photos: r._count.customer_product_photos > 0,
@@ -71,10 +89,9 @@ async function getAll(req, res, next) {
 
 async function getOne(req, res, next) {
   try {
-    const row = await prisma.products.findFirst({
-      where: { id: Number(req.params.id), is_live: true },
-      select: { id: true, published_data: true },
-    });
+    const row = PREVIEW_MODE
+      ? await prisma.products.findFirst({ where: { id: Number(req.params.id), is_active: true }, include: PRODUCT_INCLUDE })
+      : await prisma.products.findFirst({ where: { id: Number(req.params.id), is_live: true }, select: { id: true, published_data: true } });
     if (!row) return res.status(404).json({ success: false, message: 'Product not found' });
 
     const [inventory, allColors, allSizeCharts] = await Promise.all([
@@ -89,7 +106,7 @@ async function getOne(req, res, next) {
       success: true,
       data: {
         id: row.id,
-        ...mergeLiveRefs(row.published_data || {}, colorsById, sizeChartsById),
+        ...mergeLiveRefs(PREVIEW_MODE ? buildProductSnapshot(row) : (row.published_data || {}), colorsById, sizeChartsById),
         product_inventory: inventory,
       },
     });

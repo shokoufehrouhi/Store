@@ -69,22 +69,34 @@ app.get('/api/coupons/reward',    cp.getRewardCode);
 app.post('/api/coupons/validate', cp.validateCoupon);
 
 // ─── Public categories (no auth) ──────────────────────────────────────────────
+// PREVIEW_UNPUBLISHED (staging-only env var, see productsController.js) reads
+// live/draft rows directly instead of the frozen published_data snapshot, so
+// an unpublished category/subcategory shows up on staging right away.
+const PREVIEW_CATEGORIES = process.env.PREVIEW_UNPUBLISHED === 'true';
 app.get('/api/categories', async (req, res, next) => {
   try {
     const prisma = require('./prisma/client');
+    const { buildCategorySnapshot, buildSubcategorySnapshot } = require('./utils/publishSnapshot');
     const [cats, subs] = await Promise.all([
-      prisma.categories.findMany({ where: { is_live: true }, select: { id: true, published_data: true } }),
-      prisma.subcategories.findMany({ where: { is_live: true }, select: { id: true, published_data: true } }),
+      PREVIEW_CATEGORIES
+        ? prisma.categories.findMany({ where: { is_active: true } })
+        : prisma.categories.findMany({ where: { is_live: true }, select: { id: true, published_data: true } }),
+      PREVIEW_CATEGORIES
+        ? prisma.subcategories.findMany({ where: { is_active: true } })
+        : prisma.subcategories.findMany({ where: { is_live: true }, select: { id: true, published_data: true } }),
     ]);
     const data = cats
-      .map(c => ({
-        id: c.id,
-        ...c.published_data,
-        subcategories: subs
-          .filter(s => s.published_data?.category_id === c.id)
-          .map(s => ({ id: s.id, ...s.published_data }))
-          .sort((a, b) => a.id - b.id),
-      }))
+      .map(c => {
+        const cData = PREVIEW_CATEGORIES ? buildCategorySnapshot(c) : c.published_data;
+        return {
+          id: c.id,
+          ...cData,
+          subcategories: subs
+            .filter(s => (PREVIEW_CATEGORIES ? s.category_id : s.published_data?.category_id) === c.id)
+            .map(s => ({ id: s.id, ...(PREVIEW_CATEGORIES ? buildSubcategorySnapshot(s) : s.published_data) }))
+            .sort((a, b) => a.id - b.id),
+        };
+      })
       .sort((a, b) => a.id - b.id);
     res.json({ success: true, data });
   } catch (err) { next(err); }
