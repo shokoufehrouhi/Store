@@ -21,6 +21,7 @@ function buildProductSnapshot(p) {
     discounted_price: p.discounted_price != null ? Number(p.discounted_price) : null,
     stock: p.stock,
     delivery_days: p.delivery_days,
+    min_order_qty: p.min_order_qty != null ? Number(p.min_order_qty) : 1,
     code: p.code, brand: p.brand,
     supplier_shop_name: p.supplier_shop_name, product_link: p.product_link,
     supplier_code: p.supplier_code, supplier_note: p.supplier_note,

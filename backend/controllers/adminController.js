@@ -661,7 +661,7 @@ async function createProduct(req, res, next) {
   try {
     const {
       category_id, subcategory_id, size_chart_id, gender, code, name_fa, name_en, name_tr,
-      desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price, cost_price, stock, delivery_days,
+      desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price, cost_price, stock, delivery_days, min_order_qty,
       brand, supplier_shop_name, product_link, supplier_code, supplier_note,
       colors, sizes, media, inventory, extra_categories,
     } = req.body;
@@ -697,6 +697,7 @@ async function createProduct(req, res, next) {
         cost_price:       cost_price != null && cost_price !== '' ? Number(cost_price) : null,
         stock:              stock     || 0,
         delivery_days:      delivery_days != null ? Number(delivery_days) : 5,
+        min_order_qty:      min_order_qty != null && min_order_qty !== '' ? Number(min_order_qty) : 1,
         brand:              brand?.trim()              || null,
         supplier_shop_name: supplier_shop_name?.trim() || null,
         product_link:       product_link?.trim()       || null,
@@ -752,7 +753,7 @@ async function updateProduct(req, res, next) {
     const id = Number(req.params.id);
     const {
       category_id, subcategory_id, size_chart_id, gender, name_fa, name_en, name_tr,
-      desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price, cost_price, stock, is_active, delivery_days,
+      desc_fa, desc_en, desc_tr, gradient, tag, price, discounted_price, cost_price, stock, is_active, delivery_days, min_order_qty,
       brand, supplier_shop_name, product_link, supplier_code, supplier_note,
       colors, sizes, media, inventory, extra_categories,
     } = req.body;
@@ -785,6 +786,7 @@ async function updateProduct(req, res, next) {
         cost_price:       cost_price != null && cost_price !== '' ? Number(cost_price) : null,
         stock:              stock     || 0,
         delivery_days:      delivery_days != null ? Number(delivery_days) : 5,
+        min_order_qty:      min_order_qty != null && min_order_qty !== '' ? Number(min_order_qty) : 1,
         is_active:          is_active !== undefined ? Boolean(is_active) : true,
         is_dirty:           true,
         brand:              brand?.trim()              || null,

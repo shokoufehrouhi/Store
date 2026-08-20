@@ -23,7 +23,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=85">
+  <link rel="stylesheet" href="style.css?v=86">
   <style>
     /* ── fix sticky on product page ── */
     body { overflow-x: clip; }
@@ -133,6 +133,11 @@
       font-size: 12px; line-height: 1.7; color: var(--text-light);
       background: var(--bg-soft, #f7f7f9); border: 1px solid var(--border);
       border-radius: 10px; padding: 10px 12px;
+    }
+    .pd-min-qty-note {
+      font-size: 12.5px; font-weight: 600; color: var(--text-muted);
+      background: var(--bg-soft, #f5f5f5); border-radius: 8px;
+      padding: 7px 12px; display: inline-block; margin-top: 4px;
     }
     .pd-shipping-note p { margin: 0; text-align: justify; }
     .pd-shipping-note p + p { margin-top: 4px; }
@@ -392,7 +397,7 @@
   </div>
 </div>
 
-<script src="i18n.js?v=73"></script>
+<script src="i18n.js?v=74"></script>
 <script>
 // ── lang ──────────────────────────────────────────────────────────────────────
 var _qp = new URLSearchParams(location.search);
@@ -652,10 +657,11 @@ fetch(API + '/track-view', {
 function getCart(){ try{ return JSON.parse(localStorage.getItem('cart')||'[]'); }catch(e){ return []; } }
 function saveCart(c){ localStorage.setItem('cart', JSON.stringify(c)); }
 function getSession(){ return localStorage.getItem('mf_session'); }
-function cartAdd(pid, cKey, cId, sz){
+function cartAdd(pid, cKey, cId, sz, minQty){
+  minQty = minQty || 1;
   var c = getCart();
   var x = c.find(function(i){ return i.id===pid && i.colorKey===(cKey||null) && i.size===(sz||null); });
-  if(x){ x.qty = (x.qty||1)+1; } else { c.push({id:pid, colorKey:cKey||null, colorId:cId||null, size:sz||null, qty:1}); }
+  if(x){ x.qty = (x.qty||1)+minQty; } else { c.push({id:pid, colorKey:cKey||null, colorId:cId||null, size:sz||null, qty:minQty}); }
   saveCart(c);
   pdUpdateCartBadge();
   openPdCart();
@@ -817,6 +823,9 @@ function render(p){
     +  colH
     +  szH
     +  '<div id="pd-stock"></div>'
+    +  (p.min_order_qty && p.min_order_qty > 1
+        ? '<div class="pd-min-qty-note">'+esc(T.min_qty_note||'')+' '+esc(String(p.min_order_qty))+'</div>'
+        : '')
     +  '<div class="pd-buy">'
     +    '<button class="pd-add-btn" onclick="doAdd()">'+addLbl[CL]+'</button>'
     +    '<button class="pd-share-btn" onclick="doShare()">'+shareLbl[CL]+'</button>'
@@ -934,7 +943,7 @@ function doAdd(){
   if(!_p) return;
   if(_p.product_colors&&_p.product_colors.length&&!_ck){ toast(CL==='tr'?'Renk seçin':CL==='fa'?'رنگ انتخاب کنید':'Select a color'); return; }
   if(_p.product_sizes&&_p.product_sizes.length&&!_sz){ toast(CL==='tr'?'Beden seçin':CL==='fa'?'سایز انتخاب کنید':'Select a size'); return; }
-  cartAdd(_p.id, _ck, _cid, _sz);
+  cartAdd(_p.id, _ck, _cid, _sz, _p.min_order_qty || 1);
   toast(CL==='tr'?'Sepete eklendi':CL==='fa'?'به سبد اضافه شد':'Added to cart');
 }
 function doShare(){

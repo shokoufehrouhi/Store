@@ -1839,7 +1839,7 @@ const LANGS = {
     descriptions:'توضیحات', statusSection:'وضعیت',
     productCodeLbl:'کد محصول', productCodePlh:'مثال: SHF-001', productCodeAuto:'خودکار',
     productSearchPlh:'جستجو بر اساس نام، توضیحات یا کد محصول...',
-    nameFa:'نام فارسی *', nameEn:'نام انگلیسی', nameTr:'نام ترکی', deliveryDaysLbl:'زمان تحویل (روز کاری)',
+    nameFa:'نام فارسی *', nameEn:'نام انگلیسی', nameTr:'نام ترکی', deliveryDaysLbl:'زمان تحویل (روز کاری)', minOrderQtyLbl:'حداقل تعداد خرید',
     categoryField:'دسته‌بندی *', subcategoryField:'زیردسته',
     genderField:'جنسیت', tagField:'برچسب',
     priceField:'قیمت اصلی (TL)', discountedPriceField:'قیمت با تخفیف (TL)', costPriceField:'قیمت خرید (TL)',
@@ -2044,7 +2044,7 @@ const LANGS = {
     descriptions:'Descriptions', statusSection:'Status',
     productCodeLbl:'Product Code', productCodePlh:'e.g. SHF-001', productCodeAuto:'Auto',
     productSearchPlh:'Search by name, description or product code...',
-    nameFa:'Farsi Name *', nameEn:'English Name', nameTr:'Turkish Name', deliveryDaysLbl:'Delivery Time (working days)',
+    nameFa:'Farsi Name *', nameEn:'English Name', nameTr:'Turkish Name', deliveryDaysLbl:'Delivery Time (working days)', minOrderQtyLbl:'Minimum Order Quantity',
     categoryField:'Category *', subcategoryField:'Subcategory',
     genderField:'Gender', tagField:'Tag',
     priceField:'Original Price (TL)', discountedPriceField:'Discounted Price (TL)', costPriceField:'Cost Price (TL)',
@@ -2249,7 +2249,7 @@ const LANGS = {
     descriptions:'Açıklamalar', statusSection:'Durum',
     productCodeLbl:'Ürün Kodu', productCodePlh:'örn. SHF-001', productCodeAuto:'Otomatik',
     productSearchPlh:'Ad, açıklama veya ürün koduna göre ara...',
-    nameFa:'Farsça Ad *', nameEn:'İngilizce Ad', nameTr:'Türkçe Ad', deliveryDaysLbl:'Teslimat Süresi (iş günü)',
+    nameFa:'Farsça Ad *', nameEn:'İngilizce Ad', nameTr:'Türkçe Ad', deliveryDaysLbl:'Teslimat Süresi (iş günü)', minOrderQtyLbl:'Minimum Sipariş Adedi',
     categoryField:'Kategori *', subcategoryField:'Alt Kategori',
     genderField:'Cinsiyet', tagField:'Etiket',
     priceField:'Asıl Fiyat (TL)', discountedPriceField:'İndirimli Fiyat (TL)', costPriceField:'Alış Fiyatı (TL)',
@@ -3174,6 +3174,10 @@ async function openProductModal(id = null) {
         <label>${t('deliveryDaysLbl')}</label>
         <input type="number" id="f-delivery-days" value="${product?.delivery_days ?? 5}" min="1" max="60" style="direction:ltr">
       </div>
+      <div class="form-field">
+        <label>${t('minOrderQtyLbl')}</label>
+        <input type="number" id="f-min-order-qty" value="${product?.min_order_qty ?? 1}" min="1" max="999" style="direction:ltr">
+      </div>
     </div>
 
     <div class="form-section-title" style="margin-top:20px">🏪 ${t('prodSupplierShop') || 'اطلاعات تامین‌کننده'}</div>
@@ -3526,6 +3530,7 @@ async function saveProduct(id) {
     desc_en: document.getElementById('f-desc-en')?.value?.trim() || '',
     desc_tr: document.getElementById('f-desc-tr')?.value?.trim() || '',
     delivery_days:      Number(document.getElementById('f-delivery-days')?.value) || 5,
+    min_order_qty:      Number(document.getElementById('f-min-order-qty')?.value) || 1,
     brand:              document.getElementById('f-brand')?.value?.trim()         || null,
     supplier_shop_name: document.getElementById('f-supplier-shop')?.value?.trim() || null,
     product_link:       document.getElementById('f-product-link')?.value?.trim()  || null,

@@ -336,6 +336,7 @@ model products {
   created_at        DateTime            @default(now()) @db.Timestamptz(6)
   updated_at        DateTime            @default(now()) @db.Timestamptz(6)
   delivery_days       Int                 @default(5)
+  min_order_qty       Int                 @default(1) @db.SmallInt
   code                String?             @unique @db.VarChar(40)
   brand               String?             @db.VarChar(120)
   supplier_shop_name  String?             @db.VarChar(120)

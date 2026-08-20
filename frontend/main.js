@@ -134,6 +134,7 @@ function mapApiProduct(p) {
     tag:         p.tag     || null,
     gradient:     p.gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     delivery_days: p.delivery_days != null ? Number(p.delivery_days) : 5,
+    min_order_qty: p.min_order_qty != null ? Number(p.min_order_qty) : 1,
     name:        { fa: p.name_fa, en: p.name_en || p.name_fa, tr: p.name_tr || p.name_fa },
     description: { fa: p.desc_fa || '', en: p.desc_en || '', tr: p.desc_tr || '' },
     colors: (p.product_colors || []).map(function(pc) {
@@ -320,13 +321,15 @@ function addToCart(productId, colorKey, size) {
     openAuthModal('login');
     return;
   }
+  var p = products.find(function(pr) { return pr.id === productId; });
+  var minQty = p && p.min_order_qty ? p.min_order_qty : 1;
   var existing = cart.find(function(item) {
     return item.id === productId && item.colorKey === colorKey && item.size === size;
   });
   if (existing) {
-    existing.qty++;
+    existing.qty += minQty;
   } else {
-    cart.push({ id: productId, colorKey: colorKey, size: size, qty: 1 });
+    cart.push({ id: productId, colorKey: colorKey, size: size, qty: minQty });
   }
   saveCart();
   openCart();
@@ -340,7 +343,9 @@ function removeFromCart(index) {
 
 function updateQty(index, delta) {
   if (!cart[index]) return;
-  cart[index].qty += delta;
+  var p = products.find(function(pr) { return pr.id === cart[index].id; });
+  var minQty = p && p.min_order_qty ? p.min_order_qty : 1;
+  cart[index].qty += delta * minQty;
   if (cart[index].qty <= 0) cart.splice(index, 1);
   saveCart();
   renderCart();
@@ -393,6 +398,9 @@ function renderCart() {
         ? '<span class="cart-item-meta"><span class="cart-item-color-dot" style="background:' + colorHex + '"></span>' + colorName + '</span>'
         : '') +
       (size ? '<span class="cart-item-meta">' + size + '</span>' : '') +
+      (p.min_order_qty && p.min_order_qty > 1
+        ? '<span class="cart-item-meta">' + t.min_qty_note + ' ' + localizeNumber(String(p.min_order_qty)) + '</span>'
+        : '') +
       (p.price
         ? (p.discounted_price && p.discounted_price < p.price
             ? '<div class="cart-item-price-wrap"><span class="cart-item-price-original">' + formatPrice(p.price * item.qty) + '</span><span class="cart-item-price">' + formatPrice(p.discounted_price * item.qty) + '</span></div>'
@@ -2019,6 +2027,9 @@ function openModal(productId) {
     '    </div>' +
     colorsHtml +
     sizesHtml +
+    (p.min_order_qty && p.min_order_qty > 1
+      ? '    <div class="modal-min-qty-note">' + t.min_qty_note + ' ' + localizeNumber(String(p.min_order_qty)) + '</div>'
+      : '') +
     '    <div class="modal-buy-section">' +
     '      <button class="modal-add-to-cart" id="modal-add-to-cart" onclick="addToCartFromModal()">🛒 ' + t.add_to_cart + '</button>' +
     '    </div>' +
