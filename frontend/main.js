@@ -1084,8 +1084,9 @@ function buildCatDropdowns(categories) {
   var sportsCat = categories.find(function(c) { return c.key === 'Sports'; });
 
   [
-    { key: 'Sports',      dropId: 'nav-drop-sports' },
-    { key: 'accessories', dropId: 'nav-drop-acc'    },
+    { key: 'Sports',      dropId: 'nav-drop-sports'    },
+    { key: 'Lifestyle',   dropId: 'nav-drop-lifestyle' },
+    { key: 'accessories', dropId: 'nav-drop-acc'       },
   ].forEach(function(item) {
     var drop = document.getElementById(item.dropId);
     if (!drop) return;
