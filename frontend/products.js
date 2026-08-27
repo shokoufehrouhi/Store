@@ -8,7 +8,7 @@ const CONTACT = {
   whatsapp: '905550401737',
   telegram: 'Shilistaa',
   instagram: 'shilistaa',
-  tiktok: 'shilista8',
+  tiktok: 'shilistaa',
 };
 
 // =====================================================

@@ -62,12 +62,12 @@ const FOOTER_TR = `
                   </table>
                 </a>
                 <!-- TikTok -->
-                <a href="https://www.tiktok.com/@shilista8" style="display:inline-block;margin:0 8px;text-decoration:none;vertical-align:middle">
+                <a href="https://www.tiktok.com/@shilistaa" style="display:inline-block;margin:0 8px;text-decoration:none;vertical-align:middle">
                   <table cellpadding="0" cellspacing="0" style="display:inline-table">
                     <tr>
                       <td style="vertical-align:middle">
                         <img src="${EMAIL_ICON_TIKTOK}" alt="TikTok" width="32" height="32" style="width:32px;height:32px;display:inline-block;vertical-align:middle;border-radius:8px">
-                        <span style="color:#fff;font-size:13px;font-weight:700;font-family:Arial,sans-serif;vertical-align:middle;margin-left:6px">@shilista8</span>
+                        <span style="color:#fff;font-size:13px;font-weight:700;font-family:Arial,sans-serif;vertical-align:middle;margin-left:6px">@shilistaa</span>
                       </td>
                     </tr>
                   </table>
