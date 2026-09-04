@@ -489,6 +489,7 @@ const TRANSLATIONS = {
     terms_7_body:         'نرخ تبدیل لیر ترکیه به ارز قابل پرداخت توسط مشتری به‌صورت لحظه‌ای توسط ارائه‌دهنده پرداخت محاسبه می‌شود.',
     pd_note_shipping:     'هزینه ارسال محصول به خارج از ترکیه بر عهده مشتری خواهد بود و به‌صورت لحظه‌ای محاسبه می‌شود؛ فرآیند خرید پس از توافق با مشتری انجام می‌گیرد.',
     pd_note_currency:     'نرخ تبدیل لیر ترکیه به ارز قابل پرداخت توسط مشتری به‌صورت لحظه‌ای توسط ارائه‌دهنده پرداخت محاسبه می‌شود.',
+    pd_note_shipping_calc: 'هزینه ارسال بر اساس ارزش، اندازه و نوع محصول مشخص خواهد شد.',
     // Privacy modal
     privacy_title:        'سیاست حریم خصوصی (KVKK)',
     privacy_1_title:      'داده‌های جمع‌آوری‌شده',
@@ -993,6 +994,7 @@ const TRANSLATIONS = {
     terms_7_body:         'The conversion rate from TL to the customer\'s payment currency is calculated instantly by the payment provider.',
     pd_note_shipping:     'The cost of shipping this product outside of Turkey is the customer\'s responsibility and is calculated instantly; the purchase proceeds once the customer agrees to it.',
     pd_note_currency:     'The conversion rate from TL to the customer\'s payment currency is calculated instantly by the payment provider.',
+    pd_note_shipping_calc: 'The shipping cost is determined based on the product\'s value, size, and type.',
     // Privacy modal
     privacy_title:        'Privacy Policy (KVKK)',
     privacy_1_title:      'Data Collected',
@@ -1497,6 +1499,7 @@ const TRANSLATIONS = {
     terms_7_body:         'TL - müşterinin ödeme yapacağı para birimi dönüşüm kuru, ödeme sağlayıcısı tarafından anlık olarak hesaplanır.',
     pd_note_shipping:     'Bu ürünün Türkiye dışına gönderim ücreti müşteriye aittir ve anlık olarak hesaplanır; satın alma süreci müşteri ile mutabakat sağlandıktan sonra gerçekleştirilir.',
     pd_note_currency:     'TL - müşterinin ödeme yapacağı para birimi dönüşüm kuru, ödeme sağlayıcısı tarafından anlık olarak hesaplanır.',
+    pd_note_shipping_calc: 'Kargo ücreti, ürünün değerine, boyutuna ve türüne göre belirlenir.',
     // Privacy modal
     privacy_title:        'Gizlilik Politikası (KVKK)',
     privacy_1_title:      'Toplanan Veriler',
