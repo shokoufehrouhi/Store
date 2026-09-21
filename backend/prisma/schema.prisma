@@ -546,6 +546,7 @@ enum product_tag {
   bestseller
   new
   original
+  discount
 }
 
 enum discount_check_mode_type {
