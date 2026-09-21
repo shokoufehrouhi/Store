@@ -17,6 +17,41 @@ const ORDER_INCLUDE = {
   link_request_items: { orderBy: { id: 'asc' } },
 };
 
+// After an order changes product_inventory quantities, this keeps
+// product_sizes.is_available, products.stock, and the sold_out tag in sync
+// with the real remaining inventory — otherwise a product can sell out from
+// real orders and never visibly reflect it (stock/tag only updated when
+// someone re-saves the product in admin, or the site-import stock checker
+// runs, neither of which fires from a customer placing/cancelling an order).
+async function syncProductStockState(tx, productId) {
+  const inventory = await tx.product_inventory.findMany({ where: { product_id: productId } });
+  const totalStock = inventory.reduce((sum, i) => sum + i.quantity, 0);
+
+  const qtyBySize = new Map();
+  for (const inv of inventory) {
+    if (!inv.size_label) continue;
+    qtyBySize.set(inv.size_label, (qtyBySize.get(inv.size_label) || 0) + inv.quantity);
+  }
+  if (qtyBySize.size) {
+    await Promise.all([...qtyBySize.entries()].map(([size_label, qty]) =>
+      tx.product_sizes.updateMany({
+        where: { product_id: productId, size_label },
+        data:  { is_available: qty > 0 },
+      })
+    ));
+  }
+
+  const sizes = await tx.product_sizes.findMany({ where: { product_id: productId } });
+  const allSoldOut = sizes.length > 0 && sizes.every(s => !s.is_available);
+  const product = await tx.products.findUnique({ where: { id: productId }, select: { tag: true } });
+
+  const data = { stock: totalStock, is_dirty: true, updated_at: new Date() };
+  if (allSoldOut) data.tag = 'sold_out';
+  else if (product?.tag === 'sold_out') data.tag = null;
+
+  await tx.products.update({ where: { id: productId }, data });
+}
+
 // ─── Session auth helper ──────────────────────────────────────────────────────
 async function getCustomerFromSession(req, res) {
   const token = req.headers['x-session-token'];
@@ -149,6 +184,10 @@ async function createPreorder(req, res, next) {
             AND size_label  IS NOT DISTINCT FROM ${item.size_label || null}
         `;
       }
+      const affectedProductIds = [...new Set(items.map(i => i.product_id))];
+      for (const productId of affectedProductIds) {
+        await syncProductStockState(tx, productId);
+      }
       return created;
     });
 
@@ -229,6 +268,10 @@ async function cancelOrder(req, res, next) {
             AND color_id    IS NOT DISTINCT FROM ${item.color_id}
             AND size_label  IS NOT DISTINCT FROM ${item.size_label}
         `;
+      }
+      const restockedProductIds = [...new Set(order.order_items.map(i => i.product_id))];
+      for (const productId of restockedProductIds) {
+        await syncProductStockState(tx, productId);
       }
       // refund coupon usage and re-activate if it was auto-deactivated
       if (order.coupon_code && order.discount_amount > 0) {
