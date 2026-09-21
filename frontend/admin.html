@@ -5994,10 +5994,14 @@ var _syncPollTimer = null;
 var _syncDirty = false;
 
 async function loadSyncTab() {
-  if (!_allSites.length) {
-    const data = await api('/admin/sites');
-    if (data?.success) _allSites = data.data;
-  }
+  // Always fetch fresh (rather than reusing _allSites if already populated):
+  // when 'sync' is the tab restored on a cold page load/refresh, this runs
+  // synchronously during the top-of-file init() IIFE, before the later
+  // `var _allSites = []` line has executed — _allSites is still `undefined`
+  // at that point (hoisted but not yet assigned), so checking its `.length`
+  // here would throw.
+  const data = await api('/admin/sites');
+  if (data?.success) _allSites = data.data;
   const sel = document.getElementById('sync-site-select');
   sel.innerHTML = _allSites.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
   renderSyncPanel();
