@@ -5684,13 +5684,28 @@ function deployProduction() {
   showConfirm(t('deployConfirm'), async () => {
     const btn = document.getElementById('deploy-btn');
     if (btn) { btn.disabled = true; btn.textContent = t('deployInProgress'); }
-    const data = await api('/admin/deploy', { method: 'POST' });
-    if (data?.success) {
-      showToast(t('deployDone'));
-      loadDeployStatus();
-    } else {
-      showToast(data?.message || t('deployError'), 'error');
+    const start = await api('/admin/deploy', { method: 'POST' });
+    if (!start?.success) {
+      showToast(start?.message || t('deployError'), 'error');
+      if (btn) { btn.disabled = false; btn.textContent = t('deployBtn'); }
+      return;
     }
+    // The deploy (npm install + prisma generate + pm2 restart) runs in the
+    // background server-side — often past nginx's 60s proxy timeout — so we
+    // poll status instead of waiting on a single long-lived response.
+    const maxAttempts = 100; // ~5 minutes at 3s intervals
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      const status = await api('/admin/deploy/status');
+      if (!status?.success) continue;
+      const { deployInProgress: stillRunning, deployError: err } = status.data;
+      if (stillRunning) continue;
+      if (err) showToast(err, 'error');
+      else     showToast(t('deployDone'));
+      renderDeployStatus(status.data);
+      break;
+    }
+    loadDeployStatus();
     if (btn) { btn.disabled = false; btn.textContent = t('deployBtn'); }
   }, { icon: '🚀', title: t('deployBtn'), yesText: t('confirmYesDeploy'), btnClass: 'btn-primary' });
 }

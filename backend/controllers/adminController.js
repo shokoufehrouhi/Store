@@ -574,6 +574,15 @@ async function publishChanges(req, res, next) {
 const DEPLOY_PROD_DIR    = '/home/admin/Store';
 const DEPLOY_STAGING_DIR = '/home/admin/Store-staging';
 
+// npm install + prisma generate + pm2 restart can easily run past nginx's
+// default 60s proxy_read_timeout for /api/admin/ — the browser would see the
+// request fail (504) while the deploy keeps running server-side and finishes
+// successfully anyway, showing up as "deploy failed, but it's actually there"
+// on the next status check. To avoid that, the deploy runs in the background
+// and the endpoint responds immediately; the frontend polls /deploy/status.
+let deployInProgress = false;
+let deployError = null;
+
 async function getRepoCommit(dir) {
   const { stdout } = await execFileAsync('git', ['log', '-1', '--format=%H%x1f%an%x1f%ad%x1f%s', '--date=short'], { cwd: dir });
   const [hash, author, date, message] = stdout.trim().split('\x1f');
@@ -603,11 +612,13 @@ async function getDeployStatus(req, res, next) {
     // during a deploy, so `git log prod..staging` only works run from staging
     // (which, tracking the same linear main history, already has both).
     const pending = await getPendingCommits(DEPLOY_STAGING_DIR, production.hash, staging.hash);
-    res.json({ success: true, data: { production, staging, pending } });
+    res.json({ success: true, data: { production, staging, pending, deployInProgress, deployError } });
   } catch (err) { next(err); }
 }
 
-async function deployToProduction(req, res, next) {
+async function runDeploy() {
+  deployInProgress = true;
+  deployError = null;
   try {
     const before = await getRepoCommit(DEPLOY_PROD_DIR);
 
@@ -632,8 +643,20 @@ async function deployToProduction(req, res, next) {
         await execFileAsync('pm2', ['restart', 'shilista-api', '--update-env']);
       }
     }
+  } catch (err) {
+    deployError = err.message;
+    console.error('[deploy] failed:', err);
+  } finally {
+    deployInProgress = false;
+  }
+}
 
-    res.json({ success: true, data: { deployed, before, after } });
+async function deployToProduction(req, res, next) {
+  try {
+    if (deployInProgress) return res.status(409).json({ success: false, message: 'deploy_in_progress' });
+    const before = await getRepoCommit(DEPLOY_PROD_DIR);
+    runDeploy(); // fire-and-forget — frontend polls /admin/deploy/status
+    res.json({ success: true, data: { started: true, before } });
   } catch (err) { next(err); }
 }
 
