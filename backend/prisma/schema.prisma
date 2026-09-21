@@ -585,11 +585,20 @@ model suppliers {
 }
 
 model sites {
-  id                  Int                       @id @default(autoincrement())
-  name                String                    @db.VarChar(120)
-  url                 String                    @db.VarChar(500)
-  is_active           Boolean                   @default(true)
-  discount_check_mode discount_check_mode_type  @default(manual)
+  id                         Int                       @id @default(autoincrement())
+  name                       String                    @db.VarChar(120)
+  url                        String                    @db.VarChar(500)
+  is_active                  Boolean                   @default(true)
+  discount_check_mode        discount_check_mode_type  @default(manual)
+  import_schedule_time       String?                   @db.VarChar(5)
+  stock_check_schedule_time  String?                   @db.VarChar(5)
+  last_import_at             DateTime?                 @db.Timestamptz(6)
+  last_import_status         String?                   @db.VarChar(20)
+  last_stock_check_at        DateTime?                 @db.Timestamptz(6)
+  last_stock_check_status    String?                   @db.VarChar(20)
+  import_in_progress         Boolean                   @default(false)
+  stock_check_in_progress    Boolean                   @default(false)
+  markup_percent             Int                       @default(40)
   created_at          DateTime                  @default(now()) @db.Timestamptz(6)
   updated_at          DateTime                  @default(now()) @db.Timestamptz(6)
 

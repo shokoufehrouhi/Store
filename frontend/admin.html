@@ -881,6 +881,9 @@
           <button class="nav-item" onclick="showTab('deploy')" id="nav-deploy">
             <span class="nav-icon">🚀</span><span data-i18n="navDeploy">استقرار</span>
           </button>
+          <button class="nav-item" onclick="showTab('sync')" id="nav-sync">
+            <span class="nav-icon">🔄</span><span data-i18n="navSync">همگام‌سازی سایت‌ها</span>
+          </button>
         </div>
       </div>
     </nav>
@@ -1275,6 +1278,21 @@
             <button class="btn btn-primary" id="deploy-btn" onclick="deployProduction()" data-i18n="deployBtn">🚀 استقرار روی تولید</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Sync Tab -->
+    <div id="tab-sync" class="hidden">
+      <div class="page-header">
+        <h2>🔄 <span data-i18n="navSync">همگام‌سازی سایت‌ها</span></h2>
+      </div>
+      <div class="page-body">
+        <div class="card" style="margin-bottom:16px">
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px" data-i18n="syncSelectSite">انتخاب سایت</label>
+          <select id="sync-site-select" onchange="renderSyncPanel()" style="width:100%;max-width:360px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
+          </select>
+        </div>
+        <div id="sync-panel"></div>
       </div>
     </div>
 
@@ -1802,7 +1820,8 @@ const LANGS = {
     loginBtn:'ورود به پنل', username:'نام کاربری', password:'رمز عبور',
     connecting:'در حال ورود...', connFail:'اتصال به سرور ناموفق بود',
     navGroupOverview:'نمای کلی', navGroupCatalog:'فروشگاه', navGroupConfig:'تنظیمات پایه', navGroupUsers:'کاربران', navGroupSystem:'سیستم',
-    navDashboard:'داشبورد', navNotifications:'اعلان‌ها', navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navSizeCharts:'جدول سایز', navCustomers:'مشتریان', navLeads:'لیدها', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navPaymentLinks:'لینک‌های پرداخت', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navSites:'سایت‌ها', navProductPhotos:'عکس‌های خریداران', navDeploy:'استقرار', refresh:'بروزرسانی',
+    navDashboard:'داشبورد', navNotifications:'اعلان‌ها', navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navSizeCharts:'جدول سایز', navCustomers:'مشتریان', navLeads:'لیدها', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navPaymentLinks:'لینک‌های پرداخت', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navSites:'سایت‌ها', navSync:'همگام‌سازی سایت‌ها', navProductPhotos:'عکس‌های خریداران', navDeploy:'استقرار', refresh:'بروزرسانی',
+    syncSelectSite:'انتخاب سایت', syncImportSchedule:'زمان‌بندی وارد کردن محصولات', syncStockSchedule:'زمان‌بندی بررسی موجودی', syncMarkup:'درصد افزایش قیمت (روی قیمت تخفیف‌خورده سایت)', syncSaveSchedule:'ذخیره تنظیمات', syncScheduleSaved:'تنظیمات ذخیره شد', syncNoTime:'زمان‌بندی نشده', syncImportNow:'وارد کردن محصولات الان', syncStockNow:'بررسی موجودی الان', syncInProgress:'در حال انجام…', syncLastImport:'آخرین وارد کردن', syncLastStockCheck:'آخرین بررسی موجودی', syncNever:'هنوز انجام نشده', syncStarted:'شروع شد — نتیجه به‌زودی در همین صفحه نمایش داده می‌شود',
     navCommunications:'ارتباطات', commAllTypes:'همه انواع', commSubject:'موضوع', commTo:'گیرنده', commType:'نوع', commDate:'تاریخ', commCustomer:'مشتری', commView:'مشاهده', commEmpty:'ایمیلی ثبت نشده',
     commTypePaymentNeeded:'نیاز به پرداخت', commTypePreparing:'در حال آماده‌سازی', commTypeDelivery:'ارسال', commTypeDelivered:'تحویل داده شد', commTypeRejected:'رد سفارش', commTypePreorderRejected:'رد پیش‌سفارش', commTypeReply:'پاسخ پیام', commTypeLoyalty:'وفاداری', commTypeBirthday:'تولد', commTypeWelcome:'خوش‌آمد', commTypePrize:'جایزه', commTypeInvite:'دعوت دوست', commTypeVerification:'کد تایید', commTypeRaw:'ارسال مستقیم',
     notifMarkAll:'همه خوانده شد', notifNewOrder:'سفارش جدید', notifOrderUpdate:'بروزرسانی سفارش', notifNewPrize:'جایزه جدید', notifPrizeUpdate:'بروزرسانی جایزه', notifNewReturn:'درخواست مرجوعی', notifReturnUpdate:'بروزرسانی مرجوعی', notifNewCustomer:'مشتری جدید', notifNewLead:'لید جدید', notifView:'مشاهده', notifEmpty:'اعلانی وجود ندارد',
@@ -2008,7 +2027,8 @@ const LANGS = {
     loginBtn:'Login', username:'Username', password:'Password',
     connecting:'Logging in...', connFail:'Could not connect to server',
     navGroupOverview:'Overview', navGroupCatalog:'Store', navGroupConfig:'Configuration', navGroupUsers:'Users', navGroupSystem:'System',
-    navDashboard:'Dashboard', navNotifications:'Notifications', navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navSizeCharts:'Size Charts', navCustomers:'Customers', navLeads:'Leads', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navPaymentLinks:'Payment Links', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navSites:'Sites', navProductPhotos:'Buyer Photos', navDeploy:'Deploy', refresh:'Refresh',
+    navDashboard:'Dashboard', navNotifications:'Notifications', navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navSizeCharts:'Size Charts', navCustomers:'Customers', navLeads:'Leads', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navPaymentLinks:'Payment Links', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navSites:'Sites', navSync:'Sync Sites', navProductPhotos:'Buyer Photos', navDeploy:'Deploy', refresh:'Refresh',
+    syncSelectSite:'Select Site', syncImportSchedule:'Product Import Schedule', syncStockSchedule:'Stock Check Schedule', syncMarkup:'Markup % (over the site\'s discounted price)', syncSaveSchedule:'Save Settings', syncScheduleSaved:'Settings saved', syncNoTime:'Not scheduled', syncImportNow:'Import Products Now', syncStockNow:'Check Stock Now', syncInProgress:'Running…', syncLastImport:'Last import', syncLastStockCheck:'Last stock check', syncNever:'Never run yet', syncStarted:'Started — result will show on this page shortly',
     navCommunications:'Communications', commAllTypes:'All types', commSubject:'Subject', commTo:'To', commType:'Type', commDate:'Date', commCustomer:'Customer', commView:'View', commEmpty:'No emails logged yet',
     commTypePaymentNeeded:'Payment Needed', commTypePreparing:'Preparing', commTypeDelivery:'Shipping', commTypeDelivered:'Delivered', commTypeRejected:'Rejected', commTypePreorderRejected:'Preorder Rejected', commTypeReply:'Reply', commTypeLoyalty:'Loyalty', commTypeBirthday:'Birthday', commTypeWelcome:'Welcome', commTypePrize:'Prize', commTypeInvite:'Invite', commTypeVerification:'Verification', commTypeRaw:'Direct Send',
     notifMarkAll:'Mark all read', notifNewOrder:'New Order', notifOrderUpdate:'Order Updated', notifNewPrize:'New Prize', notifPrizeUpdate:'Prize Updated', notifNewReturn:'Return Request', notifReturnUpdate:'Return Updated', notifNewCustomer:'New Customer', notifNewLead:'New Lead', notifView:'View', notifEmpty:'No notifications',
@@ -2214,7 +2234,8 @@ const LANGS = {
     loginBtn:'Giriş Yap', username:'Kullanıcı Adı', password:'Şifre',
     connecting:'Giriş yapılıyor...', connFail:'Sunucuya bağlanılamadı',
     navGroupOverview:'Genel Bakış', navGroupCatalog:'Mağaza', navGroupConfig:'Yapılandırma', navGroupUsers:'Kullanıcılar', navGroupSystem:'Sistem',
-    navDashboard:'Gösterge Paneli', navNotifications:'Bildirimler', navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navSizeCharts:'Beden Tablosu', navCustomers:'Müşteriler', navLeads:'Adaylar', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navPaymentLinks:'Ödeme Linkleri', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navSites:'Siteler', navProductPhotos:'Alıcı Fotoğrafları', navDeploy:'Dağıtım', refresh:'Yenile',
+    navDashboard:'Gösterge Paneli', navNotifications:'Bildirimler', navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navSizeCharts:'Beden Tablosu', navCustomers:'Müşteriler', navLeads:'Adaylar', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navPaymentLinks:'Ödeme Linkleri', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navSites:'Siteler', navSync:'Site Senkronizasyonu', navProductPhotos:'Alıcı Fotoğrafları', navDeploy:'Dağıtım', refresh:'Yenile',
+    syncSelectSite:'Site Seç', syncImportSchedule:'Ürün İçe Aktarma Zamanlaması', syncStockSchedule:'Stok Kontrol Zamanlaması', syncMarkup:'Kâr Marjı % (sitenin indirimli fiyatı üzerine)', syncSaveSchedule:'Ayarları Kaydet', syncScheduleSaved:'Ayarlar kaydedildi', syncNoTime:'Zamanlanmadı', syncImportNow:'Şimdi Ürün İçe Aktar', syncStockNow:'Şimdi Stok Kontrol Et', syncInProgress:'Çalışıyor…', syncLastImport:'Son içe aktarma', syncLastStockCheck:'Son stok kontrolü', syncNever:'Henüz çalıştırılmadı', syncStarted:'Başladı — sonuç kısa süre içinde bu sayfada görünecek',
     navCommunications:'İletişim', commAllTypes:'Tüm türler', commSubject:'Konu', commTo:'Alıcı', commType:'Tür', commDate:'Tarih', commCustomer:'Müşteri', commView:'Görüntüle', commEmpty:'Henüz e-posta kaydı yok',
     commTypePaymentNeeded:'Ödeme Gerekli', commTypePreparing:'Hazırlanıyor', commTypeDelivery:'Kargo', commTypeDelivered:'Teslim Edildi', commTypeRejected:'Reddedildi', commTypePreorderRejected:'Ön Sipariş Reddedildi', commTypeReply:'Yanıt', commTypeLoyalty:'Sadakat', commTypeBirthday:'Doğum Günü', commTypeWelcome:'Hoş Geldin', commTypePrize:'Ödül', commTypeInvite:'Davet', commTypeVerification:'Doğrulama', commTypeRaw:'Doğrudan Gönderim',
     notifMarkAll:'Tümünü okundu say', notifNewOrder:'Yeni Sipariş', notifOrderUpdate:'Sipariş Güncellendi', notifNewPrize:'Yeni Ödül', notifPrizeUpdate:'Ödül Güncellendi', notifNewReturn:'İade Talebi', notifReturnUpdate:'İade Güncellendi', notifNewCustomer:'Yeni Müşteri', notifNewLead:'Yeni Aday', notifView:'Görüntüle', notifEmpty:'Bildirim yok',
@@ -2584,7 +2605,7 @@ function showTab(tab) {
   currentTab = tab;
   localStorage.setItem('admin_tab', tab);
   if (window.innerWidth <= 768) closeSidebar();
-  ['communications','notifications','dashboard','products','categories','colors','sizes','size-charts','customers','active-orders','orders','prizes','returns','product-photos','suppliers','sites','bank-accounts','payment-links','coupons','leads','reports','deploy'].forEach(t2 => {
+  ['communications','notifications','dashboard','products','categories','colors','sizes','size-charts','customers','active-orders','orders','prizes','returns','product-photos','suppliers','sites','bank-accounts','payment-links','coupons','leads','reports','deploy','sync'].forEach(t2 => {
     const el = document.getElementById(`tab-${t2}`);
     const nav = document.getElementById(`nav-${t2}`);
     if (el)  el.classList.add('hidden');
@@ -2610,6 +2631,7 @@ function showTab(tab) {
   if (tab === 'product-photos') loadProductPhotosAdmin();
   if (tab === 'suppliers')      loadSuppliers();
   if (tab === 'sites')          loadSites();
+  if (tab === 'sync')           loadSyncTab();
   if (tab === 'bank-accounts')  loadBankAccounts();
   if (tab === 'payment-links')  loadPaymentLinks();
   if (tab === 'coupons')        initCoupons();
@@ -5929,6 +5951,113 @@ async function saveSite(id) {
     renderSitesList();
     closeModal();
     showToast(t('siteSaved'));
+  } else showToast(data?.message || 'Error', 'error');
+}
+
+// ─── Sync (schedule + manual trigger per site) ─────────────────────────────────
+var _syncPollTimer = null;
+
+async function loadSyncTab() {
+  if (!_allSites.length) {
+    const data = await api('/admin/sites');
+    if (data?.success) _allSites = data.data;
+  }
+  const sel = document.getElementById('sync-site-select');
+  sel.innerHTML = _allSites.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  renderSyncPanel();
+  if (_syncPollTimer) clearInterval(_syncPollTimer);
+  _syncPollTimer = setInterval(refreshSyncSitesQuietly, 4000);
+}
+
+async function refreshSyncSitesQuietly() {
+  if (document.getElementById('tab-sync')?.classList.contains('hidden')) {
+    clearInterval(_syncPollTimer);
+    _syncPollTimer = null;
+    return;
+  }
+  const data = await api('/admin/sites');
+  if (!data?.success) return;
+  _allSites = data.data;
+  renderSyncPanel();
+}
+
+function fmtDate(iso) {
+  if (!iso) return t('syncNever');
+  return new Date(iso).toLocaleString(currentLang === 'fa' ? 'fa-IR' : currentLang === 'tr' ? 'tr-TR' : 'en-US');
+}
+
+function renderSyncPanel() {
+  const id = Number(document.getElementById('sync-site-select')?.value);
+  const site = _allSites.find(s => s.id === id);
+  const panel = document.getElementById('sync-panel');
+  if (!panel) return;
+  if (!site) { panel.innerHTML = ''; return; }
+
+  panel.innerHTML = `
+    <div class="card" style="margin-bottom:16px">
+      <div class="form-row">
+        <div class="form-field">
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">${t('syncImportSchedule')}</label>
+          <input type="time" id="sync-import-time" value="${site.import_schedule_time || ''}" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px" dir="ltr">
+        </div>
+        <div class="form-field">
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">${t('syncStockSchedule')}</label>
+          <input type="time" id="sync-stock-time" value="${site.stock_check_schedule_time || ''}" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px" dir="ltr">
+        </div>
+      </div>
+      <div class="form-field" style="margin-top:12px;max-width:260px">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">${t('syncMarkup')}</label>
+        <input type="number" id="sync-markup" value="${site.markup_percent}" min="0" max="500" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px" dir="ltr">
+      </div>
+      <button class="btn btn-primary btn-sm" style="margin-top:14px" onclick="saveSyncSchedule(${site.id})">${t('syncSaveSchedule')}</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="card">
+        <div style="font-size:12px;font-weight:700;color:#999;text-transform:uppercase;margin-bottom:8px">${t('syncLastImport')}</div>
+        <div style="font-size:13px;color:#555;margin-bottom:12px">${esc(site.last_import_status || t('syncNever'))}${site.last_import_at ? `<br><span style="font-size:11px;color:#aaa">${fmtDate(site.last_import_at)}</span>` : ''}</div>
+        <button class="btn btn-secondary btn-sm" ${site.import_in_progress ? 'disabled' : ''} onclick="triggerSync(${site.id}, 'import')">
+          ${site.import_in_progress ? '⏳ ' + t('syncInProgress') : '▶️ ' + t('syncImportNow')}
+        </button>
+      </div>
+      <div class="card">
+        <div style="font-size:12px;font-weight:700;color:#999;text-transform:uppercase;margin-bottom:8px">${t('syncLastStockCheck')}</div>
+        <div style="font-size:13px;color:#555;margin-bottom:12px">${esc(site.last_stock_check_status || t('syncNever'))}${site.last_stock_check_at ? `<br><span style="font-size:11px;color:#aaa">${fmtDate(site.last_stock_check_at)}</span>` : ''}</div>
+        <button class="btn btn-secondary btn-sm" ${site.stock_check_in_progress ? 'disabled' : ''} onclick="triggerSync(${site.id}, 'stock')">
+          ${site.stock_check_in_progress ? '⏳ ' + t('syncInProgress') : '▶️ ' + t('syncStockNow')}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+async function saveSyncSchedule(id) {
+  const site = _allSites.find(s => s.id === id);
+  if (!site) return;
+  const body = {
+    name: site.name, url: site.url,
+    is_active: site.is_active, discount_check_mode: site.discount_check_mode,
+    import_schedule_time:      document.getElementById('sync-import-time')?.value || null,
+    stock_check_schedule_time: document.getElementById('sync-stock-time')?.value  || null,
+    markup_percent:             document.getElementById('sync-markup')?.value,
+  };
+  const data = await api(`/admin/sites/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+  if (data?.success) {
+    const idx = _allSites.findIndex(s => s.id === id);
+    if (idx !== -1) _allSites[idx] = data.data;
+    renderSyncPanel();
+    showToast(t('syncScheduleSaved'));
+  } else showToast(data?.message || 'Error', 'error');
+}
+
+async function triggerSync(id, kind) {
+  const path = kind === 'import' ? `/admin/sites/${id}/sync-import` : `/admin/sites/${id}/sync-stock`;
+  const data = await api(path, { method: 'POST' });
+  if (data?.success) {
+    showToast(t('syncStarted'));
+    const idx = _allSites.findIndex(s => s.id === id);
+    if (idx !== -1) _allSites[idx][kind === 'import' ? 'import_in_progress' : 'stock_check_in_progress'] = true;
+    renderSyncPanel();
   } else showToast(data?.message || 'Error', 'error');
 }
 

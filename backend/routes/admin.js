@@ -163,8 +163,10 @@ const rf = require('../controllers/referralController');
 router.get('/leads', rf.adminListLeads);
 
 const stc = require('../controllers/sitesController');
-router.get('/sites',        stc.listSites);
-router.post('/sites',       stc.createSite);
-router.put('/sites/:id',    stc.updateSite);
+router.get('/sites',                  stc.listSites);
+router.post('/sites',                 stc.createSite);
+router.put('/sites/:id',              stc.updateSite);
+router.post('/sites/:id/sync-import', stc.syncImport);
+router.post('/sites/:id/sync-stock',  stc.syncStock);
 
 module.exports = router;
