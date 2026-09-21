@@ -1223,8 +1223,10 @@ function renderProduct(p) {
     ? '<span class="product-camera-badge" title="' + (t.cphoto_customer_photos || 'عکس‌های خریداران') + '">📷</span>'
     : '';
 
+  var soldOutClass = p.tag === 'sold_out' ? ' product-sold-out' : '';
+
   return (
-    '<div class="product-card" data-category="' + p.category + '" onclick="openModal(' + p.id + ')">' +
+    '<div class="product-card' + soldOutClass + '" data-category="' + p.category + '" onclick="openModal(' + p.id + ')">' +
     '  <div class="product-image" ' + imgStyle + '>' +
     imgInner +
     '    <button class="fav-btn' + (isFav ? ' fav-active' : '') + '" onclick="toggleFavorite(event,' + p.id + ')" title="علاقه‌مندی">♥</button>' +

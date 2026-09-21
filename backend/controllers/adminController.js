@@ -6,6 +6,13 @@ const { execFile } = require('child_process');
 const execFileAsync = util.promisify(execFile);
 const { sendOrderEmail, sendLoyaltyEmail, sendPrizeEarnedEmail, label } = require('../utils/mailer');
 
+// A product whose every submitted size is unavailable is sold out regardless
+// of what tag was picked in the form — this overrides bestseller/new/etc.
+function resolveProductTag(sizes, tag) {
+  if (sizes?.length && sizes.every(s => s.is_available === false)) return 'sold_out';
+  return tag || null;
+}
+
 // ─── Communications ────────────────────────────────────────────────────────────
 
 async function getCommunications(req, res, next) {
@@ -714,7 +721,7 @@ async function createProduct(req, res, next) {
         desc_en:       desc_en   || null,
         desc_tr:       desc_tr   || null,
         gradient:      gradient  || null,
-        tag:           tag       || null,
+        tag:           resolveProductTag(sizes, tag),
         price:            price     || 0,
         discounted_price: discounted_price != null && discounted_price !== '' ? Number(discounted_price) : null,
         cost_price:       cost_price != null && cost_price !== '' ? Number(cost_price) : null,
@@ -803,7 +810,7 @@ async function updateProduct(req, res, next) {
         desc_en:       desc_en   || null,
         desc_tr:       desc_tr   || null,
         gradient:      gradient  || null,
-        tag:           tag       || null,
+        tag:           resolveProductTag(sizes, tag),
         price:            price     || 0,
         discounted_price: discounted_price != null && discounted_price !== '' ? Number(discounted_price) : null,
         cost_price:       cost_price != null && cost_price !== '' ? Number(cost_price) : null,
