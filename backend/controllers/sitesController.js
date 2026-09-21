@@ -10,7 +10,7 @@ async function listSites(req, res, next) {
 
 async function createSite(req, res, next) {
   try {
-    const { name, url, is_active, discount_check_mode, import_schedule_time, stock_check_schedule_time, markup_percent } = req.body;
+    const { name, url, is_active, discount_check_mode, markup_percent } = req.body;
     if (!name?.trim())  return res.status(400).json({ success: false, message: 'name_required' });
     if (!url?.trim())   return res.status(400).json({ success: false, message: 'url_required' });
     const row = await prisma.sites.create({
@@ -19,8 +19,6 @@ async function createSite(req, res, next) {
         url:                         url.trim(),
         is_active:                   is_active !== undefined ? !!is_active : true,
         discount_check_mode:         discount_check_mode === 'auto' ? 'auto' : 'manual',
-        import_schedule_time:        import_schedule_time || null,
-        stock_check_schedule_time:   stock_check_schedule_time || null,
         markup_percent:              markup_percent != null && markup_percent !== '' ? Number(markup_percent) : 40,
       },
     });
@@ -31,7 +29,7 @@ async function createSite(req, res, next) {
 async function updateSite(req, res, next) {
   try {
     const id = Number(req.params.id);
-    const { name, url, is_active, discount_check_mode, import_schedule_time, stock_check_schedule_time, markup_percent } = req.body;
+    const { name, url, is_active, discount_check_mode, markup_percent } = req.body;
     if (!name?.trim())  return res.status(400).json({ success: false, message: 'name_required' });
     if (!url?.trim())   return res.status(400).json({ success: false, message: 'url_required' });
     const existing = await prisma.sites.findUnique({ where: { id } });
@@ -43,13 +41,32 @@ async function updateSite(req, res, next) {
         url:                         url.trim(),
         is_active:                   is_active !== undefined ? !!is_active : existing.is_active,
         discount_check_mode:         discount_check_mode === 'auto' ? 'auto' : 'manual',
-        import_schedule_time:        import_schedule_time !== undefined ? (import_schedule_time || null) : existing.import_schedule_time,
-        stock_check_schedule_time:   stock_check_schedule_time !== undefined ? (stock_check_schedule_time || null) : existing.stock_check_schedule_time,
         markup_percent:              markup_percent != null && markup_percent !== '' ? Number(markup_percent) : existing.markup_percent,
         updated_at:                  new Date(),
       },
     });
     res.json({ success: true, data: row });
+  } catch (err) { next(err); }
+}
+
+async function getSyncSettings(req, res, next) {
+  try {
+    const settings = await prisma.sync_settings.upsert({
+      where: { id: 1 }, create: { id: 1 }, update: {},
+    });
+    res.json({ success: true, data: settings });
+  } catch (err) { next(err); }
+}
+
+async function updateSyncSettings(req, res, next) {
+  try {
+    const { import_schedule_time, stock_check_schedule_time } = req.body;
+    const settings = await prisma.sync_settings.upsert({
+      where: { id: 1 },
+      create: { id: 1, import_schedule_time: import_schedule_time || null, stock_check_schedule_time: stock_check_schedule_time || null },
+      update: { import_schedule_time: import_schedule_time || null, stock_check_schedule_time: stock_check_schedule_time || null, updated_at: new Date() },
+    });
+    res.json({ success: true, data: settings });
   } catch (err) { next(err); }
 }
 
@@ -110,4 +127,4 @@ async function syncStock(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { listSites, createSite, updateSite, syncImport, syncStock };
+module.exports = { listSites, createSite, updateSite, syncImport, syncStock, getSyncSettings, updateSyncSettings };

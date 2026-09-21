@@ -1,12 +1,13 @@
-// In-process scheduler for per-site product import / stock-check jobs whose
-// times are set on the `sites` row (admin panel: Sites tab, per-site schedule
-// fields). Runs entirely inside the API process — no system crontab entry
-// needed, so changing a site's schedule in the admin panel takes effect
-// immediately without touching the VPS.
+// In-process scheduler for the two site-sync jobs. Their time is a single
+// global setting (sync_settings, one row) — at that time, every active site
+// is checked/imported, not a per-site schedule. Per-site control is only the
+// manual "Sync Now" button (see sitesController.js#syncImport/syncStock).
+// Runs entirely inside the API process — no system crontab entry needed, so
+// changing the schedule in the admin panel takes effect immediately.
 const prisma = require('./prisma/client');
 const { checkSiteStock, importSite } = require('./utils/siteSync');
 
-const ranThisMinute = new Set();
+let ranThisMinute = null; // 'HH:MM' of the last minute we already acted on
 
 function currentHHMM() {
   const d = new Date();
@@ -50,18 +51,19 @@ async function runStockCheck(site) {
 
 async function tick() {
   const nowHHMM = currentHHMM();
+  if (ranThisMinute === nowHHMM) return; // already handled this minute
+  const settings = await prisma.sync_settings.findUnique({ where: { id: 1 } });
+  if (!settings) return;
+  if (settings.import_schedule_time !== nowHHMM && settings.stock_check_schedule_time !== nowHHMM) return;
+
+  ranThisMinute = nowHHMM;
   const sites = await prisma.sites.findMany({ where: { is_active: true } });
-  for (const site of sites) {
-    if (site.import_schedule_time === nowHHMM) {
-      const key = `${site.id}:import:${nowHHMM}`;
-      if (!ranThisMinute.has(key)) { ranThisMinute.add(key); runImport(site); }
-    }
-    if (site.stock_check_schedule_time === nowHHMM) {
-      const key = `${site.id}:stock:${nowHHMM}`;
-      if (!ranThisMinute.has(key)) { ranThisMinute.add(key); runStockCheck(site); }
-    }
+  if (settings.import_schedule_time === nowHHMM) {
+    for (const site of sites) runImport(site);
   }
-  if (ranThisMinute.size > 500) ranThisMinute.clear();
+  if (settings.stock_check_schedule_time === nowHHMM) {
+    for (const site of sites) runStockCheck(site);
+  }
 }
 
 function start() {

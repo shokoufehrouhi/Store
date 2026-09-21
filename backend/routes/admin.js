@@ -168,5 +168,7 @@ router.post('/sites',                 stc.createSite);
 router.put('/sites/:id',              stc.updateSite);
 router.post('/sites/:id/sync-import', stc.syncImport);
 router.post('/sites/:id/sync-stock',  stc.syncStock);
+router.get('/sync-settings',          stc.getSyncSettings);
+router.put('/sync-settings',          stc.updateSyncSettings);
 
 module.exports = router;

@@ -590,8 +590,6 @@ model sites {
   url                        String                    @db.VarChar(500)
   is_active                  Boolean                   @default(true)
   discount_check_mode        discount_check_mode_type  @default(manual)
-  import_schedule_time       String?                   @db.VarChar(5)
-  stock_check_schedule_time  String?                   @db.VarChar(5)
   last_import_at             DateTime?                 @db.Timestamptz(6)
   last_import_status         String?                   @db.VarChar(20)
   last_stock_check_at        DateTime?                 @db.Timestamptz(6)
@@ -603,6 +601,16 @@ model sites {
   updated_at          DateTime                  @default(now()) @db.Timestamptz(6)
 
   @@index([is_active], map: "idx_sites_active")
+}
+
+// Single-row table: global schedule for the two site-sync jobs (applies to
+// every active site at that time — per-site scheduling isn't wanted, only
+// the manual "Sync Now" trigger is per-site, see sitesController.js).
+model sync_settings {
+  id                         Int       @id @default(1)
+  import_schedule_time       String?   @db.VarChar(5)
+  stock_check_schedule_time  String?   @db.VarChar(5)
+  updated_at                 DateTime  @default(now()) @db.Timestamptz(6)
 }
 
 model product_categories {
