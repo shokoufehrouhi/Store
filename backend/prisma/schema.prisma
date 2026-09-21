@@ -547,6 +547,7 @@ enum product_tag {
   new
   original
   discount
+  sold_out
 }
 
 enum discount_check_mode_type {
