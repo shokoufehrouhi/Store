@@ -81,7 +81,10 @@ function guessSubcategoryId(nameTr, categoryId = 1) {
 function guessColorId(title) {
   // Page titles always lead with the color regardless of gender segment:
   // "Bej Kadın ...", "Lacivert Erkek ...", "Pembe Kız Çocuk ...".
-  const firstWord = title.trim().split(' ')[0]?.toLowerCase();
+  // .toLowerCase() alone mangles Turkish İ ("İndigo" -> "i̇ndigo", not
+  // "indigo" — the classic Turkish-I problem) and silently missed every
+  // "İndigo ..." product's color. toLocaleLowerCase('tr') handles it correctly.
+  const firstWord = title.trim().split(' ')[0]?.toLocaleLowerCase('tr');
   return firstWord && TR_COLOR_TO_ID[firstWord] || null;
 }
 
