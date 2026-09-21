@@ -31,8 +31,25 @@ const TR_KEYWORD_TO_SUBCATEGORY = [
   [/mont|ceket|yelek|kaban|trençkot|yağmurluk/i, 6],
 ];
 
-function guessSubcategoryId(nameTr) {
-  const hit = TR_KEYWORD_TO_SUBCATEGORY.find(([re]) => re.test(nameTr));
+// Same idea, within category_id 7 (Sports) — the "Fit" listing's own
+// subcategory taxonomy differs from regular clothing's.
+const TR_KEYWORD_TO_SPORT_SUBCATEGORY = [
+  [/tişört|tshirt|t-shirt/i, 26],
+  [/şort/i, 27],
+  [/\bset\b|takım/i, 28],
+  [/tayt|leg\b/i, 29],
+  [/gömlek|sweatshirt/i, 30],
+  [/eşofman|jogger/i, 31],
+  [/ayakkabı|sneaker/i, 32],
+  [/şapka|bere/i, 33],
+  [/eldiven/i, 34],
+  [/mont|yelek|ceket/i, 35],
+  [/atlet|kolsuz|bralet/i, 36],
+];
+
+function guessSubcategoryId(nameTr, categoryId = 1) {
+  const map = categoryId === 7 ? TR_KEYWORD_TO_SPORT_SUBCATEGORY : TR_KEYWORD_TO_SUBCATEGORY;
+  const hit = map.find(([re]) => re.test(nameTr));
   return hit ? hit[1] : null;
 }
 
@@ -111,13 +128,16 @@ async function scrapeDefactoProduct(pm, url) {
   });
 }
 
-// Discount listing pages, one per gender segment — Defacto has no single
-// "all discounted products" page. Kids listing mixes boys'/girls' items
-// (disambiguated per-product from the URL slug, see guessGender above).
+// Discount listing pages, one per gender/category segment — Defacto has no
+// single "all discounted products" page. Kids listing mixes boys'/girls'
+// items (disambiguated per-product from the URL slug, see guessGender
+// above). "Fit" is the Sports & Tech (SPOR | TEKNİK) segment, its own
+// category with its own subcategory taxonomy (see TR_KEYWORD_TO_SPORT_SUBCATEGORY).
 const DEFACTO_LISTINGS = [
-  { path: 'indirimli-urunler-listesi-kadin',   gender: 'female'  },
-  { path: 'erkek-indirimli-urunler-listesi',   gender: 'male'    },
-  { path: 'cocuk-bebek-indirimli-urunler',     gender: 'unisex'  },
+  { path: 'indirimli-urunler-listesi-kadin',   gender: 'female', categoryId: 1 },
+  { path: 'erkek-indirimli-urunler-listesi',   gender: 'male',   categoryId: 1 },
+  { path: 'cocuk-bebek-indirimli-urunler',     gender: 'unisex', categoryId: 1 },
+  { path: 'app/fit-indirimli-urunler',         gender: 'unisex', categoryId: 7 },
 ];
 const MAX_PAGES_PER_LISTING = 8; // Defacto's listings have run ~5 pages in practice; this is a safety cap
 
@@ -151,14 +171,17 @@ async function Defacto(pm, site, opts = {}) {
   // concatenating — otherwise a single category with enough unclaimed
   // inventory (e.g. women's alone routinely has 100+ items) exhausts the
   // whole `limit` before the other categories are ever reached.
-  const genderByUrl = new Map();
+  const metaByUrl = new Map(); // url -> { gender, categoryId }
   const perListing = [];
   for (const listing of DEFACTO_LISTINGS) {
     const hrefs = await collectListingLinks(pm, site, listing.path);
     const urls = [];
     for (const h of hrefs) {
       const url = new URL(h, site.url).href;
-      if (!genderByUrl.has(url)) { genderByUrl.set(url, listing.gender); urls.push(url); }
+      if (!metaByUrl.has(url)) {
+        metaByUrl.set(url, { gender: listing.gender, categoryId: listing.categoryId });
+        urls.push(url);
+      }
     }
     perListing.push(urls);
   }
@@ -166,7 +189,6 @@ async function Defacto(pm, site, opts = {}) {
   for (let i = 0; i < Math.max(...perListing.map(l => l.length), 0); i++) {
     for (const urls of perListing) if (urls[i]) candidateUrls.push(urls[i]);
   }
-  const candidates = genderByUrl;
   const existing = await prisma.products.findMany({
     where: { product_link: { in: candidateUrls } },
     select: { product_link: true },
@@ -181,7 +203,8 @@ async function Defacto(pm, site, opts = {}) {
     try {
       const data = await scrapeDefactoProduct(pm, url);
       if (!data.name || !data.originalPrice) { continue; }
-      const gender = guessGender(url, candidates.get(url));
+      const meta = metaByUrl.get(url);
+      const gender = guessGender(url, meta.gender);
       // size_label is VARCHAR(10) — adult sizes (S/M/38/...) fit fine, but
       // kids' items use labels like "5/6 Yaş (116cm)" (15-17 chars), which
       // failed every kids' import outright. Drop the "(116cm)" part first.
@@ -212,8 +235,8 @@ async function Defacto(pm, site, opts = {}) {
       const product = await prisma.products.create({
         data: {
           code: await generateProductCode(),
-          category_id: 1,
-          subcategory_id: guessSubcategoryId(data.name),
+          category_id: meta.categoryId,
+          subcategory_id: guessSubcategoryId(data.name, meta.categoryId),
           gender,
           name_fa: nameFa, name_en: nameEn, name_tr: nameTr,
           desc_fa, desc_en, desc_tr: data.description || null,
