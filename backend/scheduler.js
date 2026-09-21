@@ -67,6 +67,16 @@ async function tick() {
 }
 
 function start() {
+  // A sync mid-flight when the process restarts (deploy, crash, manual
+  // restart) never gets to write its final status — the in_progress flag
+  // would otherwise stay stuck true forever, permanently disabling that
+  // site's Sync Now buttons. Nothing can genuinely be in progress right
+  // after boot, so clear both flags for every site once at startup.
+  prisma.sites.updateMany({
+    where: { OR: [{ import_in_progress: true }, { stock_check_in_progress: true }] },
+    data: { import_in_progress: false, stock_check_in_progress: false },
+  }).catch(err => console.error('[scheduler] failed to clear stale in-progress flags:', err));
+
   setInterval(() => { tick().catch(err => console.error('[scheduler] tick error:', err)); }, 60 * 1000);
   console.log('[scheduler] site sync scheduler started');
 }

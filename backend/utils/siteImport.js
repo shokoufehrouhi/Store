@@ -146,16 +146,27 @@ async function collectListingLinks(page, site, listingPath) {
 async function Defacto(page, site, opts = {}) {
   const limit = opts.limit || 30;
 
-  const candidates = new Map(); // url -> defaultGender
+  // Collect each listing's links separately, then interleave them (one from
+  // women's, one from men's, one from kids', repeat) rather than
+  // concatenating — otherwise a single category with enough unclaimed
+  // inventory (e.g. women's alone routinely has 100+ items) exhausts the
+  // whole `limit` before the other categories are ever reached.
+  const genderByUrl = new Map();
+  const perListing = [];
   for (const listing of DEFACTO_LISTINGS) {
     const hrefs = await collectListingLinks(page, site, listing.path);
+    const urls = [];
     for (const h of hrefs) {
       const url = new URL(h, site.url).href;
-      if (!candidates.has(url)) candidates.set(url, listing.gender);
+      if (!genderByUrl.has(url)) { genderByUrl.set(url, listing.gender); urls.push(url); }
     }
+    perListing.push(urls);
   }
-
-  const candidateUrls = [...candidates.keys()];
+  const candidateUrls = [];
+  for (let i = 0; i < Math.max(...perListing.map(l => l.length), 0); i++) {
+    for (const urls of perListing) if (urls[i]) candidateUrls.push(urls[i]);
+  }
+  const candidates = genderByUrl;
   const existing = await prisma.products.findMany({
     where: { product_link: { in: candidateUrls } },
     select: { product_link: true },
