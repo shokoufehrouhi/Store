@@ -60,9 +60,16 @@ function guessColorId(title) {
   return firstWord && TR_COLOR_TO_ID[firstWord] || null;
 }
 
-function guessGender(slug, defaultGender) {
-  if (/kiz-cocuk|kiz-bebek/i.test(slug)) return 'female';
-  if (/erkek-cocuk|erkek-bebek/i.test(slug)) return 'male';
+// Every product page's <title> leads with "<Color> <Gender...> <Name> <id> |
+// DeFacto" regardless of listing (confirmed on kadın/erkek/çocuk *and*
+// sports/Fit pages, e.g. "Siyah Kadın Ultra Yumuşak ... Eşofman Altı") — more
+// reliable than the listing's own default or the URL slug (which usually
+// carries no gender marker at all outside the kids' segment).
+function guessGenderFromTitle(title, defaultGender) {
+  if (/Kız Çocuk|Kız Bebek/i.test(title)) return 'female';
+  if (/Erkek Çocuk|Erkek Bebek/i.test(title)) return 'male';
+  if (/\bKadın\b/i.test(title)) return 'female';
+  if (/\bErkek\b/i.test(title)) return 'male';
   return defaultGender;
 }
 
@@ -204,7 +211,7 @@ async function Defacto(pm, site, opts = {}) {
       const data = await scrapeDefactoProduct(pm, url);
       if (!data.name || !data.originalPrice) { continue; }
       const meta = metaByUrl.get(url);
-      const gender = guessGender(url, meta.gender);
+      const gender = guessGenderFromTitle(data.title, meta.gender);
       // size_label is VARCHAR(10) — adult sizes (S/M/38/...) fit fine, but
       // kids' items use labels like "5/6 Yaş (116cm)" (15-17 chars), which
       // failed every kids' import outright. Drop the "(116cm)" part first.
