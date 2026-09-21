@@ -13,11 +13,20 @@ const { translateText } = require('./translate');
 
 const UPLOAD_DIR = path.join(__dirname, '../public/uploads');
 
-// Turkish color name (as it appears in "<Color> Kadın ..." page titles) -> our colors.id
+// Turkish color name (as it appears in "<Color> Kadın ..." page titles) -> our
+// colors.id. Beyond the core palette, our colors table has no exact match
+// for several real Defacto shades — those map to the closest available
+// color rather than being left uncategorized (confirmed via audit: 67
+// products had no color at all because their leading word wasn't in here,
+// e.g. "Antrasit Erkek Standart Fit Pantolon").
 const TR_COLOR_TO_ID = {
   'siyah': 1, 'beyaz': 2, 'kırmızı': 3, 'kirmizi': 3, 'mavi': 4, 'lacivert': 5,
   'yeşil': 6, 'yesil': 6, 'gri': 7, 'turuncu': 8, 'sarı': 9, 'sari': 9,
   'mor': 10, 'pembe': 11, 'turkuaz': 12, 'kahverengi': 13, 'bej': 17,
+  // closest-available approximations, not exact matches:
+  'antrasit': 7, 'kahve': 13, 'haki': 6, 'bordo': 3, 'indigo': 5,
+  'ekru': 17, 'ekru\'': 17, 'taş': 17, 'tas': 17, 'petrol': 12,
+  'vizon': 13, 'somon': 11, 'gümüş': 7, 'gumus': 7, 'altın': 9, 'altin': 9,
 };
 
 // Turkish keyword (in the product name) -> our subcategories.id, within
@@ -25,39 +34,40 @@ const TR_COLOR_TO_ID = {
 const TR_KEYWORD_TO_SUBCATEGORY = [
   [/tişört|tshirt|t-shirt/i, 1],
   [/şort|bermuda/i, 2],
-  [/pantolon/i, 3],
+  [/pantolon|eşofman altı|jogger/i, 3],
   [/tayt/i, 4],
   [/sweatshirt|hırka|kazak|triko/i, 5],
-  [/mont|ceket|yelek|kaban|trençkot|yağmurluk/i, 6],
+  [/mont|ceket|yelek|kaban|trençkot|yağmurluk|parka/i, 6],
 ];
 
 // Same idea, within category_id 7 (Sports) — the "Fit" listing's own
 // subcategory taxonomy differs from regular clothing's.
 const TR_KEYWORD_TO_SPORT_SUBCATEGORY = [
-  [/tişört|tshirt|t-shirt/i, 26],
+  [/tişört|tshirt|t-shirt|polo/i, 26],
   [/şort/i, 27],
   [/\bset\b|takım/i, 28],
-  [/tayt|leg\b/i, 29],
-  [/gömlek|sweatshirt/i, 30],
+  [/tayt|leg\b|pantolon/i, 29],
+  [/gömlek|sweatshirt|hırka/i, 30],
   [/eşofman|jogger/i, 31],
   [/ayakkabı|sneaker/i, 32],
   [/şapka|bere/i, 33],
   [/eldiven/i, 34],
-  [/mont|yelek|ceket/i, 35],
+  [/mont|yelek|ceket|yağmurluk|parka/i, 35],
   [/atlet|kolsuz|bralet/i, 36],
 ];
 
-// category_id 10 (Cosmetics).
+// category_id 10 (Cosmetics). English terms included since some product
+// names are partly/fully English (K-beauty brands).
 const TR_KEYWORD_TO_COSMETIC_SUBCATEGORY = [
-  [/ruj|dudak/i, 44],
-  [/rimel|göz kalemi|eyeliner|maskara|kaş/i, 43],
+  [/ruj|dudak|lip\b/i, 44],
+  [/rimel|göz kalemi|eyeliner|maskara|kaş|eye\b/i, 43],
   [/fondöten|allık|far|kapatıcı|bb krem/i, 42],
-  [/oje|tırnak/i, 49],
-  [/parfüm|deodorant|koku/i, 48],
-  [/şampuan|saç|conditioner/i, 46],
+  [/oje|tırnak|nail/i, 49],
+  [/parfüm|deodorant|koku|perfume/i, 48],
+  [/şampuan|saç|conditioner|hair/i, 46],
   [/vücut|body/i, 47],
-  [/fırça|sünger|aparat|cihaz/i, 50],
-  [/serum|krem|maske|tonik|nemlendirici|temizleyici|peeling|esans/i, 45],
+  [/fırça|sünger|aparat|cihaz|brush|booster cap/i, 50],
+  [/serum|krem|maske|tonik|nemlendirici|temizleyici|peeling|esans|mask|cream|cleanser|essence|toner/i, 45],
 ];
 
 function guessSubcategoryId(nameTr, categoryId = 1) {
