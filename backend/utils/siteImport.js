@@ -36,8 +36,16 @@ function guessSubcategoryId(nameTr) {
 }
 
 function guessColorId(title) {
-  const firstWord = title.split(' Kadın ')[0]?.trim().toLowerCase();
+  // Page titles always lead with the color regardless of gender segment:
+  // "Bej Kadın ...", "Lacivert Erkek ...", "Pembe Kız Çocuk ...".
+  const firstWord = title.trim().split(' ')[0]?.toLowerCase();
   return firstWord && TR_COLOR_TO_ID[firstWord] || null;
+}
+
+function guessGender(slug, defaultGender) {
+  if (/kiz-cocuk|kiz-bebek/i.test(slug)) return 'female';
+  if (/erkek-cocuk|erkek-bebek/i.test(slug)) return 'male';
+  return defaultGender;
 }
 
 // Same SHIL#### code scheme as the admin panel's manual "add product" form
@@ -102,22 +110,52 @@ async function scrapeDefactoProduct(page, url) {
   });
 }
 
+// Discount listing pages, one per gender segment — Defacto has no single
+// "all discounted products" page. Kids listing mixes boys'/girls' items
+// (disambiguated per-product from the URL slug, see guessGender above).
+const DEFACTO_LISTINGS = [
+  { path: 'indirimli-urunler-listesi-kadin',   gender: 'female'  },
+  { path: 'erkek-indirimli-urunler-listesi',   gender: 'male'    },
+  { path: 'cocuk-bebek-indirimli-urunler',     gender: 'unisex'  },
+];
+const MAX_PAGES_PER_LISTING = 15; // safety cap, not an expected normal depth
+
+async function collectListingLinks(page, site, listingPath) {
+  const links = [];
+  let prevPageLinks = null;
+  for (let pageNum = 1; pageNum <= MAX_PAGES_PER_LISTING; pageNum++) {
+    const url = new URL(listingPath, site.url).href + (pageNum > 1 ? `?page=${pageNum}` : '');
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    await new Promise(r => setTimeout(r, 1200));
+    const pageLinks = await page.evaluate(() => {
+      const hrefs = Array.from(document.querySelectorAll('a[href]'))
+        .map(a => a.getAttribute('href'))
+        .filter(h => /^\/[a-z0-9-]+-\d{6,8}$/.test(h));
+      return [...new Set(hrefs)];
+    });
+    if (!pageLinks.length) break;
+    if (prevPageLinks && pageLinks[0] === prevPageLinks[0]) break; // site clamped to last page, stop
+    links.push(...pageLinks);
+    prevPageLinks = pageLinks;
+  }
+  return links;
+}
+
 // Site scraper entry point. `page` is a Puppeteer page (already has a real
 // browser UA set by the caller). Returns { imported: [...], skipped: [...] }.
 async function Defacto(page, site, opts = {}) {
-  const limit = opts.limit || 10;
-  const listingUrl = new URL('kadin-indirimli-urunler-listesi', site.url).href;
-  await page.goto(listingUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-  await new Promise(r => setTimeout(r, 1500));
+  const limit = opts.limit || 30;
 
-  const hrefs = await page.evaluate(() => {
-    const links = Array.from(document.querySelectorAll('a[href]'))
-      .map(a => a.getAttribute('href'))
-      .filter(h => /^\/[a-z0-9-]+-\d{6,8}$/.test(h));
-    return [...new Set(links)];
-  });
+  const candidates = new Map(); // url -> defaultGender
+  for (const listing of DEFACTO_LISTINGS) {
+    const hrefs = await collectListingLinks(page, site, listing.path);
+    for (const h of hrefs) {
+      const url = new URL(h, site.url).href;
+      if (!candidates.has(url)) candidates.set(url, listing.gender);
+    }
+  }
 
-  const candidateUrls = hrefs.map(h => new URL(h, site.url).href);
+  const candidateUrls = [...candidates.keys()];
   const existing = await prisma.products.findMany({
     where: { product_link: { in: candidateUrls } },
     select: { product_link: true },
@@ -132,6 +170,7 @@ async function Defacto(page, site, opts = {}) {
     try {
       const data = await scrapeDefactoProduct(page, url);
       if (!data.name || !data.originalPrice) { continue; }
+      const gender = guessGender(url, candidates.get(url));
 
       const priceOriginal = data.originalPrice;
       const priceSite = data.discountedPrice ?? data.originalPrice;
@@ -154,7 +193,7 @@ async function Defacto(page, site, opts = {}) {
           code: await generateProductCode(),
           category_id: 1,
           subcategory_id: guessSubcategoryId(data.name),
-          gender: 'female',
+          gender,
           name_fa, name_en, name_tr: data.name,
           desc_fa, desc_en, desc_tr: data.description || null,
           price: priceOriginal,

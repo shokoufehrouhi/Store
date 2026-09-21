@@ -104,7 +104,7 @@ async function syncImport(req, res, next) {
     await prisma.sites.update({ where: { id }, data: { import_in_progress: true } });
     res.json({ success: true, data: { started: true } });
 
-    importSite(site, { limit: 10 })
+    importSite(site, { limit: 30 })
       .then(result => prisma.sites.update({
         where: { id },
         data: {

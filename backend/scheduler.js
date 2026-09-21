@@ -17,7 +17,7 @@ function currentHHMM() {
 async function runImport(site) {
   try {
     await prisma.sites.update({ where: { id: site.id }, data: { import_in_progress: true } });
-    const result = await importSite(site, { limit: 10 });
+    const result = await importSite(site, { limit: 30 });
     const ok = result.imported.filter(r => !r.error).length;
     const failed = result.imported.filter(r => r.error).length;
     await prisma.sites.update({
