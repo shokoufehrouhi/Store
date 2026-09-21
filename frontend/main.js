@@ -1140,6 +1140,101 @@ function buildCatDropdowns(categories) {
   });
 }
 
+// ─── Any category not already special-cased above ───────────────────────────
+// clothing/shoes ride inside the Women/Men dropdowns; accessories/Sports/
+// Lifestyle have their own hardcoded nav-group in index.html. Any *other*
+// active category (a new one added in admin, once published) has no home in
+// the markup at all — this builds its nav-group + dropdown on the fly and
+// inserts it right before the "Contact" link, both desktop and mobile, so a
+// newly published category shows up with zero frontend code changes.
+var KNOWN_NAV_CATEGORY_KEYS = ['clothing', 'shoes', 'accessories', 'Sports', 'Lifestyle'];
+
+function renderExtraCategoryNav(categories) {
+  var lbl = function(obj) {
+    return currentLang === 'en' ? obj.label_en : currentLang === 'tr' ? obj.label_tr : obj.label_fa;
+  };
+  var isProfile = !!window.IS_PROFILE_PAGE;
+  var navLinks = document.querySelector('.nav-links');
+  var contactLink = navLinks ? navLinks.querySelector(':scope > a[href="#contact"]') : null;
+  var mobileMenu = document.getElementById('mobile-menu');
+  var mobileContactLink = mobileMenu ? mobileMenu.querySelector('a[href="#contact"]') : null;
+  if (!navLinks || !contactLink) return;
+
+  // Rebuilt from scratch each call (language switch re-invokes this with the
+  // same cached categories) so labels stay in sync instead of going stale.
+  document.querySelectorAll('.nav-group[data-dyn-cat]').forEach(function(el) { el.remove(); });
+  if (mobileMenu) mobileMenu.querySelectorAll('a[data-dyn-cat]').forEach(function(el) { el.remove(); });
+
+  categories
+    .filter(function(c) { return KNOWN_NAV_CATEGORY_KEYS.indexOf(c.key) === -1; })
+    .forEach(function(cat) {
+      var group = document.createElement('div');
+      group.className = 'nav-group';
+      group.setAttribute('data-dyn-cat', cat.key);
+
+      var link = document.createElement('a');
+      link.className = 'nav-link has-drop';
+      link.href = '#products';
+      link.setAttribute('data-filter', cat.key);
+      link.setAttribute('data-gender', 'all');
+      link.setAttribute('data-sub', '');
+      link.innerHTML = '<span>' + lbl(cat) + '</span>' +
+        '<svg class="nav-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 7L1 3h8z"/></svg>';
+
+      var dropdown = document.createElement('div');
+      dropdown.className = 'nav-dropdown';
+      var dropHtml = '<div class="nav-drop-group" data-cat="' + cat.key + '" data-gender="all">';
+      dropHtml += '<span class="nav-drop-cat-label">' + lbl(cat) + '</span>';
+      (cat.subcategories || []).forEach(function(sub) {
+        var href = isProfile
+          ? '/?_cat=' + encodeURIComponent(cat.key) + '&_sub=' + encodeURIComponent(sub.key)
+          : '#products';
+        dropHtml += '<a class="nav-drop-item" href="' + href + '" data-filter="' + cat.key + '" data-gender="all" data-sub="' + sub.key + '">' + lbl(sub) + '</a>';
+      });
+      dropHtml += '</div>';
+      dropdown.innerHTML = dropHtml;
+
+      group.appendChild(link);
+      group.appendChild(dropdown);
+      navLinks.insertBefore(group, contactLink);
+
+      if (!isProfile) {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          handleFilterClick(link, true);
+          var mm = document.getElementById('mobile-menu');
+          if (mm) mm.classList.remove('open');
+        });
+        dropdown.onclick = function(e) {
+          var it = e.target.closest('.nav-drop-item');
+          if (!it) return;
+          e.preventDefault();
+          handleFilterClick(it, true);
+          var mm = document.getElementById('mobile-menu');
+          if (mm) mm.classList.remove('open');
+        };
+      }
+
+      if (mobileMenu && mobileContactLink) {
+        var mobileLink = document.createElement('a');
+        mobileLink.setAttribute('data-dyn-cat', cat.key);
+        mobileLink.href = '#products';
+        mobileLink.setAttribute('data-filter', cat.key);
+        mobileLink.setAttribute('data-gender', 'all');
+        mobileLink.setAttribute('data-sub', '');
+        mobileLink.textContent = lbl(cat);
+        mobileMenu.insertBefore(mobileLink, mobileContactLink);
+        if (!isProfile) {
+          mobileLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            handleFilterClick(mobileLink, true);
+            mobileMenu.classList.remove('open');
+          });
+        }
+      }
+    });
+}
+
 // ─── Header Nav Dropdowns ─────────────────────────────────────────────────────
 function initNavDropdowns() {
   document.querySelectorAll('.nav-link[data-filter], .nav-drop-item, .mega-cat-title, .mega-sub-item, .mobile-menu a[data-filter]').forEach(function(item) {
@@ -1746,7 +1841,7 @@ function applyLang(lang) {
   document.querySelectorAll('.js-phone').forEach(function(el) { el.textContent = display; el.dir = 'ltr'; });
 
   if (!window.IS_PROFILE_PAGE) {
-    if (cachedCategories.length) { buildSidebar(cachedCategories); buildMegaMenu(cachedCategories); buildGenderDropdowns(cachedCategories); buildCatDropdowns(cachedCategories); }
+    if (cachedCategories.length) { buildSidebar(cachedCategories); buildMegaMenu(cachedCategories); buildGenderDropdowns(cachedCategories); buildCatDropdowns(cachedCategories); renderExtraCategoryNav(cachedCategories); }
     renderGrid();
     renderBanner();
   }
@@ -5605,6 +5700,7 @@ document.addEventListener('DOMContentLoaded', function() {
           buildMegaMenu(cachedCategories);
           buildGenderDropdowns(cachedCategories);
           buildCatDropdowns(cachedCategories);
+          renderExtraCategoryNav(cachedCategories);
         }
       });
     } else {
@@ -5738,6 +5834,7 @@ document.addEventListener('DOMContentLoaded', function() {
       buildMegaMenu(cachedCategories);
       buildGenderDropdowns(cachedCategories);
       buildCatDropdowns(cachedCategories);
+      renderExtraCategoryNav(cachedCategories);
     } else {
       initSidebar();
     }
