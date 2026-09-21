@@ -5986,6 +5986,29 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleString(currentLang === 'fa' ? 'fa-IR' : currentLang === 'tr' ? 'tr-TR' : 'en-US');
 }
 
+function timeSelectHtml(prefix, value) {
+  const [h, m] = (value || '').split(':');
+  const selStyle = 'padding:8px 6px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px';
+  const hourOpts = ['<option value="">' + t('syncNoTime') + '</option>']
+    .concat(Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
+      .map(hh => `<option value="${hh}" ${hh === h ? 'selected' : ''}>${hh}</option>`));
+  const minOpts = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))
+    .map(mm => `<option value="${mm}" ${mm === m ? 'selected' : ''}>${mm}</option>`);
+  return `
+    <div style="display:flex;gap:6px;align-items:center" dir="ltr">
+      <select id="${prefix}-hour" style="${selStyle}">${hourOpts.join('')}</select>
+      <span>:</span>
+      <select id="${prefix}-min" style="${selStyle}">${minOpts.join('')}</select>
+    </div>
+  `;
+}
+
+function readTimeSelect(prefix) {
+  const h = document.getElementById(`${prefix}-hour`)?.value;
+  const m = document.getElementById(`${prefix}-min`)?.value;
+  return h ? `${h}:${m || '00'}` : null;
+}
+
 function renderSyncPanel() {
   const id = Number(document.getElementById('sync-site-select')?.value);
   const site = _allSites.find(s => s.id === id);
@@ -5998,11 +6021,11 @@ function renderSyncPanel() {
       <div class="form-row">
         <div class="form-field">
           <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">${t('syncImportSchedule')}</label>
-          <input type="time" id="sync-import-time" value="${site.import_schedule_time || ''}" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px" dir="ltr">
+          ${timeSelectHtml('sync-import', site.import_schedule_time)}
         </div>
         <div class="form-field">
           <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">${t('syncStockSchedule')}</label>
-          <input type="time" id="sync-stock-time" value="${site.stock_check_schedule_time || ''}" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px" dir="ltr">
+          ${timeSelectHtml('sync-stock', site.stock_check_schedule_time)}
         </div>
       </div>
       <div class="form-field" style="margin-top:12px;max-width:260px">
@@ -6037,8 +6060,8 @@ async function saveSyncSchedule(id) {
   const body = {
     name: site.name, url: site.url,
     is_active: site.is_active, discount_check_mode: site.discount_check_mode,
-    import_schedule_time:      document.getElementById('sync-import-time')?.value || null,
-    stock_check_schedule_time: document.getElementById('sync-stock-time')?.value  || null,
+    import_schedule_time:      readTimeSelect('sync-import'),
+    stock_check_schedule_time: readTimeSelect('sync-stock'),
     markup_percent:             document.getElementById('sync-markup')?.value,
   };
   const data = await api(`/admin/sites/${id}`, { method: 'PUT', body: JSON.stringify(body) });
