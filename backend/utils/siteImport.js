@@ -182,6 +182,10 @@ async function Defacto(pm, site, opts = {}) {
       const data = await scrapeDefactoProduct(pm, url);
       if (!data.name || !data.originalPrice) { continue; }
       const gender = guessGender(url, candidates.get(url));
+      // size_label is VARCHAR(10) — adult sizes (S/M/38/...) fit fine, but
+      // kids' items use labels like "5/6 Yaş (116cm)" (15-17 chars), which
+      // failed every kids' import outright. Drop the "(116cm)" part first.
+      data.sizes = data.sizes.map(s => ({ ...s, size: s.size.split(' (')[0].trim().slice(0, 10) }));
 
       const priceOriginal = data.originalPrice;
       const priceSite = data.discountedPrice ?? data.originalPrice;
