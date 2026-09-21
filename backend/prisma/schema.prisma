@@ -548,6 +548,11 @@ enum product_tag {
   original
 }
 
+enum discount_check_mode_type {
+  auto
+  manual
+}
+
 model customer_product_photos {
   id          Int       @id @default(autoincrement())
   product_id  Int
@@ -575,6 +580,18 @@ model suppliers {
   card_photo_url String?   @db.VarChar(300)
   created_at     DateTime  @default(now()) @db.Timestamptz(6)
   updated_at     DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model sites {
+  id                  Int                       @id @default(autoincrement())
+  name                String                    @db.VarChar(120)
+  url                 String                    @db.VarChar(500)
+  is_active           Boolean                   @default(true)
+  discount_check_mode discount_check_mode_type  @default(manual)
+  created_at          DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime                  @default(now()) @db.Timestamptz(6)
+
+  @@index([is_active], map: "idx_sites_active")
 }
 
 model product_categories {

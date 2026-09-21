@@ -796,6 +796,9 @@
           <button class="nav-item" onclick="showTab('suppliers')" id="nav-suppliers">
             <span class="nav-icon">🏪</span><span data-i18n="navSuppliers">تامین‌کنندگان</span>
           </button>
+          <button class="nav-item" onclick="showTab('sites')" id="nav-sites">
+            <span class="nav-icon">🌐</span><span data-i18n="navSites">سایت‌ها</span>
+          </button>
         </div>
       </div>
 
@@ -1282,6 +1285,21 @@
       <div class="page-body">
         <div class="card" style="padding:0">
           <div id="suppliers-list" style="display:flex;flex-direction:column;gap:0">
+            <div style="text-align:center;padding:40px;color:#999">در حال بارگذاری...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sites Tab -->
+    <div id="tab-sites" class="hidden">
+      <div class="page-header">
+        <h2>🌐 <span data-i18n="navSites">سایت‌ها</span></h2>
+        <button class="btn btn-primary btn-sm" onclick="openSiteModal(null)" data-i18n="siteAddBtn">+ افزودن سایت</button>
+      </div>
+      <div class="page-body">
+        <div class="card" style="padding:0">
+          <div id="sites-list" style="display:flex;flex-direction:column;gap:0">
             <div style="text-align:center;padding:40px;color:#999">در حال بارگذاری...</div>
           </div>
         </div>
@@ -1782,7 +1800,7 @@ const LANGS = {
     loginBtn:'ورود به پنل', username:'نام کاربری', password:'رمز عبور',
     connecting:'در حال ورود...', connFail:'اتصال به سرور ناموفق بود',
     navGroupOverview:'نمای کلی', navGroupCatalog:'فروشگاه', navGroupConfig:'تنظیمات پایه', navGroupUsers:'کاربران', navGroupSystem:'سیستم',
-    navDashboard:'داشبورد', navNotifications:'اعلان‌ها', navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navSizeCharts:'جدول سایز', navCustomers:'مشتریان', navLeads:'لیدها', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navPaymentLinks:'لینک‌های پرداخت', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navProductPhotos:'عکس‌های خریداران', navDeploy:'استقرار', refresh:'بروزرسانی',
+    navDashboard:'داشبورد', navNotifications:'اعلان‌ها', navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navSizeCharts:'جدول سایز', navCustomers:'مشتریان', navLeads:'لیدها', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navPaymentLinks:'لینک‌های پرداخت', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navSites:'سایت‌ها', navProductPhotos:'عکس‌های خریداران', navDeploy:'استقرار', refresh:'بروزرسانی',
     navCommunications:'ارتباطات', commAllTypes:'همه انواع', commSubject:'موضوع', commTo:'گیرنده', commType:'نوع', commDate:'تاریخ', commCustomer:'مشتری', commView:'مشاهده', commEmpty:'ایمیلی ثبت نشده',
     commTypePaymentNeeded:'نیاز به پرداخت', commTypePreparing:'در حال آماده‌سازی', commTypeDelivery:'ارسال', commTypeDelivered:'تحویل داده شد', commTypeRejected:'رد سفارش', commTypePreorderRejected:'رد پیش‌سفارش', commTypeReply:'پاسخ پیام', commTypeLoyalty:'وفاداری', commTypeBirthday:'تولد', commTypeWelcome:'خوش‌آمد', commTypePrize:'جایزه', commTypeInvite:'دعوت دوست', commTypeVerification:'کد تایید', commTypeRaw:'ارسال مستقیم',
     notifMarkAll:'همه خوانده شد', notifNewOrder:'سفارش جدید', notifOrderUpdate:'بروزرسانی سفارش', notifNewPrize:'جایزه جدید', notifPrizeUpdate:'بروزرسانی جایزه', notifNewReturn:'درخواست مرجوعی', notifReturnUpdate:'بروزرسانی مرجوعی', notifNewCustomer:'مشتری جدید', notifNewLead:'لید جدید', notifView:'مشاهده', notifEmpty:'اعلانی وجود ندارد',
@@ -1792,6 +1810,7 @@ const LANGS = {
     leadsEmpty:'هنوز لیدی وجود ندارد', leadsError:'خطا در بارگذاری',
     ppApproved:'تایید شده', ppHidden:'مخفی', ppToggleHide:'مخفی کن', ppToggleShow:'نمایش بده', ppDeleted:'حذف شد', ppConfirmDelete:'این عکس حذف شود؟',
     supAddBtn:'+ افزودن تامین‌کننده', supShopName:'نام فروشگاه', supSupplierName:'نام تامین‌کننده', supPhone:'شماره تماس', supTelegram:'آدرس تلگرام', supWebsite:'آدرس سایت', supInstagram:'آدرس اینستاگرام', supStoreAddress:'آدرس مغازه', supCardPhoto:'آپلود کارت ویزیت', supSaved:'ذخیره شد', supDeleted:'حذف شد', supConfirmDelete:'این تامین‌کننده حذف شود؟', supRequired:'نام فروشگاه الزامی است',
+    siteAddBtn:'+ افزودن سایت', siteName:'نام سایت', siteUrl:'آدرس سایت', siteActive:'فعال', siteInactive:'غیرفعال', siteDiscountMode:'نحوه بررسی تخفیف', siteModeAuto:'خودکار', siteModeManual:'دستی', siteSaved:'ذخیره شد', siteDeleted:'حذف شد', siteConfirmDelete:'این سایت حذف شود؟', siteNameRequired:'نام سایت الزامی است', siteUrlRequired:'آدرس سایت الزامی است',
     prodBrand:'برند', prodSupplierShop:'فروشگاه تامین‌کننده', prodLink:'لینک محصول', prodSupplierCode:'کد محصول تامین‌کننده', prodSupplierNote:'توضیحات تامین‌کننده',
     cpAddBtn:'+ کد جدید', cpNewTitle:'➕ کد تخفیف جدید', cpEditTitle:'✏️ ویرایش کد تخفیف',
     cpCode:'کد تخفیف', cpType:'نوع تخفیف', cpValue:'مقدار', cpMaxUses:'حداکثر استفاده', cpStarts:'تاریخ شروع', cpExpires:'تاریخ انقضا',
@@ -1987,7 +2006,7 @@ const LANGS = {
     loginBtn:'Login', username:'Username', password:'Password',
     connecting:'Logging in...', connFail:'Could not connect to server',
     navGroupOverview:'Overview', navGroupCatalog:'Store', navGroupConfig:'Configuration', navGroupUsers:'Users', navGroupSystem:'System',
-    navDashboard:'Dashboard', navNotifications:'Notifications', navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navSizeCharts:'Size Charts', navCustomers:'Customers', navLeads:'Leads', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navPaymentLinks:'Payment Links', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navProductPhotos:'Buyer Photos', navDeploy:'Deploy', refresh:'Refresh',
+    navDashboard:'Dashboard', navNotifications:'Notifications', navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navSizeCharts:'Size Charts', navCustomers:'Customers', navLeads:'Leads', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navPaymentLinks:'Payment Links', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navSites:'Sites', navProductPhotos:'Buyer Photos', navDeploy:'Deploy', refresh:'Refresh',
     navCommunications:'Communications', commAllTypes:'All types', commSubject:'Subject', commTo:'To', commType:'Type', commDate:'Date', commCustomer:'Customer', commView:'View', commEmpty:'No emails logged yet',
     commTypePaymentNeeded:'Payment Needed', commTypePreparing:'Preparing', commTypeDelivery:'Shipping', commTypeDelivered:'Delivered', commTypeRejected:'Rejected', commTypePreorderRejected:'Preorder Rejected', commTypeReply:'Reply', commTypeLoyalty:'Loyalty', commTypeBirthday:'Birthday', commTypeWelcome:'Welcome', commTypePrize:'Prize', commTypeInvite:'Invite', commTypeVerification:'Verification', commTypeRaw:'Direct Send',
     notifMarkAll:'Mark all read', notifNewOrder:'New Order', notifOrderUpdate:'Order Updated', notifNewPrize:'New Prize', notifPrizeUpdate:'Prize Updated', notifNewReturn:'Return Request', notifReturnUpdate:'Return Updated', notifNewCustomer:'New Customer', notifNewLead:'New Lead', notifView:'View', notifEmpty:'No notifications',
@@ -1997,6 +2016,7 @@ const LANGS = {
     leadsEmpty:'No leads yet', leadsError:'Error loading leads',
     ppApproved:'Approved', ppHidden:'Hidden', ppToggleHide:'Hide', ppToggleShow:'Show', ppDeleted:'Deleted', ppConfirmDelete:'Delete this photo?',
     supAddBtn:'+ Add Supplier', supShopName:'Shop Name', supSupplierName:'Supplier Name', supPhone:'Phone', supTelegram:'Telegram', supWebsite:'Website', supInstagram:'Instagram', supStoreAddress:'Store Address', supCardPhoto:'Upload Business Card', supSaved:'Saved', supDeleted:'Deleted', supConfirmDelete:'Delete this supplier?', supRequired:'Shop name is required',
+    siteAddBtn:'+ Add Site', siteName:'Site Name', siteUrl:'Site URL', siteActive:'Active', siteInactive:'Inactive', siteDiscountMode:'Discount Check Mode', siteModeAuto:'Automatic', siteModeManual:'Manual', siteSaved:'Saved', siteDeleted:'Deleted', siteConfirmDelete:'Delete this site?', siteNameRequired:'Site name is required', siteUrlRequired:'Site URL is required',
     prodBrand:'Brand', prodSupplierShop:'Supplier Shop', prodLink:'Product Link', prodSupplierCode:'Supplier Code', prodSupplierNote:'Supplier Notes',
     cpAddBtn:'+ New Code', cpNewTitle:'➕ New Discount Code', cpEditTitle:'✏️ Edit Discount Code',
     cpCode:'Coupon Code', cpType:'Discount Type', cpValue:'Value', cpMaxUses:'Max Uses', cpStarts:'Start Date', cpExpires:'Expiry Date',
@@ -2192,7 +2212,7 @@ const LANGS = {
     loginBtn:'Giriş Yap', username:'Kullanıcı Adı', password:'Şifre',
     connecting:'Giriş yapılıyor...', connFail:'Sunucuya bağlanılamadı',
     navGroupOverview:'Genel Bakış', navGroupCatalog:'Mağaza', navGroupConfig:'Yapılandırma', navGroupUsers:'Kullanıcılar', navGroupSystem:'Sistem',
-    navDashboard:'Gösterge Paneli', navNotifications:'Bildirimler', navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navSizeCharts:'Beden Tablosu', navCustomers:'Müşteriler', navLeads:'Adaylar', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navPaymentLinks:'Ödeme Linkleri', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navProductPhotos:'Alıcı Fotoğrafları', navDeploy:'Dağıtım', refresh:'Yenile',
+    navDashboard:'Gösterge Paneli', navNotifications:'Bildirimler', navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navSizeCharts:'Beden Tablosu', navCustomers:'Müşteriler', navLeads:'Adaylar', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navPaymentLinks:'Ödeme Linkleri', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navSites:'Siteler', navProductPhotos:'Alıcı Fotoğrafları', navDeploy:'Dağıtım', refresh:'Yenile',
     navCommunications:'İletişim', commAllTypes:'Tüm türler', commSubject:'Konu', commTo:'Alıcı', commType:'Tür', commDate:'Tarih', commCustomer:'Müşteri', commView:'Görüntüle', commEmpty:'Henüz e-posta kaydı yok',
     commTypePaymentNeeded:'Ödeme Gerekli', commTypePreparing:'Hazırlanıyor', commTypeDelivery:'Kargo', commTypeDelivered:'Teslim Edildi', commTypeRejected:'Reddedildi', commTypePreorderRejected:'Ön Sipariş Reddedildi', commTypeReply:'Yanıt', commTypeLoyalty:'Sadakat', commTypeBirthday:'Doğum Günü', commTypeWelcome:'Hoş Geldin', commTypePrize:'Ödül', commTypeInvite:'Davet', commTypeVerification:'Doğrulama', commTypeRaw:'Doğrudan Gönderim',
     notifMarkAll:'Tümünü okundu say', notifNewOrder:'Yeni Sipariş', notifOrderUpdate:'Sipariş Güncellendi', notifNewPrize:'Yeni Ödül', notifPrizeUpdate:'Ödül Güncellendi', notifNewReturn:'İade Talebi', notifReturnUpdate:'İade Güncellendi', notifNewCustomer:'Yeni Müşteri', notifNewLead:'Yeni Aday', notifView:'Görüntüle', notifEmpty:'Bildirim yok',
@@ -2202,6 +2222,7 @@ const LANGS = {
     leadsEmpty:'Henüz aday yok', leadsError:'Yükleme hatası',
     ppApproved:'Onaylandı', ppHidden:'Gizli', ppToggleHide:'Gizle', ppToggleShow:'Göster', ppDeleted:'Silindi', ppConfirmDelete:'Bu fotoğraf silinsin mi?',
     supAddBtn:'+ Tedarikçi Ekle', supShopName:'Mağaza Adı', supSupplierName:'Tedarikçi Adı', supPhone:'Telefon', supTelegram:'Telegram', supWebsite:'Web Sitesi', supInstagram:'Instagram', supStoreAddress:'Mağaza Adresi', supCardPhoto:'Kartvizit Yükle', supSaved:'Kaydedildi', supDeleted:'Silindi', supConfirmDelete:'Bu tedarikçi silinsin mi?', supRequired:'Mağaza adı zorunludur',
+    siteAddBtn:'+ Site Ekle', siteName:'Site Adı', siteUrl:'Site Adresi', siteActive:'Aktif', siteInactive:'Pasif', siteDiscountMode:'İndirim Kontrol Modu', siteModeAuto:'Otomatik', siteModeManual:'Manuel', siteSaved:'Kaydedildi', siteDeleted:'Silindi', siteConfirmDelete:'Bu site silinsin mi?', siteNameRequired:'Site adı zorunludur', siteUrlRequired:'Site adresi zorunludur',
     prodBrand:'Marka', prodSupplierShop:'Tedarikçi Mağazası', prodLink:'Ürün Linki', prodSupplierCode:'Tedarikçi Kodu', prodSupplierNote:'Tedarikçi Notları',
     cpAddBtn:'+ Yeni Kod', cpNewTitle:'➕ Yeni İndirim Kodu', cpEditTitle:'✏️ İndirim Kodunu Düzenle',
     cpCode:'Kupon Kodu', cpType:'İndirim Türü', cpValue:'Değer', cpMaxUses:'Maks. Kullanım', cpStarts:'Başlangıç Tarihi', cpExpires:'Son Kullanma Tarihi',
@@ -2561,7 +2582,7 @@ function showTab(tab) {
   currentTab = tab;
   localStorage.setItem('admin_tab', tab);
   if (window.innerWidth <= 768) closeSidebar();
-  ['communications','notifications','dashboard','products','categories','colors','sizes','size-charts','customers','active-orders','orders','prizes','returns','product-photos','suppliers','bank-accounts','payment-links','coupons','leads','reports','deploy'].forEach(t2 => {
+  ['communications','notifications','dashboard','products','categories','colors','sizes','size-charts','customers','active-orders','orders','prizes','returns','product-photos','suppliers','sites','bank-accounts','payment-links','coupons','leads','reports','deploy'].forEach(t2 => {
     const el = document.getElementById(`tab-${t2}`);
     const nav = document.getElementById(`nav-${t2}`);
     if (el)  el.classList.add('hidden');
@@ -2586,6 +2607,7 @@ function showTab(tab) {
   if (tab === 'returns')        loadAdminReturns();
   if (tab === 'product-photos') loadProductPhotosAdmin();
   if (tab === 'suppliers')      loadSuppliers();
+  if (tab === 'sites')          loadSites();
   if (tab === 'bank-accounts')  loadBankAccounts();
   if (tab === 'payment-links')  loadPaymentLinks();
   if (tab === 'coupons')        initCoupons();
@@ -5789,6 +5811,112 @@ async function deleteSupplier(id) {
     _allSuppliers = _allSuppliers.filter(s => s.id !== id);
     renderSuppliersList();
     showToast(t('supDeleted'));
+  } else showToast(data?.message || 'Error', 'error');
+}
+
+// ─── Sites ────────────────────────────────────────────────────────────────────
+var _allSites = [];
+
+async function loadSites() {
+  const data = await api('/admin/sites');
+  if (!data?.success) return;
+  _allSites = data.data;
+  renderSitesList();
+}
+
+function renderSitesList() {
+  const el = document.getElementById('sites-list');
+  if (!el) return;
+  if (!_allSites.length) {
+    el.innerHTML = `<div style="text-align:center;padding:40px;color:#999">${t('siteAddBtn')}</div>`;
+    return;
+  }
+  el.innerHTML = _allSites.map(s => `
+    <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--border)">
+      <div style="width:56px;height:56px;border-radius:10px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🌐</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:15px">${esc(s.name)}</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;align-items:center">
+          <a href="${esc(s.url)}" target="_blank" style="font-size:12px;color:var(--primary)">🔗 ${esc(s.url)}</a>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+          <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${s.is_active ? '#dcfce7' : '#f3f4f6'};color:${s.is_active ? '#16a34a' : '#888'}">${s.is_active ? t('siteActive') : t('siteInactive')}</span>
+          <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:#eef2ff;color:#4f46e5">${s.discount_check_mode === 'auto' ? t('siteModeAuto') : t('siteModeManual')}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0">
+        <button class="btn btn-secondary btn-sm" onclick="openSiteModal(${s.id})">${t('edit')}</button>
+        <button class="btn btn-sm" style="background:#fef2f2;color:#ef4444;border:1px solid #fca5a5" onclick="deleteSite(${s.id})">${t('delete')}</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openSiteModal(id) {
+  const s = id ? _allSites.find(x => x.id === id) : null;
+  document.getElementById('modal-title').textContent = s ? t('edit') + ' — ' + s.name : t('siteAddBtn');
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-field" style="margin-bottom:12px">
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">${t('siteName')} *</label>
+      <input id="site-name" class="form-control" value="${esc(s?.name || '')}">
+    </div>
+    <div class="form-field" style="margin-bottom:12px">
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">${t('siteUrl')} *</label>
+      <input id="site-url" class="form-control" value="${esc(s?.url || '')}" dir="ltr" placeholder="https://...">
+    </div>
+    <div class="form-row">
+      <div class="form-field">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">${t('siteActive')}</label>
+        <select id="site-is-active" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
+          <option value="true" ${s?.is_active !== false ? 'selected' : ''}>${t('siteActive')}</option>
+          <option value="false" ${s?.is_active === false ? 'selected' : ''}>${t('siteInactive')}</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">${t('siteDiscountMode')}</label>
+        <select id="site-discount-mode" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
+          <option value="manual" ${s?.discount_check_mode !== 'auto' ? 'selected' : ''}>${t('siteModeManual')}</option>
+          <option value="auto" ${s?.discount_check_mode === 'auto' ? 'selected' : ''}>${t('siteModeAuto')}</option>
+        </select>
+      </div>
+    </div>
+  `;
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn btn-primary" onclick="saveSite(${id || 'null'})">${t('saveChanges')}</button>
+    <button class="btn btn-secondary" onclick="closeModal()" style="margin-inline-start:8px">${t('cancel')}</button>
+  `;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+async function saveSite(id) {
+  const name = document.getElementById('site-name')?.value?.trim();
+  const url  = document.getElementById('site-url')?.value?.trim();
+  if (!name) { showToast(t('siteNameRequired'), 'error'); return; }
+  if (!url)  { showToast(t('siteUrlRequired'), 'error'); return; }
+  const body = {
+    name, url,
+    is_active:            document.getElementById('site-is-active')?.value === 'true',
+    discount_check_mode:  document.getElementById('site-discount-mode')?.value || 'manual',
+  };
+  const data = await api(`/admin/sites${id ? '/' + id : ''}`, {
+    method: id ? 'PUT' : 'POST', body: JSON.stringify(body),
+  });
+  if (data?.success) {
+    if (id) { const idx = _allSites.findIndex(s => s.id === id); if (idx !== -1) _allSites[idx] = data.data; }
+    else _allSites.unshift(data.data);
+    renderSitesList();
+    closeModal();
+    showToast(t('siteSaved'));
+  } else showToast(data?.message || 'Error', 'error');
+}
+
+async function deleteSite(id) {
+  if (!confirm(t('siteConfirmDelete'))) return;
+  const data = await api(`/admin/sites/${id}`, { method: 'DELETE' });
+  if (data?.success) {
+    _allSites = _allSites.filter(s => s.id !== id);
+    renderSitesList();
+    showToast(t('siteDeleted'));
   } else showToast(data?.message || 'Error', 'error');
 }
 

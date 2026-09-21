@@ -162,4 +162,10 @@ router.put('/suppliers/:id', function(req, res, next) {
 const rf = require('../controllers/referralController');
 router.get('/leads', rf.adminListLeads);
 
+const stc = require('../controllers/sitesController');
+router.get('/sites',        stc.listSites);
+router.post('/sites',       stc.createSite);
+router.put('/sites/:id',    stc.updateSite);
+router.delete('/sites/:id', stc.deleteSite);
+
 module.exports = router;
