@@ -6,23 +6,64 @@ const importers = require('./siteImport');
 
 const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 
+// A page reused across many dozens of navigations (a full multi-category,
+// paginated import can hit 50-1000+) eventually crashes on this VPS's tight
+// RAM — Puppeteer starts throwing "detached Frame" on every subsequent call.
+// PageManager recycles the underlying page every `recycleEvery` navigations,
+// and force-recycles + retries once on a detached-frame error specifically,
+// so callers just do `await pm.goto(url, opts)` without worrying about it.
+function createPageManager(browser, { recycleEvery = 12 } = {}) {
+  let page = null;
+  let navCount = 0;
+
+  async function open() {
+    page = await browser.newPage();
+    await page.setUserAgent(USER_AGENT);
+    navCount = 0;
+  }
+
+  return {
+    async goto(url, opts) {
+      if (!page || page.isClosed() || navCount >= recycleEvery) {
+        if (page && !page.isClosed()) await page.close().catch(() => {});
+        await open();
+      }
+      navCount++;
+      try {
+        await page.goto(url, opts);
+      } catch (err) {
+        if (/detached Frame|Target closed|Session closed/i.test(err.message)) {
+          await open();
+          await page.goto(url, opts);
+        } else {
+          throw err;
+        }
+      }
+      return page;
+    },
+    async close() {
+      if (page && !page.isClosed()) await page.close().catch(() => {});
+    },
+  };
+}
+
 async function withBrowser(fn) {
   const puppeteer = (await import('puppeteer')).default;
   const browser = await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
   });
+  const pm = createPageManager(browser);
   try {
-    const page = await browser.newPage();
-    await page.setUserAgent(USER_AGENT);
-    return await fn(page);
+    return await fn(pm);
   } finally {
+    await pm.close();
     await browser.close();
   }
 }
 
-async function readSiteData(page, url) {
-  await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+async function readSiteData(pm, url) {
+  const page = await pm.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
   await new Promise(r => setTimeout(r, 1500));
   return page.evaluate(() => {
     const sizes = window.PRODUCT_DETAIL_SIZE_DATA
@@ -53,10 +94,10 @@ async function checkSiteStock(site) {
   const results = [];
   if (!products.length) return results;
 
-  await withBrowser(async (page) => {
+  await withBrowser(async (pm) => {
     for (const p of products) {
       try {
-        const data = await readSiteData(page, p.product_link);
+        const data = await readSiteData(pm, p.product_link);
         if (!data.sizes) { results.push({ id: p.id, name: p.name_tr, status: 'skipped (no data)' }); continue; }
         const totalStock = data.sizes.reduce((sum, s) => sum + (s.stock || 0), 0);
 
@@ -101,7 +142,7 @@ async function checkSiteStock(site) {
 async function importSite(site, opts = {}) {
   const importer = importers[site.name];
   if (!importer) throw new Error(`no importer implemented for site "${site.name}"`);
-  return withBrowser(page => importer(page, site, opts));
+  return withBrowser(pm => importer(pm, site, opts));
 }
 
 module.exports = { checkSiteStock, importSite, withBrowser };

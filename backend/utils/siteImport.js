@@ -1,9 +1,10 @@
 // Per-site product import scrapers, keyed by site name. Every source site has
 // its own HTML structure, so there is no generic "works for any site"
 // scraper — each site needs its own function here. Called from
-// backend/utils/siteSync.js#importSite via a Puppeteer `page` already
-// navigated/authenticated as a real browser (these sites 403 plain HTTP
-// requests, see checkSiteStock.js for the same issue on the stock-check side).
+// backend/utils/siteSync.js#importSite with a PageManager (`pm`) — a real
+// headless-Chrome page that auto-recycles across navigations (these sites
+// 403 plain HTTP requests, and a single page eventually crashes across the
+// hundreds of navigations a full paginated import can involve).
 const fs   = require('fs');
 const path = require('path');
 const prisma = require('../prisma/client');
@@ -74,8 +75,8 @@ async function saveImageFromUrl(imageUrl) {
   return '/uploads/' + finalName;
 }
 
-async function scrapeDefactoProduct(page, url) {
-  await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+async function scrapeDefactoProduct(pm, url) {
+  const page = await pm.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
   await new Promise(r => setTimeout(r, 1500));
 
   return page.evaluate(() => {
@@ -118,14 +119,14 @@ const DEFACTO_LISTINGS = [
   { path: 'erkek-indirimli-urunler-listesi',   gender: 'male'    },
   { path: 'cocuk-bebek-indirimli-urunler',     gender: 'unisex'  },
 ];
-const MAX_PAGES_PER_LISTING = 15; // safety cap, not an expected normal depth
+const MAX_PAGES_PER_LISTING = 8; // Defacto's listings have run ~5 pages in practice; this is a safety cap
 
-async function collectListingLinks(page, site, listingPath) {
+async function collectListingLinks(pm, site, listingPath) {
   const links = [];
   let prevPageLinks = null;
   for (let pageNum = 1; pageNum <= MAX_PAGES_PER_LISTING; pageNum++) {
     const url = new URL(listingPath, site.url).href + (pageNum > 1 ? `?page=${pageNum}` : '');
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    const page = await pm.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
     await new Promise(r => setTimeout(r, 1200));
     const pageLinks = await page.evaluate(() => {
       const hrefs = Array.from(document.querySelectorAll('a[href]'))
@@ -141,9 +142,8 @@ async function collectListingLinks(page, site, listingPath) {
   return links;
 }
 
-// Site scraper entry point. `page` is a Puppeteer page (already has a real
-// browser UA set by the caller). Returns { imported: [...], skipped: [...] }.
-async function Defacto(page, site, opts = {}) {
+// Site scraper entry point. Returns { imported: [...], skipped: [...] }.
+async function Defacto(pm, site, opts = {}) {
   const limit = opts.limit || 30;
 
   // Collect each listing's links separately, then interleave them (one from
@@ -154,7 +154,7 @@ async function Defacto(page, site, opts = {}) {
   const genderByUrl = new Map();
   const perListing = [];
   for (const listing of DEFACTO_LISTINGS) {
-    const hrefs = await collectListingLinks(page, site, listing.path);
+    const hrefs = await collectListingLinks(pm, site, listing.path);
     const urls = [];
     for (const h of hrefs) {
       const url = new URL(h, site.url).href;
@@ -179,7 +179,7 @@ async function Defacto(page, site, opts = {}) {
 
   for (const url of newUrls) {
     try {
-      const data = await scrapeDefactoProduct(page, url);
+      const data = await scrapeDefactoProduct(pm, url);
       if (!data.name || !data.originalPrice) { continue; }
       const gender = guessGender(url, candidates.get(url));
 
