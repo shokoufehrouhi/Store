@@ -269,8 +269,10 @@ async function Defacto(pm, site, opts = {}) {
       const nameFa = name_fa.slice(0, 120);
       const nameEn = name_en.slice(0, 120);
 
+      // No cap — some products genuinely have 9+ images on the source and a
+      // hardcoded slice(0, 8) was silently dropping the rest.
       const mediaUrls = [];
-      for (const imgUrl of data.images.slice(0, 8)) {
+      for (const imgUrl of data.images) {
         try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
       }
 
