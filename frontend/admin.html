@@ -5985,6 +5985,7 @@ async function saveSite(id) {
 
 // ─── Sync (schedule + manual trigger per site) ─────────────────────────────────
 var _syncPollTimer = null;
+var _syncDirty = false;
 
 async function loadSyncTab() {
   if (!_allSites.length) {
@@ -6004,11 +6005,13 @@ async function refreshSyncSitesQuietly() {
     _syncPollTimer = null;
     return;
   }
-  // don't clobber an open time-picker dropdown or unsaved edits mid-pick
-  if (document.querySelector('.time-picker-dropdown:not(.hidden)')) return;
   const data = await api('/admin/sites');
   if (!data?.success) return;
   _allSites = data.data;
+  // don't clobber an open time-picker dropdown or an unsaved edit —
+  // still keep _allSites fresh so a render right after Save/dropdown-close
+  // shows the latest in-progress/last-run status, just skip re-rendering now.
+  if (_syncDirty || document.querySelector('.time-picker-dropdown:not(.hidden)')) return;
   renderSyncPanel();
 }
 
@@ -6053,6 +6056,7 @@ function toggleTimeDropdown(prefix, part) {
 }
 
 function selectTimeValue(prefix, part, val) {
+  _syncDirty = true;
   _timePickerState[prefix] = _timePickerState[prefix] || {};
   _timePickerState[prefix][part === 'hour' ? 'h' : 'm'] = val;
   if (part === 'hour' && !_timePickerState[prefix].m) _timePickerState[prefix].m = '00';
@@ -6064,6 +6068,7 @@ function selectTimeValue(prefix, part, val) {
 }
 
 function clearTimePicker(prefix) {
+  _syncDirty = true;
   _timePickerState[prefix] = { h: null, m: null };
   document.getElementById(`${prefix}-hour-disp`).textContent = '--';
   document.getElementById(`${prefix}-min-disp`).textContent  = '--';
@@ -6081,6 +6086,7 @@ function readTimeSelect(prefix) {
 }
 
 function renderSyncPanel() {
+  _syncDirty = false;
   const id = Number(document.getElementById('sync-site-select')?.value);
   const site = _allSites.find(s => s.id === id);
   const panel = document.getElementById('sync-panel');
@@ -6101,7 +6107,7 @@ function renderSyncPanel() {
       </div>
       <div class="form-field" style="margin-top:12px;max-width:260px">
         <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">${t('syncMarkup')}</label>
-        <input type="number" id="sync-markup" value="${site.markup_percent}" min="0" max="500" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px" dir="ltr">
+        <input type="number" id="sync-markup" value="${site.markup_percent}" min="0" max="500" oninput="_syncDirty=true" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px" dir="ltr">
       </div>
       <button class="btn btn-primary btn-sm" style="margin-top:14px" onclick="saveSyncSchedule(${site.id})">${t('syncSaveSchedule')}</button>
     </div>
