@@ -47,8 +47,23 @@ const TR_KEYWORD_TO_SPORT_SUBCATEGORY = [
   [/atlet|kolsuz|bralet/i, 36],
 ];
 
+// category_id 10 (Cosmetics).
+const TR_KEYWORD_TO_COSMETIC_SUBCATEGORY = [
+  [/ruj|dudak/i, 44],
+  [/rimel|göz kalemi|eyeliner|maskara|kaş/i, 43],
+  [/fondöten|allık|far|kapatıcı|bb krem/i, 42],
+  [/oje|tırnak/i, 49],
+  [/parfüm|deodorant|koku/i, 48],
+  [/şampuan|saç|conditioner/i, 46],
+  [/vücut|body/i, 47],
+  [/fırça|sünger|aparat|cihaz/i, 50],
+  [/serum|krem|maske|tonik|nemlendirici|temizleyici|peeling|esans/i, 45],
+];
+
 function guessSubcategoryId(nameTr, categoryId = 1) {
-  const map = categoryId === 7 ? TR_KEYWORD_TO_SPORT_SUBCATEGORY : TR_KEYWORD_TO_SUBCATEGORY;
+  const map = categoryId === 7 ? TR_KEYWORD_TO_SPORT_SUBCATEGORY
+    : categoryId === 10 ? TR_KEYWORD_TO_COSMETIC_SUBCATEGORY
+    : TR_KEYWORD_TO_SUBCATEGORY;
   const hit = map.find(([re]) => re.test(nameTr));
   return hit ? hit[1] : null;
 }
@@ -145,6 +160,12 @@ const DEFACTO_LISTINGS = [
   { path: 'erkek-indirimli-urunler-listesi',   gender: 'male',   categoryId: 1 },
   { path: 'cocuk-bebek-indirimli-urunler',     gender: 'unisex', categoryId: 1 },
   { path: 'app/fit-indirimli-urunler',         gender: 'unisex', categoryId: 7 },
+  // Not a discount-only listing like the others (Defacto has no dedicated
+  // Kozmetik discount page — confirmed 404 on kozmetik-indirim) — this is
+  // the general Korean-skincare category, where full-price and discounted
+  // items are mixed together. The post-scrape "actually discounted?" check
+  // below (skip if no discountedPrice) filters it down correctly.
+  { path: 'kore-cilt-bakim-urunleri',          gender: 'unisex', categoryId: 10 },
 ];
 const MAX_PAGES_PER_LISTING = 8; // Defacto's listings have run ~5 pages in practice; this is a safety cap
 
@@ -210,6 +231,13 @@ async function Defacto(pm, site, opts = {}) {
     try {
       const data = await scrapeDefactoProduct(pm, url);
       if (!data.name || !data.originalPrice) { continue; }
+      // Most listings here are discount-only already, but Kozmetik isn't
+      // (Defacto has no dedicated cosmetics discount page) — it mixes
+      // full-price items in, and every listing's own "on sale" flag proved
+      // unreliable (data-discount="False" even on visibly discounted
+      // cards). The one signal that's actually correct: does the product's
+      // own page show a live "Sepette X TL" discounted price at all?
+      if (!data.discountedPrice) { continue; }
       const meta = metaByUrl.get(url);
       const gender = guessGenderFromTitle(data.title, meta.gender);
       // size_label is VARCHAR(10) — adult sizes (S/M/38/...) fit fine, but
