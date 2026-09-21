@@ -46,12 +46,4 @@ async function updateSite(req, res, next) {
   } catch (err) { next(err); }
 }
 
-async function deleteSite(req, res, next) {
-  try {
-    const id = Number(req.params.id);
-    await prisma.sites.delete({ where: { id } });
-    res.json({ success: true });
-  } catch (err) { next(err); }
-}
-
-module.exports = { listSites, createSite, updateSite, deleteSite };
+module.exports = { listSites, createSite, updateSite };

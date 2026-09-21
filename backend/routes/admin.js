@@ -166,6 +166,5 @@ const stc = require('../controllers/sitesController');
 router.get('/sites',        stc.listSites);
 router.post('/sites',       stc.createSite);
 router.put('/sites/:id',    stc.updateSite);
-router.delete('/sites/:id', stc.deleteSite);
 
 module.exports = router;

@@ -796,9 +796,6 @@
           <button class="nav-item" onclick="showTab('suppliers')" id="nav-suppliers">
             <span class="nav-icon">🏪</span><span data-i18n="navSuppliers">تامین‌کنندگان</span>
           </button>
-          <button class="nav-item" onclick="showTab('sites')" id="nav-sites">
-            <span class="nav-icon">🌐</span><span data-i18n="navSites">سایت‌ها</span>
-          </button>
         </div>
       </div>
 
@@ -866,6 +863,9 @@
           </button>
           <button class="nav-item" onclick="showTab('size-charts')" id="nav-size-charts">
             <span class="nav-icon">📐</span><span data-i18n="navSizeCharts">جدول سایز</span>
+          </button>
+          <button class="nav-item" onclick="showTab('sites')" id="nav-sites">
+            <span class="nav-icon">🌐</span><span data-i18n="navSites">سایت‌ها</span>
           </button>
         </div>
       </div>
@@ -5846,7 +5846,6 @@ function renderSitesList() {
       </div>
       <div style="display:flex;gap:8px;flex-shrink:0">
         <button class="btn btn-secondary btn-sm" onclick="openSiteModal(${s.id})">${t('edit')}</button>
-        <button class="btn btn-sm" style="background:#fef2f2;color:#ef4444;border:1px solid #fca5a5" onclick="deleteSite(${s.id})">${t('del')}</button>
       </div>
     </div>
   `).join('');
@@ -5907,16 +5906,6 @@ async function saveSite(id) {
     renderSitesList();
     closeModal();
     showToast(t('siteSaved'));
-  } else showToast(data?.message || 'Error', 'error');
-}
-
-async function deleteSite(id) {
-  if (!confirm(t('siteConfirmDelete'))) return;
-  const data = await api(`/admin/sites/${id}`, { method: 'DELETE' });
-  if (data?.success) {
-    _allSites = _allSites.filter(s => s.id !== id);
-    renderSitesList();
-    showToast(t('siteDeleted'));
   } else showToast(data?.message || 'Error', 'error');
 }
 
