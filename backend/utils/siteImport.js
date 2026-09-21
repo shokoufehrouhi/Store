@@ -249,11 +249,18 @@ async function Defacto(pm, site, opts = {}) {
       const priceSite = data.discountedPrice ?? data.originalPrice;
       const discountedPrice = Math.round(priceSite * (1 + site.markup_percent / 100) * 100) / 100;
 
+      // A translation failure (e.g. the free API's daily quota) shouldn't
+      // abort the whole import — but silently swallowing it left products
+      // with blank name_fa/name_en and no trace of why. Log it instead so
+      // it's visible in the sync's console output; backend/scripts/
+      // backfillTranslations.js can fill in the gaps afterwards.
+      const translateOrWarn = (text, target) => translateText(text, 'tr', target)
+        .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
       const [name_fa, name_en, desc_fa, desc_en] = await Promise.all([
-        translateText(data.name, 'tr', 'fa').catch(() => ''),
-        translateText(data.name, 'tr', 'en').catch(() => ''),
-        data.description ? translateText(data.description, 'tr', 'fa').catch(() => '') : '',
-        data.description ? translateText(data.description, 'tr', 'en').catch(() => '') : '',
+        translateOrWarn(data.name, 'fa'),
+        translateOrWarn(data.name, 'en'),
+        data.description ? translateOrWarn(data.description, 'fa') : '',
+        data.description ? translateOrWarn(data.description, 'en') : '',
       ]);
       // name_fa/name_en/name_tr are VARCHAR(120) — machine translation (and
       // some Turkish product names themselves, especially kids' items) can
