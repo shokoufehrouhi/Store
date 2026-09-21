@@ -34,6 +34,7 @@ async function updateSite(req, res, next) {
     if (!url?.trim())   return res.status(400).json({ success: false, message: 'url_required' });
     const existing = await prisma.sites.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ success: false, message: 'not_found' });
+    const newMarkup = markup_percent != null && markup_percent !== '' ? Number(markup_percent) : existing.markup_percent;
     const row = await prisma.sites.update({
       where: { id },
       data: {
@@ -41,10 +42,28 @@ async function updateSite(req, res, next) {
         url:                         url.trim(),
         is_active:                   is_active !== undefined ? !!is_active : existing.is_active,
         discount_check_mode:         discount_check_mode === 'auto' ? 'auto' : 'manual',
-        markup_percent:              markup_percent != null && markup_percent !== '' ? Number(markup_percent) : existing.markup_percent,
+        markup_percent:              newMarkup,
         updated_at:                  new Date(),
       },
     });
+
+    // Re-price every already-imported product from this site so a markup %
+    // change takes effect immediately, not just on the next import.
+    if (newMarkup !== existing.markup_percent) {
+      const products = await prisma.products.findMany({
+        where: { supplier_shop_name: row.name, cost_price: { not: null } },
+        select: { id: true, cost_price: true },
+      });
+      await Promise.all(products.map(p => prisma.products.update({
+        where: { id: p.id },
+        data: {
+          discounted_price: Math.round(Number(p.cost_price) * (1 + newMarkup / 100) * 100) / 100,
+          is_dirty: true,
+          updated_at: new Date(),
+        },
+      })));
+    }
+
     res.json({ success: true, data: row });
   } catch (err) { next(err); }
 }
