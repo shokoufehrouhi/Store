@@ -3138,6 +3138,9 @@ async function openProductModal(id = null) {
   if (!_allSuppliers.length) fetchList.push(
     api('/admin/suppliers').then(r => { if (r?.success) _allSuppliers = r.data; }),
   );
+  if (!_allSites.length) fetchList.push(
+    api('/admin/sites').then(r => { if (r?.success) _allSites = r.data; }),
+  );
   if (fetchList.length) await Promise.all(fetchList);
   let product = null;
   if (id) {
@@ -3213,7 +3216,8 @@ async function openProductModal(id = null) {
         <label>${t('prodSupplierShop')}</label>
         <select id="f-supplier-shop" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
           <option value="">—</option>
-          ${_allSuppliers.map(s => `<option value="${esc(s.shop_name)}" ${product?.supplier_shop_name === s.shop_name ? 'selected' : ''}>${esc(s.shop_name)}</option>`).join('')}
+          ${_allSuppliers.length ? `<optgroup label="${t('navSuppliers')}">${_allSuppliers.map(s => `<option value="${esc(s.shop_name)}" ${product?.supplier_shop_name === s.shop_name ? 'selected' : ''}>${esc(s.shop_name)}</option>`).join('')}</optgroup>` : ''}
+          ${_allSites.length ? `<optgroup label="${t('navSites')}">${_allSites.map(s => `<option value="${esc(s.name)}" ${product?.supplier_shop_name === s.name ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</optgroup>` : ''}
         </select>
       </div>
     </div>
