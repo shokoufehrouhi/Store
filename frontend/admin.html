@@ -157,6 +157,35 @@
     .nav-subitem.active { background: rgba(255,92,0,.15); color: var(--primary); font-weight: 700; }
     .nav-section.collapsed .nav-section-items { display: none; }
 
+    .time-picker {
+      position: relative; display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+      font-family: inherit; font-size: 14px; background: var(--white);
+    }
+    .time-picker-icon { font-size: 13px; opacity: .6; }
+    .time-picker-seg {
+      cursor: pointer; font-variant-numeric: tabular-nums; min-width: 22px;
+      text-align: center; border-radius: 4px; padding: 2px 3px;
+    }
+    .time-picker-seg:hover, .time-picker-seg.active { background: var(--bg-soft, #f3f4f6); color: var(--primary); }
+    .time-picker-clear {
+      cursor: pointer; opacity: .5; font-size: 12px; margin-inline-start: 2px;
+    }
+    .time-picker-clear:hover { opacity: 1; color: var(--danger); }
+    .time-picker-dropdown {
+      position: absolute; top: calc(100% + 4px); z-index: 50; background: var(--white);
+      border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow);
+      max-height: 180px; overflow-y: auto; min-width: 56px; padding: 4px;
+    }
+    .time-picker-dropdown.hour-dd { inset-inline-start: 0; }
+    .time-picker-dropdown.min-dd  { inset-inline-start: 34px; }
+    .time-picker-opt {
+      padding: 6px 10px; text-align: center; border-radius: 6px; cursor: pointer;
+      font-size: 13px; font-variant-numeric: tabular-nums;
+    }
+    .time-picker-opt:hover { background: var(--bg-soft, #f3f4f6); }
+    .time-picker-opt.selected { background: var(--primary); color: #fff; }
+
     .sidebar-footer { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
     .btn-logout {
       display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 14px;
@@ -5975,6 +6004,8 @@ async function refreshSyncSitesQuietly() {
     _syncPollTimer = null;
     return;
   }
+  // don't clobber an open time-picker dropdown or unsaved edits mid-pick
+  if (document.querySelector('.time-picker-dropdown:not(.hidden)')) return;
   const data = await api('/admin/sites');
   if (!data?.success) return;
   _allSites = data.data;
@@ -5986,27 +6017,67 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleString(currentLang === 'fa' ? 'fa-IR' : currentLang === 'tr' ? 'tr-TR' : 'en-US');
 }
 
+var _timePickerState = {};
+
 function timeSelectHtml(prefix, value) {
   const [h, m] = (value || '').split(':');
-  const selStyle = 'padding:8px 6px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px';
-  const hourOpts = ['<option value="">' + t('syncNoTime') + '</option>']
-    .concat(Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
-      .map(hh => `<option value="${hh}" ${hh === h ? 'selected' : ''}>${hh}</option>`));
-  const minOpts = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))
-    .map(mm => `<option value="${mm}" ${mm === m ? 'selected' : ''}>${mm}</option>`);
+  _timePickerState[prefix] = { h: h || null, m: m || null };
   return `
-    <div style="display:flex;gap:6px;align-items:center" dir="ltr">
-      <select id="${prefix}-hour" style="${selStyle}">${hourOpts.join('')}</select>
+    <div class="time-picker" id="${prefix}-picker" dir="ltr">
+      <span class="time-picker-icon">🕐</span>
+      <span class="time-picker-seg" id="${prefix}-hour-disp" onclick="toggleTimeDropdown('${prefix}','hour')">${h || '--'}</span>
       <span>:</span>
-      <select id="${prefix}-min" style="${selStyle}">${minOpts.join('')}</select>
+      <span class="time-picker-seg" id="${prefix}-min-disp" onclick="toggleTimeDropdown('${prefix}','min')">${m || '--'}</span>
+      <span class="time-picker-clear" id="${prefix}-clear" onclick="clearTimePicker('${prefix}')" title="${t('syncNoTime')}" style="${h ? '' : 'display:none'}">✕</span>
+      <div class="time-picker-dropdown hour-dd hidden" id="${prefix}-hour-dropdown">
+        ${Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
+          .map(hh => `<div class="time-picker-opt${hh === h ? ' selected' : ''}" onclick="selectTimeValue('${prefix}','hour','${hh}')">${hh}</div>`).join('')}
+      </div>
+      <div class="time-picker-dropdown min-dd hidden" id="${prefix}-min-dropdown">
+        ${Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
+          .map(mm => `<div class="time-picker-opt${mm === m ? ' selected' : ''}" onclick="selectTimeValue('${prefix}','min','${mm}')">${mm}</div>`).join('')}
+      </div>
     </div>
   `;
 }
 
+function closeAllTimeDropdowns() {
+  document.querySelectorAll('.time-picker-dropdown').forEach(el => el.classList.add('hidden'));
+}
+
+function toggleTimeDropdown(prefix, part) {
+  const dd = document.getElementById(`${prefix}-${part}-dropdown`);
+  const wasOpen = dd && !dd.classList.contains('hidden');
+  closeAllTimeDropdowns();
+  if (dd && !wasOpen) dd.classList.remove('hidden');
+}
+
+function selectTimeValue(prefix, part, val) {
+  _timePickerState[prefix] = _timePickerState[prefix] || {};
+  _timePickerState[prefix][part === 'hour' ? 'h' : 'm'] = val;
+  if (part === 'hour' && !_timePickerState[prefix].m) _timePickerState[prefix].m = '00';
+  document.getElementById(`${prefix}-hour-disp`).textContent = _timePickerState[prefix].h || '--';
+  document.getElementById(`${prefix}-min-disp`).textContent  = _timePickerState[prefix].m || '--';
+  const clearBtn = document.getElementById(`${prefix}-clear`);
+  if (clearBtn) clearBtn.style.display = _timePickerState[prefix].h ? '' : 'none';
+  closeAllTimeDropdowns();
+}
+
+function clearTimePicker(prefix) {
+  _timePickerState[prefix] = { h: null, m: null };
+  document.getElementById(`${prefix}-hour-disp`).textContent = '--';
+  document.getElementById(`${prefix}-min-disp`).textContent  = '--';
+  document.getElementById(`${prefix}-clear`).style.display = 'none';
+  closeAllTimeDropdowns();
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.time-picker')) closeAllTimeDropdowns();
+});
+
 function readTimeSelect(prefix) {
-  const h = document.getElementById(`${prefix}-hour`)?.value;
-  const m = document.getElementById(`${prefix}-min`)?.value;
-  return h ? `${h}:${m || '00'}` : null;
+  const st = _timePickerState[prefix];
+  return st && st.h ? `${st.h}:${st.m || '00'}` : null;
 }
 
 function renderSyncPanel() {
