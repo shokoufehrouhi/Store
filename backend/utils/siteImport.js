@@ -40,6 +40,19 @@ function guessColorId(title) {
   return firstWord && TR_COLOR_TO_ID[firstWord] || null;
 }
 
+// Same SHIL#### code scheme as the admin panel's manual "add product" form
+// (adminController.js#createProduct) — products created here bypass that
+// endpoint (direct prisma.products.create), so it isn't generated for free.
+async function generateProductCode() {
+  const last = await prisma.products.findFirst({
+    where: { code: { startsWith: 'SHIL' } },
+    orderBy: { code: 'desc' },
+    select: { code: true },
+  });
+  const nextNum = last?.code ? Number(last.code.replace('SHIL', '')) + 1 : 100;
+  return 'SHIL' + String(nextNum).padStart(8, '0');
+}
+
 async function saveImageFromUrl(imageUrl) {
   const res = await fetch(imageUrl);
   if (!res.ok) throw new Error(`image fetch failed ${res.status}`);
@@ -138,6 +151,7 @@ async function Defacto(page, site, opts = {}) {
 
       const product = await prisma.products.create({
         data: {
+          code: await generateProductCode(),
           category_id: 1,
           subcategory_id: guessSubcategoryId(data.name),
           gender: 'female',
