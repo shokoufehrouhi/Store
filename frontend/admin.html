@@ -3198,7 +3198,7 @@ async function openProductModal(id = null) {
     <div class="form-row">
       <div class="form-field">
         <label>${t('deliveryDaysLbl')}</label>
-        <input type="number" id="f-delivery-days" value="${product?.delivery_days ?? 5}" min="1" max="60" style="direction:ltr">
+        <input type="number" id="f-delivery-days" value="${product?.delivery_days ?? 10}" min="1" max="60" style="direction:ltr">
       </div>
       <div class="form-field">
         <label>${t('minOrderQtyLbl')}</label>
@@ -3557,7 +3557,7 @@ async function saveProduct(id) {
     desc_fa: document.getElementById('f-desc-fa')?.value?.trim() || '',
     desc_en: document.getElementById('f-desc-en')?.value?.trim() || '',
     desc_tr: document.getElementById('f-desc-tr')?.value?.trim() || '',
-    delivery_days:      Number(document.getElementById('f-delivery-days')?.value) || 5,
+    delivery_days:      Number(document.getElementById('f-delivery-days')?.value) || 10,
     min_order_qty:      Number(document.getElementById('f-min-order-qty')?.value) || 1,
     brand:              document.getElementById('f-brand')?.value?.trim()         || null,
     supplier_shop_name: document.getElementById('f-supplier-shop')?.value?.trim() || null,
