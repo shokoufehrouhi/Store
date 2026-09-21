@@ -1112,10 +1112,12 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   box-shadow: var(--shadow-lg);
 }
 .product-card.product-sold-out {
-  opacity: .55;
+  filter: grayscale(1);
+  opacity: .5;
 }
 .product-card.product-sold-out:hover {
-  opacity: .8;
+  filter: grayscale(.7);
+  opacity: .75;
 }
 
 .product-real-img {
