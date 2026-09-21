@@ -193,6 +193,12 @@ async function Defacto(pm, site, opts = {}) {
         data.description ? translateText(data.description, 'tr', 'fa').catch(() => '') : '',
         data.description ? translateText(data.description, 'tr', 'en').catch(() => '') : '',
       ]);
+      // name_fa/name_en/name_tr are VARCHAR(120) — machine translation (and
+      // some Turkish product names themselves, especially kids' items) can
+      // run longer than the source and blow past that, failing the insert.
+      const nameTr = data.name.slice(0, 120);
+      const nameFa = name_fa.slice(0, 120);
+      const nameEn = name_en.slice(0, 120);
 
       const mediaUrls = [];
       for (const imgUrl of data.images.slice(0, 8)) {
@@ -205,7 +211,7 @@ async function Defacto(pm, site, opts = {}) {
           category_id: 1,
           subcategory_id: guessSubcategoryId(data.name),
           gender,
-          name_fa, name_en, name_tr: data.name,
+          name_fa: nameFa, name_en: nameEn, name_tr: nameTr,
           desc_fa, desc_en, desc_tr: data.description || null,
           price: priceOriginal,
           cost_price: priceSite,
