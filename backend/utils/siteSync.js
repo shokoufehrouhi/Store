@@ -21,18 +21,31 @@ async function withBrowser(fn) {
   }
 }
 
-async function readSiteStock(page, url) {
+async function readSiteData(page, url) {
   await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
   await new Promise(r => setTimeout(r, 1500));
-  return page.evaluate(() => (
-    window.PRODUCT_DETAIL_SIZE_DATA
+  return page.evaluate(() => {
+    const sizes = window.PRODUCT_DETAIL_SIZE_DATA
       ? window.PRODUCT_DETAIL_SIZE_DATA.map(s => ({ size: s.Size, stock: s.StockQuantity }))
-      : null
-  ));
+      : null;
+
+    let originalPrice = null;
+    const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
+    for (const s of scripts) {
+      try { const d = JSON.parse(s.textContent); if (d.offers?.price) originalPrice = Number(d.offers.price); } catch (e) {}
+    }
+    const priceText = document.querySelector('.product-detail__price')?.textContent || '';
+    const discMatch = priceText.match(/Sepette\s*([\d.,]+)\s*TL/i);
+    const discountedPrice = discMatch ? Number(discMatch[1].replace(',', '.')) : null;
+
+    return { sizes, originalPrice, discountedPrice };
+  });
 }
 
-// Checks live per-size stock for every product imported from this site and
-// marks fully-sold-out products stock=0 / tag='sold_out'.
+// Checks live per-size stock (and current price) for every product imported
+// from this site: marks fully-sold-out products stock=0 / tag='sold_out',
+// and re-prices cost_price/price/discounted_price if the site's price moved
+// — using this site's markup_percent, same formula as at import time.
 async function checkSiteStock(site) {
   const products = await prisma.products.findMany({
     where: { supplier_shop_name: site.name, product_link: { not: null }, is_active: true },
@@ -43,19 +56,35 @@ async function checkSiteStock(site) {
   await withBrowser(async (page) => {
     for (const p of products) {
       try {
-        const sizes = await readSiteStock(page, p.product_link);
-        if (!sizes) { results.push({ id: p.id, name: p.name_tr, status: 'skipped (no data)' }); continue; }
-        const totalStock = sizes.reduce((sum, s) => sum + (s.stock || 0), 0);
+        const data = await readSiteData(page, p.product_link);
+        if (!data.sizes) { results.push({ id: p.id, name: p.name_tr, status: 'skipped (no data)' }); continue; }
+        const totalStock = data.sizes.reduce((sum, s) => sum + (s.stock || 0), 0);
+
+        const priceUpdate = {};
+        if (data.originalPrice) {
+          const newCost = data.discountedPrice ?? data.originalPrice;
+          const newDiscounted = Math.round(newCost * (1 + site.markup_percent / 100) * 100) / 100;
+          if (Number(p.price) !== data.originalPrice) priceUpdate.price = data.originalPrice;
+          if (Number(p.cost_price) !== newCost) priceUpdate.cost_price = newCost;
+          if (Number(p.discounted_price) !== newDiscounted) priceUpdate.discounted_price = newDiscounted;
+        }
+
         if (totalStock === 0) {
-          if (p.tag !== 'sold_out' || p.stock !== 0) {
+          if (p.tag !== 'sold_out' || p.stock !== 0 || Object.keys(priceUpdate).length) {
             await prisma.products.update({
               where: { id: p.id },
-              data: { stock: 0, tag: 'sold_out', is_dirty: true, updated_at: new Date() },
+              data: { ...priceUpdate, stock: 0, tag: 'sold_out', is_dirty: true, updated_at: new Date() },
             });
           }
           results.push({ id: p.id, name: p.name_tr, status: 'sold_out' });
         } else {
-          results.push({ id: p.id, name: p.name_tr, status: `ok (stock=${totalStock})` });
+          if (Object.keys(priceUpdate).length) {
+            await prisma.products.update({
+              where: { id: p.id },
+              data: { ...priceUpdate, is_dirty: true, updated_at: new Date() },
+            });
+          }
+          results.push({ id: p.id, name: p.name_tr, status: `ok (stock=${totalStock})${Object.keys(priceUpdate).length ? ', repriced' : ''}` });
         }
       } catch (err) {
         results.push({ id: p.id, name: p.name_tr, status: `error: ${err.message}` });
