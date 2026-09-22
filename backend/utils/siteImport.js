@@ -88,6 +88,20 @@ function guessColorId(title) {
   return firstWord && TR_COLOR_TO_ID[firstWord] || null;
 }
 
+// Madame Coco's own "Renk" variant field is a bare color word/phrase (e.g.
+// "Bej", "Açık Gri"), not a title prefix — unlike Defacto's guessColorId
+// above. Kozmetik variants use this same field for scent names ("Dark
+// Ambre", "Poetic Oud"), which correctly match nothing here and fall back to
+// no color, same as an unrecognized Defacto shade would.
+function guessColorIdFromWord(text) {
+  if (!text) return null;
+  const norm = s => s.trim().toLocaleLowerCase('tr');
+  const full = norm(text);
+  if (TR_COLOR_TO_ID[full]) return TR_COLOR_TO_ID[full];
+  for (const w of full.split(/\s+/)) if (TR_COLOR_TO_ID[w]) return TR_COLOR_TO_ID[w];
+  return null;
+}
+
 // Every product page's <title> leads with "<Color> <Gender...> <Name> <id> |
 // DeFacto" regardless of listing (confirmed on kadın/erkek/çocuk *and*
 // sports/Fit pages, e.g. "Siyah Kadın Ultra Yumuşak ... Eşofman Altı") — more
@@ -334,4 +348,212 @@ async function Defacto(pm, site, opts = {}) {
   return { imported, skipped };
 }
 
-module.exports = { Defacto };
+// Madame Coco (home textiles/decor) has no clothing-store equivalent
+// category in our taxonomy at all — everything here goes under the existing
+// Lifestyle category (id 8), split into subcategories that mirror Madame
+// Coco's own top-level nav (Yatak Odası, Banyo, ...). Those subcategories
+// don't exist yet and are created on first use (see getOrCreateSubcategory)
+// rather than requiring them to be pre-seeded, since there's no fixed ID to
+// hardcode the way Defacto's clothing subcategories have.
+const MC_LIFESTYLE_CATEGORY_ID = 8;
+const MC_SUBCATEGORY_DEFS = {
+  'yatak-odasi':    { key: 'bedroom',        label_tr: 'Yatak Odası',    label_fa: 'اتاق خواب',               label_en: 'Bedroom' },
+  'banyo':          { key: 'bathroom',       label_tr: 'Banyo',          label_fa: 'حمام',                     label_en: 'Bathroom' },
+  'mutfak':         { key: 'kitchen',        label_tr: 'Mutfak',         label_fa: 'آشپزخانه',                 label_en: 'Kitchen' },
+  'sofra':          { key: 'tableware',      label_tr: 'Sofra',          label_fa: 'سفره و ظروف',              label_en: 'Tableware' },
+  'hali-kilim':     { key: 'rugs',           label_tr: 'Halı & Kilim',   label_fa: 'فرش و قالی',               label_en: 'Rugs & Carpets' },
+  'dekorasyon':     { key: 'decoration',     label_tr: 'Dekorasyon',     label_fa: 'دکوراسیون',                label_en: 'Decoration' },
+  'kozmetik':       { key: 'home_cosmetics', label_tr: 'Kozmetik',       label_fa: 'عطر، شمع و بهداشت خانه',   label_en: 'Home Fragrance & Care' },
+  'ev-yasam':       { key: 'home_living',    label_tr: 'Ev & Yaşam',     label_fa: 'خانه و زندگی',             label_en: 'Home & Living' },
+  'ceyiz-urunleri': { key: 'trousseau',      label_tr: 'Çeyiz Ürünleri', label_fa: 'جهیزیه',                   label_en: 'Trousseau' },
+};
+const mcSubcategoryCache = new Map(); // slug -> subcategory id, memoized for one import run
+
+async function getOrCreateMcSubcategory(slug) {
+  if (mcSubcategoryCache.has(slug)) return mcSubcategoryCache.get(slug);
+  const def = MC_SUBCATEGORY_DEFS[slug];
+  if (!def) return null;
+  let sub = await prisma.subcategories.findFirst({ where: { category_id: MC_LIFESTYLE_CATEGORY_ID, key: def.key } });
+  if (!sub) {
+    sub = await prisma.subcategories.create({
+      data: { category_id: MC_LIFESTYLE_CATEGORY_ID, key: def.key, label_tr: def.label_tr, label_fa: def.label_fa, label_en: def.label_en },
+    });
+  }
+  mcSubcategoryCache.set(slug, sub.id);
+  return sub.id;
+}
+
+async function scrapeMadameCocoProduct(pm, url) {
+  const page = await pm.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+  await new Promise(r => setTimeout(r, 1500));
+
+  return page.evaluate(() => {
+    const ldBlocks = Array.from(document.querySelectorAll('script[type="application/ld+json"]'))
+      .map(s => { try { return JSON.parse(s.textContent); } catch (e) { return null; } })
+      .filter(Boolean);
+    const group = ldBlocks.find(d => d['@type'] === 'ProductGroup');
+    const breadcrumb = ldBlocks.find(d => d['@type'] === 'BreadcrumbList');
+    if (!group) return null;
+
+    // window.dataLayer's GA4 view_item event is the one place this site
+    // exposes BOTH the original and current price for the loaded variant
+    // (first_price/price) — the JSON-LD offers only ever carry the current
+    // price. This pair is the "pprc"/"pmprc" comparison the import is gated
+    // on; every other discount signal on this site (the "İndirimli Ürünler"
+    // listing tag itself, cart-level "2. ürüne %50" promos) is ignored.
+    const viewItem = (window.dataLayer || []).find(d => d.event === 'view_item');
+    const item = viewItem?.ecommerce?.items?.[0];
+    const firstPrice = item?.first_price != null ? Number(item.first_price) : null;
+    const price = item?.price != null ? Number(item.price) : null;
+
+    // The breadcrumb's own @id is a stable URL slug ("/kozmetik/") — more
+    // reliable than the visible label text, which has a Turkish-I casing
+    // quirk here too ("Kozmeti̇k").
+    let categorySlug = null;
+    const catCrumb = breadcrumb?.itemListElement?.find(li => li.position === 2);
+    if (catCrumb?.item?.['@id']) {
+      categorySlug = catCrumb.item['@id'].replace(/^https?:\/\/[^/]+\//, '').replace(/\/$/, '');
+    }
+
+    const images = [...new Set(group.image || [])];
+
+    let description = '';
+    const h2 = Array.from(document.querySelectorAll('h2')).find(e => e.textContent.trim() === 'Ürün Detayı');
+    if (h2) {
+      let container = h2.parentElement;
+      for (let i = 0; i < 6 && container; i++) { if (container.querySelector('p')) break; container = container.parentElement; }
+      const p0 = container?.querySelector('p');
+      if (p0) {
+        const clone = p0.cloneNode(true);
+        clone.querySelectorAll('strong').forEach(s => s.remove());
+        description = clone.textContent.trim();
+      }
+    }
+
+    // additionalVariants covers every color/size combo with its own SKU —
+    // match the one that's actually loaded via the dataLayer item's id to
+    // read its color word and live stock status.
+    const variant = (group.additionalVariants || []).find(v => v.sku === item?.item_id);
+    const color = variant?.color || null;
+    const inStock = variant ? /InStock/i.test(variant.offers?.availability || '') : true;
+
+    return { name: group.name, images, description, firstPrice, price, categorySlug, color, inStock };
+  });
+}
+
+// Madame Coco's "İndirimli Ürünler" listing has no page=N URL scheme like
+// Defacto's listings — it's a scroll-triggered infinite-load grid, so
+// candidates are collected by repeatedly scrolling to the bottom and reading
+// newly-rendered product links until a few rounds in a row add nothing new.
+async function collectMadameCocoListingLinks(pm, site, maxCandidates) {
+  const url = new URL('indirimli-urunler/', site.url).href;
+  const page = await pm.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+  await new Promise(r => setTimeout(r, 1500));
+
+  const links = new Set();
+  let stableRounds = 0;
+  for (let i = 0; i < 60 && stableRounds < 3 && links.size < maxCandidates; i++) {
+    const before = links.size;
+    const pageLinks = await page.evaluate(() => {
+      const out = new Set();
+      document.querySelectorAll('img[alt]').forEach(img => {
+        const a = img.closest('a');
+        const href = a && a.getAttribute('href');
+        if (href && href.startsWith('/') && href.split('/').filter(Boolean).length === 1 && (href.match(/-/g) || []).length >= 4) {
+          out.add(href);
+        }
+      });
+      return [...out];
+    });
+    pageLinks.forEach(h => links.add(h));
+    stableRounds = links.size === before ? stableRounds + 1 : 0;
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await new Promise(r => setTimeout(r, 1200));
+  }
+  return [...links].map(h => new URL(h, site.url).href);
+}
+
+// Site scraper entry point. Only the products page's own GA4 first_price/
+// price pair (see scrapeMadameCocoProduct) decides "genuinely discounted" —
+// per instruction, every other discount signal on this site is disregarded,
+// including the "İndirimli Ürünler" listing's own tag (confirmed unreliable:
+// it covers ~4100 of the site's ~4200 products, i.e. it's a marketing label,
+// not a per-item discount flag). The listing is used only as a source of
+// candidate URLs, exactly like Defacto's Kozmetik listing.
+async function MadameCoco(pm, site, opts = {}) {
+  const limit = opts.limit || 30;
+  const candidateUrls = await collectMadameCocoListingLinks(pm, site, Math.max(limit * 15, 200));
+
+  const existing = await prisma.products.findMany({
+    where: { product_link: { in: candidateUrls } },
+    select: { product_link: true },
+  });
+  const existingSet = new Set(existing.map(e => e.product_link));
+  const newUrls = candidateUrls.filter(u => !existingSet.has(u));
+
+  const imported = [];
+  let notDiscounted = 0;
+
+  for (const url of newUrls) {
+    if (imported.filter(p => !p.error).length >= limit) break;
+    try {
+      const data = await scrapeMadameCocoProduct(pm, url);
+      if (!data || !data.name || data.price == null) continue;
+      if (!data.firstPrice || data.firstPrice <= data.price) { notDiscounted++; continue; }
+
+      const subcategoryId = data.categorySlug ? await getOrCreateMcSubcategory(data.categorySlug) : null;
+
+      const priceOriginal = data.firstPrice;
+      const priceSite = data.price;
+      const discountedPrice = Math.round(priceSite * (1 + site.markup_percent / 100) * 100) / 100;
+
+      const translateOrWarn = (text, target) => translateText(text, 'tr', target)
+        .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
+      const [name_fa, name_en, desc_fa, desc_en] = await Promise.all([
+        translateOrWarn(data.name, 'fa'),
+        translateOrWarn(data.name, 'en'),
+        data.description ? translateOrWarn(data.description, 'fa') : '',
+        data.description ? translateOrWarn(data.description, 'en') : '',
+      ]);
+      const nameTr = data.name.slice(0, 120);
+      const nameFa = name_fa.slice(0, 120);
+      const nameEn = name_en.slice(0, 120);
+
+      const mediaUrls = [];
+      for (const imgUrl of data.images) {
+        try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
+      }
+
+      const colorId = guessColorIdFromWord(data.color);
+
+      const product = await prisma.products.create({
+        data: {
+          code: await generateProductCode(),
+          category_id: MC_LIFESTYLE_CATEGORY_ID,
+          subcategory_id: subcategoryId,
+          gender: 'unisex',
+          name_fa: nameFa, name_en: nameEn, name_tr: nameTr,
+          desc_fa, desc_en, desc_tr: data.description || null,
+          price: priceOriginal,
+          cost_price: priceSite,
+          discounted_price: discountedPrice,
+          tag: 'discount',
+          stock: data.inStock ? 10 : 0,
+          brand: site.name,
+          supplier_shop_name: site.name,
+          product_link: url,
+          product_media: mediaUrls.length ? { create: mediaUrls.map((u, i) => ({ type: 'image', url: u, sort_order: i })) } : undefined,
+          product_colors: colorId ? { create: [{ color_id: colorId, is_available: data.inStock }] } : undefined,
+        },
+      });
+
+      imported.push({ id: product.id, name: data.name });
+    } catch (err) {
+      imported.push({ error: err.message, url });
+    }
+  }
+
+  return { imported, skipped: notDiscounted + (candidateUrls.length - newUrls.length) };
+}
+
+module.exports = { Defacto, MadameCoco };
