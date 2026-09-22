@@ -1121,7 +1121,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .product-real-img {
-  width: 100%; height: 100%; object-fit: cover;
+  width: 100%; height: 100%; object-fit: contain;
   position: absolute; inset: 0;
 }
 .product-image {
@@ -2771,7 +2771,7 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 .cart-item-thumb img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 .cart-item-info {
@@ -3766,7 +3766,7 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   overflow: hidden;
   display: flex; align-items: center; justify-content: center; font-size: 28px;
 }
-.fav-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fav-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .fav-card-body {
   padding: 6px 8px 8px;
   display: flex; flex-direction: column; gap: 3px;
@@ -4142,7 +4142,7 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   flex-shrink: 0; overflow: hidden; background: #f5f0eb;
   display: flex; align-items: center; justify-content: center;
 }
-.checkout-item-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.checkout-item-thumb img { width: 100%; height: 100%; object-fit: contain; }
 .checkout-item-info { flex: 1; min-width: 0; }
 .checkout-item-name {
   font-size: 14px; font-weight: 600; color: #111; display: block;

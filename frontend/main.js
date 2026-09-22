@@ -745,7 +745,7 @@ function quickAdd(event, productId) {
 
   var qaFirstImg = p.images && p.images.length ? p.images[0] : null;
   var qaThumbInner = qaFirstImg
-    ? '<img src="' + SERVER_BASE + qaFirstImg.url + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px" onerror="this.style.display=\'none\'">'
+    ? '<img src="' + SERVER_BASE + qaFirstImg.url + '" style="width:100%;height:100%;object-fit:contain;border-radius:8px" onerror="this.style.display=\'none\'">'
     : PLACEHOLDER_SVG;
   var qaThumbStyle = qaFirstImg ? '' : 'style="background:' + p.gradient + '"';
 
@@ -2856,7 +2856,7 @@ function renderFavPanel() {
       return (
         '<div class="fav-panel-item">' +
         '<div class="fav-panel-thumb" style="background:' + p.gradient + '" onclick="closeFavPanel();openModal(' + p.id + ')">' +
-        (p.images && p.images.length ? '<img src="' + SERVER_BASE + p.images[0].url + '" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">' : PLACEHOLDER_SVG) +
+        (p.images && p.images.length ? '<img src="' + SERVER_BASE + p.images[0].url + '" style="width:100%;height:100%;object-fit:contain" onerror="this.style.display=\'none\'">' : PLACEHOLDER_SVG) +
         '</div>' +
         '<div class="fav-panel-info" onclick="closeFavPanel();openModal(' + p.id + ')">' +
         '<span class="fav-panel-name">' + name + '</span>' +
@@ -5239,7 +5239,7 @@ function _buildCheckoutItemHtml(item, idx) {
   var unitPrice = p.discounted_price && p.discounted_price < p.price ? p.discounted_price : p.price;
   var firstImg  = p.images && p.images.length ? p.images[0] : null;
   var thumb     = firstImg
-    ? '<img src="' + SERVER_BASE + firstImg.url + '" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">'
+    ? '<img src="' + SERVER_BASE + firstImg.url + '" style="width:100%;height:100%;object-fit:contain" onerror="this.style.display=\'none\'">'
     : (p.emoji ? '<span style="font-size:26px">' + p.emoji + '</span>' : PLACEHOLDER_SVG);
   return '<div class="checkout-item">' +
     '<div class="checkout-item-thumb" style="background:' + p.gradient + '">' + thumb + '</div>' +
@@ -5612,7 +5612,7 @@ function renderFavoritesTab() {
     '<div class="fav-grid">' +
     favProds.map(function(p) {
       var thumb = p.images && p.images.length
-        ? '<img src="' + SERVER_BASE + p.images[0].url + '" style="width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.style.display=\'none\'">'
+        ? '<img src="' + SERVER_BASE + p.images[0].url + '" style="width:100%;height:100%;object-fit:contain;border-radius:10px" onerror="this.style.display=\'none\'">'
         : PLACEHOLDER_SVG;
       var hasDiscount = p.discounted_price && p.discounted_price < p.price;
       var priceHtml = p.price

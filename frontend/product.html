@@ -23,7 +23,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=87">
+  <link rel="stylesheet" href="style.css?v=88">
   <style>
     /* ── fix sticky on product page ── */
     body { overflow-x: clip; }
@@ -79,7 +79,7 @@
       background: #f0f0f0;
     }
     .pd-main-img img, .pd-main-img video {
-      width: 100%; height: 100%; object-fit: cover; display: block;
+      width: 100%; height: 100%; object-fit: contain; display: block;
     }
     .pd-arrow {
       position: absolute; top: 50%; transform: translateY(-50%);
@@ -98,7 +98,7 @@
       cursor: pointer; border: 2.5px solid transparent; opacity: .65;
       transition: all .18s;
     }
-    .pd-thumb img, .pd-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .pd-thumb img, .pd-thumb video { width: 100%; height: 100%; object-fit: contain; display: block; }
     .pd-thumb:hover { opacity: .85; transform: translateY(-2px); }
     .pd-thumb.active { border-color: var(--primary); opacity: 1; }
 
@@ -240,7 +240,7 @@
       padding: 10px; border-radius: 10px; background: var(--bg);
     }
     .pd-cart-item-img {
-      width: 54px; height: 54px; object-fit: cover; border-radius: 8px;
+      width: 54px; height: 54px; object-fit: contain; border-radius: 8px;
       background: var(--border); flex-shrink: 0;
     }
     .pd-cart-item-info { flex: 1; min-width: 0; }
