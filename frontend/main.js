@@ -1296,7 +1296,6 @@ function renderCardSizesColors(p) {
     var extra = p.colors.length > 6 ? '<span class="card-color-more">+' + (p.colors.length - 6) + '</span>' : '';
     colorsRow =
       '<div class="card-meta-row">' +
-      '<span class="card-meta-label">' + t.color_label + '</span>' +
       '<div class="card-colors">' + dots + extra + '</div>' +
       '</div>';
   } else {
@@ -1530,6 +1529,31 @@ function subcatMetaByKey(key) {
   return null;
 }
 
+// Compact searchable + scrollable checkbox list (used for subcategory/brand,
+// which can have many more options than color/size) — shows ~3 rows by
+// default, scrolls for the rest, and a text input filters rows client-side.
+function fdSearchableList(rows, toggleFnName) {
+  var t = TRANSLATIONS[currentLang];
+  var rowsHtml = rows.map(function(row) {
+    return '<label class="fd-list-row" data-search="' + row.label.toLowerCase().replace(/"/g, '&quot;') + '">'
+      + '<input type="checkbox"' + (row.checked ? ' checked' : '') + ' onchange="' + toggleFnName + '(\'' + row.key.replace(/'/g, "\\'") + '\')">'
+      + '<span>' + row.label + '</span>'
+      + '</label>';
+  }).join('');
+  return '<div class="fd-search-list">'
+    + '<input type="text" class="fd-list-search-input" placeholder="' + (t.filter_search_ph || 'جستجو...') + '" oninput="fdFilterRows(this)">'
+    + '<div class="fd-list-scroll">' + rowsHtml + '</div>'
+    + '</div>';
+}
+
+function fdFilterRows(inputEl) {
+  var q = inputEl.value.trim().toLowerCase();
+  var rows = inputEl.nextElementSibling.querySelectorAll('.fd-list-row');
+  rows.forEach(function(row) {
+    row.style.display = row.getAttribute('data-search').indexOf(q) === -1 ? 'none' : '';
+  });
+}
+
 function fdSection(titleHtml, bodyHtml) {
   return '<div class="fd-section">'
        + '<button type="button" class="fd-section-header" onclick="toggleFdSection(this)">'
@@ -1604,32 +1628,19 @@ function renderFilterDrawerBody(baseList) {
   }
 
   if (availSubcats.length) {
-    var subBody = '<div class="fd-chips-grid">';
-    availSubcats.forEach(function(sub) {
-      var checked = currentSubcategoryFilters.indexOf(sub.key) !== -1;
+    var subRows = availSubcats.map(function(sub) {
       var name = currentLang === 'en' ? (sub.label_en || sub.label_fa) : currentLang === 'tr' ? (sub.label_tr || sub.label_fa) : sub.label_fa;
-      subBody += '<label class="fd-chip' + (checked ? ' checked' : '') + '">'
-            + '<input type="checkbox"' + (checked ? ' checked' : '') + ' onchange="toggleSubcategoryFilterChip(\'' + sub.key.replace(/'/g, "\\'") + '\')">'
-            + '<span>' + name + '</span>'
-            + '</label>';
+      return { key: sub.key, label: name, checked: currentSubcategoryFilters.indexOf(sub.key) !== -1 };
     });
-    subBody += '</div>';
-    html += fdSection(t.filter_subcategory || 'زیردسته', subBody);
+    html += fdSection(t.filter_subcategory || 'زیردسته', fdSearchableList(subRows, 'toggleSubcategoryFilterChip'));
   }
 
   if (availBrands.length) {
-    var brandBody = '<div class="fd-chips-grid">';
-    availBrands.forEach(function(b) {
-      var checked = currentBrands.indexOf(b) !== -1;
-      brandBody += '<label class="fd-chip' + (checked ? ' checked' : '') + '">'
-            + '<input type="checkbox"' + (checked ? ' checked' : '') + ' onchange="toggleBrandFilter(\'' + b.replace(/'/g, "\\'") + '\')">'
-            + '<span>' + b + '</span>'
-            + '</label>';
+    var brandRows = availBrands.map(function(b) {
+      return { key: b, label: b, checked: currentBrands.indexOf(b) !== -1 };
     });
-    brandBody += '</div>';
-    html += fdSection(t.filter_brand || 'برند', brandBody);
+    html += fdSection(t.filter_brand || 'برند', fdSearchableList(brandRows, 'toggleBrandFilter'));
   }
-
   if (hasSoldOut) {
     var stockBody = '<label class="fd-toggle-row">'
           + '<span>' + (t.filter_hide_sold_out || 'فقط موجود در انبار') + '</span>'

@@ -848,30 +848,50 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .fd-section-body > * { overflow: hidden; min-height: 0; }
 .fd-section.collapsed .fd-section-body { grid-template-rows: 0fr; }
 
-/* Subcategory / brand chip list */
-.fd-chips-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+/* Subcategory / brand — searchable, scrollable checkbox list (can have many
+   more options than color/size, so a flat chip grid would blow up the drawer) */
+.fd-search-list { display: flex; flex-direction: column; gap: 8px; }
+.fd-list-search-input {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1.5px solid #eee;
+  font-size: 13px;
+  font-family: inherit;
+  background: #fafafa;
+  color: #333;
 }
-.fd-chip {
+.fd-list-search-input:focus { outline: none; border-color: #FF5C00; background: #fff; }
+.fd-list-search-input::placeholder { color: #aaa; }
+
+.fd-list-scroll {
+  max-height: 116px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fd-list-row {
   display: flex;
   align-items: center;
-  height: 34px;
-  padding: 0 12px;
-  border-radius: 20px;
-  border: 1.5px solid #ddd;
-  background: #fff;
-  font-size: 12.5px;
-  font-weight: 600;
+  gap: 9px;
+  padding: 7px 6px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
   color: #333;
   cursor: pointer;
-  transition: border-color .15s, background .15s, color .15s;
   user-select: none;
+  transition: background .12s;
 }
-.fd-chip input[type="checkbox"] { display: none; }
-.fd-chip:hover { border-color: #FF5C00; color: #FF5C00; }
-.fd-chip.checked { background: #FF5C00; border-color: #FF5C00; color: #fff; }
+.fd-list-row:hover { background: #f8f8f8; }
+.fd-list-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  accent-color: #FF5C00;
+  cursor: pointer;
+}
 
 /* Availability toggle switch */
 .fd-toggle-row {
@@ -1391,11 +1411,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .card-colors {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
 }
 .card-color-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   border: 1px solid rgba(0,0,0,.14);
   display: inline-block;
