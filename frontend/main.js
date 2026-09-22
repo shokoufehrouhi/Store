@@ -67,6 +67,9 @@ var currentSubcategory = null;
 var currentGender      = 'all';
 var currentColors      = [];
 var currentSizes       = [];
+var currentSubcategoryFilters = []; // multi-select filter-drawer subcategory checkboxes (distinct from the single nav-driven currentSubcategory)
+var currentBrands      = [];
+var currentHideSoldOut = false;
 var currentSort        = 'newest';
 var currentPage        = 1;
 var PAGE_SIZE          = 12;
@@ -1475,8 +1478,8 @@ function renderFilterBar(baseList) {
   var sizeSet = {};
   baseList.forEach(function(p) { (p.sizes || []).forEach(function(s) { sizeSet[s] = true; }); });
 
-  var hasAvailFilters = Object.keys(colorMap).length > 0 || Object.keys(sizeSet).length > 0;
-  var activeCount = currentColors.length + currentSizes.length;
+  var hasAvailFilters = baseList.length > 0;
+  var activeCount = currentColors.length + currentSizes.length + currentSubcategoryFilters.length + currentBrands.length + (currentHideSoldOut ? 1 : 0);
 
   var html = '<div class="filter-bar-inner">';
 
@@ -1517,6 +1520,26 @@ function renderFilterBar(baseList) {
   bar.innerHTML = html;
 }
 
+function subcatMetaByKey(key) {
+  for (var i = 0; i < cachedCategories.length; i++) {
+    var subs = cachedCategories[i].subcategories || [];
+    for (var j = 0; j < subs.length; j++) {
+      if (subs[j].key === key) return subs[j];
+    }
+  }
+  return null;
+}
+
+function fdSection(titleHtml, bodyHtml) {
+  return '<div class="fd-section">'
+       + '<button type="button" class="fd-section-header" onclick="toggleFdSection(this)">'
+       + '<span class="fd-section-title">' + titleHtml + '</span>'
+       + '<svg class="fd-section-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 7L1 3h8z"/></svg>'
+       + '</button>'
+       + '<div class="fd-section-body">' + bodyHtml + '</div>'
+       + '</div>';
+}
+
 function renderFilterDrawerBody(baseList) {
   var body   = document.getElementById('filter-drawer-body');
   var footer = document.getElementById('filter-drawer-footer');
@@ -1533,42 +1556,94 @@ function renderFilterDrawerBody(baseList) {
   baseList.forEach(function(p) { (p.sizes || []).forEach(function(s) { sizeSet[s] = true; }); });
   var availSizes = Object.keys(sizeSet).sort();
 
+  var subcatMap = {};
+  baseList.forEach(function(p) {
+    var keys = [p.subcategory].concat((p.extra_categories || []).map(function(ec) { return ec.subcategory; }));
+    keys.forEach(function(k) {
+      if (!k || subcatMap[k]) return;
+      var meta = subcatMetaByKey(k);
+      if (meta) subcatMap[k] = meta;
+    });
+  });
+  var availSubcats = Object.values(subcatMap);
+
+  var brandSet = {};
+  baseList.forEach(function(p) { if (p.brand) brandSet[p.brand] = true; });
+  var availBrands = Object.keys(brandSet).sort();
+
+  var hasSoldOut = baseList.some(function(p) { return p.tag === 'sold_out'; });
+
   var html = '';
 
   if (availColors.length) {
-    html += '<div class="fd-section">';
-    html += '<div class="fd-section-title">' + (t.filter_color || 'رنگ') + '</div>';
-    html += '<div class="fd-colors-grid">';
+    var colorsBody = '<div class="fd-colors-grid">';
     availColors.forEach(function(c) {
       var checked = currentColors.indexOf(c.key) !== -1;
       var name = (c.name && c.name[currentLang]) || (c.name && c.name.fa) || c.key;
-      html += '<label class="fd-color-cell' + (checked ? ' checked' : '') + '">'
+      colorsBody += '<label class="fd-color-cell' + (checked ? ' checked' : '') + '">'
             + '<input type="checkbox"' + (checked ? ' checked' : '') + ' onchange="toggleColorFilter(\'' + c.key.replace(/'/g, "\\'") + '\')">'
             + '<span class="fd-color-dot" style="background:' + c.hex + '"></span>'
             + '<span class="fd-color-name">' + name + '</span>'
             + '</label>';
     });
-    html += '</div></div>';
+    colorsBody += '</div>';
+    html += fdSection(t.filter_color || 'رنگ', colorsBody);
   }
 
   if (availSizes.length) {
-    html += '<div class="fd-section">';
-    html += '<div class="fd-section-title">' + (t.filter_size || 'سایز') + '</div>';
-    html += '<div class="fd-sizes-grid">';
+    var sizesBody = '<div class="fd-sizes-grid">';
     availSizes.forEach(function(s) {
       var checked = currentSizes.indexOf(s) !== -1;
-      html += '<label class="fd-size-tile' + (checked ? ' checked' : '') + '">'
+      sizesBody += '<label class="fd-size-tile' + (checked ? ' checked' : '') + '">'
             + '<input type="checkbox"' + (checked ? ' checked' : '') + ' onchange="toggleSizeFilter(\'' + s.replace(/'/g, "\\'") + '\')">'
             + '<span>' + s + '</span>'
             + '</label>';
     });
-    html += '</div></div>';
+    sizesBody += '</div>';
+    html += fdSection(t.filter_size || 'سایز', sizesBody);
+  }
+
+  if (availSubcats.length) {
+    var subBody = '<div class="fd-chips-grid">';
+    availSubcats.forEach(function(sub) {
+      var checked = currentSubcategoryFilters.indexOf(sub.key) !== -1;
+      var name = currentLang === 'en' ? (sub.label_en || sub.label_fa) : currentLang === 'tr' ? (sub.label_tr || sub.label_fa) : sub.label_fa;
+      subBody += '<label class="fd-chip' + (checked ? ' checked' : '') + '">'
+            + '<input type="checkbox"' + (checked ? ' checked' : '') + ' onchange="toggleSubcategoryFilterChip(\'' + sub.key.replace(/'/g, "\\'") + '\')">'
+            + '<span>' + name + '</span>'
+            + '</label>';
+    });
+    subBody += '</div>';
+    html += fdSection(t.filter_subcategory || 'زیردسته', subBody);
+  }
+
+  if (availBrands.length) {
+    var brandBody = '<div class="fd-chips-grid">';
+    availBrands.forEach(function(b) {
+      var checked = currentBrands.indexOf(b) !== -1;
+      brandBody += '<label class="fd-chip' + (checked ? ' checked' : '') + '">'
+            + '<input type="checkbox"' + (checked ? ' checked' : '') + ' onchange="toggleBrandFilter(\'' + b.replace(/'/g, "\\'") + '\')">'
+            + '<span>' + b + '</span>'
+            + '</label>';
+    });
+    brandBody += '</div>';
+    html += fdSection(t.filter_brand || 'برند', brandBody);
+  }
+
+  if (hasSoldOut) {
+    var stockBody = '<label class="fd-toggle-row">'
+          + '<span>' + (t.filter_hide_sold_out || 'فقط موجود در انبار') + '</span>'
+          + '<span class="fd-switch' + (currentHideSoldOut ? ' checked' : '') + '">'
+          + '<input type="checkbox"' + (currentHideSoldOut ? ' checked' : '') + ' onchange="toggleHideSoldOutFilter()">'
+          + '<span class="fd-switch-knob"></span>'
+          + '</span></label>';
+    html += fdSection(t.filter_availability || 'موجودی', stockBody);
   }
 
   body.innerHTML = html;
 
   if (footer) {
-    var activeCount = currentColors.length + currentSizes.length;
+    var activeCount = currentColors.length + currentSizes.length + currentSubcategoryFilters.length + currentBrands.length + (currentHideSoldOut ? 1 : 0);
     footer.innerHTML = activeCount > 0
       ? '<button class="fd-clear-btn" onclick="clearFilters()">' + (t.filter_clear || '× پاک کردن') + '</button>'
         + '<button class="fd-close-btn" onclick="closeFilterPanel()">' + (t.filter_close || 'بستن') + '</button>'
@@ -1605,6 +1680,25 @@ function toggleSizeFilter(label) {
   currentPage = 1;
   renderGrid();
 }
+function toggleSubcategoryFilterChip(key) {
+  var idx = currentSubcategoryFilters.indexOf(key);
+  if (idx === -1) currentSubcategoryFilters.push(key);
+  else currentSubcategoryFilters.splice(idx, 1);
+  currentPage = 1;
+  renderGrid();
+}
+function toggleBrandFilter(key) {
+  var idx = currentBrands.indexOf(key);
+  if (idx === -1) currentBrands.push(key);
+  else currentBrands.splice(idx, 1);
+  currentPage = 1;
+  renderGrid();
+}
+function toggleHideSoldOutFilter() {
+  currentHideSoldOut = !currentHideSoldOut;
+  currentPage = 1;
+  renderGrid();
+}
 function setSort(sort) {
   currentSort = sort;
   currentPage = 1;
@@ -1613,8 +1707,14 @@ function setSort(sort) {
 function clearFilters() {
   currentColors = [];
   currentSizes  = [];
+  currentSubcategoryFilters = [];
+  currentBrands = [];
+  currentHideSoldOut = false;
   currentPage   = 1;
   renderGrid();
+}
+function toggleFdSection(headerEl) {
+  headerEl.parentElement.classList.toggle('collapsed');
 }
 
 function siteSearch(val) {
@@ -1711,6 +1811,13 @@ function renderGrid(skipFilterBar) {
   var filteredList = baseList.filter(function(p) {
     if (currentColors.length && !p.colors.some(function(c) { return currentColors.indexOf(c.key) !== -1; })) return false;
     if (currentSizes.length  && !p.sizes.some(function(s)  { return currentSizes.indexOf(s)  !== -1; })) return false;
+    if (currentSubcategoryFilters.length) {
+      var inSubFilter = (p.subcategory && currentSubcategoryFilters.indexOf(p.subcategory) !== -1) ||
+        (p.extra_categories || []).some(function(ec) { return ec.subcategory && currentSubcategoryFilters.indexOf(ec.subcategory) !== -1; });
+      if (!inSubFilter) return false;
+    }
+    if (currentBrands.length && (!p.brand || currentBrands.indexOf(p.brand) === -1)) return false;
+    if (currentHideSoldOut && p.tag === 'sold_out') return false;
     if (currentSearch) {
       var q = currentSearch.toLowerCase();
       var n = p.name || {};

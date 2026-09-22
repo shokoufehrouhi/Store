@@ -810,14 +810,109 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .fd-section:last-child { border-bottom: none; }
 
+.fd-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-bottom: 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.fd-section.collapsed .fd-section-header { margin-bottom: 0; }
+
 .fd-section-title {
   font-size: 11px;
   font-weight: 800;
   color: #999;
   text-transform: uppercase;
   letter-spacing: .08em;
-  margin-bottom: 14px;
 }
+
+.fd-section-arrow {
+  opacity: .4;
+  flex-shrink: 0;
+  transition: transform .2s, opacity .2s;
+}
+.fd-section.collapsed .fd-section-arrow { transform: rotate(-90deg); }
+.fd-section-header:hover .fd-section-arrow { opacity: 1; color: var(--primary); }
+
+.fd-section-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows .2s ease;
+}
+.fd-section-body > * { overflow: hidden; min-height: 0; }
+.fd-section.collapsed .fd-section-body { grid-template-rows: 0fr; }
+
+/* Subcategory / brand chip list */
+.fd-chips-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.fd-chip {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 20px;
+  border: 1.5px solid #ddd;
+  background: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #333;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+  user-select: none;
+}
+.fd-chip input[type="checkbox"] { display: none; }
+.fd-chip:hover { border-color: #FF5C00; color: #FF5C00; }
+.fd-chip.checked { background: #FF5C00; border-color: #FF5C00; color: #fff; }
+
+/* Availability toggle switch */
+.fd-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  user-select: none;
+}
+.fd-switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 24px;
+  flex-shrink: 0;
+}
+.fd-switch input[type="checkbox"] { display: none; }
+.fd-switch-knob {
+  position: absolute;
+  inset: 0;
+  background: #ddd;
+  border-radius: 24px;
+  transition: background .18s;
+}
+.fd-switch-knob::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  inset-inline-start: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  transition: inset-inline-start .18s;
+}
+.fd-switch.checked .fd-switch-knob { background: #FF5C00; }
+.fd-switch.checked .fd-switch-knob::before { inset-inline-start: 19px; }
 
 /* Color grid — 3 per row */
 .fd-colors-grid {
@@ -1296,16 +1391,16 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .card-colors {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 .card-color-dot {
-  width: 14px;
-  height: 14px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  border: 1.5px solid rgba(0,0,0,.14);
+  border: 1px solid rgba(0,0,0,.14);
   display: inline-block;
   flex-shrink: 0;
-  box-shadow: 0 1px 3px rgba(0,0,0,.15);
+  box-shadow: 0 1px 2px rgba(0,0,0,.15);
   transition: transform .15s;
   position: relative;
   overflow: hidden;
