@@ -1330,9 +1330,12 @@ function renderProduct(p) {
     '  </div>' +
     '  <div class="product-body">' +
     '    <div class="card-badges">' +
-    '      <span class="category-badge" style="' + catBadgeStyle(p.category) + '">' + cat + '</span>' +
+    '      <div class="card-badges-tags">' +
+    '        <span class="category-badge" style="' + catBadgeStyle(p.category) + '">' + cat + '</span>' +
     genderBadge +
     cameraTag +
+    '      </div>' +
+    (p.brand ? '      <span class="product-brand-badge">' + p.brand + '</span>' : '') +
     '    </div>' +
     '    <h3 class="product-name">' + name + '</h3>' +
     (p.code ? '    <div class="product-code-badge"><span class="product-code-label">' + (t.product_code_label || 'کد محصول') + ':</span> ' + p.code + '</div>' : '') +
@@ -2114,8 +2117,11 @@ function openModal(productId) {
     '  </div>' +
     '  <div class="modal-info">' +
     '    <div class="card-badges">' +
-    '      <span class="category-badge" style="' + catBadgeStyle(p.category) + '">' + cat + '</span>' +
+    '      <div class="card-badges-tags">' +
+    '        <span class="category-badge" style="' + catBadgeStyle(p.category) + '">' + cat + '</span>' +
     modalGenderBadge +
+    '      </div>' +
+    (p.brand ? '      <span class="product-brand-badge">' + p.brand + '</span>' : '') +
     '    </div>' +
     '    <h2 class="modal-name">' + name + '</h2>' +
     renderPriceHtml(p, 'modal-price') +

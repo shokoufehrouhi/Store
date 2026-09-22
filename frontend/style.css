@@ -1171,9 +1171,24 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .card-badges {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
   margin-bottom: 8px;
   flex-wrap: wrap;
+}
+.card-badges-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.product-brand-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  white-space: nowrap;
 }
 .category-badge {
   display: inline-block;

@@ -104,7 +104,8 @@
 
     /* ── info ── */
     .pd-info { padding: 32px 28px; display: flex; flex-direction: column; gap: 12px; }
-    .pd-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+    .pd-badges { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .pd-badges-tags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .pd-name { font-size: 21px; font-weight: 800; line-height: 1.35; color: var(--text); }
     .pd-price {
       font-size: 18px; font-weight: 700; color: var(--primary);
@@ -820,8 +821,11 @@ function render(p){
     // info
     +'<div class="pd-info">'
     +  '<div class="pd-badges">'
-    +    (cat ? '<span class="category-badge" style="'+catBadgeStyle(p.categories?p.categories.key:'')+'">'+esc(cat)+'</span>' : '')
-    +    gBadge
+    +    '<div class="pd-badges-tags">'
+    +      (cat ? '<span class="category-badge" style="'+catBadgeStyle(p.categories?p.categories.key:'')+'">'+esc(cat)+'</span>' : '')
+    +      gBadge
+    +    '</div>'
+    +    (p.brand ? '<span class="product-brand-badge">'+esc(p.brand)+'</span>' : '')
     +  '</div>'
     +  '<h1 class="pd-name">'+esc(name)+'</h1>'
     +  ph
