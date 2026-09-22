@@ -591,10 +591,18 @@ const ZARA_GENDER_FROM_SLUG = [
 async function discoverZaraListingUrls(pm, site) {
   const page = await pm.goto(site.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await new Promise(r => setTimeout(r, 1500));
-  const hrefs = await page.evaluate(() => [...new Set(
-    Array.from(document.querySelectorAll('a[href]')).map(a => a.getAttribute('href')).filter(h => h && /fiyat/i.test(h))
-  )]);
-  return hrefs.map(url => {
+  const diag = await page.evaluate(() => ({
+    hrefs: [...new Set(Array.from(document.querySelectorAll('a[href]')).map(a => a.getAttribute('href')).filter(h => h && /fiyat/i.test(h)))],
+    title: document.title,
+    linkCount: document.querySelectorAll('a[href]').length,
+    bodyTextSample: (document.body.innerText || '').slice(0, 60),
+  }));
+  // last_import_status is VARCHAR(300) — keep this well under that or the
+  // status-update itself fails silently and the admin sees nothing at all.
+  if (!diag.hrefs.length) {
+    throw new Error(`Zara: 0 sale listings found (url=${page.url().slice(0, 60)}, title="${diag.title.slice(0, 40)}", ${diag.linkCount} links, body: "${diag.bodyTextSample.replace(/\s+/g, ' ')}") — likely blocked, not real absence`);
+  }
+  return diag.hrefs.map(url => {
     const hit = ZARA_GENDER_FROM_SLUG.find(([re]) => re.test(url));
     return { url, gender: hit ? hit[1] : 'unisex' };
   });
