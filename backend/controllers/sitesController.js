@@ -110,7 +110,7 @@ async function syncImport(req, res, next) {
         data: {
           import_in_progress: false,
           last_import_at: new Date(),
-          last_import_status: `imported ${result.imported.filter(r => !r.error).length}, ${result.imported.filter(r => r.error).length} errors`,
+          last_import_status: `imported ${result.imported.filter(r => !r.error).length}, ${result.imported.filter(r => r.error).length} errors, ${result.skipped || 0} skipped`,
         },
       }))
       .catch(err => prisma.sites.update({
