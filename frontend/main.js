@@ -1599,6 +1599,16 @@ function renderFilterDrawerBody(baseList) {
 
   var html = '';
 
+  if (hasSoldOut) {
+    var stockBody = '<label class="fd-toggle-row">'
+          + '<span>' + (t.filter_hide_sold_out || 'فقط موجود در انبار') + '</span>'
+          + '<span class="fd-switch' + (currentHideSoldOut ? ' checked' : '') + '">'
+          + '<input type="checkbox"' + (currentHideSoldOut ? ' checked' : '') + ' onchange="toggleHideSoldOutFilter()">'
+          + '<span class="fd-switch-knob"></span>'
+          + '</span></label>';
+    html += fdSection(t.filter_availability || 'موجودی', stockBody);
+  }
+
   if (availColors.length) {
     var colorsBody = '<div class="fd-colors-grid">';
     availColors.forEach(function(c) {
@@ -1633,15 +1643,6 @@ function renderFilterDrawerBody(baseList) {
       return { key: b, label: b, checked: currentBrands.indexOf(b) !== -1 };
     });
     html += fdSection(t.filter_brand || 'برند', fdSearchableList(brandRows, 'toggleBrandFilter'));
-  }
-  if (hasSoldOut) {
-    var stockBody = '<label class="fd-toggle-row">'
-          + '<span>' + (t.filter_hide_sold_out || 'فقط موجود در انبار') + '</span>'
-          + '<span class="fd-switch' + (currentHideSoldOut ? ' checked' : '') + '">'
-          + '<input type="checkbox"' + (currentHideSoldOut ? ' checked' : '') + ' onchange="toggleHideSoldOutFilter()">'
-          + '<span class="fd-switch-knob"></span>'
-          + '</span></label>';
-    html += fdSection(t.filter_availability || 'موجودی', stockBody);
   }
 
   body.innerHTML = html;
