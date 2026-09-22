@@ -807,4 +807,320 @@ async function Zara(pm, site, opts = {}) {
   return { imported, skipped: notDiscounted + (candidateUrls.length - newUrls.length) };
 }
 
-module.exports = { Defacto, MadameCoco, Zara };
+// LC Waikiki, like Zara, has a genuinely reliable first-party discount
+// signal: the product-detail price block always renders a
+// .product-price__discount-group element, but it's only non-empty (holding
+// a .price-in-cart span with the discounted price) when the loaded
+// color/SKU is actually marked down — confirmed against both a discounted
+// product (899,99 TL -> 699,99 TL) and a full-price one (empty group, just
+// a bare .current-price). Unlike Zara this site has no ProductGroup/
+// hasVariant JSON-LD bundling every color — each color is its own page/URL
+// (like Defacto), so gender/subcategory/color all come from that single
+// page the same way Defacto's do.
+// Found via /site-haritasi (the human sitemap page — 2216 links, unlike the
+// mega-menu's inconsistent per-segment "İndirim" URLs used in an earlier
+// pass) rather than by clicking each gender/age flyout separately: it has
+// one broad root category per top-nav department (Kadın, Erkek, Çocuk,
+// Bebek, Ev & Yaşam, plus the standalone cross-gender Ayakkabı/Aksesuar/
+// Kozmetik roots), which is both simpler and full coverage in one shot.
+// robots.txt documents (as a Disallow, since it's crawler-facing) a
+// "sadece-indirimdekiler=true" query filter — appended here as a mild
+// candidate-narrowing optimization, but NOT trusted as the real discount
+// gate (confirmed live: only ~1/3 of a filtered listing's cards actually
+// have a populated discount-group, so it's imprecise like Madame Coco's own
+// "İndirimli Ürünler" tag) — the real gate stays the per-product
+// .product-price__discount-group check in LCWaikiki() below.
+const LCW_LISTINGS = [
+  { url: 'https://www.lcw.com/kadin-t-1?sadece-indirimdekiler=true',       gender: 'female' },
+  { url: 'https://www.lcw.com/erkek-t-2?sadece-indirimdekiler=true',       gender: 'male' },
+  { url: 'https://www.lcw.com/cocuk-t-3?sadece-indirimdekiler=true',       gender: 'kids' },
+  { url: 'https://www.lcw.com/bebek-t-4?sadece-indirimdekiler=true',       gender: 'kids' },
+  { url: 'https://www.lcw.com/ev-yasam-t-5?sadece-indirimdekiler=true',    gender: 'unisex' },
+  { url: 'https://www.lcw.com/kozmetik-t-6204?sadece-indirimdekiler=true', gender: 'unisex' },
+  { url: 'https://www.lcw.com/ayakkabi-u-300032?sadece-indirimdekiler=true', gender: 'unisex' },
+  { url: 'https://www.lcw.com/aksesuar-u-300025?sadece-indirimdekiler=true', gender: 'unisex' },
+];
+
+// This site is a marketplace, not an LC Waikiki-only storefront (robots.txt
+// separately allow-lists other sellers' own store pages — English Home, Joy
+// Kitchen, Markastok, Happy Center, Schafer) — a broad root like kadin-t-1
+// or ev-yasam-t-5 can include their listings alongside LC Waikiki's own, so
+// every product is gated on its own JSON-LD offers.seller.name, confirmed
+// "LC Waikiki" even for its in-house sub-labels (LCW Vision, LCW STEPS, LCW
+// Kids, LCW ACCESSORIES, LCW HOME, ...) — those are LC Waikiki's own lines,
+// not third-party sellers.
+const LCW_BRAND_SELLER = 'LC Waikiki';
+
+// The gender/age-segment roots above (kadin-t-1 etc.) are each the WHOLE
+// department, not clothing-only — they already include that department's
+// own shoes/bags/accessories, which overlap with the dedicated Ayakkabı/
+// Aksesuar/Kozmetik roots' own candidates. Routing by listing-of-origin
+// would miscategorize whichever of the two listings happened to reach a
+// shared URL first, so category_id is instead decided per-product from its
+// own JSON-LD "category" breadcrumb (e.g. "Kadın > Kadın Ayakkabı > Kadın
+// Ev Ayakkabıları > Kadın Ev Terliği", or "Kişisel Bakım & Kozmetik >
+// Kozmetik > Çocuk Parfüm ve Deodorant") — the one signal that's actually
+// tied to the specific product rather than to whichever listing found it.
+// Ev & Yaşam is checked first and only against the top segment, since a
+// home-fragrance item's breadcrumb can otherwise contain "parfüm" too and
+// get misrouted into personal-care Cosmetics by the broader keyword check.
+function routeLcWaikikiCategory(categoryPath) {
+  const path = categoryPath || '';
+  const top = path.split('>')[0]?.trim() || '';
+  if (/^ev\s*&?\s*yaşam/i.test(top)) return LIFESTYLE_CATEGORY_ID;
+  if (/ayakkabı/i.test(path)) return 2; // Shoes
+  if (/kozmetik|kişisel bakım|parfüm/i.test(path)) return 10; // Cosmetics
+  if (/aksesuar|çanta/i.test(path)) return 3; // Accessories
+  return 1; // Clothing (default — also every plain Kadın/Erkek/Çocuk/Bebek garment)
+}
+
+// Accessories(3) currently only has one real subcategory in production
+// ("bag" / Çantalar, id 13) — anything else under this category is left
+// uncategorized, same null-fallback convention as guessSubcategoryId.
+function guessLcWaikikiAccessorySubcategoryId(nameTr) {
+  return /çanta|canta/i.test(nameTr || '') ? 13 : null;
+}
+
+// LC Waikiki's own Ev & Yaşam breadcrumb (2nd segment, e.g. "Yatak Odası
+// Tekstili", "Kişisel Bakım Ürünleri") uses different Turkish wording than
+// Madame Coco's nav-derived LIFESTYLE_SUBCATEGORY_DEFS slugs, so it's
+// matched by keyword here instead of reusing MadameCoco's slug-from-URL
+// approach — same defs/ids, just a different route to them.
+const LCW_LIFESTYLE_KEYWORD_TO_SLUG = [
+  [/yatak\s*odası|nevresim|çarşaf|yorgan|yastık/i, 'yatak-odasi'],
+  [/banyo|havlu/i, 'banyo'],
+  [/mutfak/i, 'mutfak'],
+  [/sofra|fincan|tabak|bardak/i, 'sofra'],
+  [/halı|kilim/i, 'hali-kilim'],
+  [/dekorasyon|süs/i, 'dekorasyon'],
+  [/kişisel bakım|oda kokusu|mum\b/i, 'kozmetik'],
+  [/mobilya/i, 'mobilya'],
+  [/aydınlatma/i, 'aydinlatma'],
+  [/çeyiz/i, 'ceyiz-urunleri'],
+];
+function guessLcWaikikiLifestyleSubcategoryId(categoryPath) {
+  const hit = LCW_LIFESTYLE_KEYWORD_TO_SLUG.find(([re]) => re.test(categoryPath || ''));
+  return hit ? getLifestyleSubcategoryId(hit[1]) : null;
+}
+
+// Puppeteer's page defaults to an 800x600 viewport, which serves this site's
+// mobile layout — one where the size selector isn't an inline row of
+// .option-size-box buttons at all, but a "Beden Seç" button that opens a
+// bottom sheet (confirmed live: at 800x600 .option-size-box simply doesn't
+// exist in the DOM, at 1440x900 it's 7 buttons for the same page). A reload
+// after widening fixes it; only actually reloads once per PageManager page
+// (viewport persists across navigations on the same page instance).
+async function ensureLcWaikikiDesktopViewport(page) {
+  const vp = page.viewport();
+  if (!vp || vp.width < 1200) {
+    await page.setViewport({ width: 1440, height: 900 });
+    await page.reload({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
+  }
+}
+
+async function collectLcWaikikiListingLinks(pm, listingUrl) {
+  const page = await pm.goto(listingUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+  await ensureLcWaikikiDesktopViewport(page);
+  await new Promise(r => setTimeout(r, 1500));
+
+  // Scroll-triggered infinite-load grid, same as Madame Coco/Zara — links
+  // are accumulated into a running Set on every round rather than read once
+  // at the end, since this site's list appears to virtualize (items scrolled
+  // far out of view stop showing up in a fresh querySelectorAll pass).
+  const links = new Set();
+  let stableRounds = 0;
+  for (let i = 0; i < 30 && stableRounds < 3; i++) {
+    const before = links.size;
+    const pageLinks = await page.evaluate(() => [...new Set(
+      Array.from(document.querySelectorAll('a[href]')).map(a => a.getAttribute('href')).filter(h => h && /-o-\d+$/.test(h))
+    )]);
+    pageLinks.forEach(h => links.add(h));
+    stableRounds = links.size === before ? stableRounds + 1 : 0;
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await new Promise(r => setTimeout(r, 1200));
+  }
+  return [...links];
+}
+
+async function scrapeLcWaikikiProduct(pm, url) {
+  const page = await pm.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+  await ensureLcWaikikiDesktopViewport(page);
+  await new Promise(r => setTimeout(r, 1500));
+
+  // The JSON-LD Product's own "description" is generic site-wide marketing
+  // boilerplate ("... LCW'de! Hemen online alışveriş yap ..."), not the real
+  // product text — that only exists inside a collapsed accordion drawer
+  // (a React portal, not present in the DOM until its toggle button is
+  // clicked), so it has to be opened first.
+  await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll('button.product-detail-drawer__button'))
+      .find(b => b.textContent.includes('Ürün Açıklaması'));
+    if (btn) btn.click();
+  });
+  await new Promise(r => setTimeout(r, 600));
+
+  return page.evaluate(() => {
+    const prod = Array.from(document.querySelectorAll('script[type="application/ld+json"]'))
+      .map(s => { try { return JSON.parse(s.textContent); } catch (e) { return null; } })
+      .find(d => d && d['@type'] === 'Product');
+    if (!prod) return null;
+
+    const priceContainer = document.querySelector('.product-detail__price-container');
+    const originalText = priceContainer?.querySelector('.current-price')?.textContent || null;
+    const discountedText = priceContainer?.querySelector('.product-price__discount-group .price-in-cart')?.textContent || null;
+
+    const description = document.querySelector('.product-detail-drawer__content--description')?.textContent.trim() || '';
+
+    // "Renk: Lacivert / W5MY58Z8-CUJ" — same bare-color-word shape as Madame
+    // Coco's "Renk" field, just with the SKU appended after a slash.
+    const colorText = document.querySelector('.product-detail__color-codes')?.textContent.split('/')[0]?.trim() || null;
+
+    // Sizes with no stock left simply aren't rendered as buttons at all
+    // (confirmed on two different products, one with a single size run and
+    // one with none out of stock — no disabled/sold-out class exists to
+    // check) — so every rendered button is in-stock by construction.
+    const sizes = Array.from(document.querySelectorAll('.option-size-box')).map(b => ({
+      size: b.getAttribute('data-label') || b.textContent.trim(),
+      inStock: true,
+    }));
+
+    return {
+      name: prod.name,
+      images: [...new Set(prod.image || [])],
+      description,
+      originalText,
+      discountedText,
+      color: colorText,
+      sizes,
+      title: document.title,
+      seller: prod.offers?.seller?.name || null,
+      category: prod.category || null,
+    };
+  });
+}
+
+// Site scraper entry point. A product is only imported when (a) its loaded
+// color actually shows a populated .product-price__discount-group, and (b)
+// it's actually sold by LC Waikiki itself, not another brand on this
+// marketplace — every listing here is used purely as a source of candidate
+// URLs, same as Defacto's Kozmetik listing / Zara's no-sale-today segments.
+async function LCWaikiki(pm, site, opts = {}) {
+  const limit = opts.limit || 30;
+  await seedLifestyleSubcategories();
+
+  const metaByUrl = new Map();
+  const perListing = [];
+  for (const listing of LCW_LISTINGS) {
+    const hrefs = await collectLcWaikikiListingLinks(pm, listing.url);
+    const urls = [];
+    for (const h of hrefs) {
+      const url = new URL(h, site.url).href;
+      if (!metaByUrl.has(url)) { metaByUrl.set(url, listing); urls.push(url); }
+    }
+    perListing.push(urls);
+  }
+  const candidateUrls = [];
+  for (let i = 0; i < Math.max(...perListing.map(l => l.length), 0); i++) {
+    for (const urls of perListing) if (urls[i]) candidateUrls.push(urls[i]);
+  }
+
+  const existing = await prisma.products.findMany({
+    where: { product_link: { in: candidateUrls } },
+    select: { product_link: true },
+  });
+  const existingSet = new Set(existing.map(e => e.product_link));
+  const newUrls = candidateUrls.filter(u => !existingSet.has(u));
+
+  const imported = [];
+  let notDiscounted = 0;
+  let wrongBrand = 0;
+
+  for (const url of newUrls) {
+    if (imported.filter(p => !p.error).length >= limit) break;
+    try {
+      const data = await scrapeLcWaikikiProduct(pm, url);
+      if (!data || !data.name) continue;
+      if (data.seller !== LCW_BRAND_SELLER) { wrongBrand++; continue; }
+      const originalPrice = parseTLPrice(data.originalText);
+      const discountedPrice = parseTLPrice(data.discountedText);
+      if (!originalPrice || discountedPrice == null || originalPrice <= discountedPrice) { notDiscounted++; continue; }
+
+      const listingMeta = metaByUrl.get(url) || { gender: 'unisex' };
+      const gender = guessGenderFromTitle(data.title, listingMeta.gender);
+      data.sizes = data.sizes.map(s => ({ ...s, size: (s.size || '').slice(0, 10) }));
+
+      const category_id = routeLcWaikikiCategory(data.category);
+      const subcategory_id = category_id === 1 ? guessSubcategoryId(data.name, 1)
+        : category_id === 3 ? guessLcWaikikiAccessorySubcategoryId(data.name)
+        : category_id === LIFESTYLE_CATEGORY_ID ? guessLcWaikikiLifestyleSubcategoryId(data.category)
+        : category_id === 10 ? guessSubcategoryId(data.name, 10)
+        : null; // category_id 2 (Shoes) has no subcategories in production yet
+
+      const priceOriginal = originalPrice;
+      const priceSite = discountedPrice;
+      const finalDiscountedPrice = Math.round(priceSite * (1 + site.markup_percent / 100) * 100) / 100;
+
+      const translateOrWarn = (text, target) => translateText(text, 'tr', target)
+        .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
+      const [name_fa, name_en, desc_fa, desc_en] = await Promise.all([
+        translateOrWarn(data.name, 'fa'),
+        translateOrWarn(data.name, 'en'),
+        data.description ? translateOrWarn(data.description, 'fa') : '',
+        data.description ? translateOrWarn(data.description, 'en') : '',
+      ]);
+      const nameTr = data.name.slice(0, 120);
+      const nameFa = name_fa.slice(0, 120);
+      const nameEn = name_en.slice(0, 120);
+
+      const mediaUrls = [];
+      for (const imgUrl of data.images) {
+        try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
+      }
+
+      const colorId = guessColorIdFromWord(data.color);
+
+      const product = await prisma.products.create({
+        data: {
+          code: await generateProductCode(),
+          category_id,
+          subcategory_id,
+          gender,
+          name_fa: nameFa, name_en: nameEn, name_tr: nameTr,
+          desc_fa, desc_en, desc_tr: data.description || null,
+          price: priceOriginal,
+          cost_price: priceSite,
+          discounted_price: finalDiscountedPrice,
+          tag: 'discount',
+          stock: 0,
+          brand: site.name,
+          supplier_shop_name: site.name,
+          product_link: url,
+          product_media: mediaUrls.length ? { create: mediaUrls.map((u, i) => ({ type: 'image', url: u, sort_order: i })) } : undefined,
+          product_colors: colorId ? { create: [{ color_id: colorId, is_available: true }] } : undefined,
+          product_sizes: data.sizes.length ? {
+            create: data.sizes.map(s => ({ size_label: s.size, is_available: s.inStock })),
+          } : undefined,
+        },
+      });
+
+      if (data.sizes.length) {
+        await prisma.product_inventory.createMany({
+          data: data.sizes.map(s => ({
+            product_id: product.id, color_id: colorId, size_label: s.size,
+            quantity: s.inStock ? 10 : 0,
+          })),
+        });
+        const totalQty = data.sizes.filter(s => s.inStock).length * 10;
+        await prisma.products.update({ where: { id: product.id }, data: { stock: totalQty } });
+      }
+
+      imported.push({ id: product.id, name: data.name });
+    } catch (err) {
+      imported.push({ error: err.message, url });
+    }
+  }
+
+  return { imported, skipped: notDiscounted + wrongBrand + (candidateUrls.length - newUrls.length) };
+}
+
+module.exports = { Defacto, MadameCoco, Zara, LCWaikiki };
