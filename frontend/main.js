@@ -125,6 +125,7 @@ function mapApiProduct(p) {
   return {
     id:          p.id,
     code:        p.code || null,
+    brand:       p.brand || null,
     _fromApi:    true,
     category:    p.categories    ? p.categories.key    : '',
     subcategory: p.subcategories ? p.subcategories.key : null,
