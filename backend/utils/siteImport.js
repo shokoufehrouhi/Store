@@ -251,7 +251,7 @@ async function Defacto(pm, site, opts = {}) {
   const newUrls = candidateUrls.filter(u => !existingSet.has(u)).slice(0, limit);
 
   const imported = [];
-  const skipped = candidateUrls.length - newUrls.length;
+  let skipped = candidateUrls.length - newUrls.length;
 
   for (const url of newUrls) {
     try {
@@ -274,6 +274,13 @@ async function Defacto(pm, site, opts = {}) {
       const priceOriginal = data.originalPrice;
       const priceSite = data.discountedPrice ?? data.originalPrice;
       const discountedPrice = Math.round(priceSite * (1 + site.markup_percent / 100) * 100) / 100;
+      // site.markup_percent is applied on top of the source's already-
+      // discounted price — with a large enough markup that marked-up price
+      // can end up ABOVE the source's original price, which would show
+      // customers a "discount" that's actually more expensive than the
+      // "original" price on the same page. Never import (or keep visible)
+      // something in that state.
+      if (discountedPrice > priceOriginal) { skipped++; continue; }
 
       // A translation failure (e.g. the free API's daily quota) shouldn't
       // abort the whole import — but silently swallowing it left products
@@ -515,6 +522,10 @@ async function MadameCoco(pm, site, opts = {}) {
       const priceOriginal = data.firstPrice;
       const priceSite = data.price;
       const discountedPrice = Math.round(priceSite * (1 + site.markup_percent / 100) * 100) / 100;
+      // Markup on top of an already-discounted price can push the marked-up
+      // price above the source's original price — never import something
+      // whose "discount" would show as more expensive than its "original".
+      if (discountedPrice > priceOriginal) { notDiscounted++; continue; }
 
       const translateOrWarn = (text, target) => translateText(text, 'tr', target)
         .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
@@ -743,6 +754,10 @@ async function Zara(pm, site, opts = {}) {
       const priceOriginal = originalPrice;
       const priceSite = discountedPrice;
       const finalDiscountedPrice = Math.round(priceSite * (1 + site.markup_percent / 100) * 100) / 100;
+      // Markup on top of an already-discounted price can push the marked-up
+      // price above the source's original price — never import something
+      // whose "discount" would show as more expensive than its "original".
+      if (finalDiscountedPrice > priceOriginal) { notDiscounted++; continue; }
 
       const translateOrWarn = (text, target) => translateText(text, 'tr', target)
         .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
@@ -1059,6 +1074,10 @@ async function LCWaikiki(pm, site, opts = {}) {
       const priceOriginal = originalPrice;
       const priceSite = discountedPrice;
       const finalDiscountedPrice = Math.round(priceSite * (1 + site.markup_percent / 100) * 100) / 100;
+      // Markup on top of an already-discounted price can push the marked-up
+      // price above the source's original price — never import something
+      // whose "discount" would show as more expensive than its "original".
+      if (finalDiscountedPrice > priceOriginal) { notDiscounted++; continue; }
 
       const translateOrWarn = (text, target) => translateText(text, 'tr', target)
         .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
