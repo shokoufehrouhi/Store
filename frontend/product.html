@@ -825,7 +825,7 @@ function render(p){
     +      (cat ? '<span class="category-badge" style="'+catBadgeStyle(p.categories?p.categories.key:'')+'">'+esc(cat)+'</span>' : '')
     +      gBadge
     +    '</div>'
-    +    (p.brand ? '<span class="product-brand-badge">'+esc(p.brand)+'</span>' : '')
+    +    (p.brand ? '<span class="product-brand-badge"><span class="brand-label">'+(T.brand_label||'Brand')+'</span><span class="brand-name">'+esc(p.brand)+'</span></span>' : '')
     +  '</div>'
     +  '<h1 class="pd-name">'+esc(name)+'</h1>'
     +  ph

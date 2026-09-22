@@ -1183,12 +1183,27 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   flex-wrap: wrap;
 }
 .product-brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
-  font-weight: 700;
-  color: var(--text-light);
-  text-transform: uppercase;
-  letter-spacing: .03em;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--card);
   white-space: nowrap;
+  flex-shrink: 0;
+}
+.product-brand-badge .brand-label {
+  font-weight: 500;
+  color: var(--text-light);
+  opacity: .65;
+}
+.product-brand-badge .brand-name {
+  font-weight: 800;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: .02em;
 }
 .category-badge {
   display: inline-block;
