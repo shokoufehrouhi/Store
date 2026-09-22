@@ -9,21 +9,6 @@ const { translateText, sleep } = require('../utils/translate');
 
 const needsTranslation = (val, fallback) => !val || val === fallback;
 
-// Only pick up products where EVERY translatable field is still untouched
-// (blank or equal to its _tr source) — a product with even one field already
-// translated is skipped entirely, not just partially completed, so nothing
-// already-correct gets re-called against the translation APIs.
-const allFieldsUntranslated = (p) => {
-  const checks = [
-    needsTranslation(p.name_fa, p.name_tr),
-    needsTranslation(p.name_en, p.name_tr),
-  ];
-  if (p.desc_tr) {
-    checks.push(needsTranslation(p.desc_fa, p.desc_tr), needsTranslation(p.desc_en, p.desc_tr));
-  }
-  return checks.every(Boolean);
-};
-
 // Spaced out to stay under MyMemory's burst rate limit — 4 calls/product
 // back-to-back with no gap gets HTTP 429'd almost every time.
 async function translateField(data, key, text, lang) {
@@ -39,7 +24,16 @@ async function translateField(data, key, text, lang) {
   const candidates = await prisma.products.findMany({
     where: { name_tr: { not: '' } },
   });
-  const products = candidates.filter(allFieldsUntranslated);
+  // A product is picked up if ANY field still needs translation — the loop
+  // below only calls the API for the specific field(s) that need it, so an
+  // already-translated field is never re-called. Requiring EVERY field to
+  // still be untranslated (tried previously) meant a product that partially
+  // failed on one field would never be picked up again, leaving it stuck.
+  const products = candidates.filter(p =>
+    needsTranslation(p.name_fa, p.name_tr) ||
+    needsTranslation(p.name_en, p.name_tr) ||
+    (p.desc_tr && (needsTranslation(p.desc_fa, p.desc_tr) || needsTranslation(p.desc_en, p.desc_tr)))
+  );
   if (!products.length) { console.log('nothing to translate'); return; }
 
   for (const p of products) {
