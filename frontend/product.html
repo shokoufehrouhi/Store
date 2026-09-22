@@ -409,7 +409,12 @@
 // ── lang ──────────────────────────────────────────────────────────────────────
 var _qp = new URLSearchParams(location.search);
 var _ql = _qp.get('lang');
-if(_ql && ['fa','en'].includes(_ql)) localStorage.setItem('lang_v2', _ql);
+if(_ql && ['fa','en'].includes(_ql)) {
+  localStorage.setItem('lang_v2', _ql);
+  var _uql = new URL(location.href);
+  _uql.searchParams.delete('lang');
+  history.replaceState(null, '', _uql.pathname + _uql.search + _uql.hash);
+}
 var CL  = localStorage.getItem('lang_v2');
 if (CL !== 'fa' && CL !== 'en') CL = 'fa'; // Turkish removed from the storefront — migrate any stale 'tr' value
 var T   = TRANSLATIONS[CL] || TRANSLATIONS.fa;
