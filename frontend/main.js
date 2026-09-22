@@ -1604,10 +1604,9 @@ function renderFilterDrawerBody(baseList) {
     availColors.forEach(function(c) {
       var checked = currentColors.indexOf(c.key) !== -1;
       var name = (c.name && c.name[currentLang]) || (c.name && c.name.fa) || c.key;
-      colorsBody += '<label class="fd-color-cell' + (checked ? ' checked' : '') + '">'
+      colorsBody += '<label class="fd-color-cell' + (checked ? ' checked' : '') + '" title="' + name.replace(/"/g, '&quot;') + '">'
             + '<input type="checkbox"' + (checked ? ' checked' : '') + ' onchange="toggleColorFilter(\'' + c.key.replace(/'/g, "\\'") + '\')">'
             + '<span class="fd-color-dot" style="background:' + c.hex + '"></span>'
-            + '<span class="fd-color-name">' + name + '</span>'
             + '</label>';
     });
     colorsBody += '</div>';

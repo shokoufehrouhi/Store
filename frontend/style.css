@@ -934,45 +934,30 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .fd-switch.checked .fd-switch-knob { background: #FF5C00; }
 .fd-switch.checked .fd-switch-knob::before { inset-inline-start: 19px; }
 
-/* Color grid — 3 per row */
+/* Color swatches — plain circles, no frame/name (hover for the tooltip) */
 .fd-colors-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .fd-color-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 7px;
-  padding: 12px 6px 10px;
-  border-radius: 10px;
-  border: 1.5px solid #eee;
+  display: inline-flex;
   cursor: pointer;
-  transition: border-color .15s, background .15s;
   user-select: none;
-  text-align: center;
 }
-.fd-color-cell:hover { border-color: #ddd; background: #f8f8f8; }
-.fd-color-cell.checked { border-color: #FF5C00; background: #fff5f0; }
 .fd-color-cell input[type="checkbox"] { display: none; }
 
 .fd-color-dot {
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  border: 1.5px solid rgba(0,0,0,.1);
+  border: 1.5px solid rgba(0,0,0,.12);
   flex-shrink: 0;
+  transition: box-shadow .15s, transform .15s;
 }
-.fd-color-name {
-  font-size: 11px;
-  font-weight: 600;
-  color: #333;
-  line-height: 1.2;
-  word-break: break-word;
-}
-.fd-color-cell.checked .fd-color-name { color: #FF5C00; }
+.fd-color-cell:hover .fd-color-dot { transform: scale(1.08); }
+.fd-color-cell.checked .fd-color-dot { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #FF5C00; }
 
 /* Size tiles */
 .fd-sizes-grid {
