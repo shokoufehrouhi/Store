@@ -1638,19 +1638,31 @@ function renderPagination(totalItems) {
   // prev arrow
   html += pageBtn(isRtl ? '›' : '‹', currentPage - 1, currentPage === 1, false);
 
-  // page numbers with ellipsis
-  var pages = [];
+  // page numbers: first 5 while near the start, otherwise a sliding window
+  // around the current page, always anchored by the last 2 pages
   if (totalPages <= 7) {
-    for (var i = 1; i <= totalPages; i++) pages.push(i);
-    pages.forEach(function(p) { html += pageBtn(p, p, false, p === currentPage); });
+    for (var i = 1; i <= totalPages; i++) html += pageBtn(i, i, false, i === currentPage);
   } else {
-    html += pageBtn(1, 1, false, currentPage === 1);
-    if (currentPage > 3) html += '<span class="pg-dots">…</span>';
-    var start = Math.max(2, currentPage - 1);
-    var end   = Math.min(totalPages - 1, currentPage + 1);
-    for (var j = start; j <= end; j++) html += pageBtn(j, j, false, j === currentPage);
-    if (currentPage < totalPages - 2) html += '<span class="pg-dots">…</span>';
-    html += pageBtn(totalPages, totalPages, false, currentPage === totalPages);
+    var shown = {};
+    shown[1] = true;
+    shown[totalPages] = true;
+    shown[totalPages - 1] = true;
+    if (currentPage <= 5) {
+      for (var i = 1; i <= Math.min(5, totalPages); i++) shown[i] = true;
+    } else {
+      for (var i = currentPage - 1; i <= currentPage + 1; i++) {
+        if (i >= 1 && i <= totalPages) shown[i] = true;
+      }
+    }
+    var sorted = Object.keys(shown).map(Number).sort(function(a, b) { return a - b; });
+    for (var k = 0; k < sorted.length; k++) {
+      if (k > 0) {
+        var gap = sorted[k] - sorted[k - 1];
+        if (gap === 2) html += pageBtn(sorted[k] - 1, sorted[k] - 1, false, false);
+        else if (gap > 2) html += '<span class="pg-dots">…</span>';
+      }
+      html += pageBtn(sorted[k], sorted[k], false, sorted[k] === currentPage);
+    }
   }
 
   // next arrow
