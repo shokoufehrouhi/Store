@@ -882,6 +882,7 @@ function saveFilterToHash() {
   if (currentCategory    && currentCategory    !== 'all') params.set('cat', currentCategory);
   if (currentGender      && currentGender      !== 'all') params.set('gender', currentGender);
   if (currentSubcategory && currentSubcategory !== '')    params.set('sub', currentSubcategory);
+  if (currentPage        && currentPage        > 1)       params.set('page', currentPage);
   var str = params.toString();
   history.replaceState(null, '', str ? '#' + str : window.location.pathname);
 }
@@ -893,9 +894,11 @@ function restoreFilterFromHash() {
   var cat    = params.get('cat')    || 'all';
   var gender = params.get('gender') || 'all';
   var sub    = params.get('sub')    || null;
+  var page   = parseInt(params.get('page'), 10);
   currentCategory    = cat;
   currentGender      = gender;
   currentSubcategory = sub;
+  currentPage        = page > 0 ? page : 1;
 }
 
 // ─── Shared Filter Handler ────────────────────────────────────────────────────
@@ -1658,6 +1661,7 @@ function renderPagination(totalItems) {
 
 function goToPage(page) {
   currentPage = page;
+  saveFilterToHash();
   renderGrid(true);
   var productsEl = document.getElementById('products-grid');
   if (productsEl) productsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
