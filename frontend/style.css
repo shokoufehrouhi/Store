@@ -1185,25 +1185,22 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .product-brand-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  padding: 3px 10px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: var(--card);
+  gap: 3px;
+  font-size: 11.5px;
+  padding: 2px 9px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: #f3f4f6;
   white-space: nowrap;
   flex-shrink: 0;
 }
 .product-brand-badge .brand-label {
-  font-weight: 500;
-  color: var(--text-light);
-  opacity: .65;
+  font-weight: 600;
+  color: #9ca3af;
 }
 .product-brand-badge .brand-name {
-  font-weight: 800;
-  color: var(--text);
-  text-transform: uppercase;
-  letter-spacing: .02em;
+  font-weight: 600;
+  color: #374151;
 }
 .category-badge {
   display: inline-block;
