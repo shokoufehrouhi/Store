@@ -122,7 +122,12 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   display: flex;
   align-items: center;
   gap: 0px;
-  margin-right: auto;
+  /* Logical property (not margin-right) — pushes the lang/login/cart
+     cluster away from nav-links on its trailing side (left in RTL, right
+     in LTR) instead of eating space on the logo side, which is what a
+     plain margin-right:auto did here (RTL's "right" is nav-links' side
+     facing the logo, not the button cluster). */
+  margin-inline-end: auto;
 }
 
 /* آیتم اصلی nav */
@@ -1872,11 +1877,6 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 [dir="ltr"] .product-tag {
   right: auto;
   left: 12px;
-}
-/* در LTR، margin-right: auto روی nav-links فضا بین Nav و Lang ایجاد می‌کنه */
-[dir="ltr"] .nav-links {
-  margin-right: 0;
-  margin-left: auto;
 }
 /* موبایل LTR: لوگو چپ، تاگل راست */
 @media (max-width: 768px) {
