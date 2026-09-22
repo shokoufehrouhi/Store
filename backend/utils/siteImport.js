@@ -37,7 +37,7 @@ const TR_KEYWORD_TO_SUBCATEGORY = [
   [/pantolon|eşofman altı|jogger/i, 3],
   [/tayt/i, 4],
   [/sweatshirt|hırka|kazak|triko/i, 5],
-  [/mont|ceket|yelek|kaban|trençkot|yağmurluk|parka/i, 6],
+  [/mont|ceket|yelek|kaban|trençkot|yağmurluk|parka|blazer/i, 6],
 ];
 
 // Same idea, within category_id 7 (Sports) — the "Fit" listing's own
@@ -561,4 +561,211 @@ async function MadameCoco(pm, site, opts = {}) {
   return { imported, skipped: notDiscounted + (candidateUrls.length - newUrls.length) };
 }
 
-module.exports = { Defacto, MadameCoco };
+// Zara has a genuinely reliable, first-party discount signal — unlike
+// Madame Coco's blanket listing tag, a <del> (old price) element only
+// renders, on both the listing grid and the product page, when the loaded
+// color/size combo is actually marked down. No dataLayer/analytics
+// workaround needed; the DOM itself is the source of truth.
+function parseTLPrice(text) {
+  if (!text) return null;
+  const cleaned = text.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.');
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+// Zara's own "gender" is which sale listing a product was linked from
+// (Kadın/Erkek/Kız Çocuk/...), not something guessed from its title.
+const ZARA_GENDER_FROM_SLUG = [
+  [/erkek-chocuk|erkek-bebek/i, 'male'],
+  [/kiz-chocuk|kiz-bebek/i, 'female'],
+  [/yenidoan/i, 'unisex'],
+  [/erkek/i, 'male'],
+  [/kadin/i, 'female'],
+];
+
+// The homepage's mega-menu already links every gender/age segment's "Özel
+// Fiyatlar" (Special Prices) page — reading it here instead of hardcoding
+// those URLs means this self-heals if Zara ever renames/renumbers them, and
+// naturally covers a segment that currently has no active sale (it's just
+// not in the discovered list that run) without a hardcoded 404.
+async function discoverZaraListingUrls(pm, site) {
+  const page = await pm.goto(site.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await new Promise(r => setTimeout(r, 1500));
+  const hrefs = await page.evaluate(() => [...new Set(
+    Array.from(document.querySelectorAll('a[href]')).map(a => a.getAttribute('href')).filter(h => h && /fiyat/i.test(h))
+  )]);
+  return hrefs.map(url => {
+    const hit = ZARA_GENDER_FROM_SLUG.find(([re]) => re.test(url));
+    return { url, gender: hit ? hit[1] : 'unisex' };
+  });
+}
+
+async function collectZaraListingLinks(pm, listingUrl) {
+  const page = await pm.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await new Promise(r => setTimeout(r, 1500));
+
+  const links = new Set();
+  let stableRounds = 0;
+  for (let i = 0; i < 20 && stableRounds < 2; i++) {
+    const before = links.size;
+    const pageLinks = await page.evaluate(() => [...new Set(
+      Array.from(document.querySelectorAll('a[href]')).map(a => a.getAttribute('href')).filter(h => h && /-p\d+\.html/.test(h))
+    )]);
+    pageLinks.forEach(h => links.add(h));
+    stableRounds = links.size === before ? stableRounds + 1 : 0;
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  return [...links];
+}
+
+async function scrapeZaraProduct(pm, url) {
+  const page = await pm.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await new Promise(r => setTimeout(r, 1500));
+
+  return page.evaluate(() => {
+    const group = Array.from(document.querySelectorAll('script[type="application/ld+json"]'))
+      .map(s => { try { return JSON.parse(s.textContent); } catch (e) { return null; } })
+      .find(d => d && d['@type'] === 'ProductGroup');
+    if (!group) return null;
+
+    const delEl = document.querySelector('del .money-amount__main') || document.querySelector('del');
+    const insEl = document.querySelector('.price-current__amount .money-amount__main') || document.querySelector('ins .money-amount__main');
+
+    // The page title always ends "<Name> - <Color>" for whichever
+    // color/size the URL's own params loaded — matches hasVariant[].color
+    // exactly, which is how the per-size stock for THIS color is isolated
+    // (hasVariant spans every color × size combo in the group, not just
+    // the one on screen).
+    const titleParts = document.title.split(' - ');
+    const colorName = titleParts.length > 1 ? titleParts[titleParts.length - 1].split('|')[0].trim() : null;
+    const sameColorVariants = (group.hasVariant || []).filter(v => v.color === colorName);
+
+    return {
+      name: group.name,
+      images: [...new Set(group.image || [])],
+      description: group.description || '',
+      delText: delEl?.textContent || null,
+      insText: insEl?.textContent || null,
+      color: colorName,
+      sizes: sameColorVariants.map(v => ({
+        size: v.size,
+        inStock: v.offers?.availability ? !/OutOfStock/i.test(v.offers.availability) : true,
+      })),
+    };
+  });
+}
+
+// Site scraper entry point. A product is only imported when its loaded
+// variant actually shows a <del> old price — every listing here (including
+// the ones for segments with no sale live today) is used purely as a source
+// of candidate URLs, same as Defacto's Kozmetik listing.
+async function Zara(pm, site, opts = {}) {
+  const limit = opts.limit || 30;
+  const listings = await discoverZaraListingUrls(pm, site);
+
+  const metaByUrl = new Map();
+  const perListing = [];
+  for (const listing of listings) {
+    const hrefs = await collectZaraListingLinks(pm, listing.url);
+    const urls = [];
+    for (const h of hrefs) {
+      if (!metaByUrl.has(h)) { metaByUrl.set(h, { gender: listing.gender }); urls.push(h); }
+    }
+    perListing.push(urls);
+  }
+  const candidateUrls = [];
+  for (let i = 0; i < Math.max(...perListing.map(l => l.length), 0); i++) {
+    for (const urls of perListing) if (urls[i]) candidateUrls.push(urls[i]);
+  }
+
+  const existing = await prisma.products.findMany({
+    where: { product_link: { in: candidateUrls } },
+    select: { product_link: true },
+  });
+  const existingSet = new Set(existing.map(e => e.product_link));
+  const newUrls = candidateUrls.filter(u => !existingSet.has(u));
+
+  const imported = [];
+  let notDiscounted = 0;
+
+  for (const url of newUrls) {
+    if (imported.filter(p => !p.error).length >= limit) break;
+    try {
+      const data = await scrapeZaraProduct(pm, url);
+      if (!data || !data.name) continue;
+      const originalPrice = parseTLPrice(data.delText);
+      const discountedPrice = parseTLPrice(data.insText);
+      if (!originalPrice || discountedPrice == null || originalPrice <= discountedPrice) { notDiscounted++; continue; }
+
+      const gender = metaByUrl.get(url)?.gender || 'unisex';
+      data.sizes = data.sizes.map(s => ({ ...s, size: (s.size || '').slice(0, 10) }));
+
+      const priceOriginal = originalPrice;
+      const priceSite = discountedPrice;
+      const finalDiscountedPrice = Math.round(priceSite * (1 + site.markup_percent / 100) * 100) / 100;
+
+      const translateOrWarn = (text, target) => translateText(text, 'tr', target)
+        .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
+      const [name_fa, name_en, desc_fa, desc_en] = await Promise.all([
+        translateOrWarn(data.name, 'fa'),
+        translateOrWarn(data.name, 'en'),
+        data.description ? translateOrWarn(data.description, 'fa') : '',
+        data.description ? translateOrWarn(data.description, 'en') : '',
+      ]);
+      const nameTr = data.name.slice(0, 120);
+      const nameFa = name_fa.slice(0, 120);
+      const nameEn = name_en.slice(0, 120);
+
+      const mediaUrls = [];
+      for (const imgUrl of data.images) {
+        try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
+      }
+
+      const colorId = guessColorIdFromWord(data.color);
+
+      const product = await prisma.products.create({
+        data: {
+          code: await generateProductCode(),
+          category_id: 1,
+          subcategory_id: guessSubcategoryId(data.name, 1),
+          gender,
+          name_fa: nameFa, name_en: nameEn, name_tr: nameTr,
+          desc_fa, desc_en, desc_tr: data.description || null,
+          price: priceOriginal,
+          cost_price: priceSite,
+          discounted_price: finalDiscountedPrice,
+          tag: 'discount',
+          stock: 0,
+          brand: site.name,
+          supplier_shop_name: site.name,
+          product_link: url,
+          product_media: mediaUrls.length ? { create: mediaUrls.map((u, i) => ({ type: 'image', url: u, sort_order: i })) } : undefined,
+          product_colors: colorId ? { create: [{ color_id: colorId, is_available: true }] } : undefined,
+          product_sizes: data.sizes.length ? {
+            create: data.sizes.map(s => ({ size_label: s.size, is_available: s.inStock })),
+          } : undefined,
+        },
+      });
+
+      if (data.sizes.length) {
+        await prisma.product_inventory.createMany({
+          data: data.sizes.map(s => ({
+            product_id: product.id, color_id: colorId, size_label: s.size,
+            quantity: s.inStock ? 10 : 0,
+          })),
+        });
+        const totalQty = data.sizes.filter(s => s.inStock).length * 10;
+        await prisma.products.update({ where: { id: product.id }, data: { stock: totalQty } });
+      }
+
+      imported.push({ id: product.id, name: data.name });
+    } catch (err) {
+      imported.push({ error: err.message, url });
+    }
+  }
+
+  return { imported, skipped: notDiscounted + (candidateUrls.length - newUrls.length) };
+}
+
+module.exports = { Defacto, MadameCoco, Zara };
