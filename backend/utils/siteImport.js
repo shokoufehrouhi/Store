@@ -573,44 +573,38 @@ function parseTLPrice(text) {
   return Number.isFinite(n) ? n : null;
 }
 
-// Zara's own "gender" is which sale listing a product was linked from
-// (Kadın/Erkek/Kız Çocuk/...), not something guessed from its title.
-const ZARA_GENDER_FROM_SLUG = [
-  [/erkek-chocuk|erkek-bebek/i, 'male'],
-  [/kiz-chocuk|kiz-bebek/i, 'female'],
-  [/yenidoan/i, 'unisex'],
-  [/erkek/i, 'male'],
-  [/kadin/i, 'female'],
+// Hardcoded rather than discovered from the homepage's mega-menu: confirmed
+// live that Zara's homepage itself depends on geo-IP resolving the visitor
+// to Turkey, and the VPS's hosting IP doesn't — it gets redirected to a
+// generic "select your country" splash instead of the real /tr/ homepage,
+// so there was never anything to discover from there. These deep sale-page
+// URLs were captured once from a working (non-VPS) session; if Zara
+// eventually renumbers them, isNotZaraSplash below will say so clearly
+// rather than silently returning nothing again.
+const ZARA_LISTINGS = [
+  { url: 'https://www.zara.com/tr/tr/kadin-ezel-fiyatlar-l1314.html',                    gender: 'female' },
+  { url: 'https://www.zara.com/tr/tr/erkek-ezel-fiyatlar-l806.html',                     gender: 'male' },
+  { url: 'https://www.zara.com/tr/tr/chocuklar-kiz-chocuk-ezel-fiyatlar-l427.html',      gender: 'female' },
+  { url: 'https://www.zara.com/tr/tr/chocuklar-erkek-chocuk-ezel-fiyatlar-l263.html',    gender: 'male' },
+  { url: 'https://www.zara.com/tr/tr/chocuklar-kiz-bebek-ezel-fiyatlar-l152.html',       gender: 'female' },
+  { url: 'https://www.zara.com/tr/tr/chocuklar-erkek-bebek-ezel-fiyatlar-l69.html',      gender: 'male' },
+  { url: 'https://www.zara.com/tr/tr/chocuklar-yenidoan-ezel-fiyatlar-l428.html',        gender: 'unisex' },
 ];
 
-// The homepage's mega-menu already links every gender/age segment's "Özel
-// Fiyatlar" (Special Prices) page — reading it here instead of hardcoding
-// those URLs means this self-heals if Zara ever renames/renumbers them, and
-// naturally covers a segment that currently has no active sale (it's just
-// not in the discovered list that run) without a hardcoded 404.
-async function discoverZaraListingUrls(pm, site) {
-  const page = await pm.goto(site.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await new Promise(r => setTimeout(r, 1500));
-  const diag = await page.evaluate(() => ({
-    hrefs: [...new Set(Array.from(document.querySelectorAll('a[href]')).map(a => a.getAttribute('href')).filter(h => h && /fiyat/i.test(h)))],
-    title: document.title,
-    linkCount: document.querySelectorAll('a[href]').length,
-    bodyTextSample: (document.body.innerText || '').slice(0, 60),
-  }));
-  // last_import_status is VARCHAR(300) — keep this well under that or the
-  // status-update itself fails silently and the admin sees nothing at all.
-  if (!diag.hrefs.length) {
-    throw new Error(`Zara: 0 sale listings found (url=${page.url().slice(0, 60)}, title="${diag.title.slice(0, 40)}", ${diag.linkCount} links, body: "${diag.bodyTextSample.replace(/\s+/g, ' ')}") — likely blocked, not real absence`);
+// last_import_status is VARCHAR(300) — keep thrown messages well under that
+// or the status-update itself fails silently and admin sees nothing at all.
+function assertNotZaraSplash(page, diag) {
+  const isSplash = /select your location/i.test(diag.bodyTextSample) || page.url().replace(/\/+$/, '') === 'https://www.zara.com';
+  if (isSplash) {
+    throw new Error(`Zara: redirected to country-selector splash (url=${page.url().slice(0, 60)}, title="${diag.title.slice(0, 40)}") — VPS IP likely not geo-resolving as Turkey`);
   }
-  return diag.hrefs.map(url => {
-    const hit = ZARA_GENDER_FROM_SLUG.find(([re]) => re.test(url));
-    return { url, gender: hit ? hit[1] : 'unisex' };
-  });
 }
 
 async function collectZaraListingLinks(pm, listingUrl) {
   const page = await pm.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await new Promise(r => setTimeout(r, 1500));
+  const diag = await page.evaluate(() => ({ title: document.title, bodyTextSample: (document.body.innerText || '').slice(0, 60) }));
+  assertNotZaraSplash(page, diag);
 
   const links = new Set();
   let stableRounds = 0;
@@ -670,11 +664,10 @@ async function scrapeZaraProduct(pm, url) {
 // of candidate URLs, same as Defacto's Kozmetik listing.
 async function Zara(pm, site, opts = {}) {
   const limit = opts.limit || 30;
-  const listings = await discoverZaraListingUrls(pm, site);
 
   const metaByUrl = new Map();
   const perListing = [];
-  for (const listing of listings) {
+  for (const listing of ZARA_LISTINGS) {
     const hrefs = await collectZaraListingLinks(pm, listing.url);
     const urls = [];
     for (const h of hrefs) {
