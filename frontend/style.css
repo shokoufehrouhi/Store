@@ -1293,6 +1293,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .gender-female { background: #fce7f3; color: #be185d; }
 .gender-male   { background: #dbeafe; color: #1d4ed8; }
+.gender-kids   { background: #fef3c7; color: #b45309; }
 .cat-clothing    { background: #ede9fe; color: #7c3aed; }
 .cat-shoes       { background: #dbeafe; color: #1d4ed8; }
 .cat-accessories { background: #d1fae5; color: #065f46; }

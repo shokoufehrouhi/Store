@@ -1059,8 +1059,9 @@ function buildGenderDropdowns(categories) {
   var shoesCat    = categories.find(function(c) { return c.key === 'shoes'; });
   var accCat      = categories.find(function(c) { return c.key === 'accessories'; });
 
-  ['female', 'male'].forEach(function(gender) {
-    var drop = document.getElementById(gender === 'female' ? 'nav-drop-women' : 'nav-drop-men');
+  var GENDER_DROP_IDS = { female: 'nav-drop-women', kids: 'nav-drop-kids', male: 'nav-drop-men' };
+  ['female', 'kids', 'male'].forEach(function(gender) {
+    var drop = document.getElementById(GENDER_DROP_IDS[gender]);
     if (!drop) return;
     var html = '';
     [clothingCat, shoesCat].forEach(function(cat) {
@@ -1317,6 +1318,8 @@ function renderProduct(p) {
     genderBadge = '<span class="gender-badge gender-female">' + t.gender_female + '</span>';
   } else if (p.gender === 'male') {
     genderBadge = '<span class="gender-badge gender-male">' + t.gender_male + '</span>';
+  } else if (p.gender === 'kids') {
+    genderBadge = '<span class="gender-badge gender-kids">' + t.gender_kids + '</span>';
   }
 
   var user  = getCurrentUser();
@@ -2223,6 +2226,8 @@ function openModal(productId) {
     modalGenderBadge = '<span class="gender-badge gender-female">' + t.gender_female + '</span>';
   } else if (p.gender === 'male') {
     modalGenderBadge = '<span class="gender-badge gender-male">' + t.gender_male + '</span>';
+  } else if (p.gender === 'kids') {
+    modalGenderBadge = '<span class="gender-badge gender-kids">' + t.gender_kids + '</span>';
   }
 
   var firstMedia   = allMedia[0] || null;

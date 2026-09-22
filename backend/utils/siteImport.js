@@ -108,8 +108,7 @@ function guessColorIdFromWord(text) {
 // reliable than the listing's own default or the URL slug (which usually
 // carries no gender marker at all outside the kids' segment).
 function guessGenderFromTitle(title, defaultGender) {
-  if (/Kız Çocuk|Kız Bebek/i.test(title)) return 'female';
-  if (/Erkek Çocuk|Erkek Bebek/i.test(title)) return 'male';
+  if (/Kız Çocuk|Kız Bebek|Erkek Çocuk|Erkek Bebek/i.test(title)) return 'kids';
   if (/\bKadın\b/i.test(title)) return 'female';
   if (/\bErkek\b/i.test(title)) return 'male';
   return defaultGender;
@@ -185,7 +184,7 @@ async function scrapeDefactoProduct(pm, url) {
 const DEFACTO_LISTINGS = [
   { path: 'indirimli-urunler-listesi-kadin',   gender: 'female', categoryId: 1 },
   { path: 'erkek-indirimli-urunler-listesi',   gender: 'male',   categoryId: 1 },
-  { path: 'cocuk-bebek-indirimli-urunler',     gender: 'unisex', categoryId: 1 },
+  { path: 'cocuk-bebek-indirimli-urunler',     gender: 'kids',   categoryId: 1 },
   { path: 'app/fit-indirimli-urunler',         gender: 'unisex', categoryId: 7 },
   // Not a discount-only listing like the others (Defacto has no dedicated
   // Kozmetik discount page — confirmed 404 on kozmetik-indirim) — this is
@@ -584,11 +583,11 @@ function parseTLPrice(text) {
 const ZARA_LISTINGS = [
   { url: 'https://www.zara.com/tr/tr/kadin-ezel-fiyatlar-l1314.html',                    gender: 'female' },
   { url: 'https://www.zara.com/tr/tr/erkek-ezel-fiyatlar-l806.html',                     gender: 'male' },
-  { url: 'https://www.zara.com/tr/tr/chocuklar-kiz-chocuk-ezel-fiyatlar-l427.html',      gender: 'female' },
-  { url: 'https://www.zara.com/tr/tr/chocuklar-erkek-chocuk-ezel-fiyatlar-l263.html',    gender: 'male' },
-  { url: 'https://www.zara.com/tr/tr/chocuklar-kiz-bebek-ezel-fiyatlar-l152.html',       gender: 'female' },
-  { url: 'https://www.zara.com/tr/tr/chocuklar-erkek-bebek-ezel-fiyatlar-l69.html',      gender: 'male' },
-  { url: 'https://www.zara.com/tr/tr/chocuklar-yenidoan-ezel-fiyatlar-l428.html',        gender: 'unisex' },
+  { url: 'https://www.zara.com/tr/tr/chocuklar-kiz-chocuk-ezel-fiyatlar-l427.html',      gender: 'kids' },
+  { url: 'https://www.zara.com/tr/tr/chocuklar-erkek-chocuk-ezel-fiyatlar-l263.html',    gender: 'kids' },
+  { url: 'https://www.zara.com/tr/tr/chocuklar-kiz-bebek-ezel-fiyatlar-l152.html',       gender: 'kids' },
+  { url: 'https://www.zara.com/tr/tr/chocuklar-erkek-bebek-ezel-fiyatlar-l69.html',      gender: 'kids' },
+  { url: 'https://www.zara.com/tr/tr/chocuklar-yenidoan-ezel-fiyatlar-l428.html',        gender: 'kids' },
 ];
 
 // last_import_status is VARCHAR(300) — keep thrown messages well under that

@@ -507,6 +507,7 @@ enum gender_type {
   male
   female
   unisex
+  kids
 }
 
 enum order_status {
