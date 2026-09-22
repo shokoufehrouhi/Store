@@ -95,7 +95,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .header-inner {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   height: 64px;
 }
 
@@ -108,7 +108,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 .logo-img {
-  height: 40px;
+  height: 34px;
   width: auto;
   display: block;
   object-fit: contain;
@@ -129,9 +129,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .nav-link {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 7px 7px;
-  font-size: 13px;
+  gap: 2px;
+  padding: 6px 5px;
+  font-size: 12.5px;
   border-radius: 8px;
   font-weight: 600;
   color: var(--text-light);
