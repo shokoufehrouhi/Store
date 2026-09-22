@@ -351,10 +351,10 @@ async function Defacto(pm, site, opts = {}) {
 // Madame Coco (home textiles/decor) has no clothing-store equivalent
 // category in our taxonomy at all — everything here goes under the existing
 // Lifestyle category (id 8), split into subcategories that mirror Madame
-// Coco's own top-level nav (Yatak Odası, Banyo, ...). Those subcategories
-// don't exist yet and are created on first use (see getOrCreateSubcategory)
-// rather than requiring them to be pre-seeded, since there's no fixed ID to
-// hardcode the way Defacto's clothing subcategories have.
+// Coco's own top-level nav (Yatak Odası, Banyo, ...). All 9 are seeded
+// unconditionally at the start of every run (see seedMcSubcategories) rather
+// than created lazily per matched product — so they show up in admin (and
+// can be reviewed/toggled/published) even on a run that imports nothing.
 const MC_LIFESTYLE_CATEGORY_ID = 8;
 const MC_SUBCATEGORY_DEFS = {
   'yatak-odasi':    { key: 'bedroom',        label_tr: 'Yatak Odası',    label_fa: 'اتاق خواب',               label_en: 'Bedroom' },
@@ -369,18 +369,22 @@ const MC_SUBCATEGORY_DEFS = {
 };
 const mcSubcategoryCache = new Map(); // slug -> subcategory id, memoized for one import run
 
-async function getOrCreateMcSubcategory(slug) {
-  if (mcSubcategoryCache.has(slug)) return mcSubcategoryCache.get(slug);
-  const def = MC_SUBCATEGORY_DEFS[slug];
-  if (!def) return null;
-  let sub = await prisma.subcategories.findFirst({ where: { category_id: MC_LIFESTYLE_CATEGORY_ID, key: def.key } });
-  if (!sub) {
-    sub = await prisma.subcategories.create({
-      data: { category_id: MC_LIFESTYLE_CATEGORY_ID, key: def.key, label_tr: def.label_tr, label_fa: def.label_fa, label_en: def.label_en },
-    });
+// Idempotent: findFirst-then-create per slug, safe to call on every sync.
+async function seedMcSubcategories() {
+  for (const [slug, def] of Object.entries(MC_SUBCATEGORY_DEFS)) {
+    if (mcSubcategoryCache.has(slug)) continue;
+    let sub = await prisma.subcategories.findFirst({ where: { category_id: MC_LIFESTYLE_CATEGORY_ID, key: def.key } });
+    if (!sub) {
+      sub = await prisma.subcategories.create({
+        data: { category_id: MC_LIFESTYLE_CATEGORY_ID, key: def.key, label_tr: def.label_tr, label_fa: def.label_fa, label_en: def.label_en },
+      });
+    }
+    mcSubcategoryCache.set(slug, sub.id);
   }
-  mcSubcategoryCache.set(slug, sub.id);
-  return sub.id;
+}
+
+function getMcSubcategoryId(slug) {
+  return mcSubcategoryCache.get(slug) || null;
 }
 
 async function scrapeMadameCocoProduct(pm, url) {
@@ -482,6 +486,7 @@ async function collectMadameCocoListingLinks(pm, site, maxCandidates) {
 // candidate URLs, exactly like Defacto's Kozmetik listing.
 async function MadameCoco(pm, site, opts = {}) {
   const limit = opts.limit || 30;
+  await seedMcSubcategories();
   const candidateUrls = await collectMadameCocoListingLinks(pm, site, Math.max(limit * 15, 200));
 
   const existing = await prisma.products.findMany({
@@ -501,7 +506,7 @@ async function MadameCoco(pm, site, opts = {}) {
       if (!data || !data.name || data.price == null) continue;
       if (!data.firstPrice || data.firstPrice <= data.price) { notDiscounted++; continue; }
 
-      const subcategoryId = data.categorySlug ? await getOrCreateMcSubcategory(data.categorySlug) : null;
+      const subcategoryId = data.categorySlug ? getMcSubcategoryId(data.categorySlug) : null;
 
       const priceOriginal = data.firstPrice;
       const priceSite = data.price;
