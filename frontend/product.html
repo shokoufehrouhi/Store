@@ -315,12 +315,11 @@
       </nav>
       <div class="site-lang-wrap" id="site-lang-wrap">
         <button class="site-lang-btn" onclick="pdToggleLang(event)">
-          <span class="site-lang-globe" id="site-lang-label">TR</span>
+          <span class="site-lang-globe" id="site-lang-label">FA</span>
         </button>
         <div class="site-lang-menu hidden" id="site-lang-menu">
           <button class="site-lang-opt" data-lang="fa" onclick="pdSetLang('fa')"><span class="opt-dot"></span>فارسی</button>
           <button class="site-lang-opt" data-lang="en" onclick="pdSetLang('en')"><span class="opt-dot"></span>English</button>
-          <button class="site-lang-opt" data-lang="tr" onclick="pdSetLang('tr')"><span class="opt-dot"></span>Türkçe</button>
         </div>
       </div>
       <button class="auth-header-btn" id="auth-header-btn" onclick="pdHandleAuth()"></button>
@@ -352,7 +351,6 @@
       <div class="mobile-lang-wrap">
         <button class="mobile-lang-opt" onclick="pdSetLang('fa')">FA</button>
         <button class="mobile-lang-opt" onclick="pdSetLang('en')">EN</button>
-        <button class="mobile-lang-opt" onclick="pdSetLang('tr')">TR</button>
       </div>
     </nav>
   </div>
@@ -402,9 +400,10 @@
 // ── lang ──────────────────────────────────────────────────────────────────────
 var _qp = new URLSearchParams(location.search);
 var _ql = _qp.get('lang');
-if(_ql && ['fa','tr','en'].includes(_ql)) localStorage.setItem('lang_v2', _ql);
-var CL  = localStorage.getItem('lang_v2') || 'tr';
-var T   = TRANSLATIONS[CL] || TRANSLATIONS.tr;
+if(_ql && ['fa','en'].includes(_ql)) localStorage.setItem('lang_v2', _ql);
+var CL  = localStorage.getItem('lang_v2');
+if (CL !== 'fa' && CL !== 'en') CL = 'fa'; // Turkish removed from the storefront — migrate any stale 'tr' value
+var T   = TRANSLATIONS[CL] || TRANSLATIONS.fa;
 var DIR = T.dir || 'ltr';
 document.documentElement.lang = CL;
 document.documentElement.dir  = DIR;

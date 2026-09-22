@@ -51,8 +51,9 @@ var _isLocal    = location.hostname === 'localhost' || location.hostname === '12
 var SERVER_BASE = _isLocal ? 'http://localhost:3001' : '';
 var API_BASE    = SERVER_BASE + '/api';
 var _urlLang = new URLSearchParams(location.search).get('lang');
-if (_urlLang && ['fa','tr','en'].includes(_urlLang)) localStorage.setItem('lang_v2', _urlLang);
-var currentLang = localStorage.getItem('lang_v2') || 'tr';
+if (_urlLang && ['fa','en'].includes(_urlLang)) localStorage.setItem('lang_v2', _urlLang);
+var currentLang = localStorage.getItem('lang_v2');
+if (currentLang !== 'fa' && currentLang !== 'en') currentLang = 'fa'; // Turkish removed from the storefront — migrate any stale 'tr' value
 var currentSearch      = '';
 var currentCategory    = 'all';
 var currentSubcategory = null;
