@@ -5,6 +5,7 @@ const util    = require('util');
 const { execFile } = require('child_process');
 const execFileAsync = util.promisify(execFile);
 const { sendOrderEmail, sendLoyaltyEmail, sendPrizeEarnedEmail, label } = require('../utils/mailer');
+const { syncSubcategoryActiveState, reconcileAllSubcategories } = require('../utils/subcategorySync');
 
 // A product whose every submitted size is unavailable is sold out regardless
 // of what tag was picked in the form — this overrides bestseller/new/etc.
@@ -269,6 +270,7 @@ async function login(req, res) {
 
 async function getCategories(req, res, next) {
   try {
+    await reconcileAllSubcategories();
     const cats = await prisma.categories.findMany({
       include: { subcategories: { orderBy: { id: 'asc' } } },
       orderBy: { id: 'asc' },
@@ -319,6 +321,7 @@ async function deleteCategory(req, res, next) {
 
 async function getSubcategories(req, res, next) {
   try {
+    await reconcileAllSubcategories();
     const subs = await prisma.subcategories.findMany({
       include: { categories: { select: { id: true, key: true, label_fa: true } } },
       orderBy: { id: 'asc' },
@@ -774,6 +777,8 @@ async function createProduct(req, res, next) {
         skipDuplicates: true,
       });
     }
+    await syncSubcategoryActiveState(product.subcategory_id);
+    for (const ec of extra_categories || []) await syncSubcategoryActiveState(ec.subcategory_id ? Number(ec.subcategory_id) : null);
     res.status(201).json({ success: true, data: product });
   } catch (err) { next(err); }
 }
@@ -787,6 +792,14 @@ async function updateProduct(req, res, next) {
       brand, supplier_shop_name, product_link, supplier_code, supplier_note,
       colors, sizes, media, inventory, extra_categories,
     } = req.body;
+
+    const before = await prisma.products.findUnique({
+      where: { id },
+      select: { subcategory_id: true, product_categories: { select: { subcategory_id: true } } },
+    });
+    const affectedSubcategoryIds = new Set(
+      [before?.subcategory_id, ...(before?.product_categories || []).map(ec => ec.subcategory_id)].filter(Boolean)
+    );
 
     await prisma.product_colors.deleteMany({ where: { product_id: id } });
     await prisma.product_sizes.deleteMany({ where:  { product_id: id } });
@@ -866,16 +879,23 @@ async function updateProduct(req, res, next) {
         skipDuplicates: true,
       });
     }
+    affectedSubcategoryIds.add(product.subcategory_id);
+    for (const ec of extra_categories || []) if (ec.subcategory_id) affectedSubcategoryIds.add(Number(ec.subcategory_id));
+    for (const subId of affectedSubcategoryIds) await syncSubcategoryActiveState(subId);
     res.json({ success: true, data: product });
   } catch (err) { next(err); }
 }
 
 async function deleteProduct(req, res, next) {
   try {
-    await prisma.products.update({
-      where: { id: Number(req.params.id) },
+    const id = Number(req.params.id);
+    const extraCats = await prisma.product_categories.findMany({ where: { product_id: id }, select: { subcategory_id: true } });
+    const deleted = await prisma.products.update({
+      where: { id },
       data:  { is_active: false, is_dirty: true },
     });
+    await syncSubcategoryActiveState(deleted.subcategory_id);
+    for (const ec of extraCats) await syncSubcategoryActiveState(ec.subcategory_id);
     res.json({ success: true });
   } catch (err) { next(err); }
 }
