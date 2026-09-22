@@ -347,15 +347,18 @@ async function Defacto(pm, site, opts = {}) {
   return { imported, skipped };
 }
 
-// Madame Coco (home textiles/decor) has no clothing-store equivalent
-// category in our taxonomy at all — everything here goes under the existing
-// Lifestyle category (id 8), split into subcategories that mirror Madame
-// Coco's own top-level nav (Yatak Odası, Banyo, ...). All 9 are seeded
-// unconditionally at the start of every run (see seedMcSubcategories) rather
-// than created lazily per matched product — so they show up in admin (and
-// can be reviewed/toggled/published) even on a run that imports nothing.
-const MC_LIFESTYLE_CATEGORY_ID = 8;
-const MC_SUBCATEGORY_DEFS = {
+// Home-goods sites (Madame Coco, and now Zara Home) have no clothing-store
+// equivalent category in our taxonomy at all — everything here goes under
+// the existing Lifestyle category (id 8), split into subcategories that
+// mirror Madame Coco's own top-level nav (Yatak Odası, Banyo, ...) plus two
+// Zara Home adds (Mobilya, Aydınlatma). Keyed by an arbitrary internal slug,
+// not either site's own URL scheme — each site's listing config just picks
+// whichever of these keys its category conceptually matches. All are seeded
+// unconditionally at the start of every run (see seedLifestyleSubcategories)
+// rather than created lazily per matched product — so they show up in admin
+// (and can be reviewed/toggled/published) even on a run that imports nothing.
+const LIFESTYLE_CATEGORY_ID = 8;
+const LIFESTYLE_SUBCATEGORY_DEFS = {
   'yatak-odasi':    { key: 'bedroom',        label_tr: 'Yatak Odası',    label_fa: 'اتاق خواب',               label_en: 'Bedroom' },
   'banyo':          { key: 'bathroom',       label_tr: 'Banyo',          label_fa: 'حمام',                     label_en: 'Bathroom' },
   'mutfak':         { key: 'kitchen',        label_tr: 'Mutfak',         label_fa: 'آشپزخانه',                 label_en: 'Kitchen' },
@@ -365,25 +368,27 @@ const MC_SUBCATEGORY_DEFS = {
   'kozmetik':       { key: 'home_cosmetics', label_tr: 'Kozmetik',       label_fa: 'عطر، شمع و بهداشت خانه',   label_en: 'Home Fragrance & Care' },
   'ev-yasam':       { key: 'home_living',    label_tr: 'Ev & Yaşam',     label_fa: 'خانه و زندگی',             label_en: 'Home & Living' },
   'ceyiz-urunleri': { key: 'trousseau',      label_tr: 'Çeyiz Ürünleri', label_fa: 'جهیزیه',                   label_en: 'Trousseau' },
+  'mobilya':        { key: 'furniture',      label_tr: 'Mobilya',        label_fa: 'مبلمان',                   label_en: 'Furniture' },
+  'aydinlatma':     { key: 'lighting',       label_tr: 'Aydınlatma',     label_fa: 'روشنایی',                  label_en: 'Lighting' },
 };
-const mcSubcategoryCache = new Map(); // slug -> subcategory id, memoized for one import run
+const lifestyleSubcategoryCache = new Map(); // slug -> subcategory id, memoized for one import run
 
 // Idempotent: findFirst-then-create per slug, safe to call on every sync.
-async function seedMcSubcategories() {
-  for (const [slug, def] of Object.entries(MC_SUBCATEGORY_DEFS)) {
-    if (mcSubcategoryCache.has(slug)) continue;
-    let sub = await prisma.subcategories.findFirst({ where: { category_id: MC_LIFESTYLE_CATEGORY_ID, key: def.key } });
+async function seedLifestyleSubcategories() {
+  for (const [slug, def] of Object.entries(LIFESTYLE_SUBCATEGORY_DEFS)) {
+    if (lifestyleSubcategoryCache.has(slug)) continue;
+    let sub = await prisma.subcategories.findFirst({ where: { category_id: LIFESTYLE_CATEGORY_ID, key: def.key } });
     if (!sub) {
       sub = await prisma.subcategories.create({
-        data: { category_id: MC_LIFESTYLE_CATEGORY_ID, key: def.key, label_tr: def.label_tr, label_fa: def.label_fa, label_en: def.label_en },
+        data: { category_id: LIFESTYLE_CATEGORY_ID, key: def.key, label_tr: def.label_tr, label_fa: def.label_fa, label_en: def.label_en },
       });
     }
-    mcSubcategoryCache.set(slug, sub.id);
+    lifestyleSubcategoryCache.set(slug, sub.id);
   }
 }
 
-function getMcSubcategoryId(slug) {
-  return mcSubcategoryCache.get(slug) || null;
+function getLifestyleSubcategoryId(slug) {
+  return lifestyleSubcategoryCache.get(slug) || null;
 }
 
 async function scrapeMadameCocoProduct(pm, url) {
@@ -485,7 +490,7 @@ async function collectMadameCocoListingLinks(pm, site, maxCandidates) {
 // candidate URLs, exactly like Defacto's Kozmetik listing.
 async function MadameCoco(pm, site, opts = {}) {
   const limit = opts.limit || 30;
-  await seedMcSubcategories();
+  await seedLifestyleSubcategories();
   const candidateUrls = await collectMadameCocoListingLinks(pm, site, Math.max(limit * 15, 200));
 
   const existing = await prisma.products.findMany({
@@ -505,7 +510,7 @@ async function MadameCoco(pm, site, opts = {}) {
       if (!data || !data.name || data.price == null) continue;
       if (!data.firstPrice || data.firstPrice <= data.price) { notDiscounted++; continue; }
 
-      const subcategoryId = data.categorySlug ? getMcSubcategoryId(data.categorySlug) : null;
+      const subcategoryId = data.categorySlug ? getLifestyleSubcategoryId(data.categorySlug) : null;
 
       const priceOriginal = data.firstPrice;
       const priceSite = data.price;
@@ -533,7 +538,7 @@ async function MadameCoco(pm, site, opts = {}) {
       const product = await prisma.products.create({
         data: {
           code: await generateProductCode(),
-          category_id: MC_LIFESTYLE_CATEGORY_ID,
+          category_id: LIFESTYLE_CATEGORY_ID,
           subcategory_id: subcategoryId,
           gender: 'unisex',
           name_fa: nameFa, name_en: nameEn, name_tr: nameTr,
@@ -581,13 +586,32 @@ function parseTLPrice(text) {
 // eventually renumbers them, isNotZaraSplash below will say so clearly
 // rather than silently returning nothing again.
 const ZARA_LISTINGS = [
-  { url: 'https://www.zara.com/tr/tr/kadin-ezel-fiyatlar-l1314.html',                    gender: 'female' },
-  { url: 'https://www.zara.com/tr/tr/erkek-ezel-fiyatlar-l806.html',                     gender: 'male' },
-  { url: 'https://www.zara.com/tr/tr/chocuklar-kiz-chocuk-ezel-fiyatlar-l427.html',      gender: 'kids' },
-  { url: 'https://www.zara.com/tr/tr/chocuklar-erkek-chocuk-ezel-fiyatlar-l263.html',    gender: 'kids' },
-  { url: 'https://www.zara.com/tr/tr/chocuklar-kiz-bebek-ezel-fiyatlar-l152.html',       gender: 'kids' },
-  { url: 'https://www.zara.com/tr/tr/chocuklar-erkek-bebek-ezel-fiyatlar-l69.html',      gender: 'kids' },
-  { url: 'https://www.zara.com/tr/tr/chocuklar-yenidoan-ezel-fiyatlar-l428.html',        gender: 'kids' },
+  // Clothing (Kadın/Erkek/Çocuk) — category_id 1, gender per listing,
+  // subcategory guessed from the product name via Defacto's own table.
+  { kind: 'clothing', url: 'https://www.zara.com/tr/tr/kadin-ezel-fiyatlar-l1314.html',                    gender: 'female' },
+  { kind: 'clothing', url: 'https://www.zara.com/tr/tr/erkek-ezel-fiyatlar-l806.html',                     gender: 'male' },
+  { kind: 'clothing', url: 'https://www.zara.com/tr/tr/chocuklar-kiz-chocuk-ezel-fiyatlar-l427.html',      gender: 'kids' },
+  { kind: 'clothing', url: 'https://www.zara.com/tr/tr/chocuklar-erkek-chocuk-ezel-fiyatlar-l263.html',    gender: 'kids' },
+  { kind: 'clothing', url: 'https://www.zara.com/tr/tr/chocuklar-kiz-bebek-ezel-fiyatlar-l152.html',       gender: 'kids' },
+  { kind: 'clothing', url: 'https://www.zara.com/tr/tr/chocuklar-erkek-bebek-ezel-fiyatlar-l69.html',      gender: 'kids' },
+  { kind: 'clothing', url: 'https://www.zara.com/tr/tr/chocuklar-yenidoan-ezel-fiyatlar-l428.html',        gender: 'kids' },
+  // Beauty — no dedicated "Özel Fiyatlar" page exists for it (checked live:
+  // neither had it in nav, nor any <del> in a sample listing — no genuine
+  // discount right now), so these are just its two real listing pages,
+  // included so a future sale is picked up automatically. Maps onto the
+  // existing Cosmetics category (id 10), same subcategory table Defacto's
+  // own Kozmetik import uses.
+  { kind: 'cosmetics', url: 'https://www.zara.com/tr/tr/kadin-guzellik-parfumler-l1415.html' },
+  { kind: 'cosmetics', url: 'https://www.zara.com/tr/tr/kadin-beauty-makyaj-l4414.html' },
+  // Zara Home — same "no category for this at all" problem as Madame Coco
+  // (checked live: no sale page, no <del> in a sample listing either), so
+  // reuses that exact Lifestyle-subcategory infrastructure. homeSlug points
+  // at a LIFESTYLE_SUBCATEGORY_DEFS key, not Zara's own URL slug.
+  { kind: 'home', url: 'https://www.zara.com/tr/tr/home-yatak-odasi-l2087.html',            homeSlug: 'yatak-odasi' },
+  { kind: 'home', url: 'https://www.zara.com/tr/tr/home-dekorasyon-l6612.html',             homeSlug: 'dekorasyon' },
+  { kind: 'home', url: 'https://www.zara.com/tr/tr/home-oturma-odasi-oda-hali-l2119.html',  homeSlug: 'hali-kilim' },
+  { kind: 'home', url: 'https://www.zara.com/tr/tr/home-mobilya-l6181.html',                homeSlug: 'mobilya' },
+  { kind: 'home', url: 'https://www.zara.com/tr/tr/home-aydinlatma-l8348.html',             homeSlug: 'aydinlatma' },
 ];
 
 // last_import_status is VARCHAR(300) — keep thrown messages well under that
@@ -663,6 +687,7 @@ async function scrapeZaraProduct(pm, url) {
 // of candidate URLs, same as Defacto's Kozmetik listing.
 async function Zara(pm, site, opts = {}) {
   const limit = opts.limit || 30;
+  await seedLifestyleSubcategories();
 
   const metaByUrl = new Map();
   const perListing = [];
@@ -670,7 +695,7 @@ async function Zara(pm, site, opts = {}) {
     const hrefs = await collectZaraListingLinks(pm, listing.url);
     const urls = [];
     for (const h of hrefs) {
-      if (!metaByUrl.has(h)) { metaByUrl.set(h, { gender: listing.gender }); urls.push(h); }
+      if (!metaByUrl.has(h)) { metaByUrl.set(h, listing); urls.push(h); }
     }
     perListing.push(urls);
   }
@@ -698,7 +723,21 @@ async function Zara(pm, site, opts = {}) {
       const discountedPrice = parseTLPrice(data.insText);
       if (!originalPrice || discountedPrice == null || originalPrice <= discountedPrice) { notDiscounted++; continue; }
 
-      const gender = metaByUrl.get(url)?.gender || 'unisex';
+      const listingMeta = metaByUrl.get(url) || { kind: 'clothing' };
+      let category_id, subcategory_id, gender;
+      if (listingMeta.kind === 'cosmetics') {
+        category_id = 10;
+        subcategory_id = guessSubcategoryId(data.name, 10);
+        gender = 'unisex';
+      } else if (listingMeta.kind === 'home') {
+        category_id = LIFESTYLE_CATEGORY_ID;
+        subcategory_id = getLifestyleSubcategoryId(listingMeta.homeSlug);
+        gender = 'unisex';
+      } else {
+        category_id = 1;
+        subcategory_id = guessSubcategoryId(data.name, 1);
+        gender = listingMeta.gender || 'unisex';
+      }
       data.sizes = data.sizes.map(s => ({ ...s, size: (s.size || '').slice(0, 10) }));
 
       const priceOriginal = originalPrice;
@@ -727,8 +766,8 @@ async function Zara(pm, site, opts = {}) {
       const product = await prisma.products.create({
         data: {
           code: await generateProductCode(),
-          category_id: 1,
-          subcategory_id: guessSubcategoryId(data.name, 1),
+          category_id,
+          subcategory_id,
           gender,
           name_fa: nameFa, name_en: nameEn, name_tr: nameTr,
           desc_fa, desc_en, desc_tr: data.description || null,
