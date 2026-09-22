@@ -1614,16 +1614,10 @@ function renderFilterDrawerBody(baseList) {
   }
 
   if (availSizes.length) {
-    var sizesBody = '<div class="fd-sizes-grid">';
-    availSizes.forEach(function(s) {
-      var checked = currentSizes.indexOf(s) !== -1;
-      sizesBody += '<label class="fd-size-tile' + (checked ? ' checked' : '') + '">'
-            + '<input type="checkbox"' + (checked ? ' checked' : '') + ' onchange="toggleSizeFilter(\'' + s.replace(/'/g, "\\'") + '\')">'
-            + '<span>' + s + '</span>'
-            + '</label>';
+    var sizeRows = availSizes.map(function(s) {
+      return { key: s, label: s, checked: currentSizes.indexOf(s) !== -1 };
     });
-    sizesBody += '</div>';
-    html += fdSection(t.filter_size || 'سایز', sizesBody);
+    html += fdSection(t.filter_size || 'سایز', fdSearchableList(sizeRows, 'toggleSizeFilter'));
   }
 
   if (availSubcats.length) {

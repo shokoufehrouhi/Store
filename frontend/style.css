@@ -959,33 +959,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .fd-color-cell:hover .fd-color-dot { transform: scale(1.08); }
 .fd-color-cell.checked .fd-color-dot { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #FF5C00; }
 
-/* Size tiles */
-.fd-sizes-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.fd-size-tile {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 48px;
-  height: 40px;
-  border-radius: 8px;
-  border: 1.5px solid #ddd;
-  background: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  color: #333;
-  cursor: pointer;
-  transition: border-color .15s, background .15s, color .15s;
-  padding: 0 10px;
-  user-select: none;
-}
-.fd-size-tile input[type="checkbox"] { display: none; }
-.fd-size-tile:hover { border-color: #FF5C00; color: #FF5C00; }
-.fd-size-tile.checked { background: #FF5C00; border-color: #FF5C00; color: #fff; }
-
 /* Drawer footer */
 .filter-drawer-footer {
   padding: 14px 20px;
