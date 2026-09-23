@@ -1254,8 +1254,274 @@ async function LCWaikiki(pm, site, opts = {}) {
   return { imported, skipped: notDiscounted + wrongBrand + (candidateUrls.length - newUrls.length) };
 }
 
+// Koton — single-brand store (JSON-LD offers.brand confirmed "Koton" on
+// every product checked; no marketplace risk like LCWaikiki, so no seller
+// gate needed). Discount signal is a populated .price__retail element next
+// to .price__price — same "only renders when genuinely marked down"
+// pattern as Zara's <del> and LCWaikiki's discount-group.
+const KOTON_LISTINGS = [
+  { url: 'https://www.koton.com/kadin/', gender: 'female' },
+  { url: 'https://www.koton.com/erkek/', gender: 'male' },
+  { url: 'https://www.koton.com/cocuk/', gender: 'kids' },
+  { url: 'https://www.koton.com/bebek/', gender: 'kids' },
+];
+const KOTON_MAX_PAGES_PER_LISTING = 8;
+
+// This site is tracker-heavy (Microsoft Clarity, useinsider.com — the same
+// platform LCWaikiki uses, Google Analytics, all confirmed live on a
+// product page) — set up proactively this time instead of discovering it
+// the hard way after a VPS-only navigation timeout (see the LCWaikiki
+// import's own history for exactly that sequence of events).
+async function ensureKotonPageSetup(page) {
+  if (page.__kotonRequestBlockingSetup) return;
+  page.__kotonRequestBlockingSetup = true;
+  await page.setRequestInterception(true);
+  page.on('request', (req) => {
+    const type = req.resourceType();
+    const url = req.url();
+    const isHeavyAsset = type === 'image' || type === 'font' || type === 'media';
+    const isTracker = /clarity\.ms|useinsider\.com|analytics\.google\.com|googletagmanager|googlesyndication|doubleclick|facebook\.com\/tr|hotjar/i.test(url);
+    if (isHeavyAsset || isTracker) req.abort().catch(() => {});
+    else req.continue().catch(() => {});
+  });
+}
+
+// Pagination looks like a plain ?page=N query param (the "Sonraki" link's
+// own href), but a fresh navigation straight to that URL doesn't work —
+// confirmed live: page.goto()-ing directly to kadin/?page=1 came back with
+// the exact same 45 products as page 0, not a second page. This is a
+// client-routed SPA — the URL only actually advances when the "Sonraki"
+// link is clicked in-page (history.pushState + its own data fetch), so
+// pagination happens by clicking within one continuous page session rather
+// than by navigating to each page's URL like Defacto's own ?page=N does.
+async function collectKotonListingLinks(pm, listingUrl) {
+  const page = await pm.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await ensureKotonPageSetup(page);
+  await new Promise(r => setTimeout(r, 1500));
+
+  const links = new Set();
+  for (let i = 0; i < KOTON_MAX_PAGES_PER_LISTING; i++) {
+    const pageLinks = await page.evaluate(() => [...new Set(
+      Array.from(document.querySelectorAll('a[href]'))
+        .map(a => a.getAttribute('href').split('?')[0])
+        .filter(h => h && /-\d{6,}(-\d+)?\/?$/.test(h))
+    )]);
+    pageLinks.forEach(h => links.add(h));
+
+    const clicked = await page.evaluate(() => {
+      const a = document.querySelector('a.pz-pagination-link.-next')
+        || Array.from(document.querySelectorAll('a.pz-pagination-link')).find(el => /sonraki/i.test(el.textContent));
+      if (a) { a.click(); return true; }
+      return false;
+    });
+    if (!clicked) break;
+    await new Promise(r => setTimeout(r, 2500));
+  }
+  return [...links];
+}
+
+async function scrapeKotonProduct(pm, url) {
+  const page = await pm.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await ensureKotonPageSetup(page);
+  await new Promise(r => setTimeout(r, 1500));
+
+  return page.evaluate(() => {
+    const ldBlocks = Array.from(document.querySelectorAll('script[type="application/ld+json"]'))
+      .map(s => { try { return JSON.parse(s.textContent); } catch (e) { return null; } })
+      .filter(Boolean);
+    const prod = ldBlocks.find(d => d['@type'] === 'Product');
+    if (!prod) return null;
+
+    // Breadcrumb (e.g. "Anasayfa > Erkek > Giyim > Pantolon > <name>") is
+    // the one per-product signal for both gender and department section —
+    // more reliable than which listing surfaced the URL, same reasoning as
+    // LCWaikiki's routeLcWaikikiCategory.
+    const bc = ldBlocks.find(d => d['@type'] === 'BreadcrumbList');
+    const breadcrumbNames = (bc?.itemListElement || []).map(li => li.name).filter(Boolean);
+
+    const originalText = document.querySelector('.price__retail pz-price')?.textContent || null;
+    const discountedText = document.querySelector('.price__price pz-price')?.textContent || null;
+
+    // The real description sits in a plain <p> inside .product-info__details
+    // (no click-to-expand needed, unlike LCWaikiki's drawer) — JSON-LD's own
+    // "description" is generic marketing boilerplate, same trap as LCWaikiki.
+    const detailsEl = document.querySelector('.product-info__details');
+    const descP = detailsEl
+      ? Array.from(detailsEl.querySelectorAll('p')).find(p => p.textContent.trim().length > 50)
+      : null;
+    const description = descP ? descP.textContent.trim() : '';
+
+    const colorText = document.querySelector('.product-attributes-color.js-product-color-text')
+      ?.textContent.split(':')[1]?.trim() || null;
+
+    // Every size this color/product was ever offered in shows here — an
+    // out-of-stock one just carries a -disabled modifier class instead of
+    // being omitted from the DOM (unlike LCWaikiki, where out-of-stock
+    // sizes simply don't render at all).
+    const sizes = Array.from(document.querySelectorAll('.variant__option.js-variant-option')).map(o => ({
+      size: o.textContent.trim().split('\n')[0].trim(),
+      inStock: !o.classList.contains('-disabled'),
+    }));
+
+    return {
+      name: prod.name,
+      images: [...new Set(prod.image || [])],
+      description,
+      originalText,
+      discountedText,
+      color: colorText,
+      sizes,
+      breadcrumbNames,
+    };
+  });
+}
+
+// Koton has no home-goods/Lifestyle department at all (confirmed via its
+// own category sitemap — only Kadın/Erkek/Çocuk/Bebek roots exist), so
+// routing only ever needs to pick between Clothing/Shoes/Accessories/
+// Cosmetics, checked against the full breadcrumb text same as LCWaikiki.
+function routeKotonCategory(breadcrumbNames) {
+  const joined = (breadcrumbNames || []).join(' > ');
+  if (/ayakkabı|bot\b|sandalet|terlik/i.test(joined)) return 2; // Shoes
+  if (/kozmetik|parfüm/i.test(joined)) return 10; // Cosmetics
+  if (/aksesuar|çanta|kemer|cüzdan|küpe|yüzük|takı|şapka|bere/i.test(joined)) return 3; // Accessories
+  return 1; // Clothing (default)
+}
+function guessKotonAccessorySubcategoryId(nameTr) {
+  return /çanta|canta/i.test(nameTr || '') ? 13 : null;
+}
+
+function guessKotonGender(breadcrumbNames, defaultGender) {
+  const dept = (breadcrumbNames || [])[1] || '';
+  if (/bebek/i.test(dept)) return 'kids';
+  if (/çocuk/i.test(dept)) return 'kids';
+  if (/kadın/i.test(dept)) return 'female';
+  if (/erkek/i.test(dept)) return 'male';
+  return defaultGender;
+}
+
+// Site scraper entry point. A product is only imported when its loaded
+// color actually shows a populated .price__retail — every listing here is
+// used purely as a source of candidate URLs, same as every other scraper.
+async function Koton(pm, site, opts = {}) {
+  const limit = opts.limit || 30;
+
+  const metaByUrl = new Map();
+  const perListing = [];
+  for (const listing of KOTON_LISTINGS) {
+    const hrefs = await collectKotonListingLinks(pm, listing.url);
+    const urls = [];
+    for (const h of hrefs) {
+      const url = new URL(h, site.url).href;
+      if (!metaByUrl.has(url)) { metaByUrl.set(url, listing); urls.push(url); }
+    }
+    perListing.push(urls);
+  }
+  const candidateUrls = [];
+  for (let i = 0; i < Math.max(...perListing.map(l => l.length), 0); i++) {
+    for (const urls of perListing) if (urls[i]) candidateUrls.push(urls[i]);
+  }
+
+  const existing = await prisma.products.findMany({
+    where: { product_link: { in: candidateUrls } },
+    select: { product_link: true },
+  });
+  const existingSet = new Set(existing.map(e => e.product_link));
+  const newUrls = candidateUrls.filter(u => !existingSet.has(u));
+
+  const imported = [];
+  let notDiscounted = 0;
+
+  for (const url of newUrls) {
+    if (imported.filter(p => !p.error).length >= limit) break;
+    try {
+      const data = await scrapeKotonProduct(pm, url);
+      if (!data || !data.name) continue;
+      const originalPrice = parseTLPrice(data.originalText);
+      const discountedPrice = parseTLPrice(data.discountedText);
+      if (!originalPrice || discountedPrice == null || originalPrice <= discountedPrice) { notDiscounted++; continue; }
+
+      const listingMeta = metaByUrl.get(url) || { gender: 'unisex' };
+      const gender = guessKotonGender(data.breadcrumbNames, listingMeta.gender);
+      data.sizes = data.sizes.map(s => ({ ...s, size: (s.size || '').slice(0, 10) }));
+
+      const priceOriginal = originalPrice;
+      const priceSite = discountedPrice;
+      const finalDiscountedPrice = Math.round(priceSite * (1 + site.markup_percent / 100) * 100) / 100;
+      if (finalDiscountedPrice > priceOriginal) { notDiscounted++; continue; }
+      const tag = finalDiscountedPrice === priceOriginal ? 'original' : 'discount';
+
+      const category_id = routeKotonCategory(data.breadcrumbNames);
+      const subcategory_id = category_id === 1 ? guessSubcategoryId(data.name, 1)
+        : category_id === 3 ? guessKotonAccessorySubcategoryId(data.name)
+        : category_id === 10 ? guessSubcategoryId(data.name, 10)
+        : null; // category_id 2 (Shoes) has no subcategories in production yet
+
+      const translateOrWarn = (text, target) => translateText(text, 'tr', target)
+        .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
+      const [name_fa, name_en, desc_fa, desc_en] = await Promise.all([
+        translateOrWarn(data.name, 'fa'),
+        translateOrWarn(data.name, 'en'),
+        data.description ? translateOrWarn(data.description, 'fa') : '',
+        data.description ? translateOrWarn(data.description, 'en') : '',
+      ]);
+      const nameTr = data.name.slice(0, 120);
+      const nameFa = name_fa.slice(0, 120);
+      const nameEn = name_en.slice(0, 120);
+
+      const mediaUrls = [];
+      for (const imgUrl of data.images) {
+        try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
+      }
+
+      const colorId = await getOrCreateColorId(data.color);
+
+      const product = await prisma.products.create({
+        data: {
+          code: await generateProductCode(),
+          category_id,
+          subcategory_id,
+          gender,
+          name_fa: nameFa, name_en: nameEn, name_tr: nameTr,
+          desc_fa, desc_en, desc_tr: data.description || null,
+          price: priceOriginal,
+          cost_price: priceSite,
+          discounted_price: finalDiscountedPrice,
+          tag,
+          stock: 0,
+          brand: site.name,
+          supplier_shop_name: site.name,
+          product_link: url,
+          product_media: mediaUrls.length ? { create: mediaUrls.map((u, i) => ({ type: 'image', url: u, sort_order: i })) } : undefined,
+          product_colors: colorId ? { create: [{ color_id: colorId, is_available: true }] } : undefined,
+          product_sizes: data.sizes.length ? {
+            create: data.sizes.map(s => ({ size_label: s.size, is_available: s.inStock })),
+          } : undefined,
+        },
+      });
+
+      if (data.sizes.length) {
+        await prisma.product_inventory.createMany({
+          data: data.sizes.map(s => ({
+            product_id: product.id, color_id: colorId, size_label: s.size,
+            quantity: s.inStock ? 10 : 0,
+          })),
+        });
+        const totalQty = data.sizes.filter(s => s.inStock).length * 10;
+        await prisma.products.update({ where: { id: product.id }, data: { stock: totalQty } });
+      }
+
+      imported.push({ id: product.id, name: data.name });
+    } catch (err) {
+      imported.push({ error: err.message, url });
+    }
+  }
+
+  return { imported, skipped: notDiscounted + (candidateUrls.length - newUrls.length) };
+}
+
 module.exports = {
-  Defacto, MadameCoco, Zara, LCWaikiki,
+  Defacto, MadameCoco, Zara, LCWaikiki, Koton,
   // exported for backend/scripts/backfillMissingColors.js — reusing the
   // same lookup/create logic the live importers use, rather than
   // duplicating it in the backfill script.
