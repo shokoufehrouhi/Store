@@ -12,7 +12,6 @@
 // sites since they all serve the same schema.org Product JSON-LD shape.
 // Run manually once: node scripts/backfillMissingProductImages.js
 const prisma = require('../prisma/client');
-const puppeteer = require('puppeteer');
 const { saveImageFromUrl } = require('../utils/siteImport');
 
 (async () => {
@@ -26,7 +25,14 @@ const { saveImageFromUrl } = require('../utils/siteImport');
   if (!candidates.length) { console.log('nothing to backfill'); return; }
   console.log(`${candidates.length} zero-image product(s) with a product_link to re-check`);
 
-  const browser = await puppeteer.launch({ headless: 'new' });
+  // Puppeteer ships ESM-only on the VPS's Node — require() throws
+  // ERR_REQUIRE_ESM there (confirmed live), same reason siteSync.js's own
+  // withBrowser() uses a dynamic import instead of a top-level require.
+  const puppeteer = (await import('puppeteer')).default;
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+  });
   const page = await browser.newPage();
 
   let fixed = 0, stillEmpty = 0, failed = 0;
