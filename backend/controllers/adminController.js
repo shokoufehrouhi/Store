@@ -7,23 +7,45 @@ const execFileAsync = util.promisify(execFile);
 const { sendOrderEmail, sendLoyaltyEmail, sendPrizeEarnedEmail, label } = require('../utils/mailer');
 const { syncSubcategoryActiveState, reconcileAllSubcategories } = require('../utils/subcategorySync');
 
-// A product whose every submitted size has zero stock is sold out regardless
-// of what tag was picked in the form — this overrides bestseller/new/etc.
-// Falls back to the manual is_available checkbox for a size that has no
-// matching inventory row (shouldn't normally happen once sizes are selected).
-function resolveProductTag(sizes, tag, inventory) {
+// A product whose every submitted size (or, for a color-only product with
+// no sizes at all — e.g. a bag with just color swatches, no size picker —
+// every color) has zero stock is sold out regardless of what tag was picked
+// in the form, overriding bestseller/new/etc. Falls back to the manual
+// is_available checkbox for a size/color that has no matching inventory row
+// (shouldn't normally happen once sizes/colors are selected). Sizes take
+// priority when both are present: summing inventory by size already nets
+// out every color for that size, so a full color×size matrix only needs
+// the size check.
+function resolveProductTag(sizes, tag, inventory, colors) {
+  const inv = inventory || [];
+
   if (sizes?.length) {
     const qtyBySize = new Map();
-    for (const inv of inventory || []) {
-      if (!inv.size_label) continue;
-      qtyBySize.set(inv.size_label, (qtyBySize.get(inv.size_label) || 0) + (Number(inv.quantity) || 0));
+    for (const i of inv) {
+      if (!i.size_label) continue;
+      qtyBySize.set(i.size_label, (qtyBySize.get(i.size_label) || 0) + (Number(i.quantity) || 0));
     }
     const allSoldOut = sizes.every(s =>
       qtyBySize.has(s.label) ? qtyBySize.get(s.label) <= 0 : s.is_available === false
     );
     if (allSoldOut) return 'sold_out';
     if (tag === 'sold_out') return null; // restocked — clear the stale sold_out tag
+    return tag || null;
   }
+
+  if (colors?.length) {
+    const qtyByColor = new Map();
+    for (const i of inv) {
+      if (i.color_id == null) continue;
+      qtyByColor.set(i.color_id, (qtyByColor.get(i.color_id) || 0) + (Number(i.quantity) || 0));
+    }
+    const allSoldOut = colors.every(c =>
+      qtyByColor.has(Number(c.id)) ? qtyByColor.get(Number(c.id)) <= 0 : c.is_available === false
+    );
+    if (allSoldOut) return 'sold_out';
+    if (tag === 'sold_out') return null; // restocked — clear the stale sold_out tag
+  }
+
   return tag || null;
 }
 
@@ -737,7 +759,7 @@ async function createProduct(req, res, next) {
         desc_en:       desc_en   || null,
         desc_tr:       desc_tr   || null,
         gradient:      gradient  || null,
-        tag:           resolveProductTag(sizes, tag, inventory),
+        tag:           resolveProductTag(sizes, tag, inventory, colors),
         price:            price     || 0,
         discounted_price: discounted_price != null && discounted_price !== '' ? Number(discounted_price) : null,
         cost_price:       cost_price != null && cost_price !== '' ? Number(cost_price) : null,
@@ -836,7 +858,7 @@ async function updateProduct(req, res, next) {
         desc_en:       desc_en   || null,
         desc_tr:       desc_tr   || null,
         gradient:      gradient  || null,
-        tag:           resolveProductTag(sizes, tag, inventory),
+        tag:           resolveProductTag(sizes, tag, inventory, colors),
         price:            price     || 0,
         discounted_price: discounted_price != null && discounted_price !== '' ? Number(discounted_price) : null,
         cost_price:       cost_price != null && cost_price !== '' ? Number(cost_price) : null,
