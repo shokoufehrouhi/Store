@@ -1605,20 +1605,39 @@ async function Koton(pm, site, opts = {}) {
 
 // Kiko is an Akinon-platform cosmetics-only storefront (same `pz-` custom
 // element family as Koton, confirmed live — different vendor, same JS-
-// hydration timing quirks). Its whole catalog (2216 products, confirmed
-// live) sits behind a single infinite-scroll listing — most cards there
-// carry only a marketing badge ("1 alana 1 hediye", "2. ürüne %50") with no
-// real price cut, so the per-card `pz-price.-retail` element (the old,
-// struck-through price) is what actually finds genuine discounts, not the
-// page's own framing (same lesson as Zara/LCWaikiki/Koton's own gates).
-// Pagination is `<pz-pagination type="infinite" per-page="20">` — confirmed
-// live that a programmatic scrollTo()/scrollIntoView() never triggers its
-// loader at all (stuck at the first 20 items); only a real page.mouse.wheel()
-// does, and even then the DOM is a virtualized ~20-item window, not an
-// ever-growing list, so every round's cards must be read and kept rather
-// than trusting final DOM size.
-const KIKO_DISCOUNT_LISTING_URL = 'https://www.kikomilano.com.tr/kampanyali-urunler/';
-const KIKO_MAX_SCROLL_ROUNDS = 40; // ~800 of the 2216 total per run — genuine discounts are a minority scattered throughout, this is a safety cap, not an exhaustive crawl
+// hydration timing quirks). Most cards on any of its listings carry only a
+// marketing badge ("1 alana 1 hediye", "2. ürüne %50") with no real price
+// cut, so the per-card `pz-price.-retail` element (the old, struck-through
+// price) is what actually finds genuine discounts, not the page's own
+// framing (same lesson as Zara/LCWaikiki/Koton's own gates). Pagination is
+// `<pz-pagination type="infinite" per-page="20">` — confirmed live that a
+// programmatic scrollTo()/scrollIntoView() never triggers its loader at all
+// (stuck at the first 20 items); only a real page.mouse.wheel() does, and
+// even then the DOM is a virtualized ~20-item window, not an ever-growing
+// list, so every round's cards must be read and kept rather than trusting
+// final DOM size.
+//
+// The one all-products campaign page (/kampanyali-urunler/, 2216 items) was
+// the first design here — confirmed live it's a real bug, not just
+// theoretical: a real sync run against it found only 2 candidates, even
+// though /makyaj-seti/ alone (one of the listings below) visibly has
+// several genuine discounts sitting right on its first page — a bounded
+// scroll through the huge undifferentiated list just never reaches every
+// category, same "single listing hits quota before reaching some
+// categories" failure mode as Koton's own history. These are Kiko's own
+// nav-menu section pages instead (each much smaller, 24-656 total vs 2216),
+// scraped separately and interleaved round-robin so one big listing can't
+// crowd out a small one before the run's overall `limit` is reached.
+const KIKO_LISTINGS = [
+  'https://www.kikomilano.com.tr/dudak-makyaji/',
+  'https://www.kikomilano.com.tr/goz-makyaji/',
+  'https://www.kikomilano.com.tr/yuz-makyaji/',
+  'https://www.kikomilano.com.tr/tirnak-urunleri/',
+  'https://www.kikomilano.com.tr/cilt-bakimi/',
+  'https://www.kikomilano.com.tr/aksesuarlar/',
+  'https://www.kikomilano.com.tr/makyaj-seti/',
+];
+const KIKO_SCROLL_ROUNDS_PER_LISTING = 6; // ~120 of each listing's own candidates per run
 const KIKO_MAX_SHADES_PER_PRODUCT = 60; // seen up to 35 real shades on one item; just a safety bound
 
 // Same platform-tracker family confirmed live as Koton's own (Google Ads/
@@ -1682,18 +1701,18 @@ async function getOrCreateKikoColorId(rawLabel) {
   return color.id;
 }
 
-// Scrolls the discount/catalog listing, reading each card's url + whether it
-// carries a genuine `pz-price.-retail` directly from the grid. See the big
-// comment above KIKO_DISCOUNT_LISTING_URL for why this needs page.mouse.wheel()
-// and why every round's cards get folded into `found` rather than reading
-// the DOM's final size once at the end.
-async function collectKikoDiscountedCandidates(pm) {
-  const page = await pm.goto(KIKO_DISCOUNT_LISTING_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+// Scrolls one listing, reading each card's url + whether it carries a
+// genuine `pz-price.-retail` directly from the grid. See the big comment
+// above KIKO_LISTINGS for why this needs page.mouse.wheel() and why every
+// round's cards get folded into `found` rather than reading the DOM's final
+// size once at the end.
+async function collectKikoListingCandidates(pm, listingUrl) {
+  const page = await pm.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await ensureKikoPageSetup(page);
   await new Promise(r => setTimeout(r, 1500));
 
   const found = new Map();
-  for (let i = 0; i < KIKO_MAX_SCROLL_ROUNDS; i++) {
+  for (let i = 0; i < KIKO_SCROLL_ROUNDS_PER_LISTING; i++) {
     const cards = await page.evaluate(() => Array.from(document.querySelectorAll('.product-item')).map(card => ({
       url: card.querySelector('a[href]')?.href || null,
       discounted: !!card.querySelector('pz-price.-retail'),
@@ -1704,6 +1723,26 @@ async function collectKikoDiscountedCandidates(pm) {
     await new Promise(r => setTimeout(r, 1800));
   }
   return [...found.keys()];
+}
+
+// Round-robins every listing's own candidates (same interleaving Koton's
+// own multi-listing collection uses) so a big listing (Yüz Makyajı, ~656
+// items) can't crowd out a small one (Makyaj Seti, ~24 items) before the
+// run's overall `limit` is reached.
+async function collectKikoDiscountedCandidates(pm) {
+  const perListing = [];
+  for (const listingUrl of KIKO_LISTINGS) {
+    perListing.push(await collectKikoListingCandidates(pm, listingUrl));
+  }
+  const seen = new Set();
+  const result = [];
+  for (let i = 0; i < Math.max(...perListing.map(l => l.length), 0); i++) {
+    for (const urls of perListing) {
+      const u = urls[i];
+      if (u && !seen.has(u)) { seen.add(u); result.push(u); }
+    }
+  }
+  return result;
 }
 
 // Every PDP lists its own full sibling shade family via <pz-variant-option>
