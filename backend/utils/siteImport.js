@@ -925,16 +925,24 @@ function guessLcWaikikiLifestyleSubcategoryId(categoryPath) {
 // exist in the DOM, at 1440x900 it's 7 buttons for the same page). A reload
 // after widening fixes it; only actually reloads once per PageManager page
 // (viewport persists across navigations on the same page instance).
+//
+// waitUntil is 'domcontentloaded', not 'networkidle2' — like Zara (see
+// collectZaraListingLinks), this site keeps a steady drip of analytics/
+// tracking calls (GTM, sgtm.lcw.com, useinsider.com, Google Ads pixels)
+// that on a slower network path (confirmed live on the VPS, not
+// reproducible from a fast local connection) never let the network go
+// idle, so 'networkidle2' hit the 30s timeout outright rather than just
+// running long.
 async function ensureLcWaikikiDesktopViewport(page) {
   const vp = page.viewport();
   if (!vp || vp.width < 1200) {
     await page.setViewport({ width: 1440, height: 900 });
-    await page.reload({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
   }
 }
 
 async function collectLcWaikikiListingLinks(pm, listingUrl) {
-  const page = await pm.goto(listingUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+  const page = await pm.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await ensureLcWaikikiDesktopViewport(page);
   await new Promise(r => setTimeout(r, 1500));
 
@@ -958,7 +966,7 @@ async function collectLcWaikikiListingLinks(pm, listingUrl) {
 }
 
 async function scrapeLcWaikikiProduct(pm, url) {
-  const page = await pm.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+  const page = await pm.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await ensureLcWaikikiDesktopViewport(page);
   await new Promise(r => setTimeout(r, 1500));
 
