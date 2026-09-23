@@ -1366,9 +1366,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 24px;
+  min-height: 30px;
 }
-.card-meta-row--ph { min-height: 24px; }
+.card-meta-row--ph { min-height: 30px; }
 .card-meta-label {
   font-size: 11px;
   font-weight: 600;
@@ -1380,13 +1380,13 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .card-colors {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 6px;
 }
 .card-color-dot {
-  width: 10px;
-  height: 10px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  border: 1px solid rgba(0,0,0,.14);
+  border: 1.5px solid rgba(0,0,0,.14);
   display: inline-block;
   flex-shrink: 0;
   box-shadow: 0 1px 2px rgba(0,0,0,.15);
