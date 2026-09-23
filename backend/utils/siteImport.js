@@ -1145,7 +1145,15 @@ async function scrapeLcWaikikiProduct(pm, url) {
 
     return {
       name: prod.name,
-      images: [...new Set(prod.image || [])],
+      // schema.org's "image" is documented as either a single URL string or
+      // an array of them — confirmed live on Kiko (2026-09-24) that some
+      // products genuinely use the bare-string form (e.g. "LIPS & NAILS
+      // COMBO- APRICOT NUDE SET"). The old `[...new Set(prod.image || [])]`
+      // silently spread a bare string into one "image" per character
+      // (Sets iterate strings char-by-char), so every image download for
+      // that product failed with an invalid-URL error, caught per-image,
+      // leaving the product with zero images and no visible error anywhere.
+      images: [...new Set(Array.isArray(prod.image) ? prod.image : (prod.image ? [prod.image] : []))],
       description,
       originalText,
       discountedText,
@@ -1443,7 +1451,15 @@ async function scrapeKotonProduct(pm, url) {
 
     return {
       name: prod.name,
-      images: [...new Set(prod.image || [])],
+      // schema.org's "image" is documented as either a single URL string or
+      // an array of them — confirmed live on Kiko (2026-09-24) that some
+      // products genuinely use the bare-string form (e.g. "LIPS & NAILS
+      // COMBO- APRICOT NUDE SET"). The old `[...new Set(prod.image || [])]`
+      // silently spread a bare string into one "image" per character
+      // (Sets iterate strings char-by-char), so every image download for
+      // that product failed with an invalid-URL error, caught per-image,
+      // leaving the product with zero images and no visible error anywhere.
+      images: [...new Set(Array.isArray(prod.image) ? prod.image : (prod.image ? [prod.image] : []))],
       description,
       originalText,
       discountedText,
@@ -1792,7 +1808,15 @@ async function scrapeKikoProduct(pm, url) {
 
     return {
       name: prod.name,
-      images: [...new Set(prod.image || [])],
+      // schema.org's "image" is documented as either a single URL string or
+      // an array of them — confirmed live on Kiko (2026-09-24) that some
+      // products genuinely use the bare-string form (e.g. "LIPS & NAILS
+      // COMBO- APRICOT NUDE SET"). The old `[...new Set(prod.image || [])]`
+      // silently spread a bare string into one "image" per character
+      // (Sets iterate strings char-by-char), so every image download for
+      // that product failed with an invalid-URL error, caught per-image,
+      // leaving the product with zero images and no visible error anywhere.
+      images: [...new Set(Array.isArray(prod.image) ? prod.image : (prod.image ? [prod.image] : []))],
       description: prod.description || '',
       hasRetail: !!retailEl,
       originalText: retailEl?.textContent || null,
