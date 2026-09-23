@@ -1483,7 +1483,7 @@ function renderFilterBar(baseList) {
   baseList.forEach(function(p) { (p.sizes || []).forEach(function(s) { sizeSet[s] = true; }); });
 
   var hasAvailFilters = baseList.length > 0;
-  var activeCount = currentColors.length + currentSizes.length + currentSubcategoryFilters.length + currentBrands.length + (currentHideSoldOut ? 1 : 0);
+  var activeCount = currentColors.length + currentSizes.length + currentSubcategoryFilters.length + currentBrands.length + (currentGender !== 'all' ? 1 : 0) + (currentHideSoldOut ? 1 : 0);
 
   var html = '<div class="filter-bar-inner">';
 
@@ -1560,7 +1560,7 @@ function fdFilterRows(inputEl) {
 }
 
 function fdSection(titleHtml, bodyHtml) {
-  return '<div class="fd-section">'
+  return '<div class="fd-section collapsed">'
        + '<button type="button" class="fd-section-header" onclick="toggleFdSection(this)">'
        + '<span class="fd-section-title">' + titleHtml + '</span>'
        + '<svg class="fd-section-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 7L1 3h8z"/></svg>'
@@ -1600,9 +1600,44 @@ function renderFilterDrawerBody(baseList) {
   baseList.forEach(function(p) { if (p.brand) brandSet[p.brand] = true; });
   var availBrands = Object.keys(brandSet).sort();
 
+  // baseList is already gender-filtered (renderGrid applies currentGender
+  // before calling in here), which would self-restrict this section to
+  // whichever gender is already active — recompute from a category-only
+  // scope (same category check as renderGrid's baseList, gender check
+  // skipped) so every gender this category actually has stays selectable.
+  var genderScopeList = products.filter(function(p) {
+    if (currentCategory !== 'all') {
+      var inCat = p.category === currentCategory ||
+        (p.extra_categories || []).some(function(ec) { return ec.category === currentCategory; });
+      if (!inCat) return false;
+    }
+    return true;
+  });
+  var genderSet = {};
+  genderScopeList.forEach(function(p) { if (p.gender && p.gender !== 'unisex') genderSet[p.gender] = true; });
+  var availGenders = Object.keys(genderSet);
+
   var hasSoldOut = baseList.some(function(p) { return p.tag === 'sold_out'; });
 
   var html = '';
+
+  // Orthogonal to category/subcategory (those come from the nav, this
+  // narrows within whatever's already selected there) — a radio group, not
+  // checkboxes, since a product only ever has one gender.
+  if (availGenders.length > 1) {
+    var genderOptions = [{ key: 'all', label: t.filter_gender_all || 'All' }]
+      .concat(availGenders.map(function(g) { return { key: g, label: t['gender_' + g] || g }; }));
+    var genderBody = '<div class="fd-search-list"><div class="fd-list-scroll">'
+      + genderOptions.map(function(g) {
+          var checked = currentGender === g.key;
+          return '<label class="fd-list-row' + (checked ? ' checked' : '') + '">'
+            + '<input type="radio" name="fd-gender"' + (checked ? ' checked' : '') + ' onchange="setGenderFilter(\'' + g.key + '\')">'
+            + '<span>' + g.label + '</span>'
+            + '</label>';
+        }).join('')
+      + '</div></div>';
+    html += fdSection(t.filter_gender || 'Gender', genderBody);
+  }
 
   if (hasSoldOut) {
     var stockBody = '<label class="fd-toggle-row">'
@@ -1653,7 +1688,7 @@ function renderFilterDrawerBody(baseList) {
   body.innerHTML = html;
 
   if (footer) {
-    var activeCount = currentColors.length + currentSizes.length + currentSubcategoryFilters.length + currentBrands.length + (currentHideSoldOut ? 1 : 0);
+    var activeCount = currentColors.length + currentSizes.length + currentSubcategoryFilters.length + currentBrands.length + (currentGender !== 'all' ? 1 : 0) + (currentHideSoldOut ? 1 : 0);
     footer.innerHTML = activeCount > 0
       ? '<button class="fd-clear-btn" onclick="clearFilters()">' + (t.filter_clear || '× پاک کردن') + '</button>'
         + '<button class="fd-close-btn" onclick="closeFilterPanel()">' + (t.filter_close || 'بستن') + '</button>'
@@ -1709,6 +1744,12 @@ function toggleHideSoldOutFilter() {
   currentPage = 1;
   renderGrid();
 }
+function setGenderFilter(gender) {
+  currentGender = gender || 'all';
+  currentPage = 1;
+  saveFilterToHash();
+  renderGrid();
+}
 function setSort(sort) {
   currentSort = sort;
   currentPage = 1;
@@ -1719,8 +1760,10 @@ function clearFilters() {
   currentSizes  = [];
   currentSubcategoryFilters = [];
   currentBrands = [];
+  currentGender = 'all';
   currentHideSoldOut = false;
   currentPage   = 1;
+  saveFilterToHash();
   renderGrid();
 }
 function toggleFdSection(headerEl) {
