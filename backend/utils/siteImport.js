@@ -1992,4 +1992,7 @@ module.exports = {
   // same lookup/create logic the live importers use, rather than
   // duplicating it in the backfill script.
   extractLeadingColorWord, getOrCreateColorId,
+  // exported for backend/scripts/backfillMissingProductImages.js — same
+  // download+compress+save logic the live importers use.
+  saveImageFromUrl,
 };
