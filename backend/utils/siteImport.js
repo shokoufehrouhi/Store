@@ -1324,6 +1324,18 @@ async function scrapeKotonProduct(pm, url) {
   const page = await pm.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await ensureKotonPageSetup(page);
   await new Promise(r => setTimeout(r, 1500));
+  // <pz-price> is a custom element that populates its own text via JS after
+  // load — a fixed sleep long enough locally wasn't long enough on the
+  // VPS's slower CPU (confirmed: a real run there imported 3 of 85
+  // candidates, everything else read as "not discounted" because neither
+  // price element had actually rendered yet when read). Poll for it
+  // instead of guessing a bigger fixed number; swallow a timeout rather
+  // than aborting the scrape — the evaluate below still runs and correctly
+  // treats a genuinely-still-empty price as not-discounted either way.
+  await page.waitForFunction(
+    () => (document.querySelector('.price__price pz-price')?.textContent || '').trim().length > 0,
+    { timeout: 8000 }
+  ).catch(() => {});
 
   return page.evaluate(() => {
     const ldBlocks = Array.from(document.querySelectorAll('script[type="application/ld+json"]'))
