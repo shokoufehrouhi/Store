@@ -1,20 +1,25 @@
 // One-off: site importers apply site.markup_percent on top of the source
-// site's already-discounted price (see backend/utils/siteImport.js) — with
-// a big enough markup, that marked-up discounted_price can end up ABOVE the
-// product's own original price, showing customers a "discount" that costs
-// more than the "original" on the same page. The importers now refuse to
-// create a product in that state, but this retroactively hides any that
-// were already imported before that guard existed.
+// site's already-discounted price (see backend/utils/siteImport.js). With a
+// big enough markup, that marked-up discounted_price can end up ABOVE the
+// product's own original price (showing customers a "discount" that costs
+// more than the "original" on the same page — hidden entirely) or exactly
+// AT it (0% real saving left — kept visible, but retagged from 'discount'
+// to 'original' so it doesn't show up wherever the site filters by
+// tag=discount despite having nothing actually discounted). The importers
+// now handle both cases themselves going forward; this retroactively fixes
+// any product already imported before those guards existed.
 // Run manually once: node scripts/hideBrokenDiscounts.js
 const prisma = require('../prisma/client');
 
 (async () => {
-  const broken = await prisma.products.findMany({
+  const candidates = await prisma.products.findMany({
     where: { is_active: true, discounted_price: { not: null } },
-    select: { id: true, name_tr: true, price: true, discounted_price: true },
+    select: { id: true, name_tr: true, price: true, discounted_price: true, tag: true },
   });
-  const toHide = broken.filter(p => Number(p.discounted_price) > Number(p.price));
-  if (!toHide.length) { console.log('nothing to hide'); return; }
+  const toHide = candidates.filter(p => Number(p.discounted_price) > Number(p.price));
+  const toRetag = candidates.filter(p => Number(p.discounted_price) === Number(p.price) && p.tag === 'discount');
+
+  if (!toHide.length && !toRetag.length) { console.log('nothing to fix'); return; }
 
   for (const p of toHide) {
     await prisma.products.update({
@@ -23,5 +28,12 @@ const prisma = require('../prisma/client');
     });
     console.log(`hid #${p.id} (discounted_price ${p.discounted_price} > price ${p.price}): ${p.name_tr}`);
   }
-  console.log(`done: ${toHide.length} product(s) hidden`);
+  for (const p of toRetag) {
+    await prisma.products.update({
+      where: { id: p.id },
+      data: { tag: 'original', is_dirty: true },
+    });
+    console.log(`retagged #${p.id} (discounted_price ${p.discounted_price} == price ${p.price}) discount -> original: ${p.name_tr}`);
+  }
+  console.log(`done: ${toHide.length} hidden, ${toRetag.length} retagged`);
 })();

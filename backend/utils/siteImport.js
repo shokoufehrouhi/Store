@@ -281,6 +281,12 @@ async function Defacto(pm, site, opts = {}) {
       // "original" price on the same page. Never import (or keep visible)
       // something in that state.
       if (discountedPrice > priceOriginal) { skipped++; continue; }
+      // Markup can also land the marked-up price exactly AT the original
+      // price (0% real saving left) — not broken like the > case, so it's
+      // still worth importing, just not as a "discount": tag it 'original'
+      // instead so it doesn't show up wherever the site filters by
+      // tag=discount despite having nothing actually discounted about it.
+      const tag = discountedPrice === priceOriginal ? 'original' : 'discount';
 
       // A translation failure (e.g. the free API's daily quota) shouldn't
       // abort the whole import — but silently swallowing it left products
@@ -320,7 +326,7 @@ async function Defacto(pm, site, opts = {}) {
           price: priceOriginal,
           cost_price: priceSite,
           discounted_price: discountedPrice,
-          tag: 'discount',
+          tag,
           stock: 0,
           brand: site.name,
           supplier_shop_name: site.name,
@@ -526,6 +532,11 @@ async function MadameCoco(pm, site, opts = {}) {
       // price above the source's original price — never import something
       // whose "discount" would show as more expensive than its "original".
       if (discountedPrice > priceOriginal) { notDiscounted++; continue; }
+      // Landing exactly AT the original price (0% real saving left) isn't
+      // broken like the > case, so it's still worth importing — just not
+      // tagged 'discount', so it doesn't show up wherever the site filters
+      // by tag=discount despite having nothing actually discounted.
+      const tag = discountedPrice === priceOriginal ? 'original' : 'discount';
 
       const translateOrWarn = (text, target) => translateText(text, 'tr', target)
         .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
@@ -557,7 +568,7 @@ async function MadameCoco(pm, site, opts = {}) {
           price: priceOriginal,
           cost_price: priceSite,
           discounted_price: discountedPrice,
-          tag: 'discount',
+          tag,
           stock: data.inStock ? 10 : 0,
           brand: site.name,
           supplier_shop_name: site.name,
@@ -758,6 +769,11 @@ async function Zara(pm, site, opts = {}) {
       // price above the source's original price — never import something
       // whose "discount" would show as more expensive than its "original".
       if (finalDiscountedPrice > priceOriginal) { notDiscounted++; continue; }
+      // Landing exactly AT the original price (0% real saving left) isn't
+      // broken like the > case, so it's still worth importing — just not
+      // tagged 'discount', so it doesn't show up wherever the site filters
+      // by tag=discount despite having nothing actually discounted.
+      const tag = finalDiscountedPrice === priceOriginal ? 'original' : 'discount';
 
       const translateOrWarn = (text, target) => translateText(text, 'tr', target)
         .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
@@ -789,7 +805,7 @@ async function Zara(pm, site, opts = {}) {
           price: priceOriginal,
           cost_price: priceSite,
           discounted_price: finalDiscountedPrice,
-          tag: 'discount',
+          tag,
           stock: 0,
           brand: site.name,
           supplier_shop_name: site.name,
@@ -1086,6 +1102,11 @@ async function LCWaikiki(pm, site, opts = {}) {
       // price above the source's original price — never import something
       // whose "discount" would show as more expensive than its "original".
       if (finalDiscountedPrice > priceOriginal) { notDiscounted++; continue; }
+      // Landing exactly AT the original price (0% real saving left) isn't
+      // broken like the > case, so it's still worth importing — just not
+      // tagged 'discount', so it doesn't show up wherever the site filters
+      // by tag=discount despite having nothing actually discounted.
+      const tag = finalDiscountedPrice === priceOriginal ? 'original' : 'discount';
 
       const translateOrWarn = (text, target) => translateText(text, 'tr', target)
         .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
@@ -1117,7 +1138,7 @@ async function LCWaikiki(pm, site, opts = {}) {
           price: priceOriginal,
           cost_price: priceSite,
           discounted_price: finalDiscountedPrice,
-          tag: 'discount',
+          tag,
           stock: 0,
           brand: site.name,
           supplier_shop_name: site.name,
