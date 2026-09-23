@@ -664,6 +664,40 @@ function parseTLPrice(text) {
   return Number.isFinite(n) ? n : null;
 }
 
+// Extracts a bare percent number from text like "−22%", "%68", "22.5%" — a
+// site's own stated discount rate, when it has one (see resolveDiscountTag
+// below).
+function parseDiscountPercent(text) {
+  if (!text) return null;
+  const cleaned = text.replace(/[^\d.,]/g, '').replace(',', '.');
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+// Two ways to decide whether site.markup_percent still leaves a product
+// worth importing, tried in priority order:
+// (a) the site states its own discount rate directly (LCWaikiki's "−22%",
+//     Koton's "%68") — trust that over anything derived from raw prices,
+//     and require it to be strictly greater than the markup being layered
+//     on top: a source discount no bigger than the markup itself isn't a
+//     real deal for Shilista even though the raw marked-up price might
+//     still happen to land under the original.
+// (b) no stated rate available (Defacto/MadameCoco/Zara never show one) —
+//     fall back to deriving it from raw prices: reject only if the
+//     marked-up price would land AT or ABOVE the original price, same
+//     "0% real saving left" nuance as before (tag 'original' rather than
+//     an outright reject when it lands exactly at the original).
+// Returns null when the product should be skipped, otherwise the tag to
+// save it under.
+function resolveDiscountTag({ discountPercentText, markupPercent, finalDiscountedPrice, priceOriginal }) {
+  const sourcePct = parseDiscountPercent(discountPercentText);
+  if (sourcePct != null) {
+    return sourcePct > markupPercent ? 'discount' : null;
+  }
+  if (finalDiscountedPrice > priceOriginal) return null;
+  return finalDiscountedPrice === priceOriginal ? 'original' : 'discount';
+}
+
 // Hardcoded rather than discovered from the homepage's mega-menu: confirmed
 // live that Zara's homepage itself depends on geo-IP resolving the visitor
 // to Turkey, and the VPS's hosting IP doesn't — it gets redirected to a
@@ -1090,6 +1124,9 @@ async function scrapeLcWaikikiProduct(pm, url) {
     const priceContainer = document.querySelector('.product-detail__price-container');
     const originalText = priceContainer?.querySelector('.current-price')?.textContent || null;
     const discountedText = priceContainer?.querySelector('.product-price__discount-group .price-in-cart')?.textContent || null;
+    // LCW's own stated discount rate (e.g. "−22%") — preferred over deriving
+    // one from raw prices when it's available, see discountPctGate below.
+    const discountPercentText = priceContainer?.querySelector('.discount-rate-container__value')?.textContent || null;
 
     const description = document.querySelector('.product-detail-drawer__content--description')?.textContent.trim() || '';
 
@@ -1112,6 +1149,7 @@ async function scrapeLcWaikikiProduct(pm, url) {
       description,
       originalText,
       discountedText,
+      discountPercentText,
       color: colorText,
       sizes,
       title: document.title,
@@ -1181,15 +1219,12 @@ async function LCWaikiki(pm, site, opts = {}) {
       const priceOriginal = originalPrice;
       const priceSite = discountedPrice;
       const finalDiscountedPrice = Math.round(priceSite * (1 + site.markup_percent / 100) * 100) / 100;
-      // Markup on top of an already-discounted price can push the marked-up
-      // price above the source's original price — never import something
-      // whose "discount" would show as more expensive than its "original".
-      if (finalDiscountedPrice > priceOriginal) { notDiscounted++; continue; }
-      // Landing exactly AT the original price (0% real saving left) isn't
-      // broken like the > case, so it's still worth importing — just not
-      // tagged 'discount', so it doesn't show up wherever the site filters
-      // by tag=discount despite having nothing actually discounted.
-      const tag = finalDiscountedPrice === priceOriginal ? 'original' : 'discount';
+      const tag = resolveDiscountTag({
+        discountPercentText: data.discountPercentText,
+        markupPercent: site.markup_percent,
+        finalDiscountedPrice, priceOriginal,
+      });
+      if (!tag) { notDiscounted++; continue; }
 
       const translateOrWarn = (text, target) => translateText(text, 'tr', target)
         .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
@@ -1380,6 +1415,10 @@ async function scrapeKotonProduct(pm, url) {
 
     const originalText = document.querySelector('.price__retail pz-price')?.textContent || null;
     const discountedText = document.querySelector('.price__price pz-price')?.textContent || null;
+    // Koton's own stated discount rate (e.g. "%68") — preferred over
+    // deriving one from raw prices when it's available, see
+    // resolveDiscountTag.
+    const discountPercentText = document.querySelector('.price__discount')?.textContent || null;
 
     // The real description sits in a plain <p> inside .product-info__details
     // (no click-to-expand needed, unlike LCWaikiki's drawer) — JSON-LD's own
@@ -1408,6 +1447,7 @@ async function scrapeKotonProduct(pm, url) {
       description,
       originalText,
       discountedText,
+      discountPercentText,
       color: colorText,
       sizes,
       breadcrumbNames,
@@ -1487,8 +1527,12 @@ async function Koton(pm, site, opts = {}) {
       const priceOriginal = originalPrice;
       const priceSite = discountedPrice;
       const finalDiscountedPrice = Math.round(priceSite * (1 + site.markup_percent / 100) * 100) / 100;
-      if (finalDiscountedPrice > priceOriginal) { notDiscounted++; continue; }
-      const tag = finalDiscountedPrice === priceOriginal ? 'original' : 'discount';
+      const tag = resolveDiscountTag({
+        discountPercentText: data.discountPercentText,
+        markupPercent: site.markup_percent,
+        finalDiscountedPrice, priceOriginal,
+      });
+      if (!tag) { notDiscounted++; continue; }
 
       const category_id = routeKotonCategory(data.breadcrumbNames);
       const subcategory_id = category_id === 1 ? guessSubcategoryId(data.name, 1)
