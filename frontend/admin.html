@@ -1914,7 +1914,7 @@ const LANGS = {
     errInvalidFileType:'نوع فایل پشتیبانی نمی‌شود', errFileTooLarge:'حجم فایل بیش از حد مجاز است',
     descriptions:'توضیحات', statusSection:'وضعیت',
     productCodeLbl:'کد محصول', productCodePlh:'مثال: SHF-001', productCodeAuto:'خودکار',
-    productSearchPlh:'جستجو بر اساس نام، توضیحات یا کد محصول...',
+    productSearchPlh:'جستجو بر اساس نام، توضیحات، کد محصول، برند یا برچسب...',
     nameFa:'نام فارسی *', nameEn:'نام انگلیسی', nameTr:'نام ترکی', deliveryDaysLbl:'زمان تحویل (روز کاری)', minOrderQtyLbl:'حداقل تعداد خرید',
     categoryField:'دسته‌بندی *', subcategoryField:'زیردسته',
     genderField:'جنسیت', tagField:'برچسب',
@@ -2121,7 +2121,7 @@ const LANGS = {
     errInvalidFileType:'File type not supported', errFileTooLarge:'File size exceeds the limit',
     descriptions:'Descriptions', statusSection:'Status',
     productCodeLbl:'Product Code', productCodePlh:'e.g. SHF-001', productCodeAuto:'Auto',
-    productSearchPlh:'Search by name, description or product code...',
+    productSearchPlh:'Search by name, description, product code, brand or tag...',
     nameFa:'Farsi Name *', nameEn:'English Name', nameTr:'Turkish Name', deliveryDaysLbl:'Delivery Time (working days)', minOrderQtyLbl:'Minimum Order Quantity',
     categoryField:'Category *', subcategoryField:'Subcategory',
     genderField:'Gender', tagField:'Tag',
@@ -2328,7 +2328,7 @@ const LANGS = {
     errInvalidFileType:'Dosya türü desteklenmiyor', errFileTooLarge:'Dosya boyutu sınırı aşıyor',
     descriptions:'Açıklamalar', statusSection:'Durum',
     productCodeLbl:'Ürün Kodu', productCodePlh:'örn. SHF-001', productCodeAuto:'Otomatik',
-    productSearchPlh:'Ad, açıklama veya ürün koduna göre ara...',
+    productSearchPlh:'Ad, açıklama, ürün kodu, marka veya etikete göre ara...',
     nameFa:'Farsça Ad *', nameEn:'İngilizce Ad', nameTr:'Türkçe Ad', deliveryDaysLbl:'Teslimat Süresi (iş günü)', minOrderQtyLbl:'Minimum Sipariş Adedi',
     categoryField:'Kategori *', subcategoryField:'Alt Kategori',
     genderField:'Cinsiyet', tagField:'Etiket',
@@ -3104,14 +3104,19 @@ function filterProducts() {
   _productsPage = 1;
   const q = (document.getElementById('product-search')?.value || '').trim().toLowerCase();
   if (!q) return renderProductsTable(_allProducts);
+  const tagLabelKey = { bestseller: 'tagBestseller', new: 'tagNew', original: 'tagOriginal', discount: 'tagDiscount', sold_out: 'tagSoldOut' };
   const filtered = _allProducts.filter(p => {
-    return (p.code      || '').toLowerCase().includes(q) ||
-           (p.name_fa   || '').toLowerCase().includes(q) ||
-           (p.name_en   || '').toLowerCase().includes(q) ||
-           (p.name_tr   || '').toLowerCase().includes(q) ||
-           (p.desc_fa   || '').toLowerCase().includes(q) ||
-           (p.desc_en   || '').toLowerCase().includes(q) ||
-           (p.desc_tr   || '').toLowerCase().includes(q);
+    return (p.code                || '').toLowerCase().includes(q) ||
+           (p.name_fa             || '').toLowerCase().includes(q) ||
+           (p.name_en             || '').toLowerCase().includes(q) ||
+           (p.name_tr             || '').toLowerCase().includes(q) ||
+           (p.desc_fa             || '').toLowerCase().includes(q) ||
+           (p.desc_en             || '').toLowerCase().includes(q) ||
+           (p.desc_tr             || '').toLowerCase().includes(q) ||
+           (p.brand               || '').toLowerCase().includes(q) ||
+           (p.supplier_shop_name  || '').toLowerCase().includes(q) ||
+           (p.tag                 || '').toLowerCase().includes(q) ||
+           (p.tag && t(tagLabelKey[p.tag] || p.tag) || '').toLowerCase().includes(q);
   });
   renderProductsTable(filtered);
 }
