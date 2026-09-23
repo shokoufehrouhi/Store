@@ -1328,11 +1328,16 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   min-height: 1.6em;
 }
 
-/* Sizes row */
+/* Sizes row — capped to one line (matching .card-meta-row's own 24px) so a
+   product with enough sizes to wrap doesn't grow taller than its siblings
+   and push its price row out of alignment with the rest of that grid row;
+   overflow chips just get clipped rather than wrapping to a 2nd line. */
 .sizes-row {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
+  max-height: 24px;
+  overflow: hidden;
 }
 .size-chip {
   display: inline-block;
@@ -1375,11 +1380,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .card-colors {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
 }
 .card-color-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   border: 1px solid rgba(0,0,0,.14);
   display: inline-block;
