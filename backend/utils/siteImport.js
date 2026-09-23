@@ -1259,11 +1259,22 @@ async function LCWaikiki(pm, site, opts = {}) {
 // gate needed). Discount signal is a populated .price__retail element next
 // to .price__price — same "only renders when genuinely marked down"
 // pattern as Zara's <del> and LCWaikiki's discount-group.
+//
+// This one listing (confirmed live: 10,190 products, every one of the
+// first 24 cards genuinely discounted) replaces an earlier version of this
+// scraper that used the plain kadin/erkek/cocuk/bebek department roots —
+// those are each the WHOLE unfiltered department (e.g. kadin-elbise-
+// kampanyasi/, despite its name, is just the full 1,912-item dress
+// category with no discount filter at all, confirmed live only a small
+// fraction of its cards are actually marked down), so a real run against
+// them imported only 30 of 313 candidates and, worse, never even visited
+// most of the site's genuine discounts at all inside the ~8-page sample
+// budget. Gender still comes from each product's own breadcrumb (see
+// guessKotonGender below), not from this listing, so one shared listing
+// covering every department is fine — confirmed live it already mixes
+// men's and women's items together.
 const KOTON_LISTINGS = [
-  { url: 'https://www.koton.com/kadin/', gender: 'female' },
-  { url: 'https://www.koton.com/erkek/', gender: 'male' },
-  { url: 'https://www.koton.com/cocuk/', gender: 'kids' },
-  { url: 'https://www.koton.com/bebek/', gender: 'kids' },
+  { url: 'https://www.koton.com/70e-varan-fiyat-indirimli-urunler/', gender: 'unisex' },
 ];
 const KOTON_MAX_PAGES_PER_LISTING = 8;
 
