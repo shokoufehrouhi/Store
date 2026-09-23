@@ -78,21 +78,18 @@ function guessSubcategoryId(nameTr, categoryId = 1) {
   return hit ? hit[1] : null;
 }
 
-function guessColorId(title) {
-  // Page titles always lead with the color regardless of gender segment:
-  // "Bej Kadın ...", "Lacivert Erkek ...", "Pembe Kız Çocuk ...".
-  // .toLowerCase() alone mangles Turkish İ ("İndigo" -> "i̇ndigo", not
-  // "indigo" — the classic Turkish-I problem) and silently missed every
-  // "İndigo ..." product's color. toLocaleLowerCase('tr') handles it correctly.
-  const firstWord = title.trim().split(' ')[0]?.toLocaleLowerCase('tr');
-  return firstWord && TR_COLOR_TO_ID[firstWord] || null;
+// Every product page's title leads with the color regardless of gender
+// segment: "Bej Kadın ...", "Lacivert Erkek ...", "Pembe Kız Çocuk ...".
+function extractLeadingColorWord(title) {
+  return title.trim().split(' ')[0] || null;
 }
 
 // Madame Coco's own "Renk" variant field is a bare color word/phrase (e.g.
-// "Bej", "Açık Gri"), not a title prefix — unlike Defacto's guessColorId
-// above. Kozmetik variants use this same field for scent names ("Dark
-// Ambre", "Poetic Oud"), which correctly match nothing here and fall back to
-// no color, same as an unrecognized Defacto shade would.
+// "Bej", "Açık Gri"), not a title prefix. Kozmetik variants use this same
+// field for scent names ("Dark Ambre", "Poetic Oud") — those must never
+// reach getOrCreateColorId below (it would happily create a fake "color"
+// row for a fragrance name), so MadameCoco's own import keeps using this
+// old, non-creating, null-on-no-match version rather than the shared one.
 function guessColorIdFromWord(text) {
   if (!text) return null;
   const norm = s => s.trim().toLocaleLowerCase('tr');
@@ -100,6 +97,73 @@ function guessColorIdFromWord(text) {
   if (TR_COLOR_TO_ID[full]) return TR_COLOR_TO_ID[full];
   for (const w of full.split(/\s+/)) if (TR_COLOR_TO_ID[w]) return TR_COLOR_TO_ID[w];
   return null;
+}
+
+// Turkish word/phrase -> ASCII-safe slug for colors.key (VarChar(20), unique).
+function slugifyColorKey(word) {
+  const trMap = { 'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u' };
+  const slug = word.trim().toLocaleLowerCase('tr')
+    .split('').map(ch => trMap[ch] || ch).join('')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 20);
+  return slug || null;
+}
+
+// Memoized per import run — every product in the same run that hits the
+// same unrecognized color word reuses the same newly-created row instead of
+// re-querying/re-creating it each time.
+const colorCreateCache = new Map();
+
+// Every site scraper only ever has a bare Turkish color WORD to work with
+// (a title prefix for Defacto, a "Renk"/color-code field for Zara and
+// LCWaikiki) — never a hex value — so a shade this site's own products
+// don't already cover can't be matched to an *existing* swatch by name
+// alone. Previously that meant silently leaving the product uncategorized
+// by color (color_id: null); this creates a new colors row instead, with a
+// neutral placeholder hex (the real one isn't knowable from a name alone —
+// an admin can correct it later in the color's own edit page) so the
+// product still gets tagged with *a* color rather than none. NOT used by
+// MadameCoco (see guessColorIdFromWord above) — its color field doubles as
+// scent names for Kozmetik products, which would otherwise get created as
+// fake colors here.
+async function getOrCreateColorId(word) {
+  if (!word) return null;
+  const norm = word.trim().toLocaleLowerCase('tr');
+  if (!norm) return null;
+  if (TR_COLOR_TO_ID[norm]) return TR_COLOR_TO_ID[norm];
+  for (const w of norm.split(/\s+/)) if (TR_COLOR_TO_ID[w]) return TR_COLOR_TO_ID[w];
+
+  if (colorCreateCache.has(norm)) return colorCreateCache.get(norm);
+  const key = slugifyColorKey(word);
+  if (!key) return null;
+
+  let color = await prisma.colors.findUnique({ where: { key } });
+  if (!color) {
+    const [name_fa, name_en] = await Promise.all([
+      translateText(word, 'tr', 'fa').catch(() => word),
+      translateText(word, 'tr', 'en').catch(() => word),
+    ]);
+    try {
+      color = await prisma.colors.create({
+        data: {
+          key,
+          hex: '#CCCCCC',
+          name_fa: name_fa.slice(0, 30),
+          name_en: name_en.slice(0, 30),
+          name_tr: word.trim().slice(0, 30),
+        },
+      });
+    } catch (err) {
+      // Another product earlier in this same run's Promise.all batch (or a
+      // concurrent import) may have created the same key between the
+      // findUnique above and this create — fall back to reading it.
+      if (err.code === 'P2002') color = await prisma.colors.findUnique({ where: { key } });
+      else throw err;
+    }
+  }
+  colorCreateCache.set(norm, color.id);
+  return color.id;
 }
 
 // Every product page's <title> leads with "<Color> <Gender...> <Name> <id> |
@@ -315,6 +379,8 @@ async function Defacto(pm, site, opts = {}) {
         try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
       }
 
+      const colorId = await getOrCreateColorId(extractLeadingColorWord(data.title));
+
       const product = await prisma.products.create({
         data: {
           code: await generateProductCode(),
@@ -332,7 +398,7 @@ async function Defacto(pm, site, opts = {}) {
           supplier_shop_name: site.name,
           product_link: url,
           product_media: mediaUrls.length ? { create: mediaUrls.map((u, i) => ({ type: 'image', url: u, sort_order: i })) } : undefined,
-          product_colors: guessColorId(data.title) ? { create: [{ color_id: guessColorId(data.title), is_available: true }] } : undefined,
+          product_colors: colorId ? { create: [{ color_id: colorId, is_available: true }] } : undefined,
           product_sizes: data.sizes.length ? {
             create: data.sizes.map(s => ({ size_label: s.size, is_available: s.stock > 0 })),
           } : undefined,
@@ -340,7 +406,6 @@ async function Defacto(pm, site, opts = {}) {
       });
 
       if (data.sizes.length) {
-        const colorId = guessColorId(data.title);
         await prisma.product_inventory.createMany({
           data: data.sizes.map(s => ({
             product_id: product.id, color_id: colorId, size_label: s.size,
@@ -792,7 +857,7 @@ async function Zara(pm, site, opts = {}) {
         try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
       }
 
-      const colorId = guessColorIdFromWord(data.color);
+      const colorId = await getOrCreateColorId(data.color);
 
       const product = await prisma.products.create({
         data: {
@@ -1143,7 +1208,7 @@ async function LCWaikiki(pm, site, opts = {}) {
         try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
       }
 
-      const colorId = guessColorIdFromWord(data.color);
+      const colorId = await getOrCreateColorId(data.color);
 
       const product = await prisma.products.create({
         data: {
