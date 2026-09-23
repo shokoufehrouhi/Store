@@ -942,14 +942,32 @@ function guessLcWaikikiLifestyleSubcategoryId(categoryPath) {
 // after widening fixes it; only actually reloads once per PageManager page
 // (viewport persists across navigations on the same page instance).
 //
-// waitUntil is 'domcontentloaded', not 'networkidle2' — like Zara (see
-// collectZaraListingLinks), this site keeps a steady drip of analytics/
-// tracking calls (GTM, sgtm.lcw.com, useinsider.com, Google Ads pixels)
-// that on a slower network path (confirmed live on the VPS, not
-// reproducible from a fast local connection) never let the network go
-// idle, so 'networkidle2' hit the 30s timeout outright rather than just
-// running long.
-async function ensureLcWaikikiDesktopViewport(page) {
+// waitUntil is 'domcontentloaded', not 'networkidle2', for the same reason
+// Zara uses it (see collectZaraListingLinks): this site keeps a steady drip
+// of analytics/tracking calls that can keep the network from ever going
+// idle. That alone wasn't enough on the VPS though — navigation was still
+// timing out there (never locally) even with domcontentloaded, while a
+// plain curl to the same URL from that same VPS came back in ~1s. So it
+// isn't network reachability — it's headless Chrome itself taking too long
+// to get through this page's real payload: dozens of tracker/personalization
+// requests (GTM, sgtm.lcw.com, useinsider.com, Google Ads pixels, ...) that
+// this scraper never reads anything from, competing for the VPS's more
+// limited CPU. Aborting them (plus images/fonts/media, also never read)
+// via request interception is what actually fixed it.
+async function ensureLcWaikikiPageSetup(page) {
+  if (!page.__lcwRequestBlockingSetup) {
+    page.__lcwRequestBlockingSetup = true;
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      const type = req.resourceType();
+      const url = req.url();
+      const isHeavyAsset = type === 'image' || type === 'font' || type === 'media';
+      const isTracker = /googlesyndication|google-analytics|googletagmanager|doubleclick|useinsider\.com|sgtm\.lcw\.com|mindbehind|facebook\.com\/tr|clarity\.ms|hotjar/i.test(url);
+      if (isHeavyAsset || isTracker) req.abort().catch(() => {});
+      else req.continue().catch(() => {});
+    });
+  }
+
   const vp = page.viewport();
   if (!vp || vp.width < 1200) {
     await page.setViewport({ width: 1440, height: 900 });
@@ -959,7 +977,7 @@ async function ensureLcWaikikiDesktopViewport(page) {
 
 async function collectLcWaikikiListingLinks(pm, listingUrl) {
   const page = await pm.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await ensureLcWaikikiDesktopViewport(page);
+  await ensureLcWaikikiPageSetup(page);
   await new Promise(r => setTimeout(r, 1500));
 
   // Scroll-triggered infinite-load grid, same as Madame Coco/Zara — links
@@ -983,7 +1001,7 @@ async function collectLcWaikikiListingLinks(pm, listingUrl) {
 
 async function scrapeLcWaikikiProduct(pm, url) {
   const page = await pm.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await ensureLcWaikikiDesktopViewport(page);
+  await ensureLcWaikikiPageSetup(page);
   await new Promise(r => setTimeout(r, 1500));
 
   // The JSON-LD Product's own "description" is generic site-wide marketing
