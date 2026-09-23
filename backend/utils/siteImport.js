@@ -1254,4 +1254,10 @@ async function LCWaikiki(pm, site, opts = {}) {
   return { imported, skipped: notDiscounted + wrongBrand + (candidateUrls.length - newUrls.length) };
 }
 
-module.exports = { Defacto, MadameCoco, Zara, LCWaikiki };
+module.exports = {
+  Defacto, MadameCoco, Zara, LCWaikiki,
+  // exported for backend/scripts/backfillMissingColors.js — reusing the
+  // same lookup/create logic the live importers use, rather than
+  // duplicating it in the backfill script.
+  extractLeadingColorWord, getOrCreateColorId,
+};
