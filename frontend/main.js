@@ -1360,9 +1360,11 @@ function renderProduct(p) {
     renderPriceHtml(p, 'product-price') +
     '    <div class="product-delivery">⏱ ' + localizeNumber(p.delivery_days) + ' ' + t.delivery_unit + '</div>' +
     '    <div class="product-actions">' +
-    '      <button class="buy-btn cart-add-btn" onclick="quickAdd(event,' + p.id + ')">' +
-    '        🛒 ' + t.add_to_cart +
-    '      </button>' +
+    (p.tag === 'sold_out'
+      ? '      <button class="buy-btn cart-add-btn" disabled>' + t.tag_sold_out + '</button>'
+      : '      <button class="buy-btn cart-add-btn" onclick="quickAdd(event,' + p.id + ')">' +
+        '        🛒 ' + t.add_to_cart +
+        '      </button>') +
     '    </div>' +
     '  </div>' +
     '</div>'

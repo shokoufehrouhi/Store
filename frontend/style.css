@@ -1458,6 +1458,12 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   color: #fff;
 }
 .cart-add-btn:hover { background: var(--primary-dark); }
+.cart-add-btn:disabled {
+  background: var(--border);
+  color: var(--text-light);
+  cursor: not-allowed;
+}
+.cart-add-btn:disabled:hover { transform: none; background: var(--border); }
 
 /* ─── Contact Section ────────────────────────────────────────────────────── */
 .contact-section {
