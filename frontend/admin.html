@@ -1005,16 +1005,17 @@
               <th data-i18n="colCategory">دسته‌بندی</th>
               <th data-i18n="colPrice">قیمت</th>
               <th data-i18n="colStock">موجودی</th>
-              <th data-i18n="colColors">رنگ‌ها</th>
-              <th data-i18n="colSizes">سایزها</th>
+              <th data-i18n="colBrand">برند</th>
               <th data-i18n="colStatus">وضعیت</th>
               <th data-i18n="colActions">عملیات</th>
             </tr></thead>
             <tbody id="products-tbody">
-              <tr><td colspan="10" style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</td></tr>
+              <tr><td colspan="9" style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</td></tr>
             </tbody>
           </table>
-        </div></div>
+        </div>
+        <div id="products-pagination" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:14px 0"></div>
+        </div>
       </div>
     </div>
 
@@ -1900,7 +1901,7 @@ const LANGS = {
     rptStatusBreakdown:'وضعیت سفارشات', rptTopProducts:'پرفروش‌ترین محصولات', rptQtySold:'فروش رفته',
     addProduct:'+ افزودن محصول',
     colId:'#', colMedia:'رسانه', colName:'نام محصول', colCategory:'دسته‌بندی', colPrice:'قیمت',
-    colStock:'موجودی', colColors:'رنگ‌ها', colSizes:'سایزها', colStatus:'وضعیت', colActions:'عملیات',
+    colStock:'موجودی', colBrand:'برند', colStatus:'وضعیت', colActions:'عملیات',
     active:'فعال', inactive:'غیرفعال', edit:'✏️ ویرایش', del:'🗑️',
     loading:'در حال بارگذاری...', noProducts:'هنوز محصولی ثبت نشده', noPhotos:'هنوز عکسی آپلود نشده',
     addProductTitle:'افزودن محصول جدید', editProductTitle:'ویرایش محصول',
@@ -2107,7 +2108,7 @@ const LANGS = {
     rptStatusBreakdown:'Order Status Breakdown', rptTopProducts:'Top Selling Products', rptQtySold:'Sold',
     addProduct:'+ Add Product',
     colId:'#', colMedia:'Media', colName:'Product Name', colCategory:'Category', colPrice:'Price',
-    colStock:'Stock', colColors:'Colors', colSizes:'Sizes', colStatus:'Status', colActions:'Actions',
+    colStock:'Stock', colBrand:'Brand', colStatus:'Status', colActions:'Actions',
     active:'Active', inactive:'Inactive', edit:'✏️ Edit', del:'🗑️',
     loading:'Loading...', noProducts:'No products yet', noPhotos:'No photos uploaded yet',
     addProductTitle:'Add New Product', editProductTitle:'Edit Product',
@@ -2314,7 +2315,7 @@ const LANGS = {
     rptStatusBreakdown:'Sipariş Durumu', rptTopProducts:'En Çok Satan Ürünler', rptQtySold:'Satış',
     addProduct:'+ Ürün Ekle',
     colId:'#', colMedia:'Medya', colName:'Ürün Adı', colCategory:'Kategori', colPrice:'Fiyat',
-    colStock:'Stok', colColors:'Renkler', colSizes:'Bedenler', colStatus:'Durum', colActions:'İşlemler',
+    colStock:'Stok', colBrand:'Marka', colStatus:'Durum', colActions:'İşlemler',
     active:'Aktif', inactive:'Pasif', edit:'✏️ Düzenle', del:'🗑️',
     loading:'Yükleniyor...', noProducts:'Henüz ürün yok', noPhotos:'Henüz fotoğraf yüklenmedi',
     addProductTitle:'Yeni Ürün Ekle', editProductTitle:'Ürünü Düzenle',
@@ -3096,8 +3097,11 @@ async function loadProducts() {
 }
 
 var _allProducts = [];
+var PRODUCTS_PAGE_SIZE = 25;
+var _productsPage = 1;
 
 function filterProducts() {
+  _productsPage = 1;
   const q = (document.getElementById('product-search')?.value || '').trim().toLowerCase();
   if (!q) return renderProductsTable(_allProducts);
   const filtered = _allProducts.filter(p => {
@@ -3112,24 +3116,44 @@ function filterProducts() {
   renderProductsTable(filtered);
 }
 
+function goToProductsPage(page) {
+  _productsPage = page;
+  renderProductsTable(_productsListShown);
+  document.querySelector('#tab-products .table-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderProductsPagination(totalItems) {
+  const bar = document.getElementById('products-pagination');
+  if (!bar) return;
+  const totalPages = Math.ceil(totalItems / PRODUCTS_PAGE_SIZE);
+  if (totalPages <= 1) { bar.innerHTML = ''; return; }
+  let html = '';
+  html += `<button class="btn btn-secondary btn-sm" ${_productsPage <= 1 ? 'disabled' : ''} onclick="goToProductsPage(${_productsPage - 1})">‹</button>`;
+  html += `<span style="font-size:13px;color:#666;padding:0 8px">${_productsPage} / ${totalPages}</span>`;
+  html += `<button class="btn btn-secondary btn-sm" ${_productsPage >= totalPages ? 'disabled' : ''} onclick="goToProductsPage(${_productsPage + 1})">›</button>`;
+  bar.innerHTML = html;
+}
+
+var _productsListShown = [];
+
 function renderProductsTable(products) {
+  _productsListShown = products;
   const tbody = document.getElementById('products-tbody');
   if (!products.length) {
     tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon">📦</div><p>${t('noProducts')}</p></div></td></tr>`;
+    renderProductsPagination(0);
     return;
   }
+  const totalPages = Math.ceil(products.length / PRODUCTS_PAGE_SIZE);
+  if (_productsPage > totalPages) _productsPage = totalPages;
+  if (_productsPage < 1) _productsPage = 1;
+  const pageItems = products.slice((_productsPage - 1) * PRODUCTS_PAGE_SIZE, _productsPage * PRODUCTS_PAGE_SIZE);
   const catBadgeMap = { clothing:'badge-clothing', shoes:'badge-shoes', accessories:'badge-accessories' };
-  tbody.innerHTML = products.map(p => {
+  tbody.innerHTML = pageItems.map(p => {
     const catKey   = p.categories?.key || '';
     const catLabel = p.categories?.label_fa || '—';
     const tagLabelKey = { bestseller: 'tagBestseller', new: 'tagNew', original: 'tagOriginal', discount: 'tagDiscount', sold_out: 'tagSoldOut' };
     const tagHtml  = p.tag ? `<span class="badge badge-${p.tag}">${t(tagLabelKey[p.tag] || p.tag)}</span>` : '';
-    const colorDots = (p.product_colors||[]).map(pc =>
-      `<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:${pc.colors?.hex};border:1px solid rgba(0,0,0,.15);margin:0 1px" title="${pc.colors?.name_fa}"></span>`
-    ).join('') || '—';
-    const sizeTags = (p.product_sizes||[]).map(s =>
-      `<span style="font-size:11px;background:#ede9fe;color:#7c3aed;padding:1px 6px;border-radius:10px;margin:1px">${s.size_label}</span>`
-    ).join('') || '—';
     const statusBadge = (p.is_active
       ? `<span class="badge badge-active">${t('active')}</span>`
       : `<span class="badge badge-inactive">${t('inactive')}</span>`)
@@ -3171,8 +3195,7 @@ function renderProductsTable(products) {
         ${p.cost_price ? `<br><span style="color:#6b7280;font-size:11px">خرید: ${(Math.floor(Number(p.cost_price)*100)/100).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} TL</span>` : ''}
       </td>
       <td>${p.stock}</td>
-      <td>${colorDots}</td>
-      <td style="max-width:120px">${sizeTags}</td>
+      <td>${p.brand || '—'}</td>
       <td>${statusBadge}</td>
       <td><div class="actions">
         <button class="btn btn-secondary btn-sm" onclick="openProductModal(${p.id})">${t('edit')}</button>
@@ -3180,6 +3203,7 @@ function renderProductsTable(products) {
       </div></td>
     </tr>`;
   }).join('');
+  renderProductsPagination(products.length);
 }
 
 async function openProductModal(id = null) {
