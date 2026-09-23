@@ -3627,7 +3627,7 @@ async function saveProduct(id) {
     price: Number(document.getElementById('f-price')?.value) || 0,
     discounted_price: document.getElementById('f-discounted-price')?.value !== '' ? Number(document.getElementById('f-discounted-price')?.value) || null : null,
     cost_price: document.getElementById('f-cost-price')?.value !== '' ? Number(document.getElementById('f-cost-price')?.value) || null : null,
-    stock: 0,
+    stock: [...document.querySelectorAll('.inv-qty-input')].reduce((sum, inp) => sum + (Number(inp.value) || 0), 0),
     colors,
     sizes,
     extra_categories: [...document.querySelectorAll('.extra-cat-sel')].reduce((acc, sel) => {
