@@ -1260,21 +1260,37 @@ async function LCWaikiki(pm, site, opts = {}) {
 // to .price__price — same "only renders when genuinely marked down"
 // pattern as Zara's <del> and LCWaikiki's discount-group.
 //
-// This one listing (confirmed live: 10,190 products, every one of the
-// first 24 cards genuinely discounted) replaces an earlier version of this
-// scraper that used the plain kadin/erkek/cocuk/bebek department roots —
-// those are each the WHOLE unfiltered department (e.g. kadin-elbise-
-// kampanyasi/, despite its name, is just the full 1,912-item dress
-// category with no discount filter at all, confirmed live only a small
-// fraction of its cards are actually marked down), so a real run against
-// them imported only 30 of 313 candidates and, worse, never even visited
-// most of the site's genuine discounts at all inside the ~8-page sample
-// budget. Gender still comes from each product's own breadcrumb (see
-// guessKotonGender below), not from this listing, so one shared listing
-// covering every department is fine — confirmed live it already mixes
-// men's and women's items together.
+// /70e-varan-fiyat-indirimli-urunler/ is the real, comprehensive discount
+// listing (confirmed live: 10,190 products, ~80% of individually-sampled
+// cards genuinely discounted) — it replaced an earlier version of this
+// scraper that used the plain kadin/erkek/cocuk/bebek department roots,
+// each the WHOLE unfiltered department (e.g. kadin-elbise-kampanyasi/,
+// despite its name, is just the full 1,911-item dress category with no
+// discount filter at all), which only ever reached ~10% hit rate and, at
+// the default limit=30, never sampled deep enough to visit most genuine
+// discounts at all.
+//
+// But 70e-varan isn't grouped by category — at limit=30 the scrape loop
+// stops after roughly the first ~40-50 (30 / ~80% hit rate) candidates in
+// whatever order the site returns them, which turned out to systematically
+// under-represent categories that aren't near the front of that order
+// (confirmed live: specific 50-71%-off dresses the user pointed out never
+// got reached). The *-kampanyasi pages are individually lower hit rate
+// (~60%, since they're really just "category, discounts included" rather
+// than discount-only) but each guarantees SOME budget lands on that
+// specific category every run, via the same round-robin interleave already
+// used for every other multi-listing scraper here. Gender still comes from
+// each product's own breadcrumb (see guessKotonGender below), not from
+// which listing found it, so mixing department-scoped and cross-department
+// listings here is fine.
 const KOTON_LISTINGS = [
   { url: 'https://www.koton.com/70e-varan-fiyat-indirimli-urunler/', gender: 'unisex' },
+  { url: 'https://www.koton.com/kadin-elbise-kampanyasi/',           gender: 'female' },
+  { url: 'https://www.koton.com/kadin-etek-kampanyasi/',             gender: 'female' },
+  { url: 'https://www.koton.com/kadin-kampanyali-tisort/',           gender: 'female' },
+  { url: 'https://www.koton.com/kadin-kampanyali-bluz/',             gender: 'female' },
+  { url: 'https://www.koton.com/erkek-kampanyali-kot-pantolon/',     gender: 'male' },
+  { url: 'https://www.koton.com/erkek-kampanyali-polo-tisort/',      gender: 'male' },
 ];
 const KOTON_MAX_PAGES_PER_LISTING = 8;
 
