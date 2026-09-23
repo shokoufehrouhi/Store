@@ -1603,8 +1603,328 @@ async function Koton(pm, site, opts = {}) {
   return { imported, skipped: notDiscounted + (candidateUrls.length - newUrls.length) };
 }
 
+// Kiko is an Akinon-platform cosmetics-only storefront (same `pz-` custom
+// element family as Koton, confirmed live — different vendor, same JS-
+// hydration timing quirks). Its whole catalog (2216 products, confirmed
+// live) sits behind a single infinite-scroll listing — most cards there
+// carry only a marketing badge ("1 alana 1 hediye", "2. ürüne %50") with no
+// real price cut, so the per-card `pz-price.-retail` element (the old,
+// struck-through price) is what actually finds genuine discounts, not the
+// page's own framing (same lesson as Zara/LCWaikiki/Koton's own gates).
+// Pagination is `<pz-pagination type="infinite" per-page="20">` — confirmed
+// live that a programmatic scrollTo()/scrollIntoView() never triggers its
+// loader at all (stuck at the first 20 items); only a real page.mouse.wheel()
+// does, and even then the DOM is a virtualized ~20-item window, not an
+// ever-growing list, so every round's cards must be read and kept rather
+// than trusting final DOM size.
+const KIKO_DISCOUNT_LISTING_URL = 'https://www.kikomilano.com.tr/kampanyali-urunler/';
+const KIKO_MAX_SCROLL_ROUNDS = 40; // ~800 of the 2216 total per run — genuine discounts are a minority scattered throughout, this is a safety cap, not an exhaustive crawl
+const KIKO_MAX_SHADES_PER_PRODUCT = 60; // seen up to 35 real shades on one item; just a safety bound
+
+// Same platform-tracker family confirmed live as Koton's own (Google Ads/
+// Analytics) plus Visilabs, a Turkish analytics/personalization vendor this
+// site uses that Koton didn't.
+async function ensureKikoPageSetup(page) {
+  if (page.__kikoRequestBlockingSetup) return;
+  page.__kikoRequestBlockingSetup = true;
+  await page.setRequestInterception(true);
+  page.on('request', (req) => {
+    const type = req.resourceType();
+    const url = req.url();
+    const isHeavyAsset = type === 'image' || type === 'font' || type === 'media';
+    const isTracker = /doubleclick\.net|googlesyndication|googleadservices|analytics\.google\.com|googletagmanager|visilabs\.net|facebook\.com\/tr|hotjar/i.test(url);
+    if (isHeavyAsset || isTracker) req.abort().catch(() => {});
+    else req.continue().catch(() => {});
+  });
+}
+
+// Kiko's shade labels ("34 Chestnut", "120 Rosy Mauve0") are English/Italian
+// shade names, not Turkish color words like every other site here —
+// translating tr->fa/en (what getOrCreateColorId above assumes) would
+// mistranslate an already-English word, so this creates/reuses a colors row
+// from the raw label directly, source language 'en'. Also cleans messy
+// source data confirmed live: a leading shade number ("34 Chestnut" ->
+// "Chestnut"), a trailing stray digit ("120 Rosy Mauve0" -> "Rosy Mauve"),
+// or a trailing period ("105 Scarlet Red." -> "Scarlet Red") — the last two
+// also mean two swatches can clean down to the exact same word (confirmed
+// live: "105 Scarlet Red" and "105 Scarlet Red." both existed on one
+// product), so callers must still dedupe by the returned color id.
+async function getOrCreateKikoColorId(rawLabel) {
+  const word = (rawLabel || '')
+    .replace(/^\d+\s*/, '')
+    .replace(/\.$/, '')
+    .replace(/(\D)\d$/, '$1')
+    .trim();
+  if (!word) return null;
+  const cacheKey = 'kiko:' + word.toLowerCase();
+  if (colorCreateCache.has(cacheKey)) return colorCreateCache.get(cacheKey);
+  const key = slugifyColorKey(word);
+  if (!key) return null;
+
+  let color = await prisma.colors.findUnique({ where: { key } });
+  if (!color) {
+    const [name_fa, name_tr] = await Promise.all([
+      translateText(word, 'en', 'fa').catch(() => word),
+      translateText(word, 'en', 'tr').catch(() => word),
+    ]);
+    try {
+      color = await prisma.colors.create({
+        data: { key, hex: '#CCCCCC', name_fa: name_fa.slice(0, 30), name_en: word.slice(0, 30), name_tr: name_tr.slice(0, 30) },
+      });
+    } catch (err) {
+      // Same race as getOrCreateColorId above — another product earlier in
+      // this run (or a concurrent import) may have created this key first.
+      if (err.code === 'P2002') color = await prisma.colors.findUnique({ where: { key } });
+      else throw err;
+    }
+  }
+  colorCreateCache.set(cacheKey, color.id);
+  return color.id;
+}
+
+// Scrolls the discount/catalog listing, reading each card's url + whether it
+// carries a genuine `pz-price.-retail` directly from the grid. See the big
+// comment above KIKO_DISCOUNT_LISTING_URL for why this needs page.mouse.wheel()
+// and why every round's cards get folded into `found` rather than reading
+// the DOM's final size once at the end.
+async function collectKikoDiscountedCandidates(pm) {
+  const page = await pm.goto(KIKO_DISCOUNT_LISTING_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await ensureKikoPageSetup(page);
+  await new Promise(r => setTimeout(r, 1500));
+
+  const found = new Map();
+  for (let i = 0; i < KIKO_MAX_SCROLL_ROUNDS; i++) {
+    const cards = await page.evaluate(() => Array.from(document.querySelectorAll('.product-item')).map(card => ({
+      url: card.querySelector('a[href]')?.href || null,
+      discounted: !!card.querySelector('pz-price.-retail'),
+    })));
+    for (const c of cards) if (c.url && c.discounted) found.set(c.url, true);
+
+    await page.mouse.wheel({ deltaY: 2500 });
+    await new Promise(r => setTimeout(r, 1800));
+  }
+  return [...found.keys()];
+}
+
+// Every PDP lists its own full sibling shade family via <pz-variant-option>
+// (a custom element carrying a url+value per shade) — KikoMilano() below
+// uses that list to group every shade of one item into a single product
+// with one color per shade (chosen over a product-per-shade, which is how
+// the site itself presents them, to keep the catalog from ballooning up to
+// ~35x per style). Confirmed live that a shade swatch click navigates to a
+// distinct URL rather than swapping an image in place, so shades can't be
+// read from one page load alone. JSON-LD offers.price is always the CURRENT
+// (possibly discounted) price, never the original (confirmed live: Glossy
+// Lip Set's JSON-LD said 1598, the real original was 3197) — the genuine
+// old-price signal is the `.price.-retail` element, which only renders when
+// a real discount is active. JSON-LD's own "availability" is unreliable
+// (confirmed live: a shade whose page showed "STOĞU GELİNCE HABER VER"
+// still reported "InStock" there), so stock comes from the actual add-to-
+// cart/notify-me button instead. The real description sits in JSON-LD's own
+// "description" field here (unlike LCWaikiki/Koton's boilerplate trap) —
+// confirmed live it matches the short line shown right under the title, not
+// generic marketing copy.
+async function scrapeKikoProduct(pm, url) {
+  const page = await pm.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await ensureKikoPageSetup(page);
+  await new Promise(r => setTimeout(r, 1200));
+  await page.waitForFunction(
+    () => (document.querySelector('.product-info .price pz-price')?.textContent || '').trim().length > 0,
+    { timeout: 8000 }
+  ).catch(() => {});
+
+  return page.evaluate(() => {
+    const ldBlocks = Array.from(document.querySelectorAll('script[type="application/ld+json"]'))
+      .map(s => { try { return JSON.parse(s.textContent); } catch (e) { return null; } })
+      .filter(Boolean);
+    const prod = ldBlocks.find(d => d['@type'] === 'Product');
+    if (!prod) return null;
+
+    const retailEl = document.querySelector('.product-info .price.-retail pz-price');
+    const currentEl = document.querySelector('.product-info .price:not(.-retail) pz-price');
+    const actionArea = document.querySelector('.product-info__action') || document;
+    const inStock = !actionArea.querySelector('.js-product-stock-alert');
+
+    const selected = document.querySelector('pz-variant-option.-selected');
+    const variantUrls = Array.from(document.querySelectorAll('pz-variant-option'))
+      .map(o => o.getAttribute('url'))
+      .filter(Boolean)
+      .map(u => new URL(u, location.href).href);
+
+    return {
+      name: prod.name,
+      images: [...new Set(prod.image || [])],
+      description: prod.description || '',
+      hasRetail: !!retailEl,
+      originalText: retailEl?.textContent || null,
+      currentText: currentEl?.textContent || null,
+      inStock,
+      currentShadeLabel: selected?.getAttribute('value') || null,
+      variantUrls,
+    };
+  });
+}
+
+// A lightweight visit to one sibling shade's own page, just to read its
+// price/stock/label — can't be inferred from the swatch list on another
+// shade's page alone (confirmed live: a shade's own swatch still carries
+// the `selectable` attribute even when that exact shade's page shows
+// "STOĞU GELİNCE HABER VER").
+async function scrapeKikoShade(pm, url) {
+  const page = await pm.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await ensureKikoPageSetup(page);
+  await new Promise(r => setTimeout(r, 1200));
+  await page.waitForFunction(
+    () => document.querySelector('pz-variant-option.-selected') != null,
+    { timeout: 8000 }
+  ).catch(() => {});
+
+  return page.evaluate(() => {
+    const selected = document.querySelector('pz-variant-option.-selected');
+    const label = selected?.getAttribute('value') || null;
+    if (!label) return null;
+    const actionArea = document.querySelector('.product-info__action') || document;
+    const inStock = !actionArea.querySelector('.js-product-stock-alert');
+    return { label, inStock };
+  });
+}
+
+// Kiko is a single-department cosmetics storefront — always category_id 10,
+// no routing needed like Koton's Clothing/Shoes/Accessories/Cosmetics
+// split. Subcategory reuses the same TR_KEYWORD_TO_COSMETIC_SUBCATEGORY
+// table Koton/Zara already share (ids 42 Face/43 Eye/44 Lip/45 Skincare/
+// etc. all already exist in production — confirmed several are just
+// currently inactive/hidden from the public API for having zero products,
+// not missing). Gender defaults to 'unisex' — no gender selector anywhere
+// on the site. Kiko's own discount badge (the listing card's "50%") never
+// appears on the PDP itself, so the tag is derived from raw prices (case B
+// of resolveDiscountTag) like Defacto/MadameCoco/Zara, not the stated-
+// percent case LCWaikiki/Koton use.
+async function KikoMilano(pm, site, opts = {}) {
+  const limit = opts.limit || 30;
+
+  const candidateUrls = await collectKikoDiscountedCandidates(pm);
+
+  const existing = await prisma.products.findMany({
+    where: { product_link: { in: candidateUrls } },
+    select: { product_link: true },
+  });
+  const existingSet = new Set(existing.map(e => e.product_link));
+  const newUrls = candidateUrls.filter(u => !existingSet.has(u));
+
+  const imported = [];
+  let notDiscounted = 0;
+  // Every sibling URL of an already-imported shade group lands here so it's
+  // never reprocessed as its own separate candidate later in this run.
+  const consumedUrls = new Set();
+
+  for (const url of newUrls) {
+    if (imported.filter(p => !p.error).length >= limit) break;
+    if (consumedUrls.has(url)) continue;
+    try {
+      const data = await scrapeKikoProduct(pm, url);
+      if (!data || !data.name) continue;
+      if (!data.hasRetail) { notDiscounted++; continue; }
+
+      const priceOriginal = parseTLPrice(data.originalText);
+      const priceSite = parseTLPrice(data.currentText);
+      if (!priceOriginal || priceSite == null || priceOriginal <= priceSite) { notDiscounted++; continue; }
+
+      const finalDiscountedPrice = Math.round(priceSite * (1 + site.markup_percent / 100) * 100) / 100;
+      const tag = resolveDiscountTag({
+        discountPercentText: null,
+        markupPercent: site.markup_percent,
+        finalDiscountedPrice, priceOriginal,
+      });
+      if (!tag) { notDiscounted++; continue; }
+
+      const category_id = 10;
+      const subcategory_id = guessSubcategoryId(data.name, 10);
+
+      const translateOrWarn = (text, target) => translateText(text, 'tr', target)
+        .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
+      const [name_fa, name_en, desc_fa, desc_en] = await Promise.all([
+        translateOrWarn(data.name, 'fa'),
+        translateOrWarn(data.name, 'en'),
+        data.description ? translateOrWarn(data.description, 'fa') : '',
+        data.description ? translateOrWarn(data.description, 'en') : '',
+      ]);
+      const nameTr = data.name.slice(0, 120);
+      const nameFa = name_fa.slice(0, 120);
+      const nameEn = name_en.slice(0, 120);
+
+      const mediaUrls = [];
+      for (const imgUrl of data.images) {
+        try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
+      }
+
+      const siblingUrls = [url, ...data.variantUrls.filter(u => u !== url)].slice(0, KIKO_MAX_SHADES_PER_PRODUCT);
+      const shades = [];
+      for (const sUrl of siblingUrls) {
+        if (sUrl === url) {
+          if (data.currentShadeLabel) shades.push({ label: data.currentShadeLabel, inStock: data.inStock });
+          continue;
+        }
+        try {
+          const sData = await scrapeKikoShade(pm, sUrl);
+          if (sData) shades.push(sData);
+        } catch (e) { /* skip a broken shade page, keep the rest of the group */ }
+      }
+      siblingUrls.forEach(u => consumedUrls.add(u));
+
+      const colorEntries = [];
+      const seenColorIds = new Set();
+      for (const s of shades) {
+        const colorId = await getOrCreateKikoColorId(s.label);
+        if (!colorId || seenColorIds.has(colorId)) continue;
+        seenColorIds.add(colorId);
+        colorEntries.push({ colorId, inStock: s.inStock });
+      }
+
+      const product = await prisma.products.create({
+        data: {
+          code: await generateProductCode(),
+          category_id, subcategory_id,
+          gender: 'unisex',
+          name_fa: nameFa, name_en: nameEn, name_tr: nameTr,
+          desc_fa, desc_en, desc_tr: data.description || null,
+          price: priceOriginal,
+          cost_price: priceSite,
+          discounted_price: finalDiscountedPrice,
+          tag,
+          // A variant-less product (no pz-variant-option at all, e.g. some
+          // accessories) never reaches the product_inventory update below —
+          // its own inStock is the only stock signal it'll ever get, so it
+          // has to land here instead of the hardcoded 0 every other
+          // importer uses (they always have at least a size or a color).
+          stock: colorEntries.length ? 0 : (data.inStock ? 10 : 0),
+          brand: site.name,
+          supplier_shop_name: site.name,
+          product_link: url,
+          product_media: mediaUrls.length ? { create: mediaUrls.map((u, i) => ({ type: 'image', url: u, sort_order: i })) } : undefined,
+          product_colors: colorEntries.length ? { create: colorEntries.map(c => ({ color_id: c.colorId, is_available: c.inStock })) } : undefined,
+        },
+      });
+
+      if (colorEntries.length) {
+        await prisma.product_inventory.createMany({
+          data: colorEntries.map(c => ({ product_id: product.id, color_id: c.colorId, size_label: null, quantity: c.inStock ? 10 : 0 })),
+        });
+        const totalQty = colorEntries.filter(c => c.inStock).length * 10;
+        await prisma.products.update({ where: { id: product.id }, data: { stock: totalQty } });
+      }
+
+      imported.push({ id: product.id, name: data.name });
+    } catch (err) {
+      imported.push({ error: err.message, url });
+    }
+  }
+
+  return { imported, skipped: notDiscounted + (candidateUrls.length - newUrls.length) };
+}
+
 module.exports = {
-  Defacto, MadameCoco, Zara, LCWaikiki, Koton,
+  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano,
   // exported for backend/scripts/backfillMissingColors.js — reusing the
   // same lookup/create logic the live importers use, rather than
   // duplicating it in the backfill script.
