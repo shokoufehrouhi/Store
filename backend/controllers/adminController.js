@@ -7,10 +7,23 @@ const execFileAsync = util.promisify(execFile);
 const { sendOrderEmail, sendLoyaltyEmail, sendPrizeEarnedEmail, label } = require('../utils/mailer');
 const { syncSubcategoryActiveState, reconcileAllSubcategories } = require('../utils/subcategorySync');
 
-// A product whose every submitted size is unavailable is sold out regardless
+// A product whose every submitted size has zero stock is sold out regardless
 // of what tag was picked in the form — this overrides bestseller/new/etc.
-function resolveProductTag(sizes, tag) {
-  if (sizes?.length && sizes.every(s => s.is_available === false)) return 'sold_out';
+// Falls back to the manual is_available checkbox for a size that has no
+// matching inventory row (shouldn't normally happen once sizes are selected).
+function resolveProductTag(sizes, tag, inventory) {
+  if (sizes?.length) {
+    const qtyBySize = new Map();
+    for (const inv of inventory || []) {
+      if (!inv.size_label) continue;
+      qtyBySize.set(inv.size_label, (qtyBySize.get(inv.size_label) || 0) + (Number(inv.quantity) || 0));
+    }
+    const allSoldOut = sizes.every(s =>
+      qtyBySize.has(s.label) ? qtyBySize.get(s.label) <= 0 : s.is_available === false
+    );
+    if (allSoldOut) return 'sold_out';
+    if (tag === 'sold_out') return null; // restocked — clear the stale sold_out tag
+  }
   return tag || null;
 }
 
@@ -724,7 +737,7 @@ async function createProduct(req, res, next) {
         desc_en:       desc_en   || null,
         desc_tr:       desc_tr   || null,
         gradient:      gradient  || null,
-        tag:           resolveProductTag(sizes, tag),
+        tag:           resolveProductTag(sizes, tag, inventory),
         price:            price     || 0,
         discounted_price: discounted_price != null && discounted_price !== '' ? Number(discounted_price) : null,
         cost_price:       cost_price != null && cost_price !== '' ? Number(cost_price) : null,
@@ -823,7 +836,7 @@ async function updateProduct(req, res, next) {
         desc_en:       desc_en   || null,
         desc_tr:       desc_tr   || null,
         gradient:      gradient  || null,
-        tag:           resolveProductTag(sizes, tag),
+        tag:           resolveProductTag(sizes, tag, inventory),
         price:            price     || 0,
         discounted_price: discounted_price != null && discounted_price !== '' ? Number(discounted_price) : null,
         cost_price:       cost_price != null && cost_price !== '' ? Number(cost_price) : null,

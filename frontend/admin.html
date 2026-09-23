@@ -359,6 +359,23 @@
     .btn-sm { padding: 6px 12px; font-size: 13px; }
     .btn:disabled { opacity: .5; cursor: not-allowed; }
 
+    /* ── Sync site picker ────────────────────────── */
+    .site-tab-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .site-tab {
+      display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px;
+      border-radius: 999px; border: 1.5px solid var(--border); background: var(--bg);
+      color: var(--text); font-family: inherit; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all .15s;
+    }
+    .site-tab:hover { border-color: var(--primary); }
+    .site-tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .site-tab-dot { width: 7px; height: 7px; border-radius: 50%; background: #cbd5e1; flex-shrink: 0; }
+    .site-tab-dot.on { background: #22c55e; }
+    .site-tab.active .site-tab-dot.on { background: #fff; }
+    .site-tab-dot.busy { background: #f59e0b; animation: site-tab-pulse 1s ease-in-out infinite; }
+    .site-tab.active .site-tab-dot.busy { background: #fff; }
+    @keyframes site-tab-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
     /* ── Card / Table ───────────────────────────── */
     .card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
     .table-wrap { overflow-x: auto; }
@@ -1317,16 +1334,15 @@
         <h2>🔄 <span data-i18n="navSync">همگام‌سازی سایت‌ها</span></h2>
       </div>
       <div class="page-body">
-        <div class="card" style="margin-bottom:16px">
+        <div class="card" style="padding:16px 20px;margin-bottom:16px">
           <div style="font-weight:700;font-size:14px;margin-bottom:4px" data-i18n="syncGlobalScheduleTitle">زمان‌بندی سراسری (همه‌ی سایت‌های فعال)</div>
           <div style="font-size:12px;color:#999;margin-bottom:14px" data-i18n="syncGlobalScheduleNote">در این زمان، همه‌ی سایت‌های فعال به‌صورت خودکار بررسی/وارد می‌شوند — مستقل از سایت انتخاب‌شده در پایین</div>
           <div id="sync-global-schedule"></div>
         </div>
 
-        <div class="card" style="margin-bottom:16px">
-          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px" data-i18n="syncSelectSite">انتخاب سایت</label>
-          <select id="sync-site-select" onchange="renderSyncPanel()" style="width:100%;max-width:360px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
-          </select>
+        <div class="card" style="padding:16px 20px;margin-bottom:16px">
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:10px" data-i18n="syncSelectSite">انتخاب سایت</label>
+          <div id="sync-site-tabs" class="site-tab-row"></div>
         </div>
         <div id="sync-panel"></div>
       </div>
@@ -1915,6 +1931,7 @@ const LANGS = {
     descriptions:'توضیحات', statusSection:'وضعیت',
     productCodeLbl:'کد محصول', productCodePlh:'مثال: SHF-001', productCodeAuto:'خودکار',
     productSearchPlh:'جستجو بر اساس نام، توضیحات، کد محصول، برند یا برچسب...',
+    paginationPageNum:'صفحه', paginationGo:'برو',
     nameFa:'نام فارسی *', nameEn:'نام انگلیسی', nameTr:'نام ترکی', deliveryDaysLbl:'زمان تحویل (روز کاری)', minOrderQtyLbl:'حداقل تعداد خرید',
     categoryField:'دسته‌بندی *', subcategoryField:'زیردسته',
     genderField:'جنسیت', tagField:'برچسب',
@@ -2122,6 +2139,7 @@ const LANGS = {
     descriptions:'Descriptions', statusSection:'Status',
     productCodeLbl:'Product Code', productCodePlh:'e.g. SHF-001', productCodeAuto:'Auto',
     productSearchPlh:'Search by name, description, product code, brand or tag...',
+    paginationPageNum:'Page', paginationGo:'Go',
     nameFa:'Farsi Name *', nameEn:'English Name', nameTr:'Turkish Name', deliveryDaysLbl:'Delivery Time (working days)', minOrderQtyLbl:'Minimum Order Quantity',
     categoryField:'Category *', subcategoryField:'Subcategory',
     genderField:'Gender', tagField:'Tag',
@@ -2329,6 +2347,7 @@ const LANGS = {
     descriptions:'Açıklamalar', statusSection:'Durum',
     productCodeLbl:'Ürün Kodu', productCodePlh:'örn. SHF-001', productCodeAuto:'Otomatik',
     productSearchPlh:'Ad, açıklama, ürün kodu, marka veya etikete göre ara...',
+    paginationPageNum:'Sayfa', paginationGo:'Git',
     nameFa:'Farsça Ad *', nameEn:'İngilizce Ad', nameTr:'Türkçe Ad', deliveryDaysLbl:'Teslimat Süresi (iş günü)', minOrderQtyLbl:'Minimum Sipariş Adedi',
     categoryField:'Kategori *', subcategoryField:'Alt Kategori',
     genderField:'Cinsiyet', tagField:'Etiket',
@@ -3136,7 +3155,23 @@ function renderProductsPagination(totalItems) {
   html += `<button class="btn btn-secondary btn-sm" ${_productsPage <= 1 ? 'disabled' : ''} onclick="goToProductsPage(${_productsPage - 1})">‹</button>`;
   html += `<span style="font-size:13px;color:#666;padding:0 8px">${_productsPage} / ${totalPages}</span>`;
   html += `<button class="btn btn-secondary btn-sm" ${_productsPage >= totalPages ? 'disabled' : ''} onclick="goToProductsPage(${_productsPage + 1})">›</button>`;
+  html += `
+    <span style="display:inline-flex;align-items:center;gap:6px;margin-inline-start:10px">
+      <input type="number" id="products-page-jump" min="1" max="${totalPages}" placeholder="${t('paginationPageNum')}"
+        style="width:60px;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;text-align:center"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();jumpToProductsPage(${totalPages});}">
+      <button class="btn btn-secondary btn-sm" onclick="jumpToProductsPage(${totalPages})">${t('paginationGo')}</button>
+    </span>`;
   bar.innerHTML = html;
+}
+
+function jumpToProductsPage(totalPages) {
+  const input = document.getElementById('products-page-jump');
+  if (!input) return;
+  let page = parseInt(input.value, 10);
+  if (!page || page < 1) page = 1;
+  if (page > totalPages) page = totalPages;
+  goToProductsPage(page);
 }
 
 var _productsListShown = [];
@@ -6021,6 +6056,7 @@ async function saveSite(id) {
 // ─── Sync (schedule + manual trigger per site) ─────────────────────────────────
 var _syncPollTimer = null;
 var _syncDirty = false;
+var _syncSelectedSiteId = null;
 
 async function loadSyncTab() {
   // Always fetch fresh (rather than reusing _allSites if already populated):
@@ -6031,8 +6067,10 @@ async function loadSyncTab() {
   // here would throw.
   const data = await api('/admin/sites');
   if (data?.success) _allSites = data.data;
-  const sel = document.getElementById('sync-site-select');
-  sel.innerHTML = _allSites.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  if (_syncSelectedSiteId == null || !_allSites.some(s => s.id === _syncSelectedSiteId)) {
+    _syncSelectedSiteId = _allSites[0]?.id ?? null;
+  }
+  renderSyncSiteTabs();
   renderSyncPanel();
 
   const settingsRes = await api('/admin/sync-settings');
@@ -6088,6 +6126,27 @@ async function refreshSyncSitesQuietly() {
   // still keep _allSites fresh so a render right after Save/dropdown-close
   // shows the latest in-progress/last-run status, just skip re-rendering now.
   if (_syncDirty || document.querySelector('.time-picker-dropdown:not(.hidden)')) return;
+  renderSyncSiteTabs();
+  renderSyncPanel();
+}
+
+function renderSyncSiteTabs() {
+  const wrap = document.getElementById('sync-site-tabs');
+  if (!wrap) return;
+  wrap.innerHTML = _allSites.map(s => {
+    const busy = s.import_in_progress || s.stock_check_in_progress;
+    return `
+      <button type="button" class="site-tab${s.id === _syncSelectedSiteId ? ' active' : ''}" onclick="selectSyncSite(${s.id})">
+        <span class="site-tab-dot${busy ? ' busy' : (s.is_active ? ' on' : '')}"></span>
+        ${esc(s.name)}
+      </button>
+    `;
+  }).join('');
+}
+
+function selectSyncSite(id) {
+  _syncSelectedSiteId = id;
+  renderSyncSiteTabs();
   renderSyncPanel();
 }
 
@@ -6163,14 +6222,13 @@ function readTimeSelect(prefix) {
 
 function renderSyncPanel() {
   _syncDirty = false;
-  const id = Number(document.getElementById('sync-site-select')?.value);
-  const site = _allSites.find(s => s.id === id);
+  const site = _allSites.find(s => s.id === _syncSelectedSiteId);
   const panel = document.getElementById('sync-panel');
   if (!panel) return;
   if (!site) { panel.innerHTML = ''; return; }
 
   panel.innerHTML = `
-    <div class="card" style="margin-bottom:16px">
+    <div class="card" style="padding:16px 20px;margin-bottom:16px">
       <div style="font-weight:700;font-size:14px;margin-bottom:10px" data-i18n="syncPerSiteTitle">${t('syncPerSiteTitle')}</div>
       <div class="form-field" style="max-width:260px">
         <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">${t('syncMarkup')}</label>
@@ -6180,14 +6238,14 @@ function renderSyncPanel() {
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-      <div class="card">
+      <div class="card" style="padding:16px 20px">
         <div style="font-size:12px;font-weight:700;color:#999;text-transform:uppercase;margin-bottom:8px">${t('syncLastImport')}</div>
         <div style="font-size:13px;color:#555;margin-bottom:12px">${esc(site.last_import_status || t('syncNever'))}${site.last_import_at ? `<br><span style="font-size:11px;color:#aaa">${fmtDate(site.last_import_at)}</span>` : ''}</div>
         <button class="btn btn-secondary btn-sm" ${site.import_in_progress ? 'disabled' : ''} onclick="triggerSync(${site.id}, 'import')">
           ${site.import_in_progress ? '⏳ ' + t('syncInProgress') : '▶️ ' + t('syncImportNow')}
         </button>
       </div>
-      <div class="card">
+      <div class="card" style="padding:16px 20px">
         <div style="font-size:12px;font-weight:700;color:#999;text-transform:uppercase;margin-bottom:8px">${t('syncLastStockCheck')}</div>
         <div style="font-size:13px;color:#555;margin-bottom:12px">${esc(site.last_stock_check_status || t('syncNever'))}${site.last_stock_check_at ? `<br><span style="font-size:11px;color:#aaa">${fmtDate(site.last_stock_check_at)}</span>` : ''}</div>
         <button class="btn btn-secondary btn-sm" ${site.stock_check_in_progress ? 'disabled' : ''} onclick="triggerSync(${site.id}, 'stock')">
