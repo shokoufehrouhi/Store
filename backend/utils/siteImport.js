@@ -2198,10 +2198,19 @@ async function scrapeLeftiesProduct(pm, url) {
 
     // A genuinely discounted product renders TWO `.price-line`s (old +
     // current); a full-price one renders only one. Which line is which
-    // isn't trusted by position — whichever parses larger is the original —
-    // so this only needs the raw text of every line actually present.
-    const priceTexts = Array.from(info.querySelectorAll('.product-price-wrapper .price-line .price'))
+    // isn't trusted by position — whichever parses larger is the original.
+    // BUG FIXED 2026-09-24: the old price's own element is class
+    // `old-price` (not `price`!) — a query for just `.price` silently
+    // missed it on every genuinely discounted product (confirmed live on
+    // "Quilted Shopper", 1.390,00 TL struck to 990,00 TL: the old query
+    // returned only the one current-price string), which meant `imported 0`
+    // wasn't "no live discounts" as first assumed — it was this scraper
+    // never seeing the discount signal at all. Also grabs the real
+    // `.tag-discount` badge (e.g. "-28%") when present, Lefties' own stated
+    // rate — preferred by resolveDiscountTag over deriving one from prices.
+    const priceTexts = Array.from(info.querySelectorAll('.product-price-wrapper .price-line .price, .product-price-wrapper .price-line .old-price'))
       .map((el) => el.textContent.trim()).filter(Boolean);
+    const discountPercentText = info.querySelector('.product-price-wrapper .tag-discount')?.textContent.trim() || null;
 
     const description = info.querySelector('.description-wrapper')?.textContent.trim() || '';
     const color = info.querySelector('.lft-product-info-color')?.textContent.replace(/^Renk:\s*/i, '').trim() || null;
@@ -2212,7 +2221,7 @@ async function scrapeLeftiesProduct(pm, url) {
         .filter((src) => src.includes('/assets/public/'))
     )];
 
-    return { name, priceTexts, description, color, images };
+    return { name, priceTexts, discountPercentText, description, color, images };
   });
   if (!base) return null;
 
@@ -2299,7 +2308,7 @@ async function Lefties(pm, site, opts = {}) {
       const listingMeta = metaByUrl.get(url) || { gender: 'unisex', categoryId: 1 };
       const finalDiscountedPrice = Math.round(sitePrice * (1 + site.markup_percent / 100) * 100) / 100;
       const tag = resolveDiscountTag({
-        discountPercentText: null,
+        discountPercentText: data.discountPercentText,
         markupPercent: site.markup_percent,
         finalDiscountedPrice, priceOriginal: originalPrice,
       });
