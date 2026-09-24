@@ -2123,16 +2123,22 @@ async function fetchLeftiesListingMeta(pm) {
 // Zara (same corporate family), confirmed live — blocked proactively here
 // rather than discovering a VPS-only navigation timeout the hard way, same
 // lesson as LCWaikiki/Koton's own history.
+// Only trackers are blocked here, NOT images/fonts/media (unlike every
+// other ensure*PageSetup in this file) — confirmed live, and the direct
+// cause of the "Quilted Shopper" miss above: Lefties' own listing grid
+// uses each product image's load event as its lazy-load trigger for
+// revealing the next batch, so aborting image requests doesn't just save
+// bandwidth here, it silently caps every listing at whatever rendered
+// before the image pipeline stalled (~98 of Woman Bags' real 220, in one
+// run) with no error or signal that anything was cut short.
 async function ensureLeftiesPageSetup(page) {
   if (page.__leftiesRequestBlockingSetup) return;
   page.__leftiesRequestBlockingSetup = true;
   await page.setRequestInterception(true);
   page.on('request', (req) => {
-    const type = req.resourceType();
     const url = req.url();
-    const isHeavyAsset = type === 'image' || type === 'font' || type === 'media';
     const isTracker = /event-tracker\.inditex\.com|gtm\.lefties\.com|googletagmanager|google-analytics|doubleclick|connect\.facebook\.net|s\.pinimg\.com|clarity\.ms|hotjar/i.test(url);
-    if (isHeavyAsset || isTracker) req.abort().catch(() => {});
+    if (isTracker) req.abort().catch(() => {});
     else req.continue().catch(() => {});
   });
 }
@@ -2142,9 +2148,42 @@ async function collectLeftiesListingLinks(pm, listingUrl) {
   await ensureLeftiesPageSetup(page);
   await new Promise((r) => setTimeout(r, 1500));
 
+  // The GA4 view_item_list event's own im_items_number is this listing's
+  // REAL total (confirmed live: Woman Bags reports 220), independent of how
+  // many have actually lazy-rendered so far — used as the real stopping
+  // condition below instead of trusting "2 quiet rounds in a row" alone.
+  // BUG FIXED 2026-09-24: that 2-quiet-rounds heuristic alone stopped this
+  // exact listing at ~98-137 of its real 220 (confirmed live, position
+  // varies run to run) — the site's lazy-load has brief pauses between
+  // batches long enough to look "done" for 2 rounds even mid-list, which
+  // is exactly how a genuinely live discount (a bag on a dated promo,
+  // "Quilted Shopper") went completely unseen despite the price-selector
+  // fix being correct: the candidate list itself never reached it. The
+  // event itself fires well after domcontentloaded (confirmed live: still
+  // absent at 1.5s, present by 3.5s) — polled for rather than read once.
+  await page.waitForFunction(
+    () => (window.dataLayer || []).some((e) => e && e.event === 'view_item_list'),
+    { timeout: 5000 }
+  ).catch(() => {});
+  const expectedTotal = await page.evaluate(() => {
+    const ev = (window.dataLayer || []).find((e) => e && e.event === 'view_item_list');
+    return ev?.ecommerce?.im_items_number || null;
+  });
+
   const links = new Set();
   let stableRounds = 0;
-  for (let i = 0; i < 20 && stableRounds < 2; i++) {
+  // When the real total IS known, "stable for N rounds" is abandoned
+  // entirely in favor of a wall-clock budget: confirmed live (repeatedly,
+  // on this exact listing) that the site's own lazy-load goes quiet for
+  // 5+ consecutive rounds mid-list, at a DIFFERENT count each run (98 one
+  // run, 137 another, real total 220 both times) — any fixed stable-round
+  // threshold either quits too early on a slow run or wastes time on a
+  // fast one. A per-listing time budget instead keeps trying for as long
+  // as it's actually worth it regardless of which pattern this run hits,
+  // and still exits immediately once the known total is actually reached.
+  const deadline = Date.now() + (expectedTotal ? 45000 : 15000);
+  for (let i = 0; i < 60 && stableRounds < 2 && Date.now() < deadline; i++) {
+    if (expectedTotal && links.size >= expectedTotal) break;
     const before = links.size;
     const pageLinks = await page.evaluate(() => [...new Set(
       Array.from(document.querySelectorAll('a[href]'))
@@ -2157,10 +2196,13 @@ async function collectLeftiesListingLinks(pm, listingUrl) {
     // zero products on the very first round or two — only treat "no new
     // links this round" as real stability once at least one has actually
     // been found, so a slow-to-hydrate empty-looking page keeps polling
-    // instead of exiting after its first (still-empty) round.
-    stableRounds = links.size === before ? (links.size > 0 ? stableRounds + 1 : stableRounds) : 0;
+    // instead of exiting after its first (still-empty) round. Only allowed
+    // to actually END the loop early when the real total is unknown —
+    // otherwise it's just what resets the loop back into scrolling.
+    const wentStable = links.size === before && links.size > 0;
+    stableRounds = expectedTotal ? 0 : (wentStable ? stableRounds + 1 : 0);
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 1200));
   }
   return [...links].map((h) => new URL(h, listingUrl).href);
 }
