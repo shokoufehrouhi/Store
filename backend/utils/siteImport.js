@@ -2000,16 +2000,23 @@ async function KikoMilano(pm, site, opts = {}) {
 // expected to import 0 until Lefties' next seasonal sale, not a bug).
 //
 // Unlike every other scraper here, the candidate LISTING urls aren't
-// hardcoded: Lefties' own category tree is unusually fragmented for this
-// codebase (confirmed live: "Clothing" has no aggregate "See All" the way
+// hardcoded IDs: Lefties' own category tree is unusually fragmented for
+// this codebase ("Clothing" has no aggregate "See All" the way
 // Footwear/Accessories do — each of its ~20-per-gender leaf types is its
-// own separate crawlable page), so hand-picking a fixed list risks the
-// exact "single listing hits quota before reaching some categories" bug
-// Koton's own history already ran into. Lefties' own robots.txt links a
-// gzipped category sitemap instead — fetched and parsed fresh every import
-// run (DecompressionStream is standard in any Chromium recent enough to run
-// this codebase's Puppeteer) — so new/renamed categories are picked up
-// automatically rather than silently falling out of coverage.
+// own separate crawlable page), so a fixed list of numeric -c<id> URLs
+// would need hand-updating whenever Lefties adds/renames a category.
+// Lefties' own robots.txt links a gzipped category sitemap instead —
+// fetched and parsed fresh every import run (DecompressionStream is
+// standard in any Chromium recent enough to run this codebase's Puppeteer)
+// — so the *slugs* below stay stable even as the numeric ids behind them
+// change. The slug allowlists themselves ARE a deliberately curated
+// subset, not full coverage, though: a first real run against literally
+// every leaf (~25/gender clothing types, all 5 Kids subgenders, all of
+// Home — 174 listings total) was confirmed live on 2026-09-24 to still be
+// running after over an hour with zero results (expected — see above), tying
+// up the VPS's one Puppeteer browser far longer than this codebase's other
+// importers (7-18 listings each) ever do. These lists trade some category
+// coverage for staying in that same practical range.
 async function fetchLeftiesListingMeta(pm) {
   const page = await pm.goto('https://www.lefties.com/tr/tr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
   return page.evaluate(async (lifestyleCategoryId) => {
@@ -2034,12 +2041,15 @@ async function fetchLeftiesListingMeta(pm) {
     // handle the overlap fine anyway.
     const EXCLUDE = /\/(new-in|bestsellers|total-look|collabs|promotion)-c\d+\.html$/;
 
-    function immediateChildrenOf(prefixParts, folder) {
+    function immediateChildrenOf(prefixParts, folder, slugAllowlist) {
       return en.filter((u) => {
         const parts = rel(u).replace(/\.html$/, '').split('/');
-        return parts.length === prefixParts.length + 2
-          && prefixParts.every((p, i) => parts[i] === p)
-          && parts[prefixParts.length] === folder;
+        if (parts.length !== prefixParts.length + 2
+          || !prefixParts.every((p, i) => parts[i] === p)
+          || parts[prefixParts.length] !== folder) return false;
+        if (!slugAllowlist) return true;
+        const leaf = parts[parts.length - 1]; // e.g. "dresses-c1030267514"
+        return slugAllowlist.some((s) => leaf.startsWith(s + '-c'));
       });
     }
     function findRoot(prefixParts, folder) {
@@ -2065,42 +2075,44 @@ async function fetchLeftiesListingMeta(pm) {
     // Woman/Man: each Clothing leaf (dresses, jeans, t-shirts, ...) is
     // already the full "See All" state for that garment type (confirmed
     // live — its own filter chips, e.g. "Midi | Long", are just narrower
-    // views of the same page, not additional coverage), so the immediate
-    // children of /clothing/ are all that's needed there. Footwear,
-    // Accessories, Bags and Underwear|Pyjamas each have exactly one
-    // combined root/"view all" page instead (Bags' own aggregate sits one
-    // level deeper than the others — confirmed live on both genders).
+    // views of the same page, not additional coverage). A full run against
+    // EVERY leaf (~25/gender) plus every Kids subgender plus all of Home
+    // was confirmed live on 2026-09-24 to take multiple hours end to end —
+    // this codebase's other importers all stay in the 7-18 listing range,
+    // so CLOTHING_SLUGS below caps it to the highest-volume garment types
+    // per gender instead of full enumeration, closer to that same scale.
+    // Footwear, Accessories, Bags and Underwear|Pyjamas each have exactly
+    // one combined root/"view all" page regardless (Bags' own aggregate
+    // sits one level deeper than the others — confirmed live on both
+    // genders), so those stay full-coverage at no extra listing-count cost.
+    const CLOTHING_SLUGS = ['dresses', 't-shirts', 'shirts', 'shirts-%7C-blouses', 'trousers', 'jeans', 'knitwear', 'sweatshirts', 'jackets-%7C-coats', 'skirts', 'shorts', 'sweaters-%7C-cardigans'];
     for (const g of ['woman', 'man']) {
       const gender = g === 'woman' ? 'female' : 'male';
-      immediateChildrenOf([g], 'clothing').forEach((u) => add(u, gender, 1));
+      immediateChildrenOf([g], 'clothing', CLOTHING_SLUGS).forEach((u) => add(u, gender, 1));
       add(findRoot([g], 'footwear'), gender, 2);
       add(findRoot([g], 'accessories') || findViewAll([g], 'accessories'), gender, 3);
       add(findRoot([g], 'bags') || findRoot([g], 'bags-%7C-backpacks') || findViewAll([g], 'bags') || findViewAll([g], 'bags-%7C-backpacks'), gender, 3);
       add(findRoot([g], 'underwear-%7C-pyjamas'), gender, 1);
     }
-    // Kids has no single kids-wide Clothing aggregate either — same
-    // per-subgender leaf enumeration as above, one set per age/sex segment.
-    for (const sg of ['boy', 'girl', 'baby-boy', 'baby-girl', 'newborn']) {
-      immediateChildrenOf(['kids', sg], 'clothing').forEach((u) => add(u, 'kids', 1));
-      add(findRoot(['kids', sg], 'footwear'), 'kids', 2);
-      add(findRoot(['kids', sg], 'accessories') || findViewAll(['kids', sg], 'accessories'), 'kids', 3);
-      add(findRoot(['kids', sg], 'bags') || findViewAll(['kids', sg], 'bags'), 'kids', 3);
+    // Kids: same per-subgender leaf enumeration, but capped to the two
+    // highest-volume segments (boy/girl) and a smaller clothing slug set —
+    // baby-boy/baby-girl/newborn and Kids' own footwear/accessories/bags
+    // are skipped entirely for run-time's sake, same tradeoff as above.
+    const KIDS_CLOTHING_SLUGS = ['t-shirts', 'trousers', 'sweatshirts', 'jackets', 'dresses', 'shirts'];
+    for (const sg of ['boy', 'girl']) {
+      immediateChildrenOf(['kids', sg], 'clothing', KIDS_CLOTHING_SLUGS).forEach((u) => add(u, 'kids', 1));
     }
-    // Home has no per-area aggregate at all (confirmed live: "Decoration"
-    // and "Dining Room|Kitchen" don't even have their own root page, only
-    // leaf sub-pages) — every home/ url is included directly instead, and
+    // Home: no per-area aggregate exists at all (confirmed live:
+    // "Decoration" and "Dining Room|Kitchen" don't even have their own root
+    // page, only leaf sub-pages), and it's a small enough department that
+    // just its two real depth-2 leaves (Bedroom, Fragrances) are kept —
     // routed to the closest existing LIFESTYLE_SUBCATEGORY_DEFS slug (same
-    // infrastructure Zara Home/MadameCoco already share) by its own 2nd
-    // path segment.
-    const HOME_SLUG = { bedroom: 'yatak-odasi', fragrances: 'kozmetik', decoration: 'dekorasyon' };
-    en.filter((u) => rel(u).startsWith('home/')).forEach((u) => {
-      // bedroom/fragrances are depth-2 leaf FILES (seg2 is "bedroom-c#.html"
-      // itself), while decoration/dining-room-kitchen are FOLDERS one level
-      // shallower (seg2 is the plain folder name) — strip a trailing
-      // -c<id>.html before matching so both shapes resolve the same way.
-      const seg2 = (rel(u).split('/')[1] || '').replace(/-c\d+\.html$/, '').replace(/\.html$/, '');
-      const slug = HOME_SLUG[seg2] || (/kitchen/.test(seg2) ? 'mutfak' : 'dekorasyon');
-      add(u, 'unisex', lifestyleCategoryId, slug);
+    // infrastructure Zara Home/MadameCoco already share).
+    const HOME_SLUG = { bedroom: 'yatak-odasi', fragrances: 'kozmetik' };
+    en.filter((u) => rel(u).split('/').length === 2 && rel(u).startsWith('home/')).forEach((u) => {
+      const seg2 = rel(u).split('/')[1].replace(/-c\d+\.html$/, '');
+      if (!HOME_SLUG[seg2]) return;
+      add(u, 'unisex', lifestyleCategoryId, HOME_SLUG[seg2]);
     });
 
     return listings;
