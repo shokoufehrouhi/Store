@@ -1986,8 +1986,372 @@ async function KikoMilano(pm, site, opts = {}) {
   return { imported, skipped: notDiscounted + (candidateUrls.length - newUrls.length) };
 }
 
+// Lefties is Inditex's discount/basics banner (same corporate family as
+// Zara, confirmed live: same lft-/inditex-prefixed JS framework, the same
+// event-tracker.inditex.com telemetry, the same itxrest robots.txt
+// disallow). Its Turkish storefront has no dedicated sale/outlet section
+// anywhere in the nav or URL space (checked live across Woman/Man/Kids — no
+// "İndirim" equivalent exists, unlike Zara's hardcoded ezel-fiyatlar pages),
+// so every regular category listing doubles as this scraper's only source
+// of candidate URLs, gated per-product on a real second price line actually
+// rendering — same "worth including even if empty today" reasoning as
+// Zara's own Beauty/Home segments (confirmed live: neither found a single
+// genuine markdown across ~150 sampled products on 2026-09-24 — this is
+// expected to import 0 until Lefties' next seasonal sale, not a bug).
+//
+// Unlike every other scraper here, the candidate LISTING urls aren't
+// hardcoded: Lefties' own category tree is unusually fragmented for this
+// codebase (confirmed live: "Clothing" has no aggregate "See All" the way
+// Footwear/Accessories do — each of its ~20-per-gender leaf types is its
+// own separate crawlable page), so hand-picking a fixed list risks the
+// exact "single listing hits quota before reaching some categories" bug
+// Koton's own history already ran into. Lefties' own robots.txt links a
+// gzipped category sitemap instead — fetched and parsed fresh every import
+// run (DecompressionStream is standard in any Chromium recent enough to run
+// this codebase's Puppeteer) — so new/renamed categories are picked up
+// automatically rather than silently falling out of coverage.
+async function fetchLeftiesListingMeta(pm) {
+  const page = await pm.goto('https://www.lefties.com/tr/tr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+  return page.evaluate(async (lifestyleCategoryId) => {
+    const res = await fetch('https://www.lefties.com/9/info/sitemaps/sitemap-home-categories-lf-tr-0.xml.gz');
+    const buf = await res.arrayBuffer();
+    const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'));
+    const text = await new Response(stream).text();
+    const locs = [...text.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => m[1]);
+    // The sitemap lists every locale/country pair together; /tr/en/ paths
+    // are plain ASCII (unlike the native-Turkish-slug ones, which are
+    // percent-encoded Turkish words) and resolve to the exact same numbered
+    // category once "en" is swapped for "tr" below — Inditex's own routing
+    // keys off the trailing -c<id> number, not the slug text in front of it
+    // (confirmed live: /tr/tr/woman/clothing/waistcoat-c1030401748.html
+    // redirects straight to the real Turkish-slug URL for that same id).
+    const en = locs.filter((u) => u.includes('/tr/en/') && /-c\d+\.html$/.test(u));
+    const rel = (u) => u.replace('https://www.lefties.com/tr/en/', '');
+
+    // Pure marketing collections that only ever re-surface products already
+    // reachable from their own real category page — skipping them just
+    // avoids redundant listing-page visits; candidate dedup would otherwise
+    // handle the overlap fine anyway.
+    const EXCLUDE = /\/(new-in|bestsellers|total-look|collabs|promotion)-c\d+\.html$/;
+
+    function immediateChildrenOf(prefixParts, folder) {
+      return en.filter((u) => {
+        const parts = rel(u).replace(/\.html$/, '').split('/');
+        return parts.length === prefixParts.length + 2
+          && prefixParts.every((p, i) => parts[i] === p)
+          && parts[prefixParts.length] === folder;
+      });
+    }
+    function findRoot(prefixParts, folder) {
+      const prefix = prefixParts.join('/') + '/';
+      return en.find((u) => {
+        const p = rel(u);
+        if (!p.startsWith(prefix)) return false;
+        const remainder = p.slice(prefix.length);
+        return remainder.startsWith(folder + '-c') && !remainder.includes('/');
+      }) || null;
+    }
+    function findViewAll(prefixParts, folder) {
+      return en.filter((u) => rel(u).startsWith(prefixParts.join('/') + '/' + folder + '/'))
+        .find((u) => /view-all-c\d+\.html$/.test(u)) || null;
+    }
+
+    const listings = [];
+    const add = (url, gender, categoryId, homeSlug) => {
+      if (!url || EXCLUDE.test(url)) return;
+      listings.push({ url: url.replace('/tr/en/', '/tr/tr/'), gender, categoryId, homeSlug: homeSlug || null });
+    };
+
+    // Woman/Man: each Clothing leaf (dresses, jeans, t-shirts, ...) is
+    // already the full "See All" state for that garment type (confirmed
+    // live — its own filter chips, e.g. "Midi | Long", are just narrower
+    // views of the same page, not additional coverage), so the immediate
+    // children of /clothing/ are all that's needed there. Footwear,
+    // Accessories, Bags and Underwear|Pyjamas each have exactly one
+    // combined root/"view all" page instead (Bags' own aggregate sits one
+    // level deeper than the others — confirmed live on both genders).
+    for (const g of ['woman', 'man']) {
+      const gender = g === 'woman' ? 'female' : 'male';
+      immediateChildrenOf([g], 'clothing').forEach((u) => add(u, gender, 1));
+      add(findRoot([g], 'footwear'), gender, 2);
+      add(findRoot([g], 'accessories') || findViewAll([g], 'accessories'), gender, 3);
+      add(findRoot([g], 'bags') || findRoot([g], 'bags-%7C-backpacks') || findViewAll([g], 'bags') || findViewAll([g], 'bags-%7C-backpacks'), gender, 3);
+      add(findRoot([g], 'underwear-%7C-pyjamas'), gender, 1);
+    }
+    // Kids has no single kids-wide Clothing aggregate either — same
+    // per-subgender leaf enumeration as above, one set per age/sex segment.
+    for (const sg of ['boy', 'girl', 'baby-boy', 'baby-girl', 'newborn']) {
+      immediateChildrenOf(['kids', sg], 'clothing').forEach((u) => add(u, 'kids', 1));
+      add(findRoot(['kids', sg], 'footwear'), 'kids', 2);
+      add(findRoot(['kids', sg], 'accessories') || findViewAll(['kids', sg], 'accessories'), 'kids', 3);
+      add(findRoot(['kids', sg], 'bags') || findViewAll(['kids', sg], 'bags'), 'kids', 3);
+    }
+    // Home has no per-area aggregate at all (confirmed live: "Decoration"
+    // and "Dining Room|Kitchen" don't even have their own root page, only
+    // leaf sub-pages) — every home/ url is included directly instead, and
+    // routed to the closest existing LIFESTYLE_SUBCATEGORY_DEFS slug (same
+    // infrastructure Zara Home/MadameCoco already share) by its own 2nd
+    // path segment.
+    const HOME_SLUG = { bedroom: 'yatak-odasi', fragrances: 'kozmetik', decoration: 'dekorasyon' };
+    en.filter((u) => rel(u).startsWith('home/')).forEach((u) => {
+      // bedroom/fragrances are depth-2 leaf FILES (seg2 is "bedroom-c#.html"
+      // itself), while decoration/dining-room-kitchen are FOLDERS one level
+      // shallower (seg2 is the plain folder name) — strip a trailing
+      // -c<id>.html before matching so both shapes resolve the same way.
+      const seg2 = (rel(u).split('/')[1] || '').replace(/-c\d+\.html$/, '').replace(/\.html$/, '');
+      const slug = HOME_SLUG[seg2] || (/kitchen/.test(seg2) ? 'mutfak' : 'dekorasyon');
+      add(u, 'unisex', lifestyleCategoryId, slug);
+    });
+
+    return listings;
+  }, LIFESTYLE_CATEGORY_ID);
+}
+
+// Same event-tracker.inditex.com/GTM/Facebook-pixel telemetry pattern as
+// Zara (same corporate family), confirmed live — blocked proactively here
+// rather than discovering a VPS-only navigation timeout the hard way, same
+// lesson as LCWaikiki/Koton's own history.
+async function ensureLeftiesPageSetup(page) {
+  if (page.__leftiesRequestBlockingSetup) return;
+  page.__leftiesRequestBlockingSetup = true;
+  await page.setRequestInterception(true);
+  page.on('request', (req) => {
+    const type = req.resourceType();
+    const url = req.url();
+    const isHeavyAsset = type === 'image' || type === 'font' || type === 'media';
+    const isTracker = /event-tracker\.inditex\.com|gtm\.lefties\.com|googletagmanager|google-analytics|doubleclick|connect\.facebook\.net|s\.pinimg\.com|clarity\.ms|hotjar/i.test(url);
+    if (isHeavyAsset || isTracker) req.abort().catch(() => {});
+    else req.continue().catch(() => {});
+  });
+}
+
+async function collectLeftiesListingLinks(pm, listingUrl) {
+  const page = await pm.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await ensureLeftiesPageSetup(page);
+  await new Promise((r) => setTimeout(r, 1500));
+
+  const links = new Set();
+  let stableRounds = 0;
+  for (let i = 0; i < 20 && stableRounds < 2; i++) {
+    const before = links.size;
+    const pageLinks = await page.evaluate(() => [...new Set(
+      Array.from(document.querySelectorAll('a[href]'))
+        .map((a) => a.getAttribute('href').split('?')[0])
+        .filter((h) => h && /c\d+p\d+\.html$/.test(h))
+    )]);
+    pageLinks.forEach((h) => links.add(h));
+    // A thinly-stocked listing (confirmed live: Home > Bedroom's own grid
+    // only finishes hydrating well after domcontentloaded) can still read
+    // zero products on the very first round or two — only treat "no new
+    // links this round" as real stability once at least one has actually
+    // been found, so a slow-to-hydrate empty-looking page keeps polling
+    // instead of exiting after its first (still-empty) round.
+    stableRounds = links.size === before ? (links.size > 0 ? stableRounds + 1 : stableRounds) : 0;
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return [...links].map((h) => new URL(h, listingUrl).href);
+}
+
+// Sizes never exist in the initial DOM for the product currently being
+// viewed — only the "Add" button does. Clicking it either opens a
+// `.size-selector` panel (confirmed live: XS-XL buttons, an out-of-stock
+// one carries an extra "no-stock" class per this site's own bundled
+// Backbone.js source) or, for a genuinely single-size item (some
+// dresses/scarves), adds straight to a cart-confirmation dialog with no
+// selector at all — both are harmless in this throwaway scraping session,
+// so a single-size product just gets no product_sizes/product_inventory
+// rows, same accepted gap every other scraper here already has for
+// sizeless items (see Koton/LCWaikiki's own comments on this).
+async function scrapeLeftiesProduct(pm, url) {
+  const page = await pm.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await ensureLeftiesPageSetup(page);
+  await new Promise((r) => setTimeout(r, 1500));
+
+  const base = await page.evaluate(() => {
+    // Every lookup below is scoped inside `.lft-product-wrapper` — the
+    // "you might also like" carousel further down the page renders its own
+    // per-card price component too, confusingly confirmed live to be a
+    // *different* class (`price-wrapper`, no "product-" prefix) from this
+    // page's own single real price block (`.product-price-wrapper`) despite
+    // sharing the rest of their class list — an unscoped `.price-wrapper`
+    // query actually pulled in 15+ unrelated recommendation prices and none
+    // of the real one. The recommendation carousel sits outside this
+    // wrapper entirely, unlike the same-garment "other colourways"
+    // thumbnails, which are a legitimate part of this wrapper's own gallery.
+    const info = document.querySelector('.lft-product-wrapper');
+    if (!info) return null;
+    const name = info.querySelector('.lft-product-info-name')?.textContent.trim();
+    if (!name) return null;
+
+    // A genuinely discounted product renders TWO `.price-line`s (old +
+    // current); a full-price one renders only one. Which line is which
+    // isn't trusted by position — whichever parses larger is the original —
+    // so this only needs the raw text of every line actually present.
+    const priceTexts = Array.from(info.querySelectorAll('.product-price-wrapper .price-line .price'))
+      .map((el) => el.textContent.trim()).filter(Boolean);
+
+    const description = info.querySelector('.description-wrapper')?.textContent.trim() || '';
+    const color = info.querySelector('.lft-product-info-color')?.textContent.replace(/^Renk:\s*/i, '').trim() || null;
+
+    const images = [...new Set(
+      Array.from(info.querySelectorAll('img'))
+        .map((img) => (img.currentSrc || img.src || '').split('?')[0])
+        .filter((src) => src.includes('/assets/public/'))
+    )];
+
+    return { name, priceTexts, description, color, images };
+  });
+  if (!base) return null;
+
+  await page.evaluate(() => { document.querySelector('.lft-product-info-add-bag')?.click(); });
+  await page.waitForSelector('.size-selector.is-open', { timeout: 4000 }).catch(() => {});
+  await new Promise((r) => setTimeout(r, 300));
+
+  const sizes = await page.evaluate(() => {
+    const sel = document.querySelector('.size-selector');
+    if (!sel) return [];
+    return Array.from(sel.querySelectorAll('.size-selector-size')).map((b) => ({
+      size: b.textContent.trim(),
+      inStock: !b.className.includes('no-stock'),
+    }));
+  });
+
+  return { ...base, sizes };
+}
+
+// Accessories(3) currently only has one real subcategory in production
+// ("bag" / Çantalar, id 13), same as every other scraper's own version of
+// this helper.
+function guessLeftiesAccessorySubcategoryId(nameTr) {
+  return /çanta|canta/i.test(nameTr || '') ? 13 : null;
+}
+
+async function Lefties(pm, site, opts = {}) {
+  const limit = opts.limit || 30;
+  await seedLifestyleSubcategories();
+
+  const listings = await fetchLeftiesListingMeta(pm);
+
+  const metaByUrl = new Map();
+  const perListing = [];
+  for (const listing of listings) {
+    const hrefs = await collectLeftiesListingLinks(pm, listing.url);
+    const urls = [];
+    for (const h of hrefs) {
+      if (!metaByUrl.has(h)) { metaByUrl.set(h, listing); urls.push(h); }
+    }
+    perListing.push(urls);
+  }
+  const candidateUrls = [];
+  for (let i = 0; i < Math.max(...perListing.map((l) => l.length), 0); i++) {
+    for (const urls of perListing) if (urls[i]) candidateUrls.push(urls[i]);
+  }
+
+  const existing = await prisma.products.findMany({
+    where: { product_link: { in: candidateUrls } },
+    select: { product_link: true },
+  });
+  const existingSet = new Set(existing.map((e) => e.product_link));
+  const newUrls = candidateUrls.filter((u) => !existingSet.has(u));
+
+  const imported = [];
+  let notDiscounted = 0;
+
+  for (const url of newUrls) {
+    if (imported.filter((p) => !p.error).length >= limit) break;
+    try {
+      const data = await scrapeLeftiesProduct(pm, url);
+      if (!data || !data.name) continue;
+
+      const prices = data.priceTexts.map(parseTLPrice).filter((n) => n != null).sort((a, b) => b - a);
+      if (prices.length < 2) { notDiscounted++; continue; }
+      const originalPrice = prices[0];
+      const sitePrice = prices[prices.length - 1];
+      if (originalPrice <= sitePrice) { notDiscounted++; continue; }
+
+      const listingMeta = metaByUrl.get(url) || { gender: 'unisex', categoryId: 1 };
+      const finalDiscountedPrice = Math.round(sitePrice * (1 + site.markup_percent / 100) * 100) / 100;
+      const tag = resolveDiscountTag({
+        discountPercentText: null,
+        markupPercent: site.markup_percent,
+        finalDiscountedPrice, priceOriginal: originalPrice,
+      });
+      if (!tag) { notDiscounted++; continue; }
+
+      const category_id = listingMeta.categoryId;
+      const subcategory_id = category_id === 1 ? guessSubcategoryId(data.name, 1)
+        : category_id === 3 ? guessLeftiesAccessorySubcategoryId(data.name)
+        : category_id === LIFESTYLE_CATEGORY_ID ? getLifestyleSubcategoryId(listingMeta.homeSlug)
+        : null; // category_id 2 (Shoes) has no subcategories in production yet
+      const gender = listingMeta.gender || 'unisex';
+
+      data.sizes = data.sizes.map((s) => ({ ...s, size: (s.size || '').slice(0, 10) }));
+
+      const translateOrWarn = (text, target) => translateText(text, 'tr', target)
+        .catch((err) => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
+      const [name_fa, name_en, desc_fa, desc_en] = await Promise.all([
+        translateOrWarn(data.name, 'fa'),
+        translateOrWarn(data.name, 'en'),
+        data.description ? translateOrWarn(data.description, 'fa') : '',
+        data.description ? translateOrWarn(data.description, 'en') : '',
+      ]);
+      const nameTr = data.name.slice(0, 120);
+      const nameFa = name_fa.slice(0, 120);
+      const nameEn = name_en.slice(0, 120);
+
+      const mediaUrls = [];
+      for (const imgUrl of data.images) {
+        try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
+      }
+
+      const colorId = await getOrCreateColorId(data.color);
+
+      const product = await prisma.products.create({
+        data: {
+          code: await generateProductCode(),
+          category_id, subcategory_id,
+          gender,
+          name_fa: nameFa, name_en: nameEn, name_tr: nameTr,
+          desc_fa, desc_en, desc_tr: data.description || null,
+          price: originalPrice,
+          cost_price: sitePrice,
+          discounted_price: finalDiscountedPrice,
+          tag,
+          stock: 0,
+          brand: site.name,
+          supplier_shop_name: site.name,
+          product_link: url,
+          product_media: mediaUrls.length ? { create: mediaUrls.map((u, i) => ({ type: 'image', url: u, sort_order: i })) } : undefined,
+          product_colors: colorId ? { create: [{ color_id: colorId, is_available: true }] } : undefined,
+          product_sizes: data.sizes.length ? {
+            create: data.sizes.map((s) => ({ size_label: s.size, is_available: s.inStock })),
+          } : undefined,
+        },
+      });
+
+      if (data.sizes.length) {
+        await prisma.product_inventory.createMany({
+          data: data.sizes.map((s) => ({
+            product_id: product.id, color_id: colorId, size_label: s.size,
+            quantity: s.inStock ? 10 : 0,
+          })),
+        });
+        const totalQty = data.sizes.filter((s) => s.inStock).length * 10;
+        await prisma.products.update({ where: { id: product.id }, data: { stock: totalQty } });
+      }
+
+      imported.push({ id: product.id, name: data.name });
+    } catch (err) {
+      imported.push({ error: err.message, url });
+    }
+  }
+
+  return { imported, skipped: notDiscounted + (candidateUrls.length - newUrls.length) };
+}
+
 module.exports = {
-  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano,
+  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties,
   // exported for backend/scripts/backfillMissingColors.js — reusing the
   // same lookup/create logic the live importers use, rather than
   // duplicating it in the backfill script.
