@@ -2343,21 +2343,20 @@ async function Lefties(pm, site, opts = {}) {
     select: { product_link: true },
   });
   const existingSet = new Set(existing.map((e) => e.product_link));
-  // Trimming LISTING count (see fetchLeftiesListingMeta's own comment)
-  // wasn't enough by itself: several of the surviving listings are still
-  // full-department "See All" aggregates with 100+ products each (Woman
-  // Footwear alone had 163 on 2026-09-24), so total candidates can still
-  // run into the thousands even at 38 listings — confirmed live: a run
-  // was still going after 45 minutes with zero results. Since nothing
-  // here ever satisfies `limit` while Lefties has no live discounts (see
-  // above), the real per-run cost is bounded by candidates actually
-  // SCRAPED, not listings visited — capped here directly so one run stays
-  // in a predictable window regardless of how large any single listing's
-  // own catalog is. candidateUrls is already round-robin-interleaved
-  // across listings, so this still samples a bit from every listing
-  // rather than exhausting the first one before moving on.
-  const MAX_CANDIDATES_PER_RUN = 300;
-  const newUrls = candidateUrls.filter((u) => !existingSet.has(u)).slice(0, MAX_CANDIDATES_PER_RUN);
+  // A MAX_CANDIDATES_PER_RUN cap used to live here (trimming listing count
+  // alone wasn't enough — several surviving listings are still full "See
+  // All" aggregates with 100+ products each). Removed after confirming live
+  // it actively hid real discounts rather than just slowing things down: a
+  // genuinely live one ("Quilted Shopper", Woman Bags) sat at index 24 of
+  // that listing's own 138 candidates, but the cap's round-robin interleave
+  // across 38 listings only ever reached roughly the first 8 per listing
+  // before cutting off — so real discounts sitting anywhere but near the
+  // front of a large, unordered listing were structurally unreachable, not
+  // just slow to reach. This runs as an unattended nightly cron (see
+  // backend/scheduler.js) — correctness matters more than a bounded
+  // wall-clock for that use case, an hour-plus run is an acceptable cost
+  // for actually finding what's on sale wherever it sits in a listing.
+  const newUrls = candidateUrls.filter((u) => !existingSet.has(u));
 
   const imported = [];
   let notDiscounted = 0;
