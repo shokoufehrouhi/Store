@@ -10,13 +10,14 @@ async function listSites(req, res, next) {
 
 async function createSite(req, res, next) {
   try {
-    const { name, url, is_active, discount_check_mode, markup_percent } = req.body;
+    const { name, url, logo_url, is_active, discount_check_mode, markup_percent } = req.body;
     if (!name?.trim())  return res.status(400).json({ success: false, message: 'name_required' });
     if (!url?.trim())   return res.status(400).json({ success: false, message: 'url_required' });
     const row = await prisma.sites.create({
       data: {
         name:                        name.trim(),
         url:                         url.trim(),
+        logo_url:                    logo_url?.trim() || null,
         is_active:                   is_active !== undefined ? !!is_active : true,
         discount_check_mode:         discount_check_mode === 'auto' ? 'auto' : 'manual',
         markup_percent:              markup_percent != null && markup_percent !== '' ? Number(markup_percent) : 40,
@@ -29,7 +30,7 @@ async function createSite(req, res, next) {
 async function updateSite(req, res, next) {
   try {
     const id = Number(req.params.id);
-    const { name, url, is_active, discount_check_mode, markup_percent } = req.body;
+    const { name, url, logo_url, is_active, discount_check_mode, markup_percent } = req.body;
     if (!name?.trim())  return res.status(400).json({ success: false, message: 'name_required' });
     if (!url?.trim())   return res.status(400).json({ success: false, message: 'url_required' });
     const existing = await prisma.sites.findUnique({ where: { id } });
@@ -40,6 +41,10 @@ async function updateSite(req, res, next) {
       data: {
         name:                        name.trim(),
         url:                         url.trim(),
+        // logo_url isn't part of the Sync tab's own markup-save request body
+        // (see admin.html#saveSyncMarkup) — undefined there means "leave it
+        // alone", not "clear it", same fallback pattern as markup_percent.
+        logo_url:                    logo_url !== undefined ? (logo_url?.trim() || null) : existing.logo_url,
         is_active:                   is_active !== undefined ? !!is_active : existing.is_active,
         discount_check_mode:         discount_check_mode === 'auto' ? 'auto' : 'manual',
         markup_percent:              newMarkup,

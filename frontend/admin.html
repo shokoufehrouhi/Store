@@ -359,23 +359,6 @@
     .btn-sm { padding: 6px 12px; font-size: 13px; }
     .btn:disabled { opacity: .5; cursor: not-allowed; }
 
-    /* ── Sync site picker ────────────────────────── */
-    .site-tab-row { display: flex; flex-wrap: wrap; gap: 8px; }
-    .site-tab {
-      display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px;
-      border-radius: 999px; border: 1.5px solid var(--border); background: var(--bg);
-      color: var(--text); font-family: inherit; font-size: 13px; font-weight: 600;
-      cursor: pointer; transition: all .15s;
-    }
-    .site-tab:hover { border-color: var(--primary); }
-    .site-tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
-    .site-tab-dot { width: 7px; height: 7px; border-radius: 50%; background: #cbd5e1; flex-shrink: 0; }
-    .site-tab-dot.on { background: #22c55e; }
-    .site-tab.active .site-tab-dot.on { background: #fff; }
-    .site-tab-dot.busy { background: #f59e0b; animation: site-tab-pulse 1s ease-in-out infinite; }
-    .site-tab.active .site-tab-dot.busy { background: #fff; }
-    @keyframes site-tab-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-
     /* ── Card / Table ───────────────────────────── */
     .card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
     .table-wrap { overflow-x: auto; }
@@ -1347,11 +1330,20 @@
           <div id="sync-global-schedule"></div>
         </div>
 
-        <div class="card" style="padding:12px 16px;margin-bottom:10px">
-          <label style="font-size:12px;font-weight:600;display:block;margin-bottom:6px" data-i18n="syncSelectSite">انتخاب سایت</label>
-          <div id="sync-site-tabs" class="site-tab-row"></div>
-        </div>
-        <div id="sync-panel"></div>
+        <div class="card"><div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="text-align:center" data-i18n="colBrand">برند</th>
+              <th style="text-align:center" data-i18n="colMarkup">درصد افزایش قیمت</th>
+              <th style="text-align:center" data-i18n="syncLastImport">آخرین وارد کردن</th>
+              <th style="text-align:center" data-i18n="syncImportNow">وارد کردن محصولات الان</th>
+              <th style="text-align:center" data-i18n="syncStockNow">بررسی موجودی الان</th>
+            </tr></thead>
+            <tbody id="sync-sites-tbody">
+              <tr><td colspan="5" style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</td></tr>
+            </tbody>
+          </table>
+        </div></div>
       </div>
     </div>
 
@@ -1890,7 +1882,7 @@ const LANGS = {
     leadsEmpty:'هنوز لیدی وجود ندارد', leadsError:'خطا در بارگذاری',
     ppApproved:'تایید شده', ppHidden:'مخفی', ppToggleHide:'مخفی کن', ppToggleShow:'نمایش بده', ppDeleted:'حذف شد', ppConfirmDelete:'این عکس حذف شود؟',
     supAddBtn:'+ افزودن تامین‌کننده', supShopName:'نام فروشگاه', supSupplierName:'نام تامین‌کننده', supPhone:'شماره تماس', supTelegram:'آدرس تلگرام', supWebsite:'آدرس سایت', supInstagram:'آدرس اینستاگرام', supStoreAddress:'آدرس مغازه', supCardPhoto:'آپلود کارت ویزیت', supSaved:'ذخیره شد', supDeleted:'حذف شد', supConfirmDelete:'این تامین‌کننده حذف شود؟', supRequired:'نام فروشگاه الزامی است',
-    siteAddBtn:'+ افزودن سایت', siteName:'نام سایت', siteUrl:'آدرس سایت', siteActive:'فعال', siteInactive:'غیرفعال', siteDiscountMode:'نحوه بررسی تخفیف', siteModeAuto:'خودکار', siteModeManual:'دستی', siteSaved:'ذخیره شد', siteDeleted:'حذف شد', siteConfirmDelete:'این سایت حذف شود؟', siteNameRequired:'نام سایت الزامی است', siteUrlRequired:'آدرس سایت الزامی است',
+    siteAddBtn:'+ افزودن سایت', siteName:'نام سایت', siteUrl:'آدرس سایت', siteLogoUrl:'آدرس لوگو (اختیاری)', siteActive:'فعال', siteInactive:'غیرفعال', siteDiscountMode:'نحوه بررسی تخفیف', siteModeAuto:'خودکار', siteModeManual:'دستی', siteSaved:'ذخیره شد', siteDeleted:'حذف شد', siteConfirmDelete:'این سایت حذف شود؟', siteNameRequired:'نام سایت الزامی است', siteUrlRequired:'آدرس سایت الزامی است',
     prodBrand:'برند', prodSupplierShop:'فروشگاه تامین‌کننده', prodLink:'لینک محصول', prodSupplierCode:'کد محصول تامین‌کننده', prodSupplierNote:'توضیحات تامین‌کننده',
     cpAddBtn:'+ کد جدید', cpNewTitle:'➕ کد تخفیف جدید', cpEditTitle:'✏️ ویرایش کد تخفیف',
     cpCode:'کد تخفیف', cpType:'نوع تخفیف', cpValue:'مقدار', cpMaxUses:'حداکثر استفاده', cpStarts:'تاریخ شروع', cpExpires:'تاریخ انقضا',
@@ -1924,7 +1916,7 @@ const LANGS = {
     rptStatusBreakdown:'وضعیت سفارشات', rptTopProducts:'پرفروش‌ترین محصولات', rptQtySold:'فروش رفته',
     addProduct:'+ افزودن محصول',
     colId:'#', colMedia:'رسانه', colName:'نام محصول', colCategory:'دسته‌بندی', colPrice:'قیمت',
-    colStock:'موجودی', colBrand:'برند', colStatus:'وضعیت', colActions:'عملیات',
+    colStock:'موجودی', colBrand:'برند', colStatus:'وضعیت', colActions:'عملیات', colMarkup:'درصد افزایش قیمت',
     active:'فعال', inactive:'غیرفعال', edit:'✏️ ویرایش', del:'🗑️',
     loading:'در حال بارگذاری...', noProducts:'هنوز محصولی ثبت نشده', noPhotos:'هنوز عکسی آپلود نشده',
     addProductTitle:'افزودن محصول جدید', editProductTitle:'ویرایش محصول',
@@ -2098,7 +2090,7 @@ const LANGS = {
     leadsEmpty:'No leads yet', leadsError:'Error loading leads',
     ppApproved:'Approved', ppHidden:'Hidden', ppToggleHide:'Hide', ppToggleShow:'Show', ppDeleted:'Deleted', ppConfirmDelete:'Delete this photo?',
     supAddBtn:'+ Add Supplier', supShopName:'Shop Name', supSupplierName:'Supplier Name', supPhone:'Phone', supTelegram:'Telegram', supWebsite:'Website', supInstagram:'Instagram', supStoreAddress:'Store Address', supCardPhoto:'Upload Business Card', supSaved:'Saved', supDeleted:'Deleted', supConfirmDelete:'Delete this supplier?', supRequired:'Shop name is required',
-    siteAddBtn:'+ Add Site', siteName:'Site Name', siteUrl:'Site URL', siteActive:'Active', siteInactive:'Inactive', siteDiscountMode:'Discount Check Mode', siteModeAuto:'Automatic', siteModeManual:'Manual', siteSaved:'Saved', siteDeleted:'Deleted', siteConfirmDelete:'Delete this site?', siteNameRequired:'Site name is required', siteUrlRequired:'Site URL is required',
+    siteAddBtn:'+ Add Site', siteName:'Site Name', siteUrl:'Site URL', siteLogoUrl:'Logo URL (optional)', siteActive:'Active', siteInactive:'Inactive', siteDiscountMode:'Discount Check Mode', siteModeAuto:'Automatic', siteModeManual:'Manual', siteSaved:'Saved', siteDeleted:'Deleted', siteConfirmDelete:'Delete this site?', siteNameRequired:'Site name is required', siteUrlRequired:'Site URL is required',
     prodBrand:'Brand', prodSupplierShop:'Supplier Shop', prodLink:'Product Link', prodSupplierCode:'Supplier Code', prodSupplierNote:'Supplier Notes',
     cpAddBtn:'+ New Code', cpNewTitle:'➕ New Discount Code', cpEditTitle:'✏️ Edit Discount Code',
     cpCode:'Coupon Code', cpType:'Discount Type', cpValue:'Value', cpMaxUses:'Max Uses', cpStarts:'Start Date', cpExpires:'Expiry Date',
@@ -2132,7 +2124,7 @@ const LANGS = {
     rptStatusBreakdown:'Order Status Breakdown', rptTopProducts:'Top Selling Products', rptQtySold:'Sold',
     addProduct:'+ Add Product',
     colId:'#', colMedia:'Media', colName:'Product Name', colCategory:'Category', colPrice:'Price',
-    colStock:'Stock', colBrand:'Brand', colStatus:'Status', colActions:'Actions',
+    colStock:'Stock', colBrand:'Brand', colStatus:'Status', colActions:'Actions', colMarkup:'Markup %',
     active:'Active', inactive:'Inactive', edit:'✏️ Edit', del:'🗑️',
     loading:'Loading...', noProducts:'No products yet', noPhotos:'No photos uploaded yet',
     addProductTitle:'Add New Product', editProductTitle:'Edit Product',
@@ -2306,7 +2298,7 @@ const LANGS = {
     leadsEmpty:'Henüz aday yok', leadsError:'Yükleme hatası',
     ppApproved:'Onaylandı', ppHidden:'Gizli', ppToggleHide:'Gizle', ppToggleShow:'Göster', ppDeleted:'Silindi', ppConfirmDelete:'Bu fotoğraf silinsin mi?',
     supAddBtn:'+ Tedarikçi Ekle', supShopName:'Mağaza Adı', supSupplierName:'Tedarikçi Adı', supPhone:'Telefon', supTelegram:'Telegram', supWebsite:'Web Sitesi', supInstagram:'Instagram', supStoreAddress:'Mağaza Adresi', supCardPhoto:'Kartvizit Yükle', supSaved:'Kaydedildi', supDeleted:'Silindi', supConfirmDelete:'Bu tedarikçi silinsin mi?', supRequired:'Mağaza adı zorunludur',
-    siteAddBtn:'+ Site Ekle', siteName:'Site Adı', siteUrl:'Site Adresi', siteActive:'Aktif', siteInactive:'Pasif', siteDiscountMode:'İndirim Kontrol Modu', siteModeAuto:'Otomatik', siteModeManual:'Manuel', siteSaved:'Kaydedildi', siteDeleted:'Silindi', siteConfirmDelete:'Bu site silinsin mi?', siteNameRequired:'Site adı zorunludur', siteUrlRequired:'Site adresi zorunludur',
+    siteAddBtn:'+ Site Ekle', siteName:'Site Adı', siteUrl:'Site Adresi', siteLogoUrl:'Logo Adresi (isteğe bağlı)', siteActive:'Aktif', siteInactive:'Pasif', siteDiscountMode:'İndirim Kontrol Modu', siteModeAuto:'Otomatik', siteModeManual:'Manuel', siteSaved:'Kaydedildi', siteDeleted:'Silindi', siteConfirmDelete:'Bu site silinsin mi?', siteNameRequired:'Site adı zorunludur', siteUrlRequired:'Site adresi zorunludur',
     prodBrand:'Marka', prodSupplierShop:'Tedarikçi Mağazası', prodLink:'Ürün Linki', prodSupplierCode:'Tedarikçi Kodu', prodSupplierNote:'Tedarikçi Notları',
     cpAddBtn:'+ Yeni Kod', cpNewTitle:'➕ Yeni İndirim Kodu', cpEditTitle:'✏️ İndirim Kodunu Düzenle',
     cpCode:'Kupon Kodu', cpType:'İndirim Türü', cpValue:'Değer', cpMaxUses:'Maks. Kullanım', cpStarts:'Başlangıç Tarihi', cpExpires:'Son Kullanma Tarihi',
@@ -2340,7 +2332,7 @@ const LANGS = {
     rptStatusBreakdown:'Sipariş Durumu', rptTopProducts:'En Çok Satan Ürünler', rptQtySold:'Satış',
     addProduct:'+ Ürün Ekle',
     colId:'#', colMedia:'Medya', colName:'Ürün Adı', colCategory:'Kategori', colPrice:'Fiyat',
-    colStock:'Stok', colBrand:'Marka', colStatus:'Durum', colActions:'İşlemler',
+    colStock:'Stok', colBrand:'Marka', colStatus:'Durum', colActions:'İşlemler', colMarkup:'Kâr Marjı %',
     active:'Aktif', inactive:'Pasif', edit:'✏️ Düzenle', del:'🗑️',
     loading:'Yükleniyor...', noProducts:'Henüz ürün yok', noPhotos:'Henüz fotoğraf yüklenmedi',
     addProductTitle:'Yeni Ürün Ekle', editProductTitle:'Ürünü Düzenle',
@@ -6017,6 +6009,10 @@ function openSiteModal(id) {
       <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">${t('siteUrl')} *</label>
       <input id="site-url" class="form-control" value="${esc(s?.url || '')}" dir="ltr" placeholder="https://...">
     </div>
+    <div class="form-field" style="margin-bottom:12px">
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">${t('siteLogoUrl')}</label>
+      <input id="site-logo-url" class="form-control" value="${esc(s?.logo_url || '')}" dir="ltr" placeholder="https://.../logo.png">
+    </div>
     <div class="form-row">
       <div class="form-field">
         <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px">${t('siteActive')}</label>
@@ -6048,6 +6044,7 @@ async function saveSite(id) {
   if (!url)  { showToast(t('siteUrlRequired'), 'error'); return; }
   const body = {
     name, url,
+    logo_url:             document.getElementById('site-logo-url')?.value?.trim() || null,
     is_active:            document.getElementById('site-is-active')?.value === 'true',
     discount_check_mode:  document.getElementById('site-discount-mode')?.value || 'manual',
   };
@@ -6066,7 +6063,6 @@ async function saveSite(id) {
 // ─── Sync (schedule + manual trigger per site) ─────────────────────────────────
 var _syncPollTimer = null;
 var _syncDirty = false;
-var _syncSelectedSiteId = null;
 
 async function loadSyncTab() {
   // Always fetch fresh (rather than reusing _allSites if already populated):
@@ -6077,11 +6073,7 @@ async function loadSyncTab() {
   // here would throw.
   const data = await api('/admin/sites');
   if (data?.success) _allSites = data.data;
-  if (_syncSelectedSiteId == null || !_allSites.some(s => s.id === _syncSelectedSiteId)) {
-    _syncSelectedSiteId = _allSites[0]?.id ?? null;
-  }
-  renderSyncSiteTabs();
-  renderSyncPanel();
+  renderSyncSitesTable();
 
   const settingsRes = await api('/admin/sync-settings');
   if (settingsRes?.success) renderGlobalSchedule(settingsRes.data);
@@ -6132,32 +6124,11 @@ async function refreshSyncSitesQuietly() {
   const data = await api('/admin/sites');
   if (!data?.success) return;
   _allSites = data.data;
-  // don't clobber an open time-picker dropdown or an unsaved edit —
+  // don't clobber an open time-picker dropdown or an unsaved markup edit —
   // still keep _allSites fresh so a render right after Save/dropdown-close
   // shows the latest in-progress/last-run status, just skip re-rendering now.
   if (_syncDirty || document.querySelector('.time-picker-dropdown:not(.hidden)')) return;
-  renderSyncSiteTabs();
-  renderSyncPanel();
-}
-
-function renderSyncSiteTabs() {
-  const wrap = document.getElementById('sync-site-tabs');
-  if (!wrap) return;
-  wrap.innerHTML = _allSites.map(s => {
-    const busy = s.import_in_progress || s.stock_check_in_progress;
-    return `
-      <button type="button" class="site-tab${s.id === _syncSelectedSiteId ? ' active' : ''}" onclick="selectSyncSite(${s.id})">
-        <span class="site-tab-dot${busy ? ' busy' : (s.is_active ? ' on' : '')}"></span>
-        ${esc(s.name)}
-      </button>
-    `;
-  }).join('');
-}
-
-function selectSyncSite(id) {
-  _syncSelectedSiteId = id;
-  renderSyncSiteTabs();
-  renderSyncPanel();
+  renderSyncSitesTable();
 }
 
 function fmtDate(iso) {
@@ -6230,53 +6201,60 @@ function readTimeSelect(prefix) {
   return st && st.h ? `${st.h}:${st.m || '00'}` : null;
 }
 
-function renderSyncPanel() {
-  _syncDirty = false;
-  const site = _allSites.find(s => s.id === _syncSelectedSiteId);
-  const panel = document.getElementById('sync-panel');
-  if (!panel) return;
-  if (!site) { panel.innerHTML = ''; return; }
-
-  panel.innerHTML = `
-    <div class="card" style="padding:12px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <div style="font-weight:700;font-size:14px" data-i18n="syncPerSiteTitle">${t('syncPerSiteTitle')}</div>
-      <span style="font-size:12px;font-weight:600;color:#888;white-space:nowrap">${t('syncMarkup')}</span>
-      <input type="number" id="sync-markup" value="${site.markup_percent}" min="0" max="500" oninput="_syncDirty=true" style="width:90px;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px" dir="ltr">
-      <button class="btn btn-primary btn-sm" onclick="saveSyncSchedule(${site.id})">${t('syncSaveSchedule')}</button>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="card" style="padding:12px 16px">
-        <div style="font-size:11px;font-weight:700;color:#999;text-transform:uppercase;margin-bottom:5px">${t('syncLastImport')}</div>
-        <div style="font-size:13px;color:#555;margin-bottom:8px">${esc(site.last_import_status || t('syncNever'))}${site.last_import_at ? ` <span style="font-size:11px;color:#aaa">· ${fmtDate(site.last_import_at)}</span>` : ''}</div>
+function renderSyncSitesTable() {
+  const tbody = document.getElementById('sync-sites-tbody');
+  if (!tbody) return;
+  if (!_allSites.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:#999">${t('noData')}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = _allSites.map(site => `
+    <tr>
+      <td style="text-align:center">
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+          ${site.logo_url
+            ? `<img src="${esc(site.logo_url)}" alt="" style="width:24px;height:24px;object-fit:contain;border-radius:4px" onerror="this.style.display='none'">`
+            : `<span style="width:24px;height:24px;border-radius:50%;background:var(--primary);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${esc((site.name || '?').charAt(0).toUpperCase())}</span>`}
+          <strong>${esc(site.name)}</strong>
+        </div>
+      </td>
+      <td style="text-align:center">
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px">
+          <input type="number" id="sync-markup-${site.id}" value="${site.markup_percent}" min="0" max="500" oninput="_syncDirty=true" style="width:70px;padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;text-align:center" dir="ltr">
+          <button class="btn btn-secondary btn-sm" onclick="saveSyncMarkup(${site.id})" title="${t('syncSaveSchedule')}">💾</button>
+        </div>
+      </td>
+      <td style="font-size:13px;color:#555;text-align:center">
+        ${esc(site.last_import_status || t('syncNever'))}${site.last_import_at ? `<br><span style="font-size:11px;color:#aaa">${fmtDate(site.last_import_at)}</span>` : ''}
+      </td>
+      <td style="text-align:center">
         <button class="btn btn-secondary btn-sm" ${site.import_in_progress ? 'disabled' : ''} onclick="triggerSync(${site.id}, 'import')">
           ${site.import_in_progress ? '⏳ ' + t('syncInProgress') : '▶️ ' + t('syncImportNow')}
         </button>
-      </div>
-      <div class="card" style="padding:12px 16px">
-        <div style="font-size:11px;font-weight:700;color:#999;text-transform:uppercase;margin-bottom:5px">${t('syncLastStockCheck')}</div>
-        <div style="font-size:13px;color:#555;margin-bottom:8px">${esc(site.last_stock_check_status || t('syncNever'))}${site.last_stock_check_at ? ` <span style="font-size:11px;color:#aaa">· ${fmtDate(site.last_stock_check_at)}</span>` : ''}</div>
+      </td>
+      <td style="text-align:center">
         <button class="btn btn-secondary btn-sm" ${site.stock_check_in_progress ? 'disabled' : ''} onclick="triggerSync(${site.id}, 'stock')">
           ${site.stock_check_in_progress ? '⏳ ' + t('syncInProgress') : '▶️ ' + t('syncStockNow')}
         </button>
-      </div>
-    </div>
-  `;
+      </td>
+    </tr>
+  `).join('');
 }
 
-async function saveSyncSchedule(id) {
+async function saveSyncMarkup(id) {
   const site = _allSites.find(s => s.id === id);
   if (!site) return;
   const body = {
     name: site.name, url: site.url,
     is_active: site.is_active, discount_check_mode: site.discount_check_mode,
-    markup_percent: document.getElementById('sync-markup')?.value,
+    markup_percent: document.getElementById(`sync-markup-${id}`)?.value,
   };
   const data = await api(`/admin/sites/${id}`, { method: 'PUT', body: JSON.stringify(body) });
   if (data?.success) {
     const idx = _allSites.findIndex(s => s.id === id);
     if (idx !== -1) _allSites[idx] = data.data;
-    renderSyncPanel();
+    _syncDirty = false;
+    renderSyncSitesTable();
     showToast(t('syncScheduleSaved'));
   } else showToast(data?.message || 'Error', 'error');
 }
@@ -6288,7 +6266,7 @@ async function triggerSync(id, kind) {
     showToast(t('syncStarted'));
     const idx = _allSites.findIndex(s => s.id === id);
     if (idx !== -1) _allSites[idx][kind === 'import' ? 'import_in_progress' : 'stock_check_in_progress'] = true;
-    renderSyncPanel();
+    renderSyncSitesTable();
   } else showToast(data?.message || 'Error', 'error');
 }
 

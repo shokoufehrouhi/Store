@@ -589,6 +589,7 @@ model sites {
   id                         Int                       @id @default(autoincrement())
   name                       String                    @db.VarChar(120)
   url                        String                    @db.VarChar(500)
+  logo_url                   String?                   @db.VarChar(500)
   is_active                  Boolean                   @default(true)
   discount_check_mode        discount_check_mode_type  @default(manual)
   last_import_at             DateTime?                 @db.Timestamptz(6)
