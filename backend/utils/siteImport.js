@@ -2290,6 +2290,31 @@ function guessLeftiesAccessorySubcategoryId(nameTr) {
   return /çanta|canta/i.test(nameTr || '') ? 13 : null;
 }
 
+// Runs `work(resource, item, idx)` over `items`, one call in flight per
+// entry in `resources` (e.g. one PageManager each), each worker pulling the
+// next item off a shared index counter (a plain shared queue) rather than a
+// fixed static split — so one worker stuck on a slow item doesn't leave the
+// others idle with items still waiting, the way a fixed "N items per
+// worker" chunking would. Takes the actual resources array, not a bare
+// concurrency number: each of the `resources.length` loops closes over ONE
+// resource for its entire run, so the same PageManager is never handed to
+// two concurrent `work()` calls at once — a `resources[idx % resources.length]`
+// scheme looks equivalent but isn't: idx doesn't correspond to which loop
+// actually claimed it (queue items are claimed by whichever loop asks
+// next), so two different loops can land on the same idx%N in flight
+// together and race on that PageManager's single underlying page.
+async function runQueue(items, resources, work) {
+  let next = 0;
+  async function worker(resource) {
+    while (true) {
+      const idx = next++;
+      if (idx >= items.length) return;
+      await work(resource, items[idx], idx);
+    }
+  }
+  await Promise.all(resources.map(worker));
+}
+
 async function Lefties(pm, site, opts = {}) {
   const limit = opts.limit || 30;
   await seedLifestyleSubcategories();
@@ -2310,9 +2335,26 @@ async function Lefties(pm, site, opts = {}) {
     listings = await fetchLeftiesListingMeta(pm);
   }
 
+  // Concurrency: up to 4 PageManagers sharing this run's ONE already-
+  // launched browser (separate tabs, not separate browsers) — chosen after
+  // confirming live that a full sequential scan of every listing's every
+  // candidate (no cap; see its own removal below) took 2+ hours for only a
+  // handful of real finds. Deliberately NOT one browser per worker: that's
+  // the exact "several simultaneous Chrome processes competing for this
+  // VPS's CPU/RAM" problem scheduler.js was just fixed for (see 3525278),
+  // just relocated to inside a single site's own import instead of across
+  // sites. `pm` (this call's own PageManager) is reused as worker 0; the
+  // rest only exist if the caller actually gave us the means to make more
+  // (siteSync.js#importSite passes both) — falls back to the one `pm`,
+  // fully sequential, otherwise.
+  const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
+  const CONCURRENCY = canParallelize ? 4 : 1;
+  const pms = [pm];
+  if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
+
   const metaByUrl = new Map();
-  const perListing = [];
-  for (const listing of listings) {
+  const perListing = new Array(listings.length).fill(null);
+  await runQueue(listings, pms, async (workerPm, listing, idx) => {
     // One flaky navigation (confirmed live: a "Navigation timeout of 30000
     // ms exceeded" on some listing) used to abort the ENTIRE run here —
     // nothing caught it, so it propagated all the way to
@@ -2323,16 +2365,13 @@ async function Lefties(pm, site, opts = {}) {
     // listings each), so one bad listing is now just skipped instead.
     let hrefs = [];
     try {
-      hrefs = await collectLeftiesListingLinks(pm, listing.url);
+      hrefs = await collectLeftiesListingLinks(workerPm, listing.url);
     } catch (err) {
       console.warn(`[siteImport] Lefties listing failed, skipping: ${listing.url} — ${err.message}`);
     }
-    const urls = [];
-    for (const h of hrefs) {
-      if (!metaByUrl.has(h)) { metaByUrl.set(h, listing); urls.push(h); }
-    }
-    perListing.push(urls);
-  }
+    perListing[idx] = hrefs;
+    hrefs.forEach((h) => { if (!metaByUrl.has(h)) metaByUrl.set(h, listing); });
+  });
   const candidateUrls = [];
   for (let i = 0; i < Math.max(...perListing.map((l) => l.length), 0); i++) {
     for (const urls of perListing) if (urls[i]) candidateUrls.push(urls[i]);
@@ -2354,24 +2393,24 @@ async function Lefties(pm, site, opts = {}) {
   // front of a large, unordered listing were structurally unreachable, not
   // just slow to reach. This runs as an unattended nightly cron (see
   // backend/scheduler.js) — correctness matters more than a bounded
-  // wall-clock for that use case, an hour-plus run is an acceptable cost
-  // for actually finding what's on sale wherever it sits in a listing.
+  // wall-clock for that use case; the concurrency above is what actually
+  // brings the wall-clock cost down now, not a cap that hides real results.
   const newUrls = candidateUrls.filter((u) => !existingSet.has(u));
 
   const imported = [];
   let notDiscounted = 0;
 
-  for (const url of newUrls) {
-    if (imported.filter((p) => !p.error).length >= limit) break;
+  async function processOne(workerPm, url) {
+    if (imported.filter((p) => !p.error).length >= limit) return;
     try {
-      const data = await scrapeLeftiesProduct(pm, url);
-      if (!data || !data.name) continue;
+      const data = await scrapeLeftiesProduct(workerPm, url);
+      if (!data || !data.name) return;
 
       const prices = data.priceTexts.map(parseTLPrice).filter((n) => n != null).sort((a, b) => b - a);
-      if (prices.length < 2) { notDiscounted++; continue; }
+      if (prices.length < 2) { notDiscounted++; return; }
       const originalPrice = prices[0];
       const sitePrice = prices[prices.length - 1];
-      if (originalPrice <= sitePrice) { notDiscounted++; continue; }
+      if (originalPrice <= sitePrice) { notDiscounted++; return; }
 
       const listingMeta = metaByUrl.get(url) || { gender: 'unisex', categoryId: 1 };
       const finalDiscountedPrice = Math.round(sitePrice * (1 + site.markup_percent / 100) * 100) / 100;
@@ -2380,7 +2419,7 @@ async function Lefties(pm, site, opts = {}) {
         markupPercent: site.markup_percent,
         finalDiscountedPrice, priceOriginal: originalPrice,
       });
-      if (!tag) { notDiscounted++; continue; }
+      if (!tag) { notDiscounted++; return; }
 
       const category_id = listingMeta.categoryId;
       const subcategory_id = category_id === 1 ? guessSubcategoryId(data.name, 1)
@@ -2449,6 +2488,10 @@ async function Lefties(pm, site, opts = {}) {
       imported.push({ error: err.message, url });
     }
   }
+
+  await runQueue(newUrls, pms, (workerPm, url) => processOne(workerPm, url));
+
+  for (let i = 1; i < pms.length; i++) await pms[i].close().catch(() => {});
 
   return { imported, skipped: notDiscounted + (candidateUrls.length - newUrls.length) };
 }

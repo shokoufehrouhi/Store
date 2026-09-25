@@ -47,6 +47,11 @@ function createPageManager(browser, { recycleEvery = 12 } = {}) {
   };
 }
 
+// `browser` is also passed to `fn` (most callers only take `pm` and ignore
+// it) so a scraper that wants its own bounded concurrency — several
+// PageManagers sharing this one already-launched browser, rather than
+// launching several full browsers — can create more of them via
+// `createPageManager(browser)` itself. See Lefties() in siteImport.js.
 async function withBrowser(fn) {
   const puppeteer = (await import('puppeteer')).default;
   const browser = await puppeteer.launch({
@@ -55,7 +60,7 @@ async function withBrowser(fn) {
   });
   const pm = createPageManager(browser);
   try {
-    return await fn(pm);
+    return await fn(pm, browser);
   } finally {
     await pm.close();
     await browser.close();
@@ -142,7 +147,10 @@ async function checkSiteStock(site) {
 async function importSite(site, opts = {}) {
   const importer = importers[site.name];
   if (!importer) throw new Error(`no importer implemented for site "${site.name}"`);
-  return withBrowser(pm => importer(pm, site, opts));
+  // browser/createPageManager: see withBrowser's own comment — only Lefties
+  // currently uses either, every other importer's opts.limit-only signature
+  // just ignores the extra fields.
+  return withBrowser((pm, browser) => importer(pm, site, { ...opts, browser, createPageManager }));
 }
 
 module.exports = { checkSiteStock, importSite, withBrowser };
