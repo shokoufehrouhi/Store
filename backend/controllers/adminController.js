@@ -925,13 +925,32 @@ async function deleteProduct(req, res, next) {
   try {
     const id = Number(req.params.id);
     const extraCats = await prisma.product_categories.findMany({ where: { product_id: id }, select: { subcategory_id: true } });
-    const deleted = await prisma.products.update({
-      where: { id },
-      data:  { is_active: false, is_dirty: true },
-    });
-    await syncSubcategoryActiveState(deleted.subcategory_id);
-    for (const ec of extraCats) await syncSubcategoryActiveState(ec.subcategory_id);
-    res.json({ success: true });
+    const existing = await prisma.products.findUnique({ where: { id }, select: { subcategory_id: true } });
+    if (!existing) return res.status(404).json({ success: false, message: 'not_found' });
+
+    try {
+      // Real delete — every child table (media, colors, sizes, inventory,
+      // reviews, product_categories, ...) cascades in schema.prisma except
+      // order_items, which is onDelete: NoAction on purpose: a product that
+      // has ever actually been ordered must not disappear out from under
+      // that order's own history. Prisma surfaces that as a P2003 here,
+      // caught below to fall back to the old deactivate-only behavior
+      // instead of a raw 500 — same real product, just can't be fully
+      // erased once it has real order history attached to it.
+      await prisma.products.delete({ where: { id } });
+      await syncSubcategoryActiveState(existing.subcategory_id);
+      for (const ec of extraCats) await syncSubcategoryActiveState(ec.subcategory_id);
+      return res.json({ success: true, hardDeleted: true });
+    } catch (err) {
+      if (err.code !== 'P2003') throw err;
+      const deleted = await prisma.products.update({
+        where: { id },
+        data:  { is_active: false, is_dirty: true },
+      });
+      await syncSubcategoryActiveState(deleted.subcategory_id);
+      for (const ec of extraCats) await syncSubcategoryActiveState(ec.subcategory_id);
+      return res.json({ success: true, hardDeleted: false, message: 'has_orders_deactivated_instead' });
+    }
   } catch (err) { next(err); }
 }
 

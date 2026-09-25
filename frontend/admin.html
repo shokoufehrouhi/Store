@@ -1972,7 +1972,7 @@ const LANGS = {
     descFaPlh:'ویژگی‌ها و مشخصات محصول...', descEnPlh:'Product description...', descTrPlh:'Ürün açıklaması...',
     gradientPlh:'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     savedProduct:'محصول ویرایش شد ✅', addedProduct:'محصول جدید اضافه شد ✅',
-    deactivatedProduct:'محصول غیرفعال شد',
+    deactivatedProduct:'محصول غیرفعال شد', deletedProductPermanently:'محصول حذف شد', deletedFallbackDeactivated:'این محصول در سفارش‌های قبلی استفاده شده و قابل حذف کامل نیست — به‌جای آن غیرفعال شد',
     savedSubcat:'زیردسته ذخیره شد ✅', deletedSubcat:'زیردسته حذف شد',
     savedColor:'رنگ ذخیره شد ✅', deletedColor:'رنگ حذف شد',
     sizeLabel:'سایز', sortOrder:'ترتیب', addSizeBtn:'+ افزودن سایز',
@@ -2180,7 +2180,7 @@ const LANGS = {
     descFaPlh:'Features and specs...', descEnPlh:'Product description...', descTrPlh:'Ürün açıklaması...',
     gradientPlh:'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     savedProduct:'Product updated ✅', addedProduct:'Product added ✅',
-    deactivatedProduct:'Product deactivated',
+    deactivatedProduct:'Product deactivated', deletedProductPermanently:'Product deleted', deletedFallbackDeactivated:'This product has past orders and can\'t be fully deleted — deactivated instead',
     savedSubcat:'Subcategory saved ✅', deletedSubcat:'Subcategory deleted',
     savedColor:'Color saved ✅', deletedColor:'Color deleted',
     sizeLabel:'Size', sortOrder:'Order', addSizeBtn:'+ Add Size',
@@ -2388,7 +2388,7 @@ const LANGS = {
     descFaPlh:'Özellikler...', descEnPlh:'Product description...', descTrPlh:'Ürün açıklaması...',
     gradientPlh:'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     savedProduct:'Ürün güncellendi ✅', addedProduct:'Ürün eklendi ✅',
-    deactivatedProduct:'Ürün devre dışı bırakıldı',
+    deactivatedProduct:'Ürün devre dışı bırakıldı', deletedProductPermanently:'Ürün silindi', deletedFallbackDeactivated:'Bu ürünün geçmiş siparişleri var ve tamamen silinemiyor — bunun yerine devre dışı bırakıldı',
     savedSubcat:'Alt kategori kaydedildi ✅', deletedSubcat:'Alt kategori silindi',
     savedColor:'Renk kaydedildi ✅', deletedColor:'Renk silindi',
     sizeLabel:'Beden', sortOrder:'Sıra', addSizeBtn:'+ Beden Ekle',
@@ -3725,7 +3725,13 @@ async function saveProduct(id) {
 async function confirmDeleteProduct(id, name) {
   showConfirm(`"${name}" — ${t('confirmDeleteProduct')}`, async () => {
     const res = await api(`/admin/products/${id}`, { method:'DELETE' });
-    if (res?.success) { showToast(t('deactivatedProduct')); loadProducts(); }
+    if (res?.success) {
+      // hardDeleted is false only when the product has real order history
+      // (order_items.product_id is onDelete: NoAction on purpose) — the
+      // backend falls back to deactivating it instead of a raw error.
+      showToast(res.hardDeleted ? t('deletedProductPermanently') : t('deletedFallbackDeactivated'));
+      loadProducts();
+    }
     else showToast(t('deleteError'), 'error');
   });
 }
