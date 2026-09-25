@@ -2144,7 +2144,7 @@ async function ensureLeftiesPageSetup(page) {
 }
 
 async function collectLeftiesListingLinks(pm, listingUrl) {
-  const page = await pm.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  const page = await pm.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
   await ensureLeftiesPageSetup(page);
   await new Promise((r) => setTimeout(r, 1500));
 
@@ -2218,7 +2218,7 @@ async function collectLeftiesListingLinks(pm, listingUrl) {
 // rows, same accepted gap every other scraper here already has for
 // sizeless items (see Koton/LCWaikiki's own comments on this).
 async function scrapeLeftiesProduct(pm, url) {
-  const page = await pm.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  const page = await pm.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
   await ensureLeftiesPageSetup(page);
   await new Promise((r) => setTimeout(r, 1500));
 
@@ -2299,7 +2299,20 @@ async function Lefties(pm, site, opts = {}) {
   const metaByUrl = new Map();
   const perListing = [];
   for (const listing of listings) {
-    const hrefs = await collectLeftiesListingLinks(pm, listing.url);
+    // One flaky navigation (confirmed live: a "Navigation timeout of 30000
+    // ms exceeded" on some listing) used to abort the ENTIRE run here —
+    // nothing caught it, so it propagated all the way to
+    // sitesController.js's own catch and reported `last_import_status:
+    // "error: ..."` with zero candidates ever collected, even from the 37
+    // other listings that loaded fine. A dozens-of-listings run has much
+    // more surface area for this than any other scraper here (7-18
+    // listings each), so one bad listing is now just skipped instead.
+    let hrefs = [];
+    try {
+      hrefs = await collectLeftiesListingLinks(pm, listing.url);
+    } catch (err) {
+      console.warn(`[siteImport] Lefties listing failed, skipping: ${listing.url} — ${err.message}`);
+    }
     const urls = [];
     for (const h of hrefs) {
       if (!metaByUrl.has(h)) { metaByUrl.set(h, listing); urls.push(h); }
