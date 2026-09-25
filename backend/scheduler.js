@@ -58,11 +58,20 @@ async function tick() {
 
   ranThisMinute = nowHHMM;
   const sites = await prisma.sites.findMany({ where: { is_active: true } });
+  // Sequential, not fire-and-forget: each site gets its own full Puppeteer/
+  // Chrome instance (see backend/utils/siteSync.js#withBrowser), and this
+  // used to kick off every active site's import at once — confirmed live
+  // that at import-heavy site counts (Lefties alone can run 1-2+ hours with
+  // no candidate cap, see siteImport.js's own history) that means several
+  // simultaneous Chrome processes competing for this VPS's CPU/RAM, not
+  // just a slow individual run. One site at a time costs total wall-clock
+  // time instead, which is the right tradeoff for an unattended overnight
+  // job — nothing is waiting on it to finish quickly.
   if (settings.import_schedule_time === nowHHMM) {
-    for (const site of sites) runImport(site);
+    for (const site of sites) await runImport(site);
   }
   if (settings.stock_check_schedule_time === nowHHMM) {
-    for (const site of sites) runStockCheck(site);
+    for (const site of sites) await runStockCheck(site);
   }
 }
 
