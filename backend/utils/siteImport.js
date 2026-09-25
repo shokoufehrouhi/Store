@@ -2294,7 +2294,21 @@ async function Lefties(pm, site, opts = {}) {
   const limit = opts.limit || 30;
   await seedLifestyleSubcategories();
 
-  const listings = await fetchLeftiesListingMeta(pm);
+  // The one remaining unprotected navigation in this scraper (confirmed
+  // live: a transient "Navigation timeout of 30000 ms exceeded" fetching
+  // Lefties' own homepage aborted the entire run before a single listing
+  // was even visited — every per-listing/per-product call already has its
+  // own try/catch, this was the one gap). One retry after a short pause
+  // covers a one-off network blip; a second failure is genuinely worth
+  // surfacing as an error rather than silently returning zero listings.
+  let listings;
+  try {
+    listings = await fetchLeftiesListingMeta(pm);
+  } catch (err) {
+    console.warn(`[siteImport] Lefties listing-meta fetch failed, retrying once: ${err.message}`);
+    await new Promise((r) => setTimeout(r, 3000));
+    listings = await fetchLeftiesListingMeta(pm);
+  }
 
   const metaByUrl = new Map();
   const perListing = [];
