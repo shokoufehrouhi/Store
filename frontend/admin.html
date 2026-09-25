@@ -1008,10 +1008,15 @@
         <button class="btn btn-primary" onclick="openProductModal()" data-i18n="addProduct">+ افزودن محصول</button>
       </div>
       <div class="page-body">
-        <div class="card" style="padding:14px 20px;margin-bottom:12px">
+        <div class="card" style="padding:14px 20px;margin-bottom:12px;display:flex;gap:10px;align-items:center">
           <input id="product-search" type="text" placeholder="" data-i18n-placeholder="productSearchPlh"
-            style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 14px;font-size:14px;font-family:inherit;outline:none;direction:ltr;text-align:left"
+            style="flex:1;border:1.5px solid var(--border);border-radius:8px;padding:9px 14px;font-size:14px;font-family:inherit;outline:none;direction:ltr;text-align:left"
             oninput="filterProducts()" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+          <select id="product-stock-filter" onchange="filterProducts()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px">
+            <option value="" data-i18n="ordersFilterAll">همه</option>
+            <option value="available" data-i18n="availYes">موجود</option>
+            <option value="sold_out" data-i18n="tagSoldOut">ناموجود</option>
+          </select>
         </div>
         <div class="card"><div class="table-wrap">
           <table>
@@ -3122,9 +3127,12 @@ var _productsPage = 1;
 function filterProducts() {
   _productsPage = 1;
   const q = (document.getElementById('product-search')?.value || '').trim().toLowerCase();
-  if (!q) return renderProductsTable(_allProducts);
+  const stockFilter = document.getElementById('product-stock-filter')?.value || '';
   const tagLabelKey = { bestseller: 'tagBestseller', new: 'tagNew', original: 'tagOriginal', discount: 'tagDiscount', sold_out: 'tagSoldOut' };
   const filtered = _allProducts.filter(p => {
+    if (stockFilter === 'sold_out' && p.tag !== 'sold_out') return false;
+    if (stockFilter === 'available' && p.tag === 'sold_out') return false;
+    if (!q) return true;
     return (p.code                || '').toLowerCase().includes(q) ||
            (p.name_fa             || '').toLowerCase().includes(q) ||
            (p.name_en             || '').toLowerCase().includes(q) ||
