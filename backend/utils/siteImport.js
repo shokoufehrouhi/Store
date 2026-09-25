@@ -2315,6 +2315,23 @@ async function runQueue(items, resources, work) {
   await Promise.all(resources.map(worker));
 }
 
+// Lefties can serve the exact same physical product under two entirely
+// different URLs depending on which listing surfaced it — confirmed live:
+// a crossbody bag was reachable both as .../kadın/çanta/.../makrome-...
+// -c1030511545p747894851.html (its real home, Bags) AND as .../kadın/
+// ayakkabı/makrome-...-c1030267545p747894851.html (Footwear's own category
+// id spliced into the same product's URL, presumably a cross-sell/"you may
+// also like" widget rendering with the browsing context's own category
+// prefix). Same trailing `p<id>.html` both times — that id, not the full
+// URL, is Lefties' actual stable product identifier, so every URL-keyed
+// dedup below (candidates against each other, and against already-imported
+// products) uses it instead. The real bug this caused in production: two
+// separate `products` rows for the same bag, one correctly under Bags, one
+// miscategorized as Footwear because it happened to be discovered there.
+function leftiesProductId(url) {
+  return url.match(/p(\d+)\.html/)?.[1] || url;
+}
+
 async function Lefties(pm, site, opts = {}) {
   const limit = opts.limit || 30;
   await seedLifestyleSubcategories();
@@ -2353,6 +2370,7 @@ async function Lefties(pm, site, opts = {}) {
   if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
 
   const metaByUrl = new Map();
+  const seenProductIds = new Set();
   const perListing = new Array(listings.length).fill(null);
   await runQueue(listings, pms, async (workerPm, listing, idx) => {
     // One flaky navigation (confirmed live: a "Navigation timeout of 30000
@@ -2369,19 +2387,35 @@ async function Lefties(pm, site, opts = {}) {
     } catch (err) {
       console.warn(`[siteImport] Lefties listing failed, skipping: ${listing.url} — ${err.message}`);
     }
-    perListing[idx] = hrefs;
-    hrefs.forEach((h) => { if (!metaByUrl.has(h)) metaByUrl.set(h, listing); });
+    // First listing (in whatever order the shared queue happens to hand
+    // them out) to surface a given product id wins — see leftiesProductId's
+    // own comment for why a raw URL isn't enough here.
+    const deduped = [];
+    for (const h of hrefs) {
+      const pid = leftiesProductId(h);
+      if (seenProductIds.has(pid)) continue;
+      seenProductIds.add(pid);
+      deduped.push(h);
+    }
+    perListing[idx] = deduped;
+    deduped.forEach((h) => { if (!metaByUrl.has(h)) metaByUrl.set(h, listing); });
   });
   const candidateUrls = [];
   for (let i = 0; i < Math.max(...perListing.map((l) => l.length), 0); i++) {
     for (const urls of perListing) if (urls[i]) candidateUrls.push(urls[i]);
   }
 
-  const existing = await prisma.products.findMany({
-    where: { product_link: { in: candidateUrls } },
+  // Matched by product id (see leftiesProductId), not exact product_link
+  // string — a re-run isn't guaranteed to rediscover the same one of
+  // Lefties' several possible URLs for the same product first (concurrent
+  // workers race for queue slots), so an exact-string match against what
+  // got saved last time could miss it and re-import a duplicate again.
+  const existingLinks = await prisma.products.findMany({
+    where: { supplier_shop_name: site.name, product_link: { not: null } },
     select: { product_link: true },
   });
-  const existingSet = new Set(existing.map((e) => e.product_link));
+  const existingIdSet = new Set(existingLinks.map((e) => leftiesProductId(e.product_link)));
+  const existingSet = { has: (url) => existingIdSet.has(leftiesProductId(url)) };
   // A MAX_CANDIDATES_PER_RUN cap used to live here (trimming listing count
   // alone wasn't enough — several surviving listings are still full "See
   // All" aggregates with 100+ products each). Removed after confirming live
