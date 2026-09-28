@@ -5,7 +5,7 @@
 // Runs entirely inside the API process — no system crontab entry needed, so
 // changing the schedule in the admin panel takes effect immediately.
 const prisma = require('./prisma/client');
-const { checkSiteStock, importSite } = require('./utils/siteSync');
+const { checkSiteStock, importSite, cleanupStaleChromeProfiles } = require('./utils/siteSync');
 
 let ranThisMinute = null; // 'HH:MM' of the last minute we already acted on
 
@@ -85,6 +85,11 @@ function start() {
     where: { OR: [{ import_in_progress: true }, { stock_check_in_progress: true }] },
     data: { import_in_progress: false, stock_check_in_progress: false },
   }).catch(err => console.error('[scheduler] failed to clear stale in-progress flags:', err));
+
+  // Same reasoning: a leftover Puppeteer temp profile dir in /tmp is only
+  // possible if the process that launched it is dead, which is guaranteed
+  // true for every one of them right after this process just booted.
+  cleanupStaleChromeProfiles().catch(err => console.error('[scheduler] failed to clean up stale Chrome profiles:', err));
 
   setInterval(() => { tick().catch(err => console.error('[scheduler] tick error:', err)); }, 60 * 1000);
   console.log('[scheduler] site sync scheduler started');

@@ -1,6 +1,9 @@
 // Shared, reusable per-site sync logic — used by both the daily cron
 // scheduler (backend/scheduler.js) and the manual "Sync Now" buttons in the
 // admin panel Sites tab (POST /admin/sites/:id/sync-import|sync-stock).
+const os = require('os');
+const fs = require('fs/promises');
+const path = require('path');
 const prisma = require('../prisma/client');
 const importers = require('./siteImport');
 
@@ -63,7 +66,32 @@ async function withBrowser(fn) {
     return await fn(pm, browser);
   } finally {
     await pm.close();
-    await browser.close();
+    // A crashed/detached browser process can make close() itself throw,
+    // which used to skip Puppeteer's own temp-profile-dir cleanup (this
+    // block is a finally already, but an uncaught throw here would still
+    // replace whatever error `fn` threw with this one, hiding the real
+    // cause) — see cleanupStaleChromeProfiles() below for the case where
+    // the whole process dies before even this line runs.
+    await browser.close().catch(() => {});
+  }
+}
+
+// puppeteer.launch() drops each browser's temp profile dir straight in the
+// OS tmpdir (e.g. /tmp/puppeteer_dev_chrome_profile-*); browser.close() in
+// withBrowser's finally normally removes it, but nothing runs that finally
+// if the whole process dies mid-import (crash, OOM kill, `pm2 restart`) —
+// those dirs (each tens to hundreds of MB) then sit there forever and can
+// fill the disk (this took staging+production fully down on 2026-09-28).
+// Same reasoning as scheduler.js's stale in_progress flags: nothing can
+// genuinely have a live Chrome instance right after this process just
+// booted, so anything matching here is guaranteed orphaned.
+async function cleanupStaleChromeProfiles() {
+  const dir = os.tmpdir();
+  let entries;
+  try { entries = await fs.readdir(dir); } catch { return; }
+  for (const entry of entries) {
+    if (!entry.startsWith('puppeteer_dev_chrome_profile-')) continue;
+    await fs.rm(path.join(dir, entry), { recursive: true, force: true }).catch(() => {});
   }
 }
 
@@ -153,4 +181,4 @@ async function importSite(site, opts = {}) {
   return withBrowser((pm, browser) => importer(pm, site, { ...opts, browser, createPageManager }));
 }
 
-module.exports = { checkSiteStock, importSite, withBrowser };
+module.exports = { checkSiteStock, importSite, withBrowser, cleanupStaleChromeProfiles };
