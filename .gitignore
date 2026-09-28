@@ -8,3 +8,6 @@ backend/public/uploads/*
 # env
 .env
 *.env.local
+
+# local DB backups pulled from the VPS — never commit customer data
+backups_offsite/
