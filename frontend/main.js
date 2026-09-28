@@ -1799,21 +1799,18 @@ function renderPagination(totalItems) {
   // prev arrow
   html += pageBtn(isRtl ? '›' : '‹', currentPage - 1, currentPage === 1, false);
 
-  // page numbers: first 5 while near the start, otherwise a sliding window
-  // around the current page, always anchored by the last 2 pages
+  // page numbers: always the first 5 and the last 2, plus a small window
+  // around the current page so its position is never left unmarked when
+  // it falls outside either end
   if (totalPages <= 7) {
     for (var i = 1; i <= totalPages; i++) html += pageBtn(i, i, false, i === currentPage);
   } else {
     var shown = {};
-    shown[1] = true;
+    for (var i = 1; i <= 5; i++) shown[i] = true;
     shown[totalPages] = true;
     shown[totalPages - 1] = true;
-    if (currentPage <= 5) {
-      for (var i = 1; i <= Math.min(5, totalPages); i++) shown[i] = true;
-    } else {
-      for (var i = currentPage - 1; i <= currentPage + 1; i++) {
-        if (i >= 1 && i <= totalPages) shown[i] = true;
-      }
+    for (var i = currentPage - 1; i <= currentPage + 1; i++) {
+      if (i >= 1 && i <= totalPages) shown[i] = true;
     }
     var sorted = Object.keys(shown).map(Number).sort(function(a, b) { return a - b; });
     for (var k = 0; k < sorted.length; k++) {
