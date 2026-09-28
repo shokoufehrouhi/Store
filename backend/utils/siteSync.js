@@ -147,7 +147,13 @@ async function checkSiteStock(site) {
           if (p.tag !== 'sold_out' || p.stock !== 0 || Object.keys(priceUpdate).length) {
             await prisma.products.update({
               where: { id: p.id },
-              data: { ...priceUpdate, stock: 0, tag: 'sold_out', is_dirty: true, updated_at: new Date() },
+              data: {
+                ...priceUpdate, stock: 0, tag: 'sold_out', is_dirty: true, updated_at: new Date(),
+                // Only stamped on the actual transition into sold_out, not on
+                // every re-check while it stays sold out — see scheduler.js's
+                // month-later auto-deactivation, which reads this.
+                ...(p.tag !== 'sold_out' ? { sold_out_at: new Date() } : {}),
+              },
             });
           }
           results.push({ id: p.id, name: p.name_tr, status: 'sold_out' });

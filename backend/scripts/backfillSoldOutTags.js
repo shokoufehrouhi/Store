@@ -18,7 +18,7 @@ const prisma = require('../prisma/client');
 
 async function applySoldOut(p, staleLabel) {
   if (p.tag === 'sold_out') return false;
-  await prisma.products.update({ where: { id: p.id }, data: { tag: 'sold_out', is_dirty: true } });
+  await prisma.products.update({ where: { id: p.id }, data: { tag: 'sold_out', sold_out_at: new Date(), is_dirty: true } });
   console.log(`#${p.id} tag ${p.tag || '(none)'} -> sold_out (${staleLabel}): ${p.name_tr}`);
   return true;
 }

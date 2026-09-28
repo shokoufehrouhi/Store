@@ -6,12 +6,51 @@
 // changing the schedule in the admin panel takes effect immediately.
 const prisma = require('./prisma/client');
 const { checkSiteStock, importSite, cleanupStaleChromeProfiles } = require('./utils/siteSync');
+const { syncSubcategoryActiveState } = require('./utils/subcategorySync');
 
 let ranThisMinute = null; // 'HH:MM' of the last minute we already acted on
+let ranSoldOutSweepOn = null; // 'YYYY-MM-DD' of the last day we ran the sold-out expiry sweep
 
 function currentHHMM() {
   const d = new Date();
   return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+function currentDateStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// A product stays visibly sold_out for a month (sold_out_at is stamped once,
+// on the transition into sold_out — see resolveProductTag's callers and
+// checkSiteStock — not re-stamped on every check while it stays sold out).
+// Past that, it's deactivated AND published immediately here: every other
+// admin change waits for a manual "Publish" click (a deliberate review step),
+// but nothing about a product having sat sold out for a month needs a human
+// to confirm it should stop showing, so this flips is_live itself rather
+// than just marking it dirty and waiting for the next unrelated publish.
+async function deactivateExpiredSoldOutProducts() {
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - 1);
+
+  const expired = await prisma.products.findMany({
+    where: { tag: 'sold_out', sold_out_at: { lte: cutoff }, is_active: true },
+    select: { id: true, subcategory_id: true, product_categories: { select: { subcategory_id: true } } },
+  });
+  if (!expired.length) return;
+
+  const subcategoryIds = new Set();
+  for (const p of expired) {
+    if (p.subcategory_id) subcategoryIds.add(p.subcategory_id);
+    for (const ec of p.product_categories) if (ec.subcategory_id) subcategoryIds.add(ec.subcategory_id);
+  }
+
+  await prisma.products.updateMany({
+    where: { id: { in: expired.map(p => p.id) } },
+    data: { is_active: false, is_live: false, is_dirty: false, updated_at: new Date() },
+  });
+  for (const id of subcategoryIds) await syncSubcategoryActiveState(id);
+
+  console.log(`[scheduler] auto-deactivated ${expired.length} product(s) sold out for over a month`);
 }
 
 async function runImport(site) {
@@ -50,6 +89,12 @@ async function runStockCheck(site) {
 }
 
 async function tick() {
+  const today = currentDateStr();
+  if (ranSoldOutSweepOn !== today) {
+    ranSoldOutSweepOn = today;
+    await deactivateExpiredSoldOutProducts().catch(err => console.error('[scheduler] sold-out expiry sweep failed:', err));
+  }
+
   const nowHHMM = currentHHMM();
   if (ranThisMinute === nowHHMM) return; // already handled this minute
   const settings = await prisma.sync_settings.findUnique({ where: { id: 1 } });

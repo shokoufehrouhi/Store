@@ -734,6 +734,8 @@ async function createProduct(req, res, next) {
       colors, sizes, media, inventory, extra_categories,
     } = req.body;
 
+    const newTag = resolveProductTag(sizes, tag, inventory, colors);
+
     let finalCode = code?.trim() || null;
     if (!finalCode) {
       const last = await prisma.products.findFirst({
@@ -759,7 +761,8 @@ async function createProduct(req, res, next) {
         desc_en:       desc_en   || null,
         desc_tr:       desc_tr   || null,
         gradient:      gradient  || null,
-        tag:           resolveProductTag(sizes, tag, inventory, colors),
+        tag:           newTag,
+        sold_out_at:   newTag === 'sold_out' ? new Date() : null,
         price:            price     || 0,
         discounted_price: discounted_price != null && discounted_price !== '' ? Number(discounted_price) : null,
         cost_price:       cost_price != null && cost_price !== '' ? Number(cost_price) : null,
@@ -830,11 +833,19 @@ async function updateProduct(req, res, next) {
 
     const before = await prisma.products.findUnique({
       where: { id },
-      select: { subcategory_id: true, product_categories: { select: { subcategory_id: true } } },
+      select: { tag: true, subcategory_id: true, product_categories: { select: { subcategory_id: true } } },
     });
     const affectedSubcategoryIds = new Set(
       [before?.subcategory_id, ...(before?.product_categories || []).map(ec => ec.subcategory_id)].filter(Boolean)
     );
+
+    const newTag = resolveProductTag(sizes, tag, inventory, colors);
+    // sold_out_at marks when a product FIRST went sold out (not re-stamped on
+    // every save while it stays sold out) — the scheduler uses it to
+    // auto-deactivate products a month after this date, see scheduler.js.
+    let soldOutAtUpdate = {};
+    if (newTag === 'sold_out' && before?.tag !== 'sold_out') soldOutAtUpdate = { sold_out_at: new Date() };
+    else if (newTag !== 'sold_out' && before?.tag === 'sold_out') soldOutAtUpdate = { sold_out_at: null };
 
     await prisma.product_colors.deleteMany({ where: { product_id: id } });
     await prisma.product_sizes.deleteMany({ where:  { product_id: id } });
@@ -858,7 +869,8 @@ async function updateProduct(req, res, next) {
         desc_en:       desc_en   || null,
         desc_tr:       desc_tr   || null,
         gradient:      gradient  || null,
-        tag:           resolveProductTag(sizes, tag, inventory, colors),
+        tag:           newTag,
+        ...soldOutAtUpdate,
         price:            price     || 0,
         discounted_price: discounted_price != null && discounted_price !== '' ? Number(discounted_price) : null,
         cost_price:       cost_price != null && cost_price !== '' ? Number(cost_price) : null,
