@@ -648,7 +648,7 @@ model instagram_content {
 model instagram_product_posts {
   id            Int       @id @default(autoincrement())
   product_id    Int
-  status        String    @default("queued") @db.VarChar(20) // queued | posted | failed | skipped
+  status        String    @default("queued") @db.VarChar(20) // queued | posting | posted | failed | skipped
   ig_media_id   String?   @db.VarChar(100)
   posted_at     DateTime? @db.Timestamptz(6)
   error_message String?

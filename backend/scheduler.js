@@ -362,6 +362,22 @@ async function maybePostQueuedProduct() {
   });
   if (!next) return;
 
+  // Claim it atomically before doing any real work: tick() runs every 60s
+  // via setInterval, which does NOT wait for a slow previous tick to finish
+  // -- a carousel post (several images, each its own create+poll round trip)
+  // can easily take longer than 60s, so two overlapping tick() calls could
+  // otherwise both `findFirst` the same still-'queued' row and both actually
+  // post it to the real Instagram account (confirmed live 2026-09-29 -- one
+  // product posted twice; the DB only ever showed one row because both
+  // updates targeted the same id, the second silently overwriting the
+  // first's ig_media_id). This update only succeeds for whichever tick gets
+  // here first; a losing concurrent tick sees claimed.count === 0 and bails.
+  const claimed = await prisma.instagram_product_posts.updateMany({
+    where: { id: next.id, status: 'queued' },
+    data: { status: 'posting' },
+  });
+  if (claimed.count === 0) return; // another concurrent tick already claimed this row
+
   const hasRealPhoto = (next.products.product_media || [])
     .some(m => fs.existsSync(path.join(UPLOADS_DIR, path.basename(m.url))));
   if (!hasRealPhoto) {
@@ -476,6 +492,19 @@ function start() {
   // possible if the process that launched it is dead, which is guaranteed
   // true for every one of them right after this process just booted.
   cleanupStaleChromeProfiles().catch(err => console.error('[scheduler] failed to clean up stale Chrome profiles:', err));
+
+  // Same reasoning again: a row stuck in 'posting' (the atomic-claim state
+  // in maybePostQueuedProduct) means the process died mid-post -- possibly
+  // AFTER Instagram already received it, so requeuing risks a duplicate
+  // post, but leaving it stuck 'posting' forever guarantees it never gets
+  // retried or reviewed either. Back to 'queued' is the same tradeoff
+  // deploy/crash recovery already makes for imports above; a real double-
+  // post from this is rare (needs a crash in the exact multi-second window
+  // between the atomic claim and the actual Graph API call finishing).
+  prisma.instagram_product_posts.updateMany({
+    where: { status: 'posting' },
+    data: { status: 'queued' },
+  }).catch(err => console.error('[scheduler] failed to reset stale posting rows:', err));
 
   setInterval(() => { tick().catch(err => console.error('[scheduler] tick error:', err)); }, 60 * 1000);
   console.log('[scheduler] site sync scheduler started');
