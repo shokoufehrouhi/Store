@@ -178,9 +178,9 @@ async function buildCaptionCard(text) {
   return { buffer, width: boxW, height: boxH };
 }
 
-// Grid positions for n products (2 or 4): a single row for 2, a full 2x2
-// for 4. n===3 is handled separately (buildTrioFan) as an overlapping fan
-// instead of a grid — see its own comment.
+// Grid positions for n products (2-4): a single row for 2, top-pair +
+// bottom-left for 3 (asymmetric -- reads fine, no empty cell drawn since
+// the caller only uses the first n), a full 2x2 for 4.
 function collageGridPositions(n, cardSize, gap) {
   const rowW = cardSize * 2 + gap;
   if (n <= 2) {
@@ -196,32 +196,55 @@ function collageGridPositions(n, cardSize, gap) {
   ];
 }
 
+async function layoutGrid(products, top) {
+  const n = products.length;
+  const cardSize = 420, gap = 16;
+  const positions = collageGridPositions(n, cardSize, gap);
+  const layers = [];
+  for (let i = 0; i < n; i++) {
+    const imgPath = productImagePath(products[i]);
+    if (!imgPath) continue;
+    const card = await photoCard(imgPath, { size: cardSize });
+    layers.push({
+      input: card.buffer,
+      left: Math.round(W / 2 + positions[i].left),
+      top: Math.round(top + positions[i].top),
+    });
+  }
+  return { layers, height: n <= 2 ? cardSize : cardSize * 2 + gap };
+}
+
 // A square rotated by θ has bounding-box side = size*(|cosθ|+|sinθ|) — used
-// to keep every card fully on-canvas when rotated (see buildTrioFan).
+// to keep every card fully on-canvas when rotated (see layoutFan).
 function rotatedHalf(size, deg) {
   const rad = Math.abs(deg) * Math.PI / 180;
   return (size * (Math.cos(rad) + Math.sin(rad))) / 2;
 }
 
-// Exactly 3 products: an overlapping fan (not a clean grid) — left and
-// right cards rotated and tucked behind the centered one, per the user's
-// "photos should overlap, not sit cleanly side by side" request. Returns
-// the composite layers plus how tall the fan is, so the caller can stack
-// the caption/CTA/link below it.
-async function buildTrioFan(products, top) {
+const FAN_ANGLES = { 2: [-8, 8], 3: [-9, 0, 9], 4: [-11, -4, 4, 11] };
+
+// An overlapping fan, cards rotated and tucked behind their neighbors along
+// a horizontal arc (not sitting cleanly side by side) — one of a few
+// randomly-picked layouts so consecutive collages don't all look the same.
+async function layoutFan(products, top) {
+  const n = products.length;
   const layers = [];
-  const size = 380;
-  const angles = [-7, 0, 7];
+  const size = n >= 4 ? 340 : 380;
+  const angles = FAN_ANGLES[n] || FAN_ANGLES[3];
   const maxHalf = Math.max(...angles.map(deg => rotatedHalf(size, deg)));
-  // Overlap by only ~100px of the 380px card (not half of it) so all three
-  // stay clearly identifiable -- an earlier tighter spread buried most of
+  // Overlap by only ~100px of the card (not half of it) so every product
+  // stays clearly identifiable -- an earlier tighter spread buried most of
   // the side cards behind the centered one.
   const spread = Math.min(size - 100, W / 2 - 20 - maxHalf);
-  const xs = [W / 2 - spread, W / 2, W / 2 + spread];
+  const step = n > 1 ? (2 * spread) / (n - 1) : 0;
+  const xs = Array.from({ length: n }, (_, i) => W / 2 - spread + i * step);
   const centerY = top + maxHalf;
-  const drawOrder = [0, 2, 1]; // left, right, then the centered card on top
+  // Draw outer cards first, innermost/centermost last, so the middle of the
+  // fan reads as the "front" card rather than whichever came first in array.
+  const order = [...products.keys()].sort((a, b) => Math.abs(a - (n - 1) / 2) - Math.abs(b - (n - 1) / 2));
+  order.reverse();
 
-  for (const i of drawOrder) {
+  for (const i of order) {
     const imgPath = productImagePath(products[i]);
     if (!imgPath) continue;
     const card = await photoCard(imgPath, { size, rotateDeg: angles[i] });
@@ -232,6 +255,37 @@ async function buildTrioFan(products, top) {
     });
   }
   return { layers, height: maxHalf * 2 };
+}
+
+// A diagonal cascade -- each product steps down and to the right of the
+// previous one, rotated independently, later cards drawn on top. Distinct
+// from both the grid and the fan so it reads as its own template.
+async function layoutCascade(products, top) {
+  const n = products.length;
+  const size = 400;
+  const dx = 95, dy = 85;
+  const angles = [-6, 5, -4, 7];
+  const totalW = size + dx * (n - 1);
+  const totalH = size + dy * (n - 1);
+  const left0 = (W - totalW) / 2;
+  const layers = [];
+  for (let i = 0; i < n; i++) {
+    const imgPath = productImagePath(products[i]);
+    if (!imgPath) continue;
+    const card = await photoCard(imgPath, { size, rotateDeg: angles[i % angles.length] });
+    const left = Math.round(left0 + i * dx - (card.width - size) / 2);
+    const cardTop = Math.round(top + i * dy - (card.height - size) / 2);
+    layers.push({ input: card.buffer, left, top: cardTop });
+  }
+  return { layers, height: totalH + 30 };
+}
+
+// Randomly picks one of the three layouts above so consecutive collages
+// don't all look identical, per explicit request ("hamash yejour nazar").
+async function chooseCollageLayout(products, top) {
+  const templates = [layoutGrid, layoutFan, layoutCascade];
+  const pick = templates[Math.floor(Math.random() * templates.length)];
+  return pick(products, top);
 }
 
 // Story 2: 2-4 products, with a promo headline, a bordered caption card, a
@@ -252,28 +306,10 @@ async function buildCollageStory(products, { headline }) {
   layers.push({ input: headlineBuf, left: Math.round((W - headlineMeta.width) / 2), top: 250 });
 
   const n = Math.min(products.length, 4);
-  const cardSize = 420, gap = 16;
   const gridTop = 440;
-  let gridBottom;
-
-  if (n === 3) {
-    const fan = await buildTrioFan(products, gridTop);
-    layers.push(...fan.layers);
-    gridBottom = gridTop + fan.height;
-  } else {
-    const positions = collageGridPositions(n, cardSize, gap);
-    for (let i = 0; i < n; i++) {
-      const imgPath = productImagePath(products[i]);
-      if (!imgPath) continue;
-      const card = await photoCard(imgPath, { size: cardSize });
-      layers.push({
-        input: card.buffer,
-        left: Math.round(W / 2 + positions[i].left),
-        top: Math.round(gridTop + positions[i].top),
-      });
-    }
-    gridBottom = gridTop + (n <= 2 ? cardSize : cardSize * 2 + gap);
-  }
+  const layout = await chooseCollageLayout(products.slice(0, n), gridTop);
+  layers.push(...layout.layers);
+  const gridBottom = gridTop + layout.height;
 
   const caption = await buildCaptionCard(STANDARD_CAPTION);
   const captionTop = Math.round(gridBottom + 40);
