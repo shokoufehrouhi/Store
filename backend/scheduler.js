@@ -285,9 +285,10 @@ function toHashtag(text) {
 // #Shilista always, plus 4 more -- prefers this product's own brand/category
 // (genuinely "related" to the post) and pads with generic fallback tags only
 // when those aren't available, so it's always exactly 5 tags.
+// Brand goes in the caption body as plain text (below), NOT as a hashtag --
+// only category feeds the dynamic hashtag slot now.
 function buildProductHashtags(product) {
   const dynamicTags = [];
-  if (product.brand) dynamicTags.push(toHashtag(product.brand));
   if (product.categories?.label_en) dynamicTags.push(toHashtag(product.categories.label_en));
 
   const fallbackTags = ['#فشن', '#استایل', '#خرید_آنلاین', '#پوشاک'];
@@ -301,7 +302,8 @@ function buildProductHashtags(product) {
 
 function buildProductCaption(product) {
   const tags = buildProductHashtags(product);
-  return `${product.name_fa}\n\n${product.name_en}\n\n🛍 shilista.com\n\n${tags.join(' ')}`;
+  const brandLine = product.brand ? `\n\n🏷 ${product.brand}` : '';
+  return `${product.name_fa}\n\n${product.name_en}${brandLine}\n\n🛍 shilista.com\n\n${tags.join(' ')}`;
 }
 
 // 2+ real photos -> a carousel (swipeable) post with all of them, up to
@@ -527,6 +529,14 @@ function start() {
     where: { status: 'posting' },
     data: { status: 'queued' },
   }).catch(err => console.error('[scheduler] failed to reset stale posting rows:', err));
+
+  // Same reset for the Story pipeline's own atomic-claim state (see
+  // instagramContentController.js#deployStoryById) -- 'draft' rather than
+  // 'queued' is the equivalent rest state here.
+  prisma.instagram_content.updateMany({
+    where: { status: 'posting' },
+    data: { status: 'draft' },
+  }).catch(err => console.error('[scheduler] failed to reset stale story posting rows:', err));
 
   setInterval(() => { tick().catch(err => console.error('[scheduler] tick error:', err)); }, 60 * 1000);
   console.log('[scheduler] site sync scheduler started');

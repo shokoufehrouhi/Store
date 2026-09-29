@@ -152,4 +152,19 @@ app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT} — build: ${Date.now()}`);
 });
 
-require('./scheduler').start();
+// Staging shares production's database -- if BOTH processes ran the
+// scheduler independently, each would tick on its own 60s timer against the
+// same shared tables (site imports, sold-out sweeps, Instagram story/product
+// generation and auto-posting) with no coordination between them. Confirmed
+// live 2026-09-29: the same evening story slot got generated (and, for the
+// single-product story, actually auto-posted to the real Instagram account)
+// TWICE, ~1 minute apart, from staging and production's independent
+// schedulers both hitting 18:00/19:00. Set ENABLE_SCHEDULER=false in
+// exactly one environment's .env (staging) to designate the other as the
+// sole scheduler; defaults to enabled so nothing breaks if that var is
+// simply absent (i.e. production, which should never disable it).
+if (process.env.ENABLE_SCHEDULER !== 'false') {
+  require('./scheduler').start();
+} else {
+  console.log('[scheduler] disabled via ENABLE_SCHEDULER=false');
+}

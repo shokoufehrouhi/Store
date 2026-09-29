@@ -22,6 +22,21 @@ async function deployStoryById(id) {
   const story = await prisma.instagram_content.findUnique({ where: { id } });
   if (!story || story.status === 'posted') return;
 
+  // Atomic claim, same race-prevention pattern as scheduler.js's
+  // maybePostQueuedProduct: two concurrent callers -- e.g. staging and
+  // production each running their own scheduler against this one shared DB,
+  // or a manual Deploy click racing the scheduled auto-deploy -- could
+  // otherwise both pass the check above and both actually post the same
+  // story to the real Instagram account. Confirmed live 2026-09-29 (staging
+  // + production both auto-generating AND auto-deploying the same evening
+  // slot ~1 minute apart, one real double-post). This update only succeeds
+  // if status hasn't changed since we just read it above.
+  const claimed = await prisma.instagram_content.updateMany({
+    where: { id, status: story.status },
+    data: { status: 'posting' },
+  });
+  if (claimed.count === 0) return; // another caller already claimed this row
+
   const publicUrl = `${process.env.FRONTEND_URL}${story.image_url}`;
   try {
     const creationId = await createStoryContainer(publicUrl);

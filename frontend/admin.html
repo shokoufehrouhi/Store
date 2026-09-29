@@ -5910,8 +5910,9 @@ function igTimeLabel(row) {
 }
 
 function igStatusBadge(row) {
-  if (row.status === 'posted') return `<span style="color:#16a34a;font-weight:600">✅ ${t('igPosted')}</span>`;
-  if (row.status === 'failed') return `<span style="color:#ef4444;font-weight:600">⚠️ ${t('igFailed')}</span>`;
+  if (row.status === 'posted')  return `<span style="color:#16a34a;font-weight:600">✅ ${t('igPosted')}</span>`;
+  if (row.status === 'failed')  return `<span style="color:#ef4444;font-weight:600">⚠️ ${t('igFailed')}</span>`;
+  if (row.status === 'posting') return `<span style="color:#2563eb;font-weight:600">📤 ${t('igPosting')}</span>`;
   return `<span style="color:#a16207;font-weight:600">⏳ ${t('igDraft')}</span>`;
 }
 
@@ -5936,7 +5937,7 @@ function igStoryItem(row) {
         <div style="font-size:11px;color:#999;margin:2px 0">${row.kind === 'single' ? t('igSingle') : t('igCollage')}</div>
         <div style="margin-bottom:8px;font-size:11px">${igStatusBadge(row)}</div>
         ${row.error_message ? `<div style="font-size:10px;color:#ef4444;margin-bottom:6px">${esc(row.error_message)}</div>` : ''}
-        ${_igDeployingIds.has(row.id) ? `
+        ${_igDeployingIds.has(row.id) || row.status === 'posting' ? `
           <div style="font-size:11px;color:#999">⏳ ${t('igDeployInProgress')}</div>
         ` : row.status !== 'posted' ? `
           <div style="display:flex;gap:4px">
