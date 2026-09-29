@@ -155,10 +155,20 @@ async function buildCollageStory(products, { headline, subline }) {
   layers.push({ input: headlineBuf, left: Math.round((W - headlineMeta.width) / 2), top: 300 });
 
   const n = Math.min(products.length, 3);
-  const cardSize = n === 2 ? 620 : 520;
+  const cardSize = n === 2 ? 480 : 420;
   const angles = n === 2 ? [-7, 7] : [-10, 0, 10];
   const centerY = 1150;
-  const spread = n === 2 ? 260 : 300;
+  const margin = 30;
+
+  // A square rotated by θ has bounding-box side = size*(|cosθ|+|sinθ|) — used
+  // to keep every card fully on-canvas (the first cut of this collage placed
+  // cards by center spread alone and clipped the leftmost one off the edge).
+  const rotatedHalf = (deg) => {
+    const rad = Math.abs(deg) * Math.PI / 180;
+    return (cardSize * (Math.cos(rad) + Math.sin(rad))) / 2;
+  };
+  const maxHalf = Math.max(...angles.slice(0, n).map(rotatedHalf));
+  const spread = Math.min(n === 2 ? 220 : 260, W / 2 - margin - maxHalf);
   const xs = n === 2
     ? [W / 2 - spread, W / 2 + spread]
     : [W / 2 - spread, W / 2, W / 2 + spread];
@@ -167,11 +177,8 @@ async function buildCollageStory(products, { headline, subline }) {
     const imgPath = productImagePath(products[i]);
     if (!imgPath) continue;
     const card = await photoCard(imgPath, { size: cardSize, rotateDeg: angles[i] });
-    layers.push({
-      input: card.buffer,
-      left: Math.round(xs[i] - card.width / 2),
-      top: Math.round(centerY - card.height / 2),
-    });
+    const left = Math.round(Math.min(Math.max(xs[i] - card.width / 2, margin), W - margin - card.width));
+    layers.push({ input: card.buffer, left, top: Math.round(centerY - card.height / 2) });
   }
 
   const sublineBuf = await renderText({
