@@ -5870,7 +5870,8 @@ async function loadInstagramContent() {
 
 function igSlotLabel(row) {
   const dateLabel = esc(row.scheduled_date ? row.scheduled_date.slice(0, 10) : '');
-  const timeLabel = row.slot === 'morning' ? '۱۱:۰۰' : '۱۹:۰۰';
+  const faDigits = '۰۱۲۳۴۵۶۷۸۹';
+  const timeLabel = esc(row.slot || '').replace(/[0-9]/g, d => faDigits[d]);
   return `${dateLabel} — ${timeLabel}`;
 }
 

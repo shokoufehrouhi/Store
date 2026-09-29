@@ -15,12 +15,18 @@ const UPLOADS_DIR = path.join(__dirname, 'public/uploads');
 
 let ranThisMinute = null; // 'HH:MM' of the last minute we already acted on
 let ranSoldOutSweepOn = null; // 'YYYY-MM-DD' of the last day we ran the sold-out expiry sweep
-let ranMorningStoryOn = null; // 'YYYY-MM-DD'
-let ranEveningStoryOn = null; // 'YYYY-MM-DD'
-let lastMorningProductId = null; // excluded from the evening collage so the two stories never repeat a product
+let ranMorningOn = null; // 'YYYY-MM-DD' -- covers both 11:00 stories (single + collage)
+let ranEveningSingleOn = null; // 'YYYY-MM-DD'
+let ranEveningCollageOn = null; // 'YYYY-MM-DD'
+let lastMorningSingleProductId = null; // excluded from the 11:00 collage so the two don't repeat a product
+let lastEveningSingleProductId = null; // excluded from the 19:30 collage, same reason
 
-const MORNING_STORY_TIME = '11:00';
-const EVENING_STORY_TIME = '19:00';
+// 11:00 -- single-product + collage together. 19:00 -- a second, differently
+// worded single-product story. 19:30 -- a second collage. Four stories/day
+// total, each a separate draft in admin.html's Instagram Content tab.
+const MORNING_TIME = '11:00';
+const EVENING_SINGLE_TIME = '19:00';
+const EVENING_COLLAGE_TIME = '19:30';
 
 function currentHHMM() {
   const d = new Date();
@@ -112,43 +118,58 @@ function saveGeneratedStoryImage(buffer, prefix) {
 // clicks "Deploy" on the card in admin.html's Instagram Content tab (see
 // instagramContentController.js#deployStory), since this hits the one real,
 // shared Instagram account with no staging/production isolation.
-async function generateMorningStory() {
-  const [product] = await eligibleStoryProducts(1);
-  if (!product) return;
-  const buffer = await buildSingleProductStory(product);
-  const imageUrl = saveGeneratedStoryImage(buffer, 'morning');
+async function generateSingleStory(slot, headline, prefix, excludeIds = []) {
+  const [product] = await eligibleStoryProducts(1, excludeIds);
+  if (!product) return null;
+  const buffer = await buildSingleProductStory(product, { headline });
+  const imageUrl = saveGeneratedStoryImage(buffer, prefix);
   await prisma.instagram_content.create({
     data: {
       kind: 'single',
-      slot: 'morning',
+      slot,
       scheduled_date: new Date(currentDateStr()),
       image_url: imageUrl,
       product_ids: [product.id],
       link: productLink(product),
     },
   });
-  lastMorningProductId = product.id;
+  return product.id;
 }
 
-async function generateEveningStory() {
-  const excludeIds = lastMorningProductId ? [lastMorningProductId] : [];
+async function generateCollageStory(slot, headline, prefix, excludeIds = []) {
   const products = await eligibleStoryProducts(4, excludeIds);
   if (products.length < 2) return; // not enough distinct products for a collage today
-  const buffer = await buildCollageStory(products, {
-    headline: 'پیشنهاد امروز شیلیستا',
-    subline: 'همین الان محصولات ما رو ببین',
-  });
-  const imageUrl = saveGeneratedStoryImage(buffer, 'evening');
+  const buffer = await buildCollageStory(products, { headline });
+  const imageUrl = saveGeneratedStoryImage(buffer, prefix);
   await prisma.instagram_content.create({
     data: {
       kind: 'collage',
-      slot: 'evening',
+      slot,
       scheduled_date: new Date(currentDateStr()),
       image_url: imageUrl,
       product_ids: products.map(p => p.id),
       link: `${process.env.FRONTEND_URL}/index.html`,
     },
   });
+}
+
+async function generateMorningStories() {
+  lastMorningSingleProductId = await generateSingleStory(
+    MORNING_TIME, 'پیشنهاد امروز شیلیستا', 'morning-single'
+  );
+  const excludeIds = lastMorningSingleProductId ? [lastMorningSingleProductId] : [];
+  await generateCollageStory(MORNING_TIME, 'محصولات جدید ما', 'morning-collage', excludeIds);
+}
+
+async function generateEveningSingleStory() {
+  lastEveningSingleProductId = await generateSingleStory(
+    EVENING_SINGLE_TIME, 'پیشنهاد ویژه‌ی امشب', 'evening-single'
+  );
+}
+
+async function generateEveningCollageStory() {
+  const excludeIds = lastEveningSingleProductId ? [lastEveningSingleProductId] : [];
+  await generateCollageStory(EVENING_COLLAGE_TIME, 'انتخاب‌های امشب', 'evening-collage', excludeIds);
 }
 
 async function runImport(site) {
@@ -195,16 +216,20 @@ async function tick() {
 
   const nowHHMM = currentHHMM();
 
-  // Generation only -- never posts by itself. The generated row sits as a
+  // Generation only -- never posts by itself. Each generated row sits as a
   // 'draft' in admin.html's Instagram Content tab until a human clicks
   // Deploy on that specific card (see instagramContentController.js).
-  if (nowHHMM === MORNING_STORY_TIME && ranMorningStoryOn !== today) {
-    ranMorningStoryOn = today;
-    await generateMorningStory().catch(err => console.error('[scheduler] morning story generation failed:', err));
+  if (nowHHMM === MORNING_TIME && ranMorningOn !== today) {
+    ranMorningOn = today;
+    await generateMorningStories().catch(err => console.error('[scheduler] morning story generation failed:', err));
   }
-  if (nowHHMM === EVENING_STORY_TIME && ranEveningStoryOn !== today) {
-    ranEveningStoryOn = today;
-    await generateEveningStory().catch(err => console.error('[scheduler] evening story generation failed:', err));
+  if (nowHHMM === EVENING_SINGLE_TIME && ranEveningSingleOn !== today) {
+    ranEveningSingleOn = today;
+    await generateEveningSingleStory().catch(err => console.error('[scheduler] evening single story generation failed:', err));
+  }
+  if (nowHHMM === EVENING_COLLAGE_TIME && ranEveningCollageOn !== today) {
+    ranEveningCollageOn = today;
+    await generateEveningCollageStory().catch(err => console.error('[scheduler] evening collage story generation failed:', err));
   }
 
   if (ranThisMinute === nowHHMM) return; // already handled this minute

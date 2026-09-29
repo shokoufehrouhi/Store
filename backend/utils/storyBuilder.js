@@ -1,5 +1,6 @@
-// Builds the two daily Instagram Story images (1080x1920) for Shilista's
-// auto-post pipeline: a single-product story and a 2-3 product collage.
+// Builds the daily Instagram Story images (1080x1920) for Shilista's
+// auto-post pipeline: a single-product story and a 2-4 product collage,
+// each called with its own headline at different times of day.
 // Text is rendered via sharp's Pango-backed text input (not hand-rolled SVG
 // <text> — SVG's text-anchor for RTL scripts behaves inconsistently across
 // renderers; Pango gives correct shaping, joining and automatic word-wrap
@@ -19,6 +20,9 @@ const BG_DARK = '#0d0d0d';
 const GOLD    = '#D4AF37';
 const ORANGE  = '#FF5C00';
 const SITE_LINK_TEXT = 'shilista.com';
+// Every story (single-product or collage) ends with the same caption card,
+// CTA and link -- fixed by design, not passed in per-call.
+const STANDARD_CAPTION = 'همین الان محصولات ما رو ببین';
 
 function escapeXml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -82,37 +86,50 @@ function shortenName(name, max = 60) {
   return name.length > max ? name.slice(0, max - 1).trimEnd() + '…' : name;
 }
 
-// Story 1: a single product — logo, hero photo, short name, site link + CTA.
-async function buildSingleProductStory(product) {
+// Story 1: a single product — logo, promo headline, hero photo, short name,
+// the standard caption card, CTA and site link.
+async function buildSingleProductStory(product, { headline }) {
   const layers = [{ input: await solidBackground() }];
 
-  const logo = await sharp(LOGO_PATH).resize({ width: 480 }).toBuffer();
+  const logo = await sharp(LOGO_PATH).resize({ width: 300 }).toBuffer();
   const logoMeta = await sharp(logo).metadata();
-  layers.push({ input: logo, left: Math.round((W - logoMeta.width) / 2), top: 110 });
+  layers.push({ input: logo, left: Math.round((W - logoMeta.width) / 2), top: 70 });
+
+  const headlineBuf = await renderText({
+    text: headline, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black',
+    width: 960, height: 150, color: GOLD,
+  });
+  const headlineMeta = await sharp(headlineBuf).metadata();
+  layers.push({ input: headlineBuf, left: Math.round((W - headlineMeta.width) / 2), top: 200 });
 
   const imgPath = productImagePath(product);
   if (imgPath) {
-    const card = await photoCard(imgPath, { size: 860 });
-    layers.push({ input: card.buffer, left: Math.round((W - card.width) / 2), top: 430 });
+    const card = await photoCard(imgPath, { size: 700 });
+    layers.push({ input: card.buffer, left: Math.round((W - card.width) / 2), top: 380 });
   }
 
   const nameBuf = await renderText({
     text: shortenName(product.name_fa, 70),
     fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold',
-    width: 920, height: 220, color: '#ffffff',
+    width: 920, height: 140, color: '#ffffff',
   });
   const nameMeta = await sharp(nameBuf).metadata();
-  layers.push({ input: nameBuf, left: Math.round((W - nameMeta.width) / 2), top: 1340 });
+  layers.push({ input: nameBuf, left: Math.round((W - nameMeta.width) / 2), top: 1110 });
 
-  const cta = await buildCtaBadge();
-  layers.push({ input: cta.buffer, left: Math.round((W - cta.width) / 2), top: 1620 });
+  const caption = await buildCaptionCard(STANDARD_CAPTION);
+  const captionTop = 1280;
+  layers.push({ input: caption.buffer, left: Math.round((W - caption.width) / 2), top: captionTop });
+
+  const cta = await buildCtaBadge('شروع خرید');
+  const ctaTop = captionTop + caption.height + 30;
+  layers.push({ input: cta.buffer, left: Math.round((W - cta.width) / 2), top: ctaTop });
 
   const linkBuf = await renderText({
     text: SITE_LINK_TEXT, fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium',
     width: 600, height: 80, color: GOLD,
   });
   const linkMeta = await sharp(linkBuf).metadata();
-  layers.push({ input: linkBuf, left: Math.round((W - linkMeta.width) / 2), top: 1770 });
+  layers.push({ input: linkBuf, left: Math.round((W - linkMeta.width) / 2), top: ctaTop + cta.height + 30 });
 
   return sharp({ create: { width: W, height: H, channels: 4, background: BG_DARK } })
     .composite(layers)
@@ -220,7 +237,7 @@ async function buildTrioFan(products, top) {
 // Story 2: 2-4 products, with a promo headline, a bordered caption card, a
 // "شروع خرید" CTA and the site link — kept on-brand (dark bg, gold accents),
 // unlike a straight photo-booth/film-strip mockup which reads off-brand.
-async function buildCollageStory(products, { headline, subline }) {
+async function buildCollageStory(products, { headline }) {
   const layers = [{ input: await solidBackground() }];
 
   const logo = await sharp(LOGO_PATH).resize({ width: 300 }).toBuffer();
@@ -258,7 +275,7 @@ async function buildCollageStory(products, { headline, subline }) {
     gridBottom = gridTop + (n <= 2 ? cardSize : cardSize * 2 + gap);
   }
 
-  const caption = await buildCaptionCard(subline);
+  const caption = await buildCaptionCard(STANDARD_CAPTION);
   const captionTop = Math.round(gridBottom + 40);
   layers.push({ input: caption.buffer, left: Math.round((W - caption.width) / 2), top: captionTop });
 
