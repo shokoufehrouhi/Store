@@ -136,7 +136,7 @@ async function generateEveningStory() {
   if (products.length < 2) return; // not enough distinct products for a collage today
   const buffer = await buildCollageStory(products, {
     headline: 'پیشنهاد امروز شیلیستا',
-    subline: 'تنوع جدید، همین حالا ببین',
+    subline: 'همین الان محصولات ما رو ببین',
   });
   const imageUrl = saveGeneratedStoryImage(buffer, 'evening');
   await prisma.instagram_content.create({
