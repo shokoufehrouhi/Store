@@ -7,9 +7,17 @@
 const prisma = require('./prisma/client');
 const { checkSiteStock, importSite, cleanupStaleChromeProfiles } = require('./utils/siteSync');
 const { syncSubcategoryActiveState } = require('./utils/subcategorySync');
+const { buildSingleProductStory, buildCollageStory } = require('./utils/storyBuilder');
+const { postStory } = require('./utils/instagramPublish');
 
 let ranThisMinute = null; // 'HH:MM' of the last minute we already acted on
 let ranSoldOutSweepOn = null; // 'YYYY-MM-DD' of the last day we ran the sold-out expiry sweep
+let ranMorningStoryOn = null; // 'YYYY-MM-DD'
+let ranEveningStoryOn = null; // 'YYYY-MM-DD'
+let lastMorningProductId = null; // excluded from the evening collage so the two stories never repeat a product
+
+const MORNING_STORY_TIME = '11:00';
+const EVENING_STORY_TIME = '19:00';
 
 function currentHHMM() {
   const d = new Date();
@@ -51,6 +59,52 @@ async function deactivateExpiredSoldOutProducts() {
   for (const id of subcategoryIds) await syncSubcategoryActiveState(id);
 
   console.log(`[scheduler] auto-deactivated ${expired.length} product(s) sold out for over a month`);
+}
+
+// Pool of postable products, freshest first (recent imports/edits are the
+// most relevant thing to promote day-to-day) — pulled a bit deeper than
+// `limit` and shuffled so the same top few items don't lead every story.
+async function eligibleStoryProducts(limit, excludeIds = []) {
+  const pool = await prisma.products.findMany({
+    where: {
+      is_active: true,
+      is_live: true,
+      tag: { not: 'sold_out' },
+      id: { notIn: excludeIds },
+      product_media: { some: {} },
+    },
+    include: { product_media: { take: 1 } },
+    orderBy: { updated_at: 'desc' },
+    take: Math.max(limit * 10, 30),
+  });
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, limit);
+}
+
+function productLink(product) {
+  return `${process.env.FRONTEND_URL}/product.html?id=${product.id}`;
+}
+
+async function postMorningStory() {
+  const [product] = await eligibleStoryProducts(1);
+  if (!product) return;
+  const buffer = await buildSingleProductStory(product);
+  await postStory(buffer, { name: `morning-${product.id}`, link: productLink(product) });
+  lastMorningProductId = product.id;
+}
+
+async function postEveningStory() {
+  const excludeIds = lastMorningProductId ? [lastMorningProductId] : [];
+  const products = await eligibleStoryProducts(3, excludeIds);
+  if (products.length < 2) return; // not enough distinct products for a collage today
+  const buffer = await buildCollageStory(products, {
+    headline: 'پیشنهاد امروز شیلیستا',
+    subline: 'تنوع جدید، همین حالا ببین',
+  });
+  await postStory(buffer, { name: 'evening-collage', link: `${process.env.FRONTEND_URL}/index.html` });
 }
 
 async function runImport(site) {
@@ -96,6 +150,16 @@ async function tick() {
   }
 
   const nowHHMM = currentHHMM();
+
+  if (nowHHMM === MORNING_STORY_TIME && ranMorningStoryOn !== today) {
+    ranMorningStoryOn = today;
+    await postMorningStory().catch(err => console.error('[scheduler] morning story failed:', err));
+  }
+  if (nowHHMM === EVENING_STORY_TIME && ranEveningStoryOn !== today) {
+    ranEveningStoryOn = today;
+    await postEveningStory().catch(err => console.error('[scheduler] evening story failed:', err));
+  }
+
   if (ranThisMinute === nowHHMM) return; // already handled this minute
   const settings = await prisma.sync_settings.findUnique({ where: { id: 1 } });
   if (!settings) return;
