@@ -265,9 +265,9 @@ async function layoutFan(products, top) {
 // a fixed small step that hid too much of each product ("maloum nist
 // product-e zir chi hast").
 const CASCADE_PARAMS = {
-  2: { size: 420, dx: 350, dy: 330 },
-  3: { size: 340, dx: 280, dy: 270 },
-  4: { size: 260, dx: 210, dy: 205 },
+  2: { size: 480, dx: 400, dy: 375 },
+  3: { size: 350, dx: 290, dy: 280 },
+  4: { size: 270, dx: 220, dy: 215 },
 };
 
 async function layoutCascade(products, top) {
@@ -277,12 +277,16 @@ async function layoutCascade(products, top) {
   const totalW = size + dx * (n - 1);
   const totalH = size + dy * (n - 1);
   const left0 = (W - totalW) / 2;
+  // Random per generation: top-left→bottom-right (default) or mirrored
+  // top-right→bottom-left, so the diagonal direction itself varies too.
+  const mirrored = Math.random() < 0.5;
   const layers = [];
   for (let i = 0; i < n; i++) {
     const imgPath = productImagePath(products[i]);
     if (!imgPath) continue;
     const card = await photoCard(imgPath, { size, rotateDeg: angles[i % angles.length] });
-    const left = Math.round(left0 + i * dx - (card.width - size) / 2);
+    const col = mirrored ? (n - 1 - i) : i;
+    const left = Math.round(left0 + col * dx - (card.width - size) / 2);
     const cardTop = Math.round(top + i * dy - (card.height - size) / 2);
     layers.push({ input: card.buffer, left, top: cardTop });
   }
