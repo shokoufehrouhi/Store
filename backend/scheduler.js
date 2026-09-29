@@ -1,12 +1,22 @@
-// In-process scheduler for the two site-sync jobs. Stock checks still run
-// for every active site at one shared time (sync_settings.stock_check_
-// schedule_time). Imports now stagger per site -- sync_settings.import_
-// schedule_time is only the *first* site's time, each subsequent active site
-// (ordered by id) runs SITE_IMPORT_STAGGER_HOURS later (see tick()). Manual
-// per-site control is still the "Sync Now" button (sitesController.js#
-// syncImport/syncStock) regardless of either schedule.
+// In-process scheduler for the two site-sync jobs. Their time is a single
+// global setting (sync_settings, one row) — at that time, every active site
+// is checked/imported, not a per-site schedule. Per-site control is only the
+// manual "Sync Now" button (see sitesController.js#syncImport/syncStock).
 // Runs entirely inside the API process — no system crontab entry needed, so
 // changing the schedule in the admin panel takes effect immediately.
+//
+// Imports were briefly staggered 2h apart per site (2026-09-29) to space out
+// Instagram posting from new-product imports -- reverted the same day once
+// the product-post queue got its own independent drip-feed rate + daily cap
+// (see instagram_product_posts / maybePostQueuedProduct below), which made
+// import timing irrelevant to Instagram safety. Staggering also had a real
+// bug: each site got its own independently-checked time instead of one
+// sequential loop, so a site whose import overran its 2h window (Lefties
+// alone can take 1-2+ hours) could start overlapping with the next site's
+// Chrome instance -- the exact CPU/RAM contention this file's original
+// switch to sequential imports (missing-await fix, predates this feature)
+// existed to prevent. Back to one shared time + a single sequential
+// for-loop, which can't overlap no matter how long any one site takes.
 const prisma = require('./prisma/client');
 const { checkSiteStock, importSite, cleanupStaleChromeProfiles } = require('./utils/siteSync');
 const { syncSubcategoryActiveState } = require('./utils/subcategorySync');
@@ -18,8 +28,7 @@ const path = require('path');
 
 const UPLOADS_DIR = path.join(__dirname, 'public/uploads');
 
-let ranStockCheckOn = null; // 'YYYY-MM-DD' of the last day the global stock-check ran
-let ranSiteImportOn = new Map(); // site.id -> 'YYYY-MM-DD' of the last day that site's staggered import ran
+let ranThisMinute = null; // 'HH:MM' of the last minute we already acted on
 let ranSoldOutSweepOn = null; // 'YYYY-MM-DD' of the last day we ran the sold-out expiry sweep
 let ranMorningGenOn = null; // 'YYYY-MM-DD' -- 10:00 generation of both morning drafts
 let ranEveningGenOn = null; // 'YYYY-MM-DD' -- 18:00 generation of both evening drafts
@@ -51,16 +60,6 @@ function currentDateStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-// Adds `hours` (wrapping past midnight) to an 'HH:MM' string — used to
-// stagger each active site's import 2h after the previous one, starting
-// from sync_settings.import_schedule_time as the first site's time.
-function addHours(hhmm, hours) {
-  const [h, m] = hhmm.split(':').map(Number);
-  const total = ((h * 60 + m + hours * 60) % (24 * 60) + 24 * 60) % (24 * 60);
-  return String(Math.floor(total / 60)).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
-}
-
-const SITE_IMPORT_STAGGER_HOURS = 2;
 const PRODUCT_POST_INTERVAL_MS = 15 * 60 * 1000; // drip-feed rate for new-product Instagram posts (2 per 30min)
 
 // A product stays visibly sold_out for a month (sold_out_at is stamped once,
@@ -414,35 +413,25 @@ async function tick() {
     await autoDeploySlot(EVENING_COLLAGE_TIME).catch(err => console.error('[scheduler] evening collage auto-deploy failed:', err));
   }
 
-  const settings = await prisma.sync_settings.findUnique({ where: { id: 1 } });
-  if (settings) {
-    const sites = await prisma.sites.findMany({ where: { is_active: true }, orderBy: { id: 'asc' } });
-
-    if (settings.stock_check_schedule_time === nowHHMM && ranStockCheckOn !== today) {
-      ranStockCheckOn = today;
+  if (ranThisMinute !== nowHHMM) {
+    const settings = await prisma.sync_settings.findUnique({ where: { id: 1 } });
+    if (settings && (settings.import_schedule_time === nowHHMM || settings.stock_check_schedule_time === nowHHMM)) {
+      ranThisMinute = nowHHMM;
+      const sites = await prisma.sites.findMany({ where: { is_active: true } });
       // Sequential, not fire-and-forget: each site gets its own full Puppeteer/
-      // Chrome instance (see backend/utils/siteSync.js#withBrowser) — running
-      // them all at once means several simultaneous Chrome processes
-      // competing for this VPS's CPU/RAM, not just a slow individual run.
-      for (const site of sites) await runStockCheck(site);
-    }
-
-    // Each active site gets its own import time, staggered
-    // SITE_IMPORT_STAGGER_HOURS apart starting from
-    // sync_settings.import_schedule_time (the first site's time) — a single
-    // shared trigger time meant every active site's import kicked off at
-    // once, which for import-heavy sites (Lefties alone can run 1-2+ hours,
-    // see siteImport.js's history) stacked up multiple simultaneous Chrome
-    // processes. Ordered by id (creation order), not name, so a site's slot
-    // doesn't shift just because another site was renamed.
-    if (settings.import_schedule_time) {
-      for (let i = 0; i < sites.length; i++) {
-        const site = sites[i];
-        const importTime = addHours(settings.import_schedule_time, SITE_IMPORT_STAGGER_HOURS * i);
-        if (nowHHMM === importTime && ranSiteImportOn.get(site.id) !== today) {
-          ranSiteImportOn.set(site.id, today);
-          await runImport(site).catch(err => console.error(`[scheduler] import failed for site ${site.id} (${site.name}):`, err));
-        }
+      // Chrome instance (see backend/utils/siteSync.js#withBrowser), and this
+      // used to kick off every active site's import at once — confirmed live
+      // that at import-heavy site counts (Lefties alone can run 1-2+ hours with
+      // no candidate cap, see siteImport.js's own history) that means several
+      // simultaneous Chrome processes competing for this VPS's CPU/RAM, not
+      // just a slow individual run. One site at a time costs total wall-clock
+      // time instead, which is the right tradeoff for an unattended overnight
+      // job — nothing is waiting on it to finish quickly.
+      if (settings.import_schedule_time === nowHHMM) {
+        for (const site of sites) await runImport(site);
+      }
+      if (settings.stock_check_schedule_time === nowHHMM) {
+        for (const site of sites) await runStockCheck(site);
       }
     }
   }
