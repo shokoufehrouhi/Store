@@ -61,7 +61,7 @@ function addHours(hhmm, hours) {
 }
 
 const SITE_IMPORT_STAGGER_HOURS = 2;
-const PRODUCT_POST_INTERVAL_MS = 30 * 60 * 1000; // drip-feed rate for new-product Instagram posts
+const PRODUCT_POST_INTERVAL_MS = 15 * 60 * 1000; // drip-feed rate for new-product Instagram posts (2 per 30min)
 
 // A product stays visibly sold_out for a month (sold_out_at is stamped once,
 // on the transition into sold_out — see resolveProductTag's callers and
@@ -302,11 +302,30 @@ async function postQueuedProductToInstagram(row) {
   }
 }
 
+// Sum of every active site's daily_ig_post_limit -- the hard ceiling on how
+// many product posts go out in a single calendar day, independent of the
+// drip-feed rate. Recomputed live (not cached) so changing a site's limit
+// in the admin panel takes effect the same day.
+async function totalDailyPostCap() {
+  const sites = await prisma.sites.findMany({ where: { is_active: true }, select: { daily_ig_post_limit: true } });
+  return sites.reduce((sum, s) => sum + s.daily_ig_post_limit, 0);
+}
+
+async function productPostsMadeToday() {
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  return prisma.instagram_product_posts.count({
+    where: { status: 'posted', posted_at: { gte: startOfDay } },
+  });
+}
+
 // Posts at most one queued new-product row per PRODUCT_POST_INTERVAL_MS,
 // derived from the last actual post time (not an in-memory timer, so it
-// self-corrects across restarts instead of bursting). Only considers
-// products that have actually gone live (an admin publish can lag well
-// behind import) -- skips (not blocks on) a row whose photo file is
+// self-corrects across restarts instead of bursting) -- and never more than
+// totalDailyPostCap() posts in a single calendar day, even if the queue has
+// backlog from a slower day and the rate alone would allow more. Only
+// considers products that have actually gone live (an admin publish can lag
+// well behind import) -- skips (not blocks on) a row whose photo file is
 // missing, same defensive pattern as eligibleStoryProducts.
 async function maybePostQueuedProduct() {
   const last = await prisma.instagram_product_posts.findFirst({
@@ -314,6 +333,9 @@ async function maybePostQueuedProduct() {
     orderBy: { posted_at: 'desc' },
   });
   if (last && Date.now() - new Date(last.posted_at).getTime() < PRODUCT_POST_INTERVAL_MS) return;
+
+  const [postedToday, dailyCap] = await Promise.all([productPostsMadeToday(), totalDailyPostCap()]);
+  if (postedToday >= dailyCap) return; // today's combined per-brand cap already reached
 
   const next = await prisma.instagram_product_posts.findFirst({
     where: { status: 'queued', products: { is_active: true, is_live: true } },
