@@ -80,11 +80,19 @@ async function eligibleStoryProducts(limit, excludeIds = []) {
     orderBy: { updated_at: 'desc' },
     take: Math.max(limit * 10, 30),
   });
-  for (let i = pool.length - 1; i > 0; i--) {
+  // A product_media row pointing at a file that's actually missing on disk
+  // (seen in production data) would otherwise crash sharp mid-render —
+  // filter those out here rather than letting generateMorning/EveningStory
+  // fail silently for the whole day.
+  const withFiles = pool.filter(p => {
+    const media = p.product_media[0];
+    return media && fs.existsSync(path.join(UPLOADS_DIR, path.basename(media.url)));
+  });
+  for (let i = withFiles.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+    [withFiles[i], withFiles[j]] = [withFiles[j], withFiles[i]];
   }
-  return pool.slice(0, limit);
+  return withFiles.slice(0, limit);
 }
 
 function productLink(product) {
