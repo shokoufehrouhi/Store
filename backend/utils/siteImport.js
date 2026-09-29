@@ -317,17 +317,25 @@ async function Defacto(pm, site, opts = {}) {
   const imported = [];
   let skipped = candidateUrls.length - newUrls.length;
 
-  for (const url of newUrls) {
+  // Up to 4 PageManagers sharing this run's one already-launched browser
+  // (separate tabs, not separate browsers) -- same pattern as Lefties, see
+  // its own comment for why this is deliberately not one browser per worker.
+  const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
+  const CONCURRENCY = canParallelize ? 4 : 1;
+  const pms = [pm];
+  if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
+
+  async function processOne(workerPm, url) {
     try {
-      const data = await scrapeDefactoProduct(pm, url);
-      if (!data.name || !data.originalPrice) { continue; }
+      const data = await scrapeDefactoProduct(workerPm, url);
+      if (!data.name || !data.originalPrice) { return; }
       // Most listings here are discount-only already, but Kozmetik isn't
       // (Defacto has no dedicated cosmetics discount page) — it mixes
       // full-price items in, and every listing's own "on sale" flag proved
       // unreliable (data-discount="False" even on visibly discounted
       // cards). The one signal that's actually correct: does the product's
       // own page show a live "Sepette X TL" discounted price at all?
-      if (!data.discountedPrice) { continue; }
+      if (!data.discountedPrice) { return; }
       const meta = metaByUrl.get(url);
       const gender = guessGenderFromTitle(data.title, meta.gender);
       // size_label is VARCHAR(10) — adult sizes (S/M/38/...) fit fine, but
@@ -344,7 +352,7 @@ async function Defacto(pm, site, opts = {}) {
       // customers a "discount" that's actually more expensive than the
       // "original" price on the same page. Never import (or keep visible)
       // something in that state.
-      if (discountedPrice > priceOriginal) { skipped++; continue; }
+      if (discountedPrice > priceOriginal) { skipped++; return; }
       // Markup can also land the marked-up price exactly AT the original
       // price (0% real saving left) — not broken like the > case, so it's
       // still worth importing, just not as a "discount": tag it 'original'
@@ -421,6 +429,9 @@ async function Defacto(pm, site, opts = {}) {
       imported.push({ error: err.message, url });
     }
   }
+
+  await runQueue(newUrls, pms, (workerPm, url) => processOne(workerPm, url));
+  for (let i = 1; i < pms.length; i++) await pms[i].close().catch(() => {});
 
   return { imported, skipped };
 }
@@ -581,12 +592,17 @@ async function MadameCoco(pm, site, opts = {}) {
   const imported = [];
   let notDiscounted = 0;
 
-  for (const url of newUrls) {
-    if (imported.filter(p => !p.error).length >= limit) break;
+  const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
+  const CONCURRENCY = canParallelize ? 4 : 1;
+  const pms = [pm];
+  if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
+
+  async function processOne(workerPm, url) {
+    if (imported.filter(p => !p.error).length >= limit) return;
     try {
-      const data = await scrapeMadameCocoProduct(pm, url);
-      if (!data || !data.name || data.price == null) continue;
-      if (!data.firstPrice || data.firstPrice <= data.price) { notDiscounted++; continue; }
+      const data = await scrapeMadameCocoProduct(workerPm, url);
+      if (!data || !data.name || data.price == null) return;
+      if (!data.firstPrice || data.firstPrice <= data.price) { notDiscounted++; return; }
 
       const subcategoryId = data.categorySlug ? getLifestyleSubcategoryId(data.categorySlug) : null;
 
@@ -596,7 +612,7 @@ async function MadameCoco(pm, site, opts = {}) {
       // Markup on top of an already-discounted price can push the marked-up
       // price above the source's original price — never import something
       // whose "discount" would show as more expensive than its "original".
-      if (discountedPrice > priceOriginal) { notDiscounted++; continue; }
+      if (discountedPrice > priceOriginal) { notDiscounted++; return; }
       // Landing exactly AT the original price (0% real saving left) isn't
       // broken like the > case, so it's still worth importing — just not
       // tagged 'discount', so it doesn't show up wherever the site filters
@@ -648,6 +664,9 @@ async function MadameCoco(pm, site, opts = {}) {
       imported.push({ error: err.message, url });
     }
   }
+
+  await runQueue(newUrls, pms, (workerPm, url) => processOne(workerPm, url));
+  for (let i = 1; i < pms.length; i++) await pms[i].close().catch(() => {});
 
   return { imported, skipped: notDiscounted + (candidateUrls.length - newUrls.length) };
 }
@@ -835,14 +854,19 @@ async function Zara(pm, site, opts = {}) {
   const imported = [];
   let notDiscounted = 0;
 
-  for (const url of newUrls) {
-    if (imported.filter(p => !p.error).length >= limit) break;
+  const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
+  const CONCURRENCY = canParallelize ? 4 : 1;
+  const pms = [pm];
+  if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
+
+  async function processOne(workerPm, url) {
+    if (imported.filter(p => !p.error).length >= limit) return;
     try {
-      const data = await scrapeZaraProduct(pm, url);
-      if (!data || !data.name) continue;
+      const data = await scrapeZaraProduct(workerPm, url);
+      if (!data || !data.name) return;
       const originalPrice = parseTLPrice(data.delText);
       const discountedPrice = parseTLPrice(data.insText);
-      if (!originalPrice || discountedPrice == null || originalPrice <= discountedPrice) { notDiscounted++; continue; }
+      if (!originalPrice || discountedPrice == null || originalPrice <= discountedPrice) { notDiscounted++; return; }
 
       const listingMeta = metaByUrl.get(url) || { kind: 'clothing' };
       let category_id, subcategory_id, gender;
@@ -867,7 +891,7 @@ async function Zara(pm, site, opts = {}) {
       // Markup on top of an already-discounted price can push the marked-up
       // price above the source's original price — never import something
       // whose "discount" would show as more expensive than its "original".
-      if (finalDiscountedPrice > priceOriginal) { notDiscounted++; continue; }
+      if (finalDiscountedPrice > priceOriginal) { notDiscounted++; return; }
       // Landing exactly AT the original price (0% real saving left) isn't
       // broken like the > case, so it's still worth importing — just not
       // tagged 'discount', so it doesn't show up wherever the site filters
@@ -933,6 +957,9 @@ async function Zara(pm, site, opts = {}) {
       imported.push({ error: err.message, url });
     }
   }
+
+  await runQueue(newUrls, pms, (workerPm, url) => processOne(workerPm, url));
+  for (let i = 1; i < pms.length; i++) await pms[i].close().catch(() => {});
 
   return { imported, skipped: notDiscounted + (candidateUrls.length - newUrls.length) };
 }
@@ -1203,15 +1230,20 @@ async function LCWaikiki(pm, site, opts = {}) {
   let notDiscounted = 0;
   let wrongBrand = 0;
 
-  for (const url of newUrls) {
-    if (imported.filter(p => !p.error).length >= limit) break;
+  const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
+  const CONCURRENCY = canParallelize ? 4 : 1;
+  const pms = [pm];
+  if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
+
+  async function processOne(workerPm, url) {
+    if (imported.filter(p => !p.error).length >= limit) return;
     try {
-      const data = await scrapeLcWaikikiProduct(pm, url);
-      if (!data || !data.name) continue;
-      if (data.seller !== LCW_BRAND_SELLER) { wrongBrand++; continue; }
+      const data = await scrapeLcWaikikiProduct(workerPm, url);
+      if (!data || !data.name) return;
+      if (data.seller !== LCW_BRAND_SELLER) { wrongBrand++; return; }
       const originalPrice = parseTLPrice(data.originalText);
       const discountedPrice = parseTLPrice(data.discountedText);
-      if (!originalPrice || discountedPrice == null || originalPrice <= discountedPrice) { notDiscounted++; continue; }
+      if (!originalPrice || discountedPrice == null || originalPrice <= discountedPrice) { notDiscounted++; return; }
 
       const listingMeta = metaByUrl.get(url) || { gender: 'unisex' };
       const gender = guessGenderFromTitle(data.title, listingMeta.gender);
@@ -1232,7 +1264,7 @@ async function LCWaikiki(pm, site, opts = {}) {
         markupPercent: site.markup_percent,
         finalDiscountedPrice, priceOriginal,
       });
-      if (!tag) { notDiscounted++; continue; }
+      if (!tag) { notDiscounted++; return; }
 
       const translateOrWarn = (text, target) => translateText(text, 'tr', target)
         .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
@@ -1293,6 +1325,9 @@ async function LCWaikiki(pm, site, opts = {}) {
       imported.push({ error: err.message, url });
     }
   }
+
+  await runQueue(newUrls, pms, (workerPm, url) => processOne(workerPm, url));
+  for (let i = 1; i < pms.length; i++) await pms[i].close().catch(() => {});
 
   return { imported, skipped: notDiscounted + wrongBrand + (candidateUrls.length - newUrls.length) };
 }
@@ -1527,14 +1562,19 @@ async function Koton(pm, site, opts = {}) {
   const imported = [];
   let notDiscounted = 0;
 
-  for (const url of newUrls) {
-    if (imported.filter(p => !p.error).length >= limit) break;
+  const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
+  const CONCURRENCY = canParallelize ? 4 : 1;
+  const pms = [pm];
+  if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
+
+  async function processOne(workerPm, url) {
+    if (imported.filter(p => !p.error).length >= limit) return;
     try {
-      const data = await scrapeKotonProduct(pm, url);
-      if (!data || !data.name) continue;
+      const data = await scrapeKotonProduct(workerPm, url);
+      if (!data || !data.name) return;
       const originalPrice = parseTLPrice(data.originalText);
       const discountedPrice = parseTLPrice(data.discountedText);
-      if (!originalPrice || discountedPrice == null || originalPrice <= discountedPrice) { notDiscounted++; continue; }
+      if (!originalPrice || discountedPrice == null || originalPrice <= discountedPrice) { notDiscounted++; return; }
 
       const listingMeta = metaByUrl.get(url) || { gender: 'unisex' };
       const gender = guessKotonGender(data.breadcrumbNames, listingMeta.gender);
@@ -1548,7 +1588,7 @@ async function Koton(pm, site, opts = {}) {
         markupPercent: site.markup_percent,
         finalDiscountedPrice, priceOriginal,
       });
-      if (!tag) { notDiscounted++; continue; }
+      if (!tag) { notDiscounted++; return; }
 
       const category_id = routeKotonCategory(data.breadcrumbNames);
       const subcategory_id = category_id === 1 ? guessSubcategoryId(data.name, 1)
@@ -1615,6 +1655,9 @@ async function Koton(pm, site, opts = {}) {
       imported.push({ error: err.message, url });
     }
   }
+
+  await runQueue(newUrls, pms, (workerPm, url) => processOne(workerPm, url));
+  for (let i = 1; i < pms.length; i++) await pms[i].close().catch(() => {});
 
   return { imported, skipped: notDiscounted + (candidateUrls.length - newUrls.length) };
 }
