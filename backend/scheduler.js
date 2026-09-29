@@ -22,6 +22,7 @@ const { checkSiteStock, importSite, cleanupStaleChromeProfiles } = require('./ut
 const { syncSubcategoryActiveState } = require('./utils/subcategorySync');
 const { buildSingleProductStory, buildCollageStory } = require('./utils/storyBuilder');
 const { deployStoryById } = require('./controllers/instagramContentController');
+const { queueNewProductsForInstagram } = require('./utils/instagramProductQueue');
 const { createFeedContainer, publishContainer } = require('./utils/instagramPublish');
 const fs = require('fs');
 const path = require('path');
@@ -260,12 +261,7 @@ async function runImport(site) {
     // Queue up to this site's configured daily cap of today's new products
     // for an automatic Instagram feed post (drip-fed, see
     // maybePostQueuedProduct) -- not every single import, per-brand limit.
-    const toQueue = ok.slice(0, site.daily_ig_post_limit);
-    if (toQueue.length) {
-      await prisma.instagram_product_posts.createMany({
-        data: toQueue.map(r => ({ product_id: r.id })),
-      });
-    }
+    await queueNewProductsForInstagram(site, result.imported);
 
     await prisma.sites.update({
       where: { id: site.id },

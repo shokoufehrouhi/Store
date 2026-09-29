@@ -1,5 +1,6 @@
 const prisma = require('../prisma/client');
 const { checkSiteStock, importSite } = require('../utils/siteSync');
+const { queueNewProductsForInstagram } = require('../utils/instagramProductQueue');
 
 async function listSites(req, res, next) {
   try {
@@ -113,14 +114,19 @@ async function syncImport(req, res, next) {
     res.json({ success: true, data: { started: true } });
 
     importSite(site, { limit: 30 })
-      .then(result => prisma.sites.update({
-        where: { id },
-        data: {
-          import_in_progress: false,
-          last_import_at: new Date(),
-          last_import_status: `imported ${result.imported.filter(r => !r.error).length}, ${result.imported.filter(r => r.error).length} errors, ${result.skipped || 0} skipped`,
-        },
-      }))
+      .then(async result => {
+        // Same queueing as the scheduled import (scheduler.js#runImport) --
+        // these are two separate code paths, easy to forget to keep in sync.
+        await queueNewProductsForInstagram(site, result.imported);
+        return prisma.sites.update({
+          where: { id },
+          data: {
+            import_in_progress: false,
+            last_import_at: new Date(),
+            last_import_status: `imported ${result.imported.filter(r => !r.error).length}, ${result.imported.filter(r => r.error).length} errors, ${result.skipped || 0} skipped`,
+          },
+        });
+      })
       .catch(err => prisma.sites.update({
         where: { id },
         data: { import_in_progress: false, last_import_at: new Date(), last_import_status: `error: ${err.message}` },
