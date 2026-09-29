@@ -151,13 +151,18 @@ async function tick() {
 
   const nowHHMM = currentHHMM();
 
-  if (nowHHMM === MORNING_STORY_TIME && ranMorningStoryOn !== today) {
-    ranMorningStoryOn = today;
-    await postMorningStory().catch(err => console.error('[scheduler] morning story failed:', err));
-  }
-  if (nowHHMM === EVENING_STORY_TIME && ranEveningStoryOn !== today) {
-    ranEveningStoryOn = today;
-    await postEveningStory().catch(err => console.error('[scheduler] evening story failed:', err));
+  // Off by default: this actually posts to the real, shared Instagram
+  // account (no staging/production isolation for it), so it must stay off
+  // until a human explicitly sets INSTAGRAM_AUTOPOST_ENABLED=true in .env.
+  if (process.env.INSTAGRAM_AUTOPOST_ENABLED === 'true') {
+    if (nowHHMM === MORNING_STORY_TIME && ranMorningStoryOn !== today) {
+      ranMorningStoryOn = today;
+      await postMorningStory().catch(err => console.error('[scheduler] morning story failed:', err));
+    }
+    if (nowHHMM === EVENING_STORY_TIME && ranEveningStoryOn !== today) {
+      ranEveningStoryOn = today;
+      await postEveningStory().catch(err => console.error('[scheduler] evening story failed:', err));
+    }
   }
 
   if (ranThisMinute === nowHHMM) return; // already handled this minute
