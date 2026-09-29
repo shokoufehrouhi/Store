@@ -120,8 +120,7 @@ async function buildSingleProductStory(product) {
     .toBuffer();
 }
 
-async function buildCtaBadge() {
-  const text = 'مشاهده و خرید';
+async function buildCtaBadge(text = 'مشاهده و خرید') {
   const padX = 60, textH = 90;
   const textBuf = await renderText({
     text, fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold',
@@ -162,22 +161,15 @@ async function buildCaptionCard(text) {
   return { buffer, width: boxW, height: boxH };
 }
 
-// Grid positions for n products (2-4), centered on centerX/centerY relative
-// offsets: a single row for 2, a top-pair + centered bottom card for 3 (no
-// empty cell in the last row), a full 2x2 for 4.
+// Grid positions for n products (2 or 4): a single row for 2, a full 2x2
+// for 4. n===3 is handled separately (buildTrioFan) as an overlapping fan
+// instead of a grid — see its own comment.
 function collageGridPositions(n, cardSize, gap) {
   const rowW = cardSize * 2 + gap;
   if (n <= 2) {
     const totalW = cardSize * n + gap * (n - 1);
     const left0 = -totalW / 2;
     return Array.from({ length: n }, (_, i) => ({ left: left0 + i * (cardSize + gap), top: 0 }));
-  }
-  if (n === 3) {
-    return [
-      { left: -rowW / 2, top: 0 },
-      { left: -rowW / 2 + cardSize + gap, top: 0 },
-      { left: -cardSize / 2, top: cardSize + gap },
-    ];
   }
   return [
     { left: -rowW / 2, top: 0 },
@@ -187,8 +179,43 @@ function collageGridPositions(n, cardSize, gap) {
   ];
 }
 
-// Story 2: 2-4 products in a clean grid (up to 2x2), with a promo headline
-// and a bordered caption card — kept on-brand (dark bg, gold accents),
+// A square rotated by θ has bounding-box side = size*(|cosθ|+|sinθ|) — used
+// to keep every card fully on-canvas when rotated (see buildTrioFan).
+function rotatedHalf(size, deg) {
+  const rad = Math.abs(deg) * Math.PI / 180;
+  return (size * (Math.cos(rad) + Math.sin(rad))) / 2;
+}
+
+// Exactly 3 products: an overlapping fan (not a clean grid) — left and
+// right cards rotated and tucked behind the centered one, per the user's
+// "photos should overlap, not sit cleanly side by side" request. Returns
+// the composite layers plus how tall the fan is, so the caller can stack
+// the caption/CTA/link below it.
+async function buildTrioFan(products, top) {
+  const layers = [];
+  const size = 440;
+  const angles = [-9, 0, 9];
+  const maxHalf = Math.max(...angles.map(deg => rotatedHalf(size, deg)));
+  const spread = Math.min(130, W / 2 - 30 - maxHalf); // tight enough that cards overlap
+  const xs = [W / 2 - spread, W / 2, W / 2 + spread];
+  const centerY = top + maxHalf;
+  const drawOrder = [0, 2, 1]; // left, right, then the centered card on top
+
+  for (const i of drawOrder) {
+    const imgPath = productImagePath(products[i]);
+    if (!imgPath) continue;
+    const card = await photoCard(imgPath, { size, rotateDeg: angles[i] });
+    layers.push({
+      input: card.buffer,
+      left: Math.round(xs[i] - card.width / 2),
+      top: Math.round(centerY - card.height / 2),
+    });
+  }
+  return { layers, height: maxHalf * 2 };
+}
+
+// Story 2: 2-4 products, with a promo headline, a bordered caption card, a
+// "شروع خرید" CTA and the site link — kept on-brand (dark bg, gold accents),
 // unlike a straight photo-booth/film-strip mockup which reads off-brand.
 async function buildCollageStory(products, { headline, subline }) {
   const layers = [{ input: await solidBackground() }];
@@ -205,32 +232,43 @@ async function buildCollageStory(products, { headline, subline }) {
   layers.push({ input: headlineBuf, left: Math.round((W - headlineMeta.width) / 2), top: 250 });
 
   const n = Math.min(products.length, 4);
-  const cardSize = 440, gap = 20;
-  const gridTop = 460;
-  const positions = collageGridPositions(n, cardSize, gap);
-  for (let i = 0; i < n; i++) {
-    const imgPath = productImagePath(products[i]);
-    if (!imgPath) continue;
-    const card = await photoCard(imgPath, { size: cardSize });
-    layers.push({
-      input: card.buffer,
-      left: Math.round(W / 2 + positions[i].left),
-      top: Math.round(gridTop + positions[i].top),
-    });
+  const cardSize = 420, gap = 16;
+  const gridTop = 440;
+  let gridBottom;
+
+  if (n === 3) {
+    const fan = await buildTrioFan(products, gridTop);
+    layers.push(...fan.layers);
+    gridBottom = gridTop + fan.height;
+  } else {
+    const positions = collageGridPositions(n, cardSize, gap);
+    for (let i = 0; i < n; i++) {
+      const imgPath = productImagePath(products[i]);
+      if (!imgPath) continue;
+      const card = await photoCard(imgPath, { size: cardSize });
+      layers.push({
+        input: card.buffer,
+        left: Math.round(W / 2 + positions[i].left),
+        top: Math.round(gridTop + positions[i].top),
+      });
+    }
+    gridBottom = gridTop + (n <= 2 ? cardSize : cardSize * 2 + gap);
   }
-  const gridHeight = n <= 2 ? cardSize : cardSize * 2 + gap;
-  const gridBottom = gridTop + gridHeight;
 
   const caption = await buildCaptionCard(subline);
-  const captionTop = gridBottom + 60;
+  const captionTop = Math.round(gridBottom + 40);
   layers.push({ input: caption.buffer, left: Math.round((W - caption.width) / 2), top: captionTop });
+
+  const cta = await buildCtaBadge('شروع خرید');
+  const ctaTop = Math.round(captionTop + caption.height + 30);
+  layers.push({ input: cta.buffer, left: Math.round((W - cta.width) / 2), top: ctaTop });
 
   const linkBuf = await renderText({
     text: SITE_LINK_TEXT, fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold',
     width: 600, height: 80, color: GOLD,
   });
   const linkMeta = await sharp(linkBuf).metadata();
-  layers.push({ input: linkBuf, left: Math.round((W - linkMeta.width) / 2), top: captionTop + caption.height + 40 });
+  layers.push({ input: linkBuf, left: Math.round((W - linkMeta.width) / 2), top: Math.round(ctaTop + cta.height + 30) });
 
   return sharp({ create: { width: W, height: H, channels: 4, background: BG_DARK } })
     .composite(layers)
