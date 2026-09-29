@@ -46,9 +46,30 @@ async function createStoryContainer(imageUrl, { link } = {}) {
   }
 }
 
+// Instagram processes an uploaded image asynchronously after container
+// creation -- publishing immediately can 400 with "Media ID is not
+// available" (code 9007 / subcode 2207027) even though the container itself
+// was created successfully. Poll status_code until it's FINISHED (usually
+// a few seconds for an image) before calling media_publish.
+async function waitUntilContainerReady(creationId, { timeoutMs = 60000, intervalMs = 2000 } = {}) {
+  const accessToken = requireEnv('INSTAGRAM_ACCESS_TOKEN');
+  const deadline = Date.now() + timeoutMs;
+  while (true) {
+    const data = await graphFetch(
+      `${GRAPH_BASE}/${creationId}?fields=status_code&access_token=${accessToken}`,
+      { method: 'GET' }
+    );
+    if (data.status_code === 'FINISHED') return;
+    if (data.status_code === 'ERROR') throw new Error(`Instagram container failed processing: ${JSON.stringify(data)}`);
+    if (Date.now() >= deadline) throw new Error(`Instagram container still ${data.status_code} after ${timeoutMs}ms`);
+    await new Promise(r => setTimeout(r, intervalMs));
+  }
+}
+
 async function publishContainer(creationId) {
   const igUserId = requireEnv('INSTAGRAM_USER_ID');
   const accessToken = requireEnv('INSTAGRAM_ACCESS_TOKEN');
+  await waitUntilContainerReady(creationId);
   const params = { creation_id: creationId, access_token: accessToken };
   const data = await graphFetch(`${GRAPH_BASE}/${igUserId}/media_publish?${new URLSearchParams(params)}`, { method: 'POST' });
   return data.id;
@@ -65,4 +86,4 @@ async function postStory(imageBuffer, { name, link }) {
   }
 }
 
-module.exports = { postStory, createStoryContainer, publishContainer };
+module.exports = { postStory, createStoryContainer, publishContainer, waitUntilContainerReady };
