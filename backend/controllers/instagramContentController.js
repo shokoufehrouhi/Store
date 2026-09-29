@@ -27,7 +27,7 @@ async function deployStory(req, res, next) {
 
     const publicUrl = `${process.env.FRONTEND_URL}${story.image_url}`;
     try {
-      const creationId = await createStoryContainer(publicUrl, { link: story.link || undefined });
+      const creationId = await createStoryContainer(publicUrl);
       const mediaId = await publishContainer(creationId);
       const updated = await prisma.instagram_content.update({
         where: { id },

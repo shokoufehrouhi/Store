@@ -28,22 +28,17 @@ function saveStoryImage(buffer, name) {
   return { filename, url: `${requireEnv('FRONTEND_URL')}/uploads/${filename}` };
 }
 
-async function createStoryContainer(imageUrl, { link } = {}) {
+// Note: Meta's Graph API does not support attaching a link sticker (or any
+// sticker) to a Story published this way -- confirmed against a real post,
+// the `link` field is silently ignored, no error, no tappable link anywhere
+// on the story. Adding a real link requires manually placing a link sticker
+// in the Instagram app after this posts. Don't re-add a `link` param here.
+async function createStoryContainer(imageUrl) {
   const igUserId = requireEnv('INSTAGRAM_USER_ID');
   const accessToken = requireEnv('INSTAGRAM_ACCESS_TOKEN');
   const params = { image_url: imageUrl, media_type: 'STORIES', access_token: accessToken };
-  if (link) params.link = link;
-
-  try {
-    const data = await graphFetch(`${GRAPH_BASE}/${igUserId}/media?${new URLSearchParams(params)}`, { method: 'POST' });
-    return data.id;
-  } catch (err) {
-    if (!link) throw err;
-    console.warn('[instagram] story container with link sticker failed, retrying without it:', err.message);
-    delete params.link;
-    const data = await graphFetch(`${GRAPH_BASE}/${igUserId}/media?${new URLSearchParams(params)}`, { method: 'POST' });
-    return data.id;
-  }
+  const data = await graphFetch(`${GRAPH_BASE}/${igUserId}/media?${new URLSearchParams(params)}`, { method: 'POST' });
+  return data.id;
 }
 
 // Instagram processes an uploaded image asynchronously after container
@@ -75,10 +70,10 @@ async function publishContainer(creationId) {
   return data.id;
 }
 
-async function postStory(imageBuffer, { name, link }) {
+async function postStory(imageBuffer, { name }) {
   const { filename, url } = saveStoryImage(imageBuffer, name);
   try {
-    const creationId = await createStoryContainer(url, { link });
+    const creationId = await createStoryContainer(url);
     const mediaId = await publishContainer(creationId);
     return { mediaId };
   } finally {
