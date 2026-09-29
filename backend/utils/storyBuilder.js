@@ -193,10 +193,13 @@ function rotatedHalf(size, deg) {
 // the caption/CTA/link below it.
 async function buildTrioFan(products, top) {
   const layers = [];
-  const size = 440;
-  const angles = [-9, 0, 9];
+  const size = 380;
+  const angles = [-7, 0, 7];
   const maxHalf = Math.max(...angles.map(deg => rotatedHalf(size, deg)));
-  const spread = Math.min(130, W / 2 - 30 - maxHalf); // tight enough that cards overlap
+  // Overlap by only ~100px of the 380px card (not half of it) so all three
+  // stay clearly identifiable -- an earlier tighter spread buried most of
+  // the side cards behind the centered one.
+  const spread = Math.min(size - 100, W / 2 - 20 - maxHalf);
   const xs = [W / 2 - spread, W / 2, W / 2 + spread];
   const centerY = top + maxHalf;
   const drawOrder = [0, 2, 1]; // left, right, then the centered card on top
