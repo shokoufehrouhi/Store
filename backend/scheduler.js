@@ -8,7 +8,10 @@ const prisma = require('./prisma/client');
 const { checkSiteStock, importSite, cleanupStaleChromeProfiles } = require('./utils/siteSync');
 const { syncSubcategoryActiveState } = require('./utils/subcategorySync');
 const { buildSingleProductStory, buildCollageStory } = require('./utils/storyBuilder');
-const { postStory } = require('./utils/instagramPublish');
+const fs = require('fs');
+const path = require('path');
+
+const UPLOADS_DIR = path.join(__dirname, 'public/uploads');
 
 let ranThisMinute = null; // 'HH:MM' of the last minute we already acted on
 let ranSoldOutSweepOn = null; // 'YYYY-MM-DD' of the last day we ran the sold-out expiry sweep
@@ -88,15 +91,38 @@ function productLink(product) {
   return `${process.env.FRONTEND_URL}/product.html?id=${product.id}`;
 }
 
-async function postMorningStory() {
+// Persists a generated story image under public/uploads (kept around
+// indefinitely, unlike the old flow's temp file) and returns its public path.
+function saveGeneratedStoryImage(buffer, prefix) {
+  const filename = `ig-${prefix}-${Date.now()}.jpg`;
+  fs.writeFileSync(path.join(UPLOADS_DIR, filename), buffer);
+  return `/uploads/${filename}`;
+}
+
+// Generates the story image and saves it as a draft row for admin review —
+// it does NOT post to Instagram. Actual posting only happens when an admin
+// clicks "Deploy" on the card in admin.html's Instagram Content tab (see
+// instagramContentController.js#deployStory), since this hits the one real,
+// shared Instagram account with no staging/production isolation.
+async function generateMorningStory() {
   const [product] = await eligibleStoryProducts(1);
   if (!product) return;
   const buffer = await buildSingleProductStory(product);
-  await postStory(buffer, { name: `morning-${product.id}`, link: productLink(product) });
+  const imageUrl = saveGeneratedStoryImage(buffer, 'morning');
+  await prisma.instagram_content.create({
+    data: {
+      kind: 'single',
+      slot: 'morning',
+      scheduled_date: new Date(currentDateStr()),
+      image_url: imageUrl,
+      product_ids: [product.id],
+      link: productLink(product),
+    },
+  });
   lastMorningProductId = product.id;
 }
 
-async function postEveningStory() {
+async function generateEveningStory() {
   const excludeIds = lastMorningProductId ? [lastMorningProductId] : [];
   const products = await eligibleStoryProducts(3, excludeIds);
   if (products.length < 2) return; // not enough distinct products for a collage today
@@ -104,7 +130,17 @@ async function postEveningStory() {
     headline: 'پیشنهاد امروز شیلیستا',
     subline: 'تنوع جدید، همین حالا ببین',
   });
-  await postStory(buffer, { name: 'evening-collage', link: `${process.env.FRONTEND_URL}/index.html` });
+  const imageUrl = saveGeneratedStoryImage(buffer, 'evening');
+  await prisma.instagram_content.create({
+    data: {
+      kind: 'collage',
+      slot: 'evening',
+      scheduled_date: new Date(currentDateStr()),
+      image_url: imageUrl,
+      product_ids: products.map(p => p.id),
+      link: `${process.env.FRONTEND_URL}/index.html`,
+    },
+  });
 }
 
 async function runImport(site) {
@@ -151,18 +187,16 @@ async function tick() {
 
   const nowHHMM = currentHHMM();
 
-  // Off by default: this actually posts to the real, shared Instagram
-  // account (no staging/production isolation for it), so it must stay off
-  // until a human explicitly sets INSTAGRAM_AUTOPOST_ENABLED=true in .env.
-  if (process.env.INSTAGRAM_AUTOPOST_ENABLED === 'true') {
-    if (nowHHMM === MORNING_STORY_TIME && ranMorningStoryOn !== today) {
-      ranMorningStoryOn = today;
-      await postMorningStory().catch(err => console.error('[scheduler] morning story failed:', err));
-    }
-    if (nowHHMM === EVENING_STORY_TIME && ranEveningStoryOn !== today) {
-      ranEveningStoryOn = today;
-      await postEveningStory().catch(err => console.error('[scheduler] evening story failed:', err));
-    }
+  // Generation only -- never posts by itself. The generated row sits as a
+  // 'draft' in admin.html's Instagram Content tab until a human clicks
+  // Deploy on that specific card (see instagramContentController.js).
+  if (nowHHMM === MORNING_STORY_TIME && ranMorningStoryOn !== today) {
+    ranMorningStoryOn = today;
+    await generateMorningStory().catch(err => console.error('[scheduler] morning story generation failed:', err));
+  }
+  if (nowHHMM === EVENING_STORY_TIME && ranEveningStoryOn !== today) {
+    ranEveningStoryOn = today;
+    await generateEveningStory().catch(err => console.error('[scheduler] evening story generation failed:', err));
   }
 
   if (ranThisMinute === nowHHMM) return; // already handled this minute

@@ -913,6 +913,9 @@
           <button class="nav-item" onclick="showTab('sync')" id="nav-sync">
             <span class="nav-icon">🔄</span><span data-i18n="navSync">همگام‌سازی سایت‌ها</span>
           </button>
+          <button class="nav-item" onclick="showTab('instagram-content')" id="nav-instagram-content">
+            <span class="nav-icon">📸</span><span data-i18n="navInstagramContent">محتوای اینستاگرام</span>
+          </button>
         </div>
       </div>
     </nav>
@@ -1313,6 +1316,18 @@
             <button class="btn btn-primary" id="deploy-btn" onclick="deployProduction()" data-i18n="deployBtn">🚀 استقرار روی تولید</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Instagram Content Tab -->
+    <div id="tab-instagram-content" class="hidden">
+      <div class="page-header">
+        <h2>📸 <span data-i18n="navInstagramContent">محتوای اینستاگرام</span></h2>
+        <button class="btn btn-secondary btn-sm" onclick="loadInstagramContent()" data-i18n="ordersRefresh">🔄 بروزرسانی</button>
+      </div>
+      <div class="page-body">
+        <div id="ig-content-empty" class="hidden" style="text-align:center;padding:40px;color:#999" data-i18n="igContentEmpty">هنوز محتوایی ساخته نشده</div>
+        <div id="ig-content-grid" class="db-grid"></div>
       </div>
     </div>
 
@@ -2009,6 +2024,7 @@ const LANGS = {
     deleteItem:'حذف آیتم', confirmYes:'بله، حذف کن', confirmYesDeploy:'بله، استقرار کن', confirmYesPublish:'بله، منتشر کن', confirmNo:'انصراف',
     publishChanges:'انتشار تغییرات', confirmPublish:'آیا مطمئنید تغییرات روی سایت منتشر شوند؟', publishedOk:'تغییرات با موفقیت منتشر شد', pendingPublish:'منتشر نشده — منتظر انتشار',
     deployProduction:'تولید (زنده)', deployStaging:'پیش‌نمایش', deployOpenStaging:'🔗 باز کردن پیش‌نمایش ↗', deployUpToDate:'✓ تولید با آخرین تغییرات همگام است', deployPendingTitle:'تغییرات در انتظار استقرار:', deployBtn:'🚀 استقرار روی تولید', deployConfirm:'این تغییرات روی سایت اصلی (shilista.com) اعمال شوند؟', deployInProgress:'در حال استقرار…', deployDone:'با موفقیت روی تولید مستقر شد', deployError:'خطا در استقرار',
+    navInstagramContent:'محتوای اینستاگرام', igContentEmpty:'هنوز محتوایی ساخته نشده', igSingle:'استوری تک‌محصولی', igCollage:'استوری کلاژ', igDraft:'در انتظار تایید', igPosted:'منتشر شده', igFailed:'خطا در انتشار', igDeploy:'انتشار در اینستاگرام', igDeployConfirm:'این استوری واقعاً در اینستاگرام منتشر شود؟', igDeployDone:'با موفقیت در اینستاگرام منتشر شد', igDeployError:'خطا در انتشار', igConfirmDelete:'این محتوا حذف شود؟',
     confirmDeleteProduct:'این محصول حذف شود؟', confirmDeleteSubcat:'این زیردسته حذف شود؟',
     confirmDeleteColor:'این رنگ حذف شود؟',
     bestseller:'پرفروش', newTag:'جدید',
@@ -2217,6 +2233,7 @@ const LANGS = {
     deleteItem:'Delete Item', confirmYes:'Yes, Delete', confirmYesDeploy:'Yes, Deploy', confirmYesPublish:'Yes, Publish', confirmNo:'Cancel',
     publishChanges:'Publish Changes', confirmPublish:'Are you sure you want to publish these changes to the live site?', publishedOk:'Changes published successfully', pendingPublish:'Not published yet — waiting for publish',
     deployProduction:'Production (live)', deployStaging:'Preview', deployOpenStaging:'🔗 Open preview ↗', deployUpToDate:'✓ Production is up to date', deployPendingTitle:'Changes pending deploy:', deployBtn:'🚀 Deploy to Production', deployConfirm:'Push these changes live to shilista.com?', deployInProgress:'Deploying…', deployDone:'Deployed to production successfully', deployError:'Deploy failed',
+    navInstagramContent:'Instagram Content', igContentEmpty:'No content generated yet', igSingle:'Single-product story', igCollage:'Collage story', igDraft:'Pending review', igPosted:'Posted', igFailed:'Post failed', igDeploy:'Post to Instagram', igDeployConfirm:'Really post this story to the real Instagram account?', igDeployDone:'Posted to Instagram successfully', igDeployError:'Failed to post', igConfirmDelete:'Delete this content?',
     confirmDeleteProduct:'Delete this product?', confirmDeleteSubcat:'Delete this subcategory?',
     confirmDeleteColor:'Delete this color?',
     bestseller:'Bestseller', newTag:'New',
@@ -2425,6 +2442,7 @@ const LANGS = {
     deleteItem:'Öğeyi Sil', confirmYes:'Evet, Sil', confirmYesDeploy:'Evet, Dağıt', confirmYesPublish:'Evet, Yayınla', confirmNo:'İptal',
     publishChanges:'Değişiklikleri Yayınla', confirmPublish:'Bu değişiklikleri canlı siteye yayınlamak istediğinize emin misiniz?', publishedOk:'Değişiklikler başarıyla yayınlandı', pendingPublish:'Henüz yayınlanmadı — yayın bekleniyor',
     deployProduction:'Üretim (canlı)', deployStaging:'Ön izleme', deployOpenStaging:'🔗 Ön izlemeyi aç ↗', deployUpToDate:'✓ Üretim güncel', deployPendingTitle:'Dağıtım bekleyen değişiklikler:', deployBtn:'🚀 Üretime Dağıt', deployConfirm:'Bu değişiklikler canlı siteye (shilista.com) uygulansın mı?', deployInProgress:'Dağıtılıyor…', deployDone:'Üretime başarıyla dağıtıldı', deployError:'Dağıtım başarısız',
+    navInstagramContent:'Instagram İçeriği', igContentEmpty:'Henüz içerik oluşturulmadı', igSingle:'Tekli ürün hikayesi', igCollage:'Kolaj hikayesi', igDraft:'Onay bekliyor', igPosted:'Yayınlandı', igFailed:'Yayın başarısız', igDeploy:'Instagram\'da Yayınla', igDeployConfirm:'Bu hikaye gerçekten Instagram hesabında yayınlansın mı?', igDeployDone:'Instagram\'da başarıyla yayınlandı', igDeployError:'Yayınlama başarısız', igConfirmDelete:'Bu içerik silinsin mi?',
     confirmDeleteProduct:'Bu ürün silinsin mi?', confirmDeleteSubcat:'Bu alt kategori silinsin mi?',
     confirmDeleteColor:'Bu renk silinsin mi?',
     bestseller:'Çok Satan', newTag:'Yeni',
@@ -2659,7 +2677,7 @@ function showTab(tab) {
   currentTab = tab;
   localStorage.setItem('admin_tab', tab);
   if (window.innerWidth <= 768) closeSidebar();
-  ['communications','notifications','dashboard','products','categories','colors','sizes','size-charts','customers','active-orders','orders','prizes','returns','product-photos','suppliers','sites','bank-accounts','payment-links','coupons','leads','reports','deploy','sync'].forEach(t2 => {
+  ['communications','notifications','dashboard','products','categories','colors','sizes','size-charts','customers','active-orders','orders','prizes','returns','product-photos','suppliers','sites','bank-accounts','payment-links','coupons','leads','reports','deploy','sync','instagram-content'].forEach(t2 => {
     const el = document.getElementById(`tab-${t2}`);
     const nav = document.getElementById(`nav-${t2}`);
     if (el)  el.classList.add('hidden');
@@ -2692,6 +2710,7 @@ function showTab(tab) {
   if (tab === 'leads')          loadLeads();
   if (tab === 'reports')        initReports();
   if (tab === 'deploy')         loadDeployStatus();
+  if (tab === 'instagram-content') loadInstagramContent();
 }
 
 // ─── API helper ───────────────────────────────────────────────────────────────
@@ -5837,6 +5856,66 @@ function deployProduction() {
     loadDeployStatus();
     if (btn) { btn.disabled = false; btn.textContent = t('deployBtn'); }
   }, { icon: '🚀', title: t('deployBtn'), yesText: t('confirmYesDeploy'), btnClass: 'btn-primary' });
+}
+
+// ─── Instagram Content ─────────────────────────────────────────────────────────
+var _igContent = [];
+
+async function loadInstagramContent() {
+  const data = await api('/admin/instagram-content');
+  if (!data?.success) return;
+  _igContent = data.data;
+  renderInstagramContent();
+}
+
+function igSlotLabel(row) {
+  const dateLabel = esc(row.scheduled_date ? row.scheduled_date.slice(0, 10) : '');
+  const timeLabel = row.slot === 'morning' ? '۱۱:۰۰' : '۱۹:۰۰';
+  return `${dateLabel} — ${timeLabel}`;
+}
+
+function igStatusBadge(row) {
+  if (row.status === 'posted') return `<span style="color:#16a34a;font-weight:600">✅ ${t('igPosted')}</span>`;
+  if (row.status === 'failed') return `<span style="color:#ef4444;font-weight:600">⚠️ ${t('igFailed')}</span>`;
+  return `<span style="color:#a16207;font-weight:600">⏳ ${t('igDraft')}</span>`;
+}
+
+function renderInstagramContent() {
+  const grid  = document.getElementById('ig-content-grid');
+  const empty = document.getElementById('ig-content-empty');
+  if (!grid) return;
+  empty.classList.toggle('hidden', _igContent.length > 0);
+  grid.innerHTML = _igContent.map(row => `
+    <div class="db-card" style="padding:0;overflow:hidden">
+      <img src="${SERVER_URL}${esc(row.image_url)}" style="width:100%;aspect-ratio:9/16;object-fit:cover;display:block">
+      <div style="padding:12px">
+        <div style="font-weight:700;font-size:13px">${igSlotLabel(row)}</div>
+        <div style="font-size:12px;color:#999;margin:4px 0">${row.kind === 'single' ? t('igSingle') : t('igCollage')}</div>
+        <div style="margin-bottom:10px">${igStatusBadge(row)}</div>
+        ${row.error_message ? `<div style="font-size:11px;color:#ef4444;margin-bottom:8px">${esc(row.error_message)}</div>` : ''}
+        <div style="display:flex;gap:6px">
+          ${row.status !== 'posted' ? `<button class="btn btn-primary btn-sm" onclick="deployIgContent(${row.id})">🚀 ${t('igDeploy')}</button>` : ''}
+          ${row.status !== 'posted' ? `<button class="btn btn-sm" style="background:#fef2f2;color:#ef4444" onclick="deleteIgContent(${row.id})">${t('del')}</button>` : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function deployIgContent(id) {
+  showConfirm(t('igDeployConfirm'), async () => {
+    const res = await api(`/admin/instagram-content/${id}/deploy`, { method: 'POST' });
+    if (!res?.success) { showToast(res?.message || t('igDeployError'), 'error'); loadInstagramContent(); return; }
+    showToast(t('igDeployDone'));
+    loadInstagramContent();
+  }, { icon: '🚀', title: t('igDeploy'), yesText: t('confirmYesDeploy'), btnClass: 'btn-primary' });
+}
+
+function deleteIgContent(id) {
+  showConfirm(t('igConfirmDelete'), async () => {
+    await api(`/admin/instagram-content/${id}`, { method: 'DELETE' });
+    loadInstagramContent();
+  }, { icon: '🗑️', title: t('deleteItem'), btnClass: 'btn-danger' });
 }
 
 // ─── Suppliers ────────────────────────────────────────────────────────────────

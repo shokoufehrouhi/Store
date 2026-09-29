@@ -616,6 +616,27 @@ model sync_settings {
   updated_at                 DateTime  @default(now()) @db.Timestamptz(6)
 }
 
+// One row per auto-generated Instagram Story (built by scheduler.js at
+// 11:00/19:00 daily, see storyBuilder.js). Generating a row here never posts
+// anything by itself -- an admin must click "Deploy" in admin.html's new
+// Instagram Content tab, which calls instagramPublish.js for that one row.
+model instagram_content {
+  id             Int       @id @default(autoincrement())
+  kind           String    @db.VarChar(20) // 'single' | 'collage'
+  slot           String    @db.VarChar(20) // 'morning' | 'evening'
+  scheduled_date DateTime  @db.Date
+  image_url      String    @db.VarChar(300)
+  product_ids    Json
+  link           String?   @db.VarChar(500)
+  status         String    @default("draft") @db.VarChar(20) // draft | posted | failed
+  ig_media_id    String?   @db.VarChar(100)
+  posted_at      DateTime? @db.Timestamptz(6)
+  error_message  String?
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([status], map: "idx_instagram_content_status")
+}
+
 model product_categories {
   id             Int            @id @default(autoincrement())
   product_id     Int

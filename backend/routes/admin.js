@@ -139,6 +139,11 @@ router.get('/product-photos',           pp.adminListPhotos);
 router.patch('/product-photos/:id',     pp.adminToggleApproval);
 router.delete('/product-photos/:id',    pp.adminDeletePhoto);
 
+const ic = require('../controllers/instagramContentController');
+router.get('/instagram-content',             ic.listStories);
+router.post('/instagram-content/:id/deploy', ic.deployStory);
+router.delete('/instagram-content/:id',      ic.deleteStory);
+
 const sc = require('../controllers/suppliersController');
 router.get('/suppliers',       sc.listSuppliers);
 router.delete('/suppliers/:id', sc.deleteSupplier);
