@@ -19,7 +19,7 @@ let ranMorningStoryOn = null; // 'YYYY-MM-DD'
 let ranEveningStoryOn = null; // 'YYYY-MM-DD'
 let lastMorningProductId = null; // excluded from the evening collage so the two stories never repeat a product
 
-const MORNING_STORY_TIME = '11:00';
+const MORNING_STORY_TIME = '11:30';
 const EVENING_STORY_TIME = '19:00';
 
 function currentHHMM() {
