@@ -52,6 +52,28 @@ async function createFeedContainer(imageUrl, caption) {
   return data.id;
 }
 
+// One image of a carousel (2-10 required by the API) -- no caption on the
+// child, that goes on the parent CAROUSEL container below. Each child must
+// finish processing (waitUntilContainerReady) before the parent can
+// reference it in `children`.
+async function createCarouselChildContainer(imageUrl) {
+  const igUserId = requireEnv('INSTAGRAM_USER_ID');
+  const accessToken = requireEnv('INSTAGRAM_ACCESS_TOKEN');
+  const params = { image_url: imageUrl, is_carousel_item: 'true', access_token: accessToken };
+  const data = await graphFetch(`${GRAPH_BASE}/${igUserId}/media?${new URLSearchParams(params)}`, { method: 'POST' });
+  return data.id;
+}
+
+// The parent carousel container, referencing already-created (and already
+// finished-processing) child container ids.
+async function createCarouselContainer(childIds, caption) {
+  const igUserId = requireEnv('INSTAGRAM_USER_ID');
+  const accessToken = requireEnv('INSTAGRAM_ACCESS_TOKEN');
+  const params = { media_type: 'CAROUSEL', children: childIds.join(','), caption, access_token: accessToken };
+  const data = await graphFetch(`${GRAPH_BASE}/${igUserId}/media?${new URLSearchParams(params)}`, { method: 'POST' });
+  return data.id;
+}
+
 // Instagram processes an uploaded image asynchronously after container
 // creation -- publishing immediately can 400 with "Media ID is not
 // available" (code 9007 / subcode 2207027) even though the container itself
@@ -92,4 +114,7 @@ async function postStory(imageBuffer, { name }) {
   }
 }
 
-module.exports = { postStory, createStoryContainer, publishContainer, waitUntilContainerReady };
+module.exports = {
+  postStory, createStoryContainer, publishContainer, waitUntilContainerReady,
+  createFeedContainer, createCarouselChildContainer, createCarouselContainer,
+};

@@ -23,7 +23,10 @@ const { syncSubcategoryActiveState } = require('./utils/subcategorySync');
 const { buildSingleProductStory, buildCollageStory } = require('./utils/storyBuilder');
 const { deployStoryById } = require('./controllers/instagramContentController');
 const { queueNewProductsForInstagram } = require('./utils/instagramProductQueue');
-const { createFeedContainer, publishContainer } = require('./utils/instagramPublish');
+const {
+  createFeedContainer, createCarouselChildContainer, createCarouselContainer,
+  publishContainer, waitUntilContainerReady,
+} = require('./utils/instagramPublish');
 const fs = require('fs');
 const path = require('path');
 
@@ -279,12 +282,28 @@ function buildProductCaption(product) {
   return `${product.name_fa}\n\n${product.name_en}\n\n🛍 shilista.com`;
 }
 
+// 2+ real photos -> a carousel (swipeable) post with all of them, up to
+// Instagram's 10-image cap; exactly 1 -> a plain single-image post (the API
+// requires at least 2 children for CAROUSEL, so 1 photo can't go that route
+// at all).
 async function postQueuedProductToInstagram(row) {
-  const media = row.products.product_media[0];
-  const imageUrl = `${process.env.FRONTEND_URL}${media.url}`;
+  const media = (row.products.product_media || [])
+    .filter(m => fs.existsSync(path.join(UPLOADS_DIR, path.basename(m.url))))
+    .slice(0, 10);
   const caption = buildProductCaption(row.products);
   try {
-    const creationId = await createFeedContainer(imageUrl, caption);
+    let creationId;
+    if (media.length >= 2) {
+      const childIds = [];
+      for (const m of media) {
+        const childId = await createCarouselChildContainer(`${process.env.FRONTEND_URL}${m.url}`);
+        await waitUntilContainerReady(childId);
+        childIds.push(childId);
+      }
+      creationId = await createCarouselContainer(childIds, caption);
+    } else {
+      creationId = await createFeedContainer(`${process.env.FRONTEND_URL}${media[0].url}`, caption);
+    }
     const mediaId = await publishContainer(creationId);
     await prisma.instagram_product_posts.update({
       where: { id: row.id },
@@ -339,12 +358,13 @@ async function maybePostQueuedProduct() {
   const next = await prisma.instagram_product_posts.findFirst({
     where: { status: 'queued', products: { is_active: true, is_live: true } },
     orderBy: { created_at: 'asc' },
-    include: { products: { include: { product_media: { take: 1 } } } },
+    include: { products: { include: { product_media: true } } },
   });
   if (!next) return;
 
-  const media = next.products.product_media[0];
-  if (!media || !fs.existsSync(path.join(UPLOADS_DIR, path.basename(media.url)))) {
+  const hasRealPhoto = (next.products.product_media || [])
+    .some(m => fs.existsSync(path.join(UPLOADS_DIR, path.basename(m.url))));
+  if (!hasRealPhoto) {
     await prisma.instagram_product_posts.update({
       where: { id: next.id },
       data: { status: 'skipped', error_message: 'missing image file' },
