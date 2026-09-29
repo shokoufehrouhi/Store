@@ -1347,14 +1347,12 @@
     <div id="tab-instagram-content" class="hidden">
       <div class="page-header">
         <h2>📸 <span data-i18n="navInstagramContent">محتوای اینستاگرام</span></h2>
+        <button class="btn btn-secondary btn-sm" onclick="loadIgActiveSubTab()" data-i18n="ordersRefresh">🔄 بروزرسانی</button>
       </div>
       <div class="page-body">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;border-bottom:1px solid var(--border);margin-bottom:18px">
-          <div style="display:flex;gap:4px">
-            <button class="rpt-subtab active" id="ig-subnav-stories" onclick="showIgSubTab('stories')">📖 <span data-i18n="igSubStories">استوری‌ها</span></button>
-            <button class="rpt-subtab" id="ig-subnav-posts" onclick="showIgSubTab('posts')">🖼️ <span data-i18n="igSubPosts">پست‌ها</span></button>
-          </div>
-          <button class="btn btn-secondary btn-sm" onclick="loadIgActiveSubTab()" data-i18n="ordersRefresh">🔄 بروزرسانی</button>
+        <div style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:18px">
+          <button class="rpt-subtab active" id="ig-subnav-stories" onclick="showIgSubTab('stories')">📖 <span data-i18n="igSubStories">استوری‌ها</span></button>
+          <button class="rpt-subtab" id="ig-subnav-posts" onclick="showIgSubTab('posts')">🖼️ <span data-i18n="igSubPosts">پست‌ها</span></button>
         </div>
 
         <div id="ig-subtab-stories">
