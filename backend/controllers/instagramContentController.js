@@ -14,10 +14,32 @@ async function listStories(req, res, next) {
   } catch (err) { next(err); }
 }
 
-// POST /api/admin/instagram-content/:id/deploy — actually posts to the real
-// Instagram account. A row's own image_url is used directly (not re-saved/
-// deleted like scheduler.js's old ephemeral flow), since it's meant to stay
-// visible in the admin tab after posting.
+// Actually posts a draft/failed row to the real Instagram account. Shared by
+// the manual Deploy button (below) and scheduler.js's auto-deploy at each
+// story's scheduled slot time -- same code path either way, so "what
+// clicking Deploy does" and "what happens automatically" never diverge.
+async function deployStoryById(id) {
+  const story = await prisma.instagram_content.findUnique({ where: { id } });
+  if (!story || story.status === 'posted') return;
+
+  const publicUrl = `${process.env.FRONTEND_URL}${story.image_url}`;
+  try {
+    const creationId = await createStoryContainer(publicUrl);
+    const mediaId = await publishContainer(creationId);
+    await prisma.instagram_content.update({
+      where: { id },
+      data: { status: 'posted', ig_media_id: mediaId, posted_at: new Date(), error_message: null },
+    });
+  } catch (err) {
+    await prisma.instagram_content.update({
+      where: { id },
+      data: { status: 'failed', error_message: err.message },
+    }).catch(() => {});
+  }
+}
+
+// POST /api/admin/instagram-content/:id/deploy — manual trigger, same-day
+// early posting ahead of the scheduled auto-deploy (see scheduler.js).
 //
 // Fire-and-forget, like adminController.js#deployToProduction: Instagram's
 // own processing (waitUntilContainerReady's poll loop) can run past nginx's
@@ -34,21 +56,7 @@ async function deployStory(req, res, next) {
     if (story.status === 'posted') return res.status(409).json({ success: false, message: 'already_posted' });
 
     res.json({ success: true, data: { started: true } });
-
-    const publicUrl = `${process.env.FRONTEND_URL}${story.image_url}`;
-    try {
-      const creationId = await createStoryContainer(publicUrl);
-      const mediaId = await publishContainer(creationId);
-      await prisma.instagram_content.update({
-        where: { id },
-        data: { status: 'posted', ig_media_id: mediaId, posted_at: new Date(), error_message: null },
-      });
-    } catch (err) {
-      await prisma.instagram_content.update({
-        where: { id },
-        data: { status: 'failed', error_message: err.message },
-      }).catch(() => {});
-    }
+    await deployStoryById(id);
   } catch (err) { next(err); }
 }
 
@@ -66,4 +74,4 @@ async function deleteStory(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { listStories, deployStory, deleteStory };
+module.exports = { listStories, deployStory, deleteStory, deployStoryById };

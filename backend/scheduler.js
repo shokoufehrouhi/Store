@@ -8,6 +8,7 @@ const prisma = require('./prisma/client');
 const { checkSiteStock, importSite, cleanupStaleChromeProfiles } = require('./utils/siteSync');
 const { syncSubcategoryActiveState } = require('./utils/subcategorySync');
 const { buildSingleProductStory, buildCollageStory } = require('./utils/storyBuilder');
+const { deployStoryById } = require('./controllers/instagramContentController');
 const fs = require('fs');
 const path = require('path');
 
@@ -15,16 +16,22 @@ const UPLOADS_DIR = path.join(__dirname, 'public/uploads');
 
 let ranThisMinute = null; // 'HH:MM' of the last minute we already acted on
 let ranSoldOutSweepOn = null; // 'YYYY-MM-DD' of the last day we ran the sold-out expiry sweep
-let ranMorningSingleOn = null; // 'YYYY-MM-DD'
-let ranMorningCollageOn = null; // 'YYYY-MM-DD'
-let ranEveningSingleOn = null; // 'YYYY-MM-DD'
-let ranEveningCollageOn = null; // 'YYYY-MM-DD'
+let ranMorningGenOn = null; // 'YYYY-MM-DD' -- 10:00 generation of both morning drafts
+let ranEveningGenOn = null; // 'YYYY-MM-DD' -- 18:00 generation of both evening drafts
+let ranMorningSingleDeployOn = null; // 'YYYY-MM-DD'
+let ranMorningCollageDeployOn = null; // 'YYYY-MM-DD'
+let ranEveningSingleDeployOn = null; // 'YYYY-MM-DD'
+let ranEveningCollageDeployOn = null; // 'YYYY-MM-DD'
 let lastMorningSingleProductId = null; // excluded from the 11:30 collage so the two don't repeat a product
 let lastEveningSingleProductId = null; // excluded from the 19:30 collage, same reason
 
-// 11:00 -- single-product. 11:30 -- a collage. 19:00 -- a second, differently
-// worded single-product story. 19:30 -- a second collage. Four stories/day
-// total, each a separate draft in admin.html's Instagram Content tab.
+// Generated as drafts a bit ahead of their actual post time (10:00 for the
+// 11:00/11:30 pair, 18:00 for the 19:00/19:30 pair) so there's a review
+// window in admin.html's Instagram Content tab -- then auto-deployed for
+// real at the scheduled time unless a human already deployed or deleted it
+// first (see autoDeploySlot). Manual Deploy still works at any point.
+const GEN_MORNING_TIME = '10:00';
+const GEN_EVENING_TIME = '18:00';
 const MORNING_SINGLE_TIME = '11:00';
 const MORNING_COLLAGE_TIME = '11:30';
 const EVENING_SINGLE_TIME = '19:00';
@@ -151,11 +158,12 @@ function saveGeneratedStoryImage(buffer, prefix) {
   return `/uploads/${filename}`;
 }
 
-// Generates the story image and saves it as a draft row for admin review —
-// it does NOT post to Instagram. Actual posting only happens when an admin
-// clicks "Deploy" on the card in admin.html's Instagram Content tab (see
-// instagramContentController.js#deployStory), since this hits the one real,
-// shared Instagram account with no staging/production isolation.
+// Generates the story image and saves it as a draft row for admin review.
+// This alone never posts to Instagram -- it just gives a review window
+// before autoDeploySlot posts it for real at the scheduled slot time (or a
+// human clicks "Deploy" early, or deletes it, in admin.html's Instagram
+// Content tab). Either way it's the one real, shared Instagram account
+// with no staging/production isolation.
 async function generateSingleStory(slot, headline, prefix, excludeIds = []) {
   const [product] = await eligibleStoryProducts(1, excludeIds);
   if (!product) return null;
@@ -213,6 +221,18 @@ async function generateEveningCollageStory() {
   await generateCollageStory(EVENING_COLLAGE_TIME, 'انتخاب‌های امشب', 'evening-collage', excludeIds);
 }
 
+// Auto-posts today's draft for a given slot, if one still exists and is
+// still a draft -- a no-op if it was already manually deployed, deleted, or
+// never generated (e.g. not enough eligible products that day).
+async function autoDeploySlot(slot) {
+  const row = await prisma.instagram_content.findFirst({
+    where: { slot, status: 'draft', scheduled_date: new Date(currentDateStr()) },
+    orderBy: { created_at: 'desc' },
+  });
+  if (!row) return;
+  await deployStoryById(row.id);
+}
+
 async function runImport(site) {
   try {
     await prisma.sites.update({ where: { id: site.id }, data: { import_in_progress: true } });
@@ -257,24 +277,37 @@ async function tick() {
 
   const nowHHMM = currentHHMM();
 
-  // Generation only -- never posts by itself. Each generated row sits as a
-  // 'draft' in admin.html's Instagram Content tab until a human clicks
-  // Deploy on that specific card (see instagramContentController.js).
-  if (nowHHMM === MORNING_SINGLE_TIME && ranMorningSingleOn !== today) {
-    ranMorningSingleOn = today;
+  // Generate the two morning drafts an hour+ ahead of their post time, and
+  // the two evening drafts likewise -- gives a review window in admin.html's
+  // Instagram Content tab before autoDeploySlot posts them for real.
+  if (nowHHMM === GEN_MORNING_TIME && ranMorningGenOn !== today) {
+    ranMorningGenOn = today;
     await generateMorningSingleStory().catch(err => console.error('[scheduler] morning single story generation failed:', err));
-  }
-  if (nowHHMM === MORNING_COLLAGE_TIME && ranMorningCollageOn !== today) {
-    ranMorningCollageOn = today;
     await generateMorningCollageStory().catch(err => console.error('[scheduler] morning collage story generation failed:', err));
   }
-  if (nowHHMM === EVENING_SINGLE_TIME && ranEveningSingleOn !== today) {
-    ranEveningSingleOn = today;
+  if (nowHHMM === GEN_EVENING_TIME && ranEveningGenOn !== today) {
+    ranEveningGenOn = today;
     await generateEveningSingleStory().catch(err => console.error('[scheduler] evening single story generation failed:', err));
-  }
-  if (nowHHMM === EVENING_COLLAGE_TIME && ranEveningCollageOn !== today) {
-    ranEveningCollageOn = today;
     await generateEveningCollageStory().catch(err => console.error('[scheduler] evening collage story generation failed:', err));
+  }
+
+  // Auto-post each slot's draft at its scheduled time (no-op if it was
+  // already manually deployed or deleted during the review window).
+  if (nowHHMM === MORNING_SINGLE_TIME && ranMorningSingleDeployOn !== today) {
+    ranMorningSingleDeployOn = today;
+    await autoDeploySlot(MORNING_SINGLE_TIME).catch(err => console.error('[scheduler] morning single auto-deploy failed:', err));
+  }
+  if (nowHHMM === MORNING_COLLAGE_TIME && ranMorningCollageDeployOn !== today) {
+    ranMorningCollageDeployOn = today;
+    await autoDeploySlot(MORNING_COLLAGE_TIME).catch(err => console.error('[scheduler] morning collage auto-deploy failed:', err));
+  }
+  if (nowHHMM === EVENING_SINGLE_TIME && ranEveningSingleDeployOn !== today) {
+    ranEveningSingleDeployOn = today;
+    await autoDeploySlot(EVENING_SINGLE_TIME).catch(err => console.error('[scheduler] evening single auto-deploy failed:', err));
+  }
+  if (nowHHMM === EVENING_COLLAGE_TIME && ranEveningCollageDeployOn !== today) {
+    ranEveningCollageDeployOn = today;
+    await autoDeploySlot(EVENING_COLLAGE_TIME).catch(err => console.error('[scheduler] evening collage auto-deploy failed:', err));
   }
 
   if (ranThisMinute === nowHHMM) return; // already handled this minute
