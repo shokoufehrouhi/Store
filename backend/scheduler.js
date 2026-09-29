@@ -520,6 +520,12 @@ async function maybeAutoPublish(settings) {
   if (Date.now() - lastAutoPublishAt < intervalMs) return;
   lastAutoPublishAt = Date.now();
   await publishAllChanges();
+  // Persisted (not just the in-memory guard above) so admin.html's Deploy tab
+  // can show "last auto-published at" -- otherwise a run happening on schedule
+  // is indistinguishable from one that never fires, since new dirty products
+  // from an in-progress import can make the pending-count badge look
+  // unchanged either way.
+  await prisma.sync_settings.update({ where: { id: 1 }, data: { auto_publish_last_run: new Date() } });
 }
 
 function start() {
