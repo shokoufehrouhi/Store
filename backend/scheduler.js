@@ -124,7 +124,7 @@ async function generateMorningStory() {
 
 async function generateEveningStory() {
   const excludeIds = lastMorningProductId ? [lastMorningProductId] : [];
-  const products = await eligibleStoryProducts(3, excludeIds);
+  const products = await eligibleStoryProducts(4, excludeIds);
   if (products.length < 2) return; // not enough distinct products for a collage today
   const buffer = await buildCollageStory(products, {
     headline: 'پیشنهاد امروز شیلیستا',

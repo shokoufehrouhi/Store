@@ -139,61 +139,98 @@ async function buildCtaBadge() {
   return { buffer, width: boxW, height: boxH };
 }
 
-// Story 2: 2-3 products fanned into a card collage, with a promo headline.
+// Rounded card holding the subline text, framed in gold — replaces the old
+// bare centered text so the promo line reads as one deliberate element
+// sitting under the product grid, not a second disconnected headline.
+async function buildCaptionCard(text) {
+  const textW = 860, textH = 160, padX = 50, padY = 30;
+  const textBuf = await renderText({
+    text, fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium',
+    width: textW, height: textH, color: '#ffffff',
+  });
+  const boxW = textW + padX * 2, boxH = textH + padY * 2;
+  const box = Buffer.from(
+    `<svg width="${boxW}" height="${boxH}">
+       <rect x="1.5" y="1.5" width="${boxW - 3}" height="${boxH - 3}" rx="22" ry="22"
+             fill="#161616" stroke="${GOLD}" stroke-width="3"/>
+     </svg>`
+  );
+  const buffer = await sharp(box)
+    .composite([{ input: textBuf, left: padX, top: padY }])
+    .png()
+    .toBuffer();
+  return { buffer, width: boxW, height: boxH };
+}
+
+// Grid positions for n products (2-4), centered on centerX/centerY relative
+// offsets: a single row for 2, a top-pair + centered bottom card for 3 (no
+// empty cell in the last row), a full 2x2 for 4.
+function collageGridPositions(n, cardSize, gap) {
+  const rowW = cardSize * 2 + gap;
+  if (n <= 2) {
+    const totalW = cardSize * n + gap * (n - 1);
+    const left0 = -totalW / 2;
+    return Array.from({ length: n }, (_, i) => ({ left: left0 + i * (cardSize + gap), top: 0 }));
+  }
+  if (n === 3) {
+    return [
+      { left: -rowW / 2, top: 0 },
+      { left: -rowW / 2 + cardSize + gap, top: 0 },
+      { left: -cardSize / 2, top: cardSize + gap },
+    ];
+  }
+  return [
+    { left: -rowW / 2, top: 0 },
+    { left: -rowW / 2 + cardSize + gap, top: 0 },
+    { left: -rowW / 2, top: cardSize + gap },
+    { left: -rowW / 2 + cardSize + gap, top: cardSize + gap },
+  ];
+}
+
+// Story 2: 2-4 products in a clean grid (up to 2x2), with a promo headline
+// and a bordered caption card — kept on-brand (dark bg, gold accents),
+// unlike a straight photo-booth/film-strip mockup which reads off-brand.
 async function buildCollageStory(products, { headline, subline }) {
   const layers = [{ input: await solidBackground() }];
 
-  const logo = await sharp(LOGO_PATH).resize({ width: 340 }).toBuffer();
+  const logo = await sharp(LOGO_PATH).resize({ width: 300 }).toBuffer();
   const logoMeta = await sharp(logo).metadata();
-  layers.push({ input: logo, left: Math.round((W - logoMeta.width) / 2), top: 90 });
+  layers.push({ input: logo, left: Math.round((W - logoMeta.width) / 2), top: 80 });
 
   const headlineBuf = await renderText({
     text: headline, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black',
-    width: 960, height: 220, color: GOLD,
+    width: 960, height: 180, color: GOLD,
   });
   const headlineMeta = await sharp(headlineBuf).metadata();
-  layers.push({ input: headlineBuf, left: Math.round((W - headlineMeta.width) / 2), top: 300 });
+  layers.push({ input: headlineBuf, left: Math.round((W - headlineMeta.width) / 2), top: 250 });
 
-  const n = Math.min(products.length, 3);
-  const cardSize = n === 2 ? 480 : 420;
-  const angles = n === 2 ? [-7, 7] : [-10, 0, 10];
-  const centerY = 1150;
-  const margin = 30;
-
-  // A square rotated by θ has bounding-box side = size*(|cosθ|+|sinθ|) — used
-  // to keep every card fully on-canvas (the first cut of this collage placed
-  // cards by center spread alone and clipped the leftmost one off the edge).
-  const rotatedHalf = (deg) => {
-    const rad = Math.abs(deg) * Math.PI / 180;
-    return (cardSize * (Math.cos(rad) + Math.sin(rad))) / 2;
-  };
-  const maxHalf = Math.max(...angles.slice(0, n).map(rotatedHalf));
-  const spread = Math.min(n === 2 ? 220 : 260, W / 2 - margin - maxHalf);
-  const xs = n === 2
-    ? [W / 2 - spread, W / 2 + spread]
-    : [W / 2 - spread, W / 2, W / 2 + spread];
-
+  const n = Math.min(products.length, 4);
+  const cardSize = 440, gap = 20;
+  const gridTop = 460;
+  const positions = collageGridPositions(n, cardSize, gap);
   for (let i = 0; i < n; i++) {
     const imgPath = productImagePath(products[i]);
     if (!imgPath) continue;
-    const card = await photoCard(imgPath, { size: cardSize, rotateDeg: angles[i] });
-    const left = Math.round(Math.min(Math.max(xs[i] - card.width / 2, margin), W - margin - card.width));
-    layers.push({ input: card.buffer, left, top: Math.round(centerY - card.height / 2) });
+    const card = await photoCard(imgPath, { size: cardSize });
+    layers.push({
+      input: card.buffer,
+      left: Math.round(W / 2 + positions[i].left),
+      top: Math.round(gridTop + positions[i].top),
+    });
   }
+  const gridHeight = n <= 2 ? cardSize : cardSize * 2 + gap;
+  const gridBottom = gridTop + gridHeight;
 
-  const sublineBuf = await renderText({
-    text: subline, fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium',
-    width: 900, height: 160, color: '#ffffff',
-  });
-  const sublineMeta = await sharp(sublineBuf).metadata();
-  layers.push({ input: sublineBuf, left: Math.round((W - sublineMeta.width) / 2), top: 1620 });
+  const caption = await buildCaptionCard(subline);
+  const captionTop = gridBottom + 60;
+  layers.push({ input: caption.buffer, left: Math.round((W - caption.width) / 2), top: captionTop });
 
   const linkBuf = await renderText({
     text: SITE_LINK_TEXT, fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold',
     width: 600, height: 80, color: GOLD,
   });
   const linkMeta = await sharp(linkBuf).metadata();
-  layers.push({ input: linkBuf, left: Math.round((W - linkMeta.width) / 2), top: 1790 });
+  layers.push({ input: linkBuf, left: Math.round((W - linkMeta.width) / 2), top: captionTop + caption.height + 40 });
 
   return sharp({ create: { width: W, height: H, channels: 4, background: BG_DARK } })
     .composite(layers)
