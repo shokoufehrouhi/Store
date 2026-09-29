@@ -317,11 +317,15 @@ async function Defacto(pm, site, opts = {}) {
   const imported = [];
   let skipped = candidateUrls.length - newUrls.length;
 
-  // Up to 4 PageManagers sharing this run's one already-launched browser
-  // (separate tabs, not separate browsers) -- same pattern as Lefties, see
-  // its own comment for why this is deliberately not one browser per worker.
+  // Up to 2 PageManagers sharing this run's one already-launched browser
+  // (separate tabs, not separate browsers) -- same pattern as Lefties (which
+  // runs 4), but capped lower here: rolling this out to a second importer at
+  // Lefties' own concurrency of 4 pushed this VPS's 3.8GB RAM into full swap
+  // and crashed the production process mid-import (confirmed live testing
+  // Zara, 2026-09-29). Only raise this back toward 4 after confirming the
+  // VPS actually has the headroom, not by assumption.
   const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
-  const CONCURRENCY = canParallelize ? 4 : 1;
+  const CONCURRENCY = canParallelize ? 2 : 1;
   const pms = [pm];
   if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
 
@@ -593,7 +597,7 @@ async function MadameCoco(pm, site, opts = {}) {
   let notDiscounted = 0;
 
   const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
-  const CONCURRENCY = canParallelize ? 4 : 1;
+  const CONCURRENCY = canParallelize ? 2 : 1;
   const pms = [pm];
   if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
 
@@ -855,7 +859,7 @@ async function Zara(pm, site, opts = {}) {
   let notDiscounted = 0;
 
   const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
-  const CONCURRENCY = canParallelize ? 4 : 1;
+  const CONCURRENCY = canParallelize ? 2 : 1;
   const pms = [pm];
   if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
 
@@ -1231,7 +1235,7 @@ async function LCWaikiki(pm, site, opts = {}) {
   let wrongBrand = 0;
 
   const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
-  const CONCURRENCY = canParallelize ? 4 : 1;
+  const CONCURRENCY = canParallelize ? 2 : 1;
   const pms = [pm];
   if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
 
@@ -1563,7 +1567,7 @@ async function Koton(pm, site, opts = {}) {
   let notDiscounted = 0;
 
   const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
-  const CONCURRENCY = canParallelize ? 4 : 1;
+  const CONCURRENCY = canParallelize ? 2 : 1;
   const pms = [pm];
   if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
 
