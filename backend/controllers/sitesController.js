@@ -10,7 +10,7 @@ async function listSites(req, res, next) {
 
 async function createSite(req, res, next) {
   try {
-    const { name, url, logo_url, is_active, discount_check_mode, markup_percent } = req.body;
+    const { name, url, logo_url, is_active, discount_check_mode, markup_percent, daily_ig_post_limit } = req.body;
     if (!name?.trim())  return res.status(400).json({ success: false, message: 'name_required' });
     if (!url?.trim())   return res.status(400).json({ success: false, message: 'url_required' });
     const row = await prisma.sites.create({
@@ -21,6 +21,7 @@ async function createSite(req, res, next) {
         is_active:                   is_active !== undefined ? !!is_active : true,
         discount_check_mode:         discount_check_mode === 'auto' ? 'auto' : 'manual',
         markup_percent:              markup_percent != null && markup_percent !== '' ? Number(markup_percent) : 40,
+        daily_ig_post_limit:         daily_ig_post_limit != null && daily_ig_post_limit !== '' ? Number(daily_ig_post_limit) : 5,
       },
     });
     res.status(201).json({ success: true, data: row });
@@ -30,12 +31,13 @@ async function createSite(req, res, next) {
 async function updateSite(req, res, next) {
   try {
     const id = Number(req.params.id);
-    const { name, url, logo_url, is_active, discount_check_mode, markup_percent } = req.body;
+    const { name, url, logo_url, is_active, discount_check_mode, markup_percent, daily_ig_post_limit } = req.body;
     if (!name?.trim())  return res.status(400).json({ success: false, message: 'name_required' });
     if (!url?.trim())   return res.status(400).json({ success: false, message: 'url_required' });
     const existing = await prisma.sites.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ success: false, message: 'not_found' });
     const newMarkup = markup_percent != null && markup_percent !== '' ? Number(markup_percent) : existing.markup_percent;
+    const newIgLimit = daily_ig_post_limit != null && daily_ig_post_limit !== '' ? Number(daily_ig_post_limit) : existing.daily_ig_post_limit;
     const row = await prisma.sites.update({
       where: { id },
       data: {
@@ -48,6 +50,7 @@ async function updateSite(req, res, next) {
         is_active:                   is_active !== undefined ? !!is_active : existing.is_active,
         discount_check_mode:         discount_check_mode === 'auto' ? 'auto' : 'manual',
         markup_percent:              newMarkup,
+        daily_ig_post_limit:         newIgLimit,
         updated_at:                  new Date(),
       },
     });

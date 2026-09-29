@@ -41,6 +41,17 @@ async function createStoryContainer(imageUrl) {
   return data.id;
 }
 
+// A regular feed (grid) post, not a Story -- unlike Stories, feed posts
+// accept a real `caption` field via the API, so the bilingual product title
+// goes here directly instead of being drawn onto the image.
+async function createFeedContainer(imageUrl, caption) {
+  const igUserId = requireEnv('INSTAGRAM_USER_ID');
+  const accessToken = requireEnv('INSTAGRAM_ACCESS_TOKEN');
+  const params = { image_url: imageUrl, caption, access_token: accessToken };
+  const data = await graphFetch(`${GRAPH_BASE}/${igUserId}/media?${new URLSearchParams(params)}`, { method: 'POST' });
+  return data.id;
+}
+
 // Instagram processes an uploaded image asynchronously after container
 // creation -- publishing immediately can 400 with "Media ID is not
 // available" (code 9007 / subcode 2207027) even though the container itself

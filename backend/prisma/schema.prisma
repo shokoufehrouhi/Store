@@ -345,6 +345,7 @@ model products {
   supplier_code       String?             @db.VarChar(120)
   supplier_note       String?
   order_items         order_items[]
+  instagram_product_posts instagram_product_posts[]
   product_colors     product_colors[]
   product_inventory  product_inventory[]
   product_media      product_media[]
@@ -600,6 +601,7 @@ model sites {
   import_in_progress         Boolean                   @default(false)
   stock_check_in_progress    Boolean                   @default(false)
   markup_percent             Int                       @default(40)
+  daily_ig_post_limit        Int                       @default(5) // max new products from this site queued for an Instagram feed post per import run
   created_at          DateTime                  @default(now()) @db.Timestamptz(6)
   updated_at          DateTime                  @default(now()) @db.Timestamptz(6)
 
@@ -635,6 +637,25 @@ model instagram_content {
   created_at     DateTime  @default(now()) @db.Timestamptz(6)
 
   @@index([status], map: "idx_instagram_content_status")
+}
+
+// One row per newly-imported product, queued for an automatic Instagram
+// feed post (not a Story) with a bilingual Farsi/English caption. Posted at
+// a throttled drip-feed rate (see scheduler.js#maybePostQueuedProduct) to
+// stay well under Instagram's 100-posts/24h cap alongside the Story feature.
+// No review step by request -- posts automatically once the product goes
+// live (is_live:true), whenever that happens to be.
+model instagram_product_posts {
+  id            Int       @id @default(autoincrement())
+  product_id    Int
+  status        String    @default("queued") @db.VarChar(20) // queued | posted | failed | skipped
+  ig_media_id   String?   @db.VarChar(100)
+  posted_at     DateTime? @db.Timestamptz(6)
+  error_message String?
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  products      products  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@index([status], map: "idx_ig_product_posts_status")
 }
 
 model product_categories {

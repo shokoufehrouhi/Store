@@ -1350,6 +1350,7 @@
             <thead><tr>
               <th style="text-align:center" data-i18n="colBrand">برند</th>
               <th style="text-align:center" data-i18n="colMarkup">درصد افزایش قیمت</th>
+              <th style="text-align:center" data-i18n="colIgPostLimit">سقف پست اینستاگرام روزانه</th>
               <th style="text-align:center" data-i18n="syncLastImport">آخرین وارد کردن</th>
               <th style="text-align:center" data-i18n="syncImportNow">وارد کردن محصولات الان</th>
               <th style="text-align:center" data-i18n="syncStockNow">بررسی موجودی الان</th>
@@ -1887,7 +1888,7 @@ const LANGS = {
     connecting:'در حال ورود...', connFail:'اتصال به سرور ناموفق بود',
     navGroupOverview:'نمای کلی', navGroupCatalog:'فروشگاه', navGroupConfig:'تنظیمات پایه', navGroupUsers:'کاربران', navGroupSystem:'سیستم',
     navDashboard:'داشبورد', navNotifications:'اعلان‌ها', navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navSizeCharts:'جدول سایز', navCustomers:'مشتریان', navLeads:'لیدها', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navPaymentLinks:'لینک‌های پرداخت', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navSites:'سایت‌ها', navSync:'همگام‌سازی سایت‌ها', navProductPhotos:'عکس‌های خریداران', navDeploy:'استقرار', refresh:'بروزرسانی',
-    syncSelectSite:'انتخاب سایت', syncImportSchedule:'زمان‌بندی وارد کردن محصولات', syncStockSchedule:'زمان‌بندی بررسی موجودی', syncMarkup:'درصد افزایش قیمت (روی قیمت تخفیف‌خورده سایت)', syncSaveSchedule:'ذخیره تنظیمات', syncScheduleSaved:'تنظیمات ذخیره شد', syncNoTime:'زمان‌بندی نشده', syncImportNow:'وارد کردن محصولات الان', syncStockNow:'بررسی موجودی الان', syncInProgress:'در حال انجام…', syncLastImport:'آخرین وارد کردن', syncLastStockCheck:'آخرین بررسی موجودی', syncNever:'هنوز انجام نشده', syncStarted:'شروع شد — نتیجه به‌زودی در همین صفحه نمایش داده می‌شود', syncGlobalScheduleTitle:'زمان‌بندی سراسری (همه‌ی سایت‌های فعال)', syncGlobalScheduleNote:'در این زمان، همه‌ی سایت‌های فعال به‌صورت خودکار بررسی/وارد می‌شوند — مستقل از سایت انتخاب‌شده در پایین', syncPerSiteTitle:'همگام‌سازی دستی (بر اساس سایت)',
+    syncSelectSite:'انتخاب سایت', syncImportSchedule:'زمان‌بندی وارد کردن محصولات', syncStockSchedule:'زمان‌بندی بررسی موجودی', syncMarkup:'درصد افزایش قیمت (روی قیمت تخفیف‌خورده سایت)', syncSaveSchedule:'ذخیره تنظیمات', syncScheduleSaved:'تنظیمات ذخیره شد', syncNoTime:'زمان‌بندی نشده', syncImportNow:'وارد کردن محصولات الان', syncStockNow:'بررسی موجودی الان', syncInProgress:'در حال انجام…', syncLastImport:'آخرین وارد کردن', syncLastStockCheck:'آخرین بررسی موجودی', syncNever:'هنوز انجام نشده', syncStarted:'شروع شد — نتیجه به‌زودی در همین صفحه نمایش داده می‌شود', syncGlobalScheduleTitle:'زمان‌بندی سراسری (همه‌ی سایت‌های فعال)', syncGlobalScheduleNote:'زمان بررسی موجودی برای همه‌ی سایت‌های فعال یکسانه. زمان وارد کردن محصولات فقط برای اولین سایته — هر سایت فعال بعدی، ۲ ساعت دیرتر از قبلی اجرا می‌شه (بر اساس ترتیب ساخت سایت‌ها)', syncPerSiteTitle:'همگام‌سازی دستی (بر اساس سایت)',
     navCommunications:'ارتباطات', commAllTypes:'همه انواع', commSubject:'موضوع', commTo:'گیرنده', commType:'نوع', commDate:'تاریخ', commCustomer:'مشتری', commView:'مشاهده', commEmpty:'ایمیلی ثبت نشده',
     commTypePaymentNeeded:'نیاز به پرداخت', commTypePreparing:'در حال آماده‌سازی', commTypeDelivery:'ارسال', commTypeDelivered:'تحویل داده شد', commTypeRejected:'رد سفارش', commTypePreorderRejected:'رد پیش‌سفارش', commTypeReply:'پاسخ پیام', commTypeLoyalty:'وفاداری', commTypeBirthday:'تولد', commTypeWelcome:'خوش‌آمد', commTypePrize:'جایزه', commTypeInvite:'دعوت دوست', commTypeVerification:'کد تایید', commTypeRaw:'ارسال مستقیم',
     notifMarkAll:'همه خوانده شد', notifNewOrder:'سفارش جدید', notifOrderUpdate:'بروزرسانی سفارش', notifNewPrize:'جایزه جدید', notifPrizeUpdate:'بروزرسانی جایزه', notifNewReturn:'درخواست مرجوعی', notifReturnUpdate:'بروزرسانی مرجوعی', notifNewCustomer:'مشتری جدید', notifNewLead:'لید جدید', notifView:'مشاهده', notifEmpty:'اعلانی وجود ندارد',
@@ -1931,7 +1932,7 @@ const LANGS = {
     rptStatusBreakdown:'وضعیت سفارشات', rptTopProducts:'پرفروش‌ترین محصولات', rptQtySold:'فروش رفته',
     addProduct:'+ افزودن محصول',
     colId:'#', colMedia:'رسانه', colName:'نام محصول', colCategory:'دسته‌بندی', colPrice:'قیمت',
-    colStock:'موجودی', colBrand:'برند', colStatus:'وضعیت', colActions:'عملیات', colMarkup:'درصد افزایش قیمت',
+    colStock:'موجودی', colBrand:'برند', colStatus:'وضعیت', colActions:'عملیات', colMarkup:'درصد افزایش قیمت', colIgPostLimit:'سقف پست اینستاگرام روزانه',
     active:'فعال', inactive:'غیرفعال', edit:'✏️ ویرایش', del:'🗑️',
     loading:'در حال بارگذاری...', noProducts:'هنوز محصولی ثبت نشده', noPhotos:'هنوز عکسی آپلود نشده',
     addProductTitle:'افزودن محصول جدید', editProductTitle:'ویرایش محصول',
@@ -2096,7 +2097,7 @@ const LANGS = {
     connecting:'Logging in...', connFail:'Could not connect to server',
     navGroupOverview:'Overview', navGroupCatalog:'Store', navGroupConfig:'Configuration', navGroupUsers:'Users', navGroupSystem:'System',
     navDashboard:'Dashboard', navNotifications:'Notifications', navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navSizeCharts:'Size Charts', navCustomers:'Customers', navLeads:'Leads', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navPaymentLinks:'Payment Links', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navSites:'Sites', navSync:'Sync Sites', navProductPhotos:'Buyer Photos', navDeploy:'Deploy', refresh:'Refresh',
-    syncSelectSite:'Select Site', syncImportSchedule:'Product Import Schedule', syncStockSchedule:'Stock Check Schedule', syncMarkup:'Markup % (over the site\'s discounted price)', syncSaveSchedule:'Save Settings', syncScheduleSaved:'Settings saved', syncNoTime:'Not scheduled', syncImportNow:'Import Products Now', syncStockNow:'Check Stock Now', syncInProgress:'Running…', syncLastImport:'Last import', syncLastStockCheck:'Last stock check', syncNever:'Never run yet', syncStarted:'Started — result will show on this page shortly', syncGlobalScheduleTitle:'Global Schedule (all active sites)', syncGlobalScheduleNote:'At this time, every active site is automatically checked/imported — independent of the site selected below', syncPerSiteTitle:'Manual Sync (per site)',
+    syncSelectSite:'Select Site', syncImportSchedule:'Product Import Schedule', syncStockSchedule:'Stock Check Schedule', syncMarkup:'Markup % (over the site\'s discounted price)', syncSaveSchedule:'Save Settings', syncScheduleSaved:'Settings saved', syncNoTime:'Not scheduled', syncImportNow:'Import Products Now', syncStockNow:'Check Stock Now', syncInProgress:'Running…', syncLastImport:'Last import', syncLastStockCheck:'Last stock check', syncNever:'Never run yet', syncStarted:'Started — result will show on this page shortly', syncGlobalScheduleTitle:'Global Schedule (all active sites)', syncGlobalScheduleNote:'Stock check runs at this time for every active site. Import time is only the first site\'s time -- each subsequent active site (by creation order) runs 2 hours after the previous one', syncPerSiteTitle:'Manual Sync (per site)',
     navCommunications:'Communications', commAllTypes:'All types', commSubject:'Subject', commTo:'To', commType:'Type', commDate:'Date', commCustomer:'Customer', commView:'View', commEmpty:'No emails logged yet',
     commTypePaymentNeeded:'Payment Needed', commTypePreparing:'Preparing', commTypeDelivery:'Shipping', commTypeDelivered:'Delivered', commTypeRejected:'Rejected', commTypePreorderRejected:'Preorder Rejected', commTypeReply:'Reply', commTypeLoyalty:'Loyalty', commTypeBirthday:'Birthday', commTypeWelcome:'Welcome', commTypePrize:'Prize', commTypeInvite:'Invite', commTypeVerification:'Verification', commTypeRaw:'Direct Send',
     notifMarkAll:'Mark all read', notifNewOrder:'New Order', notifOrderUpdate:'Order Updated', notifNewPrize:'New Prize', notifPrizeUpdate:'Prize Updated', notifNewReturn:'Return Request', notifReturnUpdate:'Return Updated', notifNewCustomer:'New Customer', notifNewLead:'New Lead', notifView:'View', notifEmpty:'No notifications',
@@ -2140,7 +2141,7 @@ const LANGS = {
     rptStatusBreakdown:'Order Status Breakdown', rptTopProducts:'Top Selling Products', rptQtySold:'Sold',
     addProduct:'+ Add Product',
     colId:'#', colMedia:'Media', colName:'Product Name', colCategory:'Category', colPrice:'Price',
-    colStock:'Stock', colBrand:'Brand', colStatus:'Status', colActions:'Actions', colMarkup:'Markup %',
+    colStock:'Stock', colBrand:'Brand', colStatus:'Status', colActions:'Actions', colMarkup:'Markup %', colIgPostLimit:'Daily IG post cap',
     active:'Active', inactive:'Inactive', edit:'✏️ Edit', del:'🗑️',
     loading:'Loading...', noProducts:'No products yet', noPhotos:'No photos uploaded yet',
     addProductTitle:'Add New Product', editProductTitle:'Edit Product',
@@ -2305,7 +2306,7 @@ const LANGS = {
     connecting:'Giriş yapılıyor...', connFail:'Sunucuya bağlanılamadı',
     navGroupOverview:'Genel Bakış', navGroupCatalog:'Mağaza', navGroupConfig:'Yapılandırma', navGroupUsers:'Kullanıcılar', navGroupSystem:'Sistem',
     navDashboard:'Gösterge Paneli', navNotifications:'Bildirimler', navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navSizeCharts:'Beden Tablosu', navCustomers:'Müşteriler', navLeads:'Adaylar', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navPaymentLinks:'Ödeme Linkleri', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navSites:'Siteler', navSync:'Site Senkronizasyonu', navProductPhotos:'Alıcı Fotoğrafları', navDeploy:'Dağıtım', refresh:'Yenile',
-    syncSelectSite:'Site Seç', syncImportSchedule:'Ürün İçe Aktarma Zamanlaması', syncStockSchedule:'Stok Kontrol Zamanlaması', syncMarkup:'Kâr Marjı % (sitenin indirimli fiyatı üzerine)', syncSaveSchedule:'Ayarları Kaydet', syncScheduleSaved:'Ayarlar kaydedildi', syncNoTime:'Zamanlanmadı', syncImportNow:'Şimdi Ürün İçe Aktar', syncStockNow:'Şimdi Stok Kontrol Et', syncInProgress:'Çalışıyor…', syncLastImport:'Son içe aktarma', syncLastStockCheck:'Son stok kontrolü', syncNever:'Henüz çalıştırılmadı', syncStarted:'Başladı — sonuç kısa süre içinde bu sayfada görünecek', syncGlobalScheduleTitle:'Genel Zamanlama (tüm aktif siteler)', syncGlobalScheduleNote:'Bu saatte, tüm aktif siteler otomatik olarak kontrol edilir/içe aktarılır — aşağıda seçilen siteden bağımsız', syncPerSiteTitle:'Manuel Senkronizasyon (siteye göre)',
+    syncSelectSite:'Site Seç', syncImportSchedule:'Ürün İçe Aktarma Zamanlaması', syncStockSchedule:'Stok Kontrol Zamanlaması', syncMarkup:'Kâr Marjı % (sitenin indirimli fiyatı üzerine)', syncSaveSchedule:'Ayarları Kaydet', syncScheduleSaved:'Ayarlar kaydedildi', syncNoTime:'Zamanlanmadı', syncImportNow:'Şimdi Ürün İçe Aktar', syncStockNow:'Şimdi Stok Kontrol Et', syncInProgress:'Çalışıyor…', syncLastImport:'Son içe aktarma', syncLastStockCheck:'Son stok kontrolü', syncNever:'Henüz çalıştırılmadı', syncStarted:'Başladı — sonuç kısa süre içinde bu sayfada görünecek', syncGlobalScheduleTitle:'Genel Zamanlama (tüm aktif siteler)', syncGlobalScheduleNote:'Stok kontrolü bu saatte tüm aktif siteler için çalışır. İçe aktarma saati sadece ilk sitenin saatidir -- her bir sonraki aktif site (oluşturulma sırasına göre) öncekinden 2 saat sonra çalışır', syncPerSiteTitle:'Manuel Senkronizasyon (siteye göre)',
     navCommunications:'İletişim', commAllTypes:'Tüm türler', commSubject:'Konu', commTo:'Alıcı', commType:'Tür', commDate:'Tarih', commCustomer:'Müşteri', commView:'Görüntüle', commEmpty:'Henüz e-posta kaydı yok',
     commTypePaymentNeeded:'Ödeme Gerekli', commTypePreparing:'Hazırlanıyor', commTypeDelivery:'Kargo', commTypeDelivered:'Teslim Edildi', commTypeRejected:'Reddedildi', commTypePreorderRejected:'Ön Sipariş Reddedildi', commTypeReply:'Yanıt', commTypeLoyalty:'Sadakat', commTypeBirthday:'Doğum Günü', commTypeWelcome:'Hoş Geldin', commTypePrize:'Ödül', commTypeInvite:'Davet', commTypeVerification:'Doğrulama', commTypeRaw:'Doğrudan Gönderim',
     notifMarkAll:'Tümünü okundu say', notifNewOrder:'Yeni Sipariş', notifOrderUpdate:'Sipariş Güncellendi', notifNewPrize:'Yeni Ödül', notifPrizeUpdate:'Ödül Güncellendi', notifNewReturn:'İade Talebi', notifReturnUpdate:'İade Güncellendi', notifNewCustomer:'Yeni Müşteri', notifNewLead:'Yeni Aday', notifView:'Görüntüle', notifEmpty:'Bildirim yok',
@@ -2349,7 +2350,7 @@ const LANGS = {
     rptStatusBreakdown:'Sipariş Durumu', rptTopProducts:'En Çok Satan Ürünler', rptQtySold:'Satış',
     addProduct:'+ Ürün Ekle',
     colId:'#', colMedia:'Medya', colName:'Ürün Adı', colCategory:'Kategori', colPrice:'Fiyat',
-    colStock:'Stok', colBrand:'Marka', colStatus:'Durum', colActions:'İşlemler', colMarkup:'Kâr Marjı %',
+    colStock:'Stok', colBrand:'Marka', colStatus:'Durum', colActions:'İşlemler', colMarkup:'Kâr Marjı %', colIgPostLimit:'Günlük IG Gönderi Sınırı',
     active:'Aktif', inactive:'Pasif', edit:'✏️ Düzenle', del:'🗑️',
     loading:'Yükleniyor...', noProducts:'Henüz ürün yok', noPhotos:'Henüz fotoğraf yüklenmedi',
     addProductTitle:'Yeni Ürün Ekle', editProductTitle:'Ürünü Düzenle',
@@ -6343,7 +6344,7 @@ function renderSyncSitesTable() {
   const tbody = document.getElementById('sync-sites-tbody');
   if (!tbody) return;
   if (!_allSites.length) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:#999">${t('noData')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:#999">${t('noData')}</td></tr>`;
     return;
   }
   tbody.innerHTML = _allSites.map(site => `
@@ -6357,6 +6358,12 @@ function renderSyncSitesTable() {
       <td style="text-align:center">
         <div style="display:flex;align-items:center;justify-content:center;gap:6px">
           <input type="number" id="sync-markup-${site.id}" value="${site.markup_percent}" min="0" max="500" oninput="_syncDirty=true" style="width:70px;padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;text-align:center" dir="ltr">
+          <button class="btn btn-secondary btn-sm" onclick="saveSyncMarkup(${site.id})" title="${t('syncSaveSchedule')}">💾</button>
+        </div>
+      </td>
+      <td style="text-align:center">
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px">
+          <input type="number" id="sync-iglimit-${site.id}" value="${site.daily_ig_post_limit}" min="0" max="100" oninput="_syncDirty=true" style="width:60px;padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px;text-align:center" dir="ltr">
           <button class="btn btn-secondary btn-sm" onclick="saveSyncMarkup(${site.id})" title="${t('syncSaveSchedule')}">💾</button>
         </div>
       </td>
@@ -6384,6 +6391,7 @@ async function saveSyncMarkup(id) {
     name: site.name, url: site.url,
     is_active: site.is_active, discount_check_mode: site.discount_check_mode,
     markup_percent: document.getElementById(`sync-markup-${id}`)?.value,
+    daily_ig_post_limit: document.getElementById(`sync-iglimit-${id}`)?.value,
   };
   const data = await api(`/admin/sites/${id}`, { method: 'PUT', body: JSON.stringify(body) });
   if (data?.success) {
