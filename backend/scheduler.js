@@ -60,7 +60,8 @@ function currentDateStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-const PRODUCT_POST_INTERVAL_MS = 15 * 60 * 1000; // drip-feed rate for new-product Instagram posts (2 per 30min)
+const PRODUCT_POST_INTERVAL_MS = 10 * 60 * 1000; // drip-feed rate for new-product Instagram posts (6/hour)
+const PRODUCT_POST_START_TIME = '08:00'; // don't start posting before this time each day
 
 // A product stays visibly sold_out for a month (sold_out_at is stamped once,
 // on the transition into sold_out — see resolveProductTag's callers and
@@ -320,13 +321,16 @@ async function productPostsMadeToday() {
 
 // Posts at most one queued new-product row per PRODUCT_POST_INTERVAL_MS,
 // derived from the last actual post time (not an in-memory timer, so it
-// self-corrects across restarts instead of bursting) -- and never more than
-// totalDailyPostCap() posts in a single calendar day, even if the queue has
-// backlog from a slower day and the rate alone would allow more. Only
-// considers products that have actually gone live (an admin publish can lag
-// well behind import) -- skips (not blocks on) a row whose photo file is
-// missing, same defensive pattern as eligibleStoryProducts.
+// self-corrects across restarts instead of bursting) -- never before
+// PRODUCT_POST_START_TIME each day, and never more than totalDailyPostCap()
+// posts in a single calendar day, even if the queue has backlog from a
+// slower day and the rate alone would allow more. Only considers products
+// that have actually gone live (an admin publish can lag well behind
+// import) -- skips (not blocks on) a row whose photo file is missing, same
+// defensive pattern as eligibleStoryProducts.
 async function maybePostQueuedProduct() {
+  if (currentHHMM() < PRODUCT_POST_START_TIME) return;
+
   const last = await prisma.instagram_product_posts.findFirst({
     where: { status: 'posted' },
     orderBy: { posted_at: 'desc' },
