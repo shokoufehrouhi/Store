@@ -144,6 +144,9 @@ router.get('/instagram-content',             ic.listStories);
 router.post('/instagram-content/:id/deploy', ic.deployStory);
 router.delete('/instagram-content/:id',      ic.deleteStory);
 
+const ipp = require('../controllers/instagramProductPostsController');
+router.get('/instagram-product-posts', ipp.listProductPosts);
+
 const sc = require('../controllers/suppliersController');
 router.get('/suppliers',       sc.listSuppliers);
 router.delete('/suppliers/:id', sc.deleteSupplier);

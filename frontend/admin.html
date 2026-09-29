@@ -1323,11 +1323,23 @@
     <div id="tab-instagram-content" class="hidden">
       <div class="page-header">
         <h2>📸 <span data-i18n="navInstagramContent">محتوای اینستاگرام</span></h2>
-        <button class="btn btn-secondary btn-sm" onclick="loadInstagramContent()" data-i18n="ordersRefresh">🔄 بروزرسانی</button>
+        <button class="btn btn-secondary btn-sm" onclick="loadIgActiveSubTab()" data-i18n="ordersRefresh">🔄 بروزرسانی</button>
       </div>
       <div class="page-body">
-        <div id="ig-content-empty" class="hidden" style="text-align:center;padding:40px;color:#999" data-i18n="igContentEmpty">هنوز محتوایی ساخته نشده</div>
-        <div id="ig-content-grid"></div>
+        <div style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:18px">
+          <button class="rpt-subtab active" id="ig-subnav-stories" onclick="showIgSubTab('stories')">📖 <span data-i18n="igSubStories">استوری‌ها</span></button>
+          <button class="rpt-subtab" id="ig-subnav-posts" onclick="showIgSubTab('posts')">🖼️ <span data-i18n="igSubPosts">پست‌ها</span></button>
+        </div>
+
+        <div id="ig-subtab-stories">
+          <div id="ig-content-empty" class="hidden" style="text-align:center;padding:40px;color:#999" data-i18n="igContentEmpty">هنوز محتوایی ساخته نشده</div>
+          <div id="ig-content-grid"></div>
+        </div>
+
+        <div id="ig-subtab-posts" class="hidden">
+          <div id="ig-posts-empty" class="hidden" style="text-align:center;padding:40px;color:#999" data-i18n="igPostsEmpty">هنوز پستی ساخته نشده</div>
+          <div id="ig-posts-grid"></div>
+        </div>
       </div>
     </div>
 
@@ -2025,7 +2037,7 @@ const LANGS = {
     deleteItem:'حذف آیتم', confirmYes:'بله، حذف کن', confirmYesDeploy:'بله، استقرار کن', confirmYesPublish:'بله، منتشر کن', confirmNo:'انصراف',
     publishChanges:'انتشار تغییرات', confirmPublish:'آیا مطمئنید تغییرات روی سایت منتشر شوند؟', publishedOk:'تغییرات با موفقیت منتشر شد', pendingPublish:'منتشر نشده — منتظر انتشار',
     deployProduction:'تولید (زنده)', deployStaging:'پیش‌نمایش', deployOpenStaging:'🔗 باز کردن پیش‌نمایش ↗', deployUpToDate:'✓ تولید با آخرین تغییرات همگام است', deployPendingTitle:'تغییرات در انتظار استقرار:', deployBtn:'🚀 استقرار روی تولید', deployConfirm:'این تغییرات روی سایت اصلی (shilista.com) اعمال شوند؟', deployInProgress:'در حال استقرار…', deployDone:'با موفقیت روی تولید مستقر شد', deployError:'خطا در استقرار',
-    navInstagramContent:'محتوای اینستاگرام', igContentEmpty:'هنوز محتوایی ساخته نشده', igSingle:'استوری تک‌محصولی', igCollage:'استوری کلاژ', igDraft:'در انتظار تایید', igPosted:'منتشر شده', igFailed:'خطا در انتشار', igDeploy:'انتشار در اینستاگرام', igDeployConfirm:'این استوری واقعاً در اینستاگرام منتشر شود؟', igDeployDone:'با موفقیت در اینستاگرام منتشر شد', igDeployError:'خطا در انتشار', igConfirmDelete:'این محتوا حذف شود؟', igNoDate:'بدون تاریخ', igDeployInProgress:'در حال ارسال…', igDownload:'دانلود',
+    navInstagramContent:'محتوای اینستاگرام', igContentEmpty:'هنوز محتوایی ساخته نشده', igSingle:'استوری تک‌محصولی', igCollage:'استوری کلاژ', igDraft:'در انتظار تایید', igPosted:'منتشر شده', igFailed:'خطا در انتشار', igDeploy:'انتشار در اینستاگرام', igDeployConfirm:'این استوری واقعاً در اینستاگرام منتشر شود؟', igDeployDone:'با موفقیت در اینستاگرام منتشر شد', igDeployError:'خطا در انتشار', igConfirmDelete:'این محتوا حذف شود؟', igNoDate:'بدون تاریخ', igDeployInProgress:'در حال ارسال…', igDownload:'دانلود', igSubStories:'استوری‌ها', igSubPosts:'پست‌ها', igPostsEmpty:'هنوز پستی ساخته نشده', igQueued:'در صف انتظار', igSkipped:'رد شد',
     confirmDeleteProduct:'این محصول حذف شود؟', confirmDeleteSubcat:'این زیردسته حذف شود؟',
     confirmDeleteColor:'این رنگ حذف شود؟',
     bestseller:'پرفروش', newTag:'جدید',
@@ -2234,7 +2246,7 @@ const LANGS = {
     deleteItem:'Delete Item', confirmYes:'Yes, Delete', confirmYesDeploy:'Yes, Deploy', confirmYesPublish:'Yes, Publish', confirmNo:'Cancel',
     publishChanges:'Publish Changes', confirmPublish:'Are you sure you want to publish these changes to the live site?', publishedOk:'Changes published successfully', pendingPublish:'Not published yet — waiting for publish',
     deployProduction:'Production (live)', deployStaging:'Preview', deployOpenStaging:'🔗 Open preview ↗', deployUpToDate:'✓ Production is up to date', deployPendingTitle:'Changes pending deploy:', deployBtn:'🚀 Deploy to Production', deployConfirm:'Push these changes live to shilista.com?', deployInProgress:'Deploying…', deployDone:'Deployed to production successfully', deployError:'Deploy failed',
-    navInstagramContent:'Instagram Content', igContentEmpty:'No content generated yet', igSingle:'Single-product story', igCollage:'Collage story', igDraft:'Pending review', igPosted:'Posted', igFailed:'Post failed', igDeploy:'Post to Instagram', igDeployConfirm:'Really post this story to the real Instagram account?', igDeployDone:'Posted to Instagram successfully', igDeployError:'Failed to post', igConfirmDelete:'Delete this content?', igNoDate:'No date', igDeployInProgress:'Posting…', igDownload:'Download',
+    navInstagramContent:'Instagram Content', igContentEmpty:'No content generated yet', igSingle:'Single-product story', igCollage:'Collage story', igDraft:'Pending review', igPosted:'Posted', igFailed:'Post failed', igDeploy:'Post to Instagram', igDeployConfirm:'Really post this story to the real Instagram account?', igDeployDone:'Posted to Instagram successfully', igDeployError:'Failed to post', igConfirmDelete:'Delete this content?', igNoDate:'No date', igDeployInProgress:'Posting…', igDownload:'Download', igSubStories:'Stories', igSubPosts:'Posts', igPostsEmpty:'No posts generated yet', igQueued:'Queued', igSkipped:'Skipped',
     confirmDeleteProduct:'Delete this product?', confirmDeleteSubcat:'Delete this subcategory?',
     confirmDeleteColor:'Delete this color?',
     bestseller:'Bestseller', newTag:'New',
@@ -2443,7 +2455,7 @@ const LANGS = {
     deleteItem:'Öğeyi Sil', confirmYes:'Evet, Sil', confirmYesDeploy:'Evet, Dağıt', confirmYesPublish:'Evet, Yayınla', confirmNo:'İptal',
     publishChanges:'Değişiklikleri Yayınla', confirmPublish:'Bu değişiklikleri canlı siteye yayınlamak istediğinize emin misiniz?', publishedOk:'Değişiklikler başarıyla yayınlandı', pendingPublish:'Henüz yayınlanmadı — yayın bekleniyor',
     deployProduction:'Üretim (canlı)', deployStaging:'Ön izleme', deployOpenStaging:'🔗 Ön izlemeyi aç ↗', deployUpToDate:'✓ Üretim güncel', deployPendingTitle:'Dağıtım bekleyen değişiklikler:', deployBtn:'🚀 Üretime Dağıt', deployConfirm:'Bu değişiklikler canlı siteye (shilista.com) uygulansın mı?', deployInProgress:'Dağıtılıyor…', deployDone:'Üretime başarıyla dağıtıldı', deployError:'Dağıtım başarısız',
-    navInstagramContent:'Instagram İçeriği', igContentEmpty:'Henüz içerik oluşturulmadı', igSingle:'Tekli ürün hikayesi', igCollage:'Kolaj hikayesi', igDraft:'Onay bekliyor', igPosted:'Yayınlandı', igFailed:'Yayın başarısız', igDeploy:'Instagram\'da Yayınla', igDeployConfirm:'Bu hikaye gerçekten Instagram hesabında yayınlansın mı?', igDeployDone:'Instagram\'da başarıyla yayınlandı', igDeployError:'Yayınlama başarısız', igConfirmDelete:'Bu içerik silinsin mi?', igNoDate:'Tarih yok', igDeployInProgress:'Gönderiliyor…', igDownload:'İndir',
+    navInstagramContent:'Instagram İçeriği', igContentEmpty:'Henüz içerik oluşturulmadı', igSingle:'Tekli ürün hikayesi', igCollage:'Kolaj hikayesi', igDraft:'Onay bekliyor', igPosted:'Yayınlandı', igFailed:'Yayın başarısız', igDeploy:'Instagram\'da Yayınla', igDeployConfirm:'Bu hikaye gerçekten Instagram hesabında yayınlansın mı?', igDeployDone:'Instagram\'da başarıyla yayınlandı', igDeployError:'Yayınlama başarısız', igConfirmDelete:'Bu içerik silinsin mi?', igNoDate:'Tarih yok', igDeployInProgress:'Gönderiliyor…', igDownload:'İndir', igSubStories:'Hikayeler', igSubPosts:'Gönderiler', igPostsEmpty:'Henüz gönderi oluşturulmadı', igQueued:'Sırada', igSkipped:'Atlandı',
     confirmDeleteProduct:'Bu ürün silinsin mi?', confirmDeleteSubcat:'Bu alt kategori silinsin mi?',
     confirmDeleteColor:'Bu renk silinsin mi?',
     bestseller:'Çok Satan', newTag:'Yeni',
@@ -2711,7 +2723,7 @@ function showTab(tab) {
   if (tab === 'leads')          loadLeads();
   if (tab === 'reports')        initReports();
   if (tab === 'deploy')         loadDeployStatus();
-  if (tab === 'instagram-content') loadInstagramContent();
+  if (tab === 'instagram-content') loadIgActiveSubTab();
 }
 
 // ─── API helper ───────────────────────────────────────────────────────────────
@@ -5861,12 +5873,35 @@ function deployProduction() {
 
 // ─── Instagram Content ─────────────────────────────────────────────────────────
 var _igContent = [];
+var _igProductPosts = [];
+var _igActiveSubTab = 'stories';
+
+function showIgSubTab(tab) {
+  _igActiveSubTab = tab;
+  document.getElementById('ig-subtab-stories').classList.toggle('hidden', tab !== 'stories');
+  document.getElementById('ig-subtab-posts').classList.toggle('hidden', tab !== 'posts');
+  document.getElementById('ig-subnav-stories').classList.toggle('active', tab === 'stories');
+  document.getElementById('ig-subnav-posts').classList.toggle('active', tab === 'posts');
+  loadIgActiveSubTab();
+}
+
+function loadIgActiveSubTab() {
+  if (_igActiveSubTab === 'posts') loadIgProductPosts();
+  else loadInstagramContent();
+}
 
 async function loadInstagramContent() {
   const data = await api('/admin/instagram-content');
   if (!data?.success) return;
   _igContent = data.data;
   renderInstagramContent();
+}
+
+async function loadIgProductPosts() {
+  const data = await api('/admin/instagram-product-posts');
+  if (!data?.success) return;
+  _igProductPosts = data.data;
+  renderIgProductPosts();
 }
 
 function igTimeLabel(row) {
@@ -5926,6 +5961,54 @@ function renderInstagramContent() {
       </div>
       <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:6px">
         ${rows.map(igStoryItem).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function igProductStatusBadge(row) {
+  if (row.status === 'posted')  return `<span style="color:#16a34a;font-weight:600">✅ ${t('igPosted')}</span>`;
+  if (row.status === 'failed')  return `<span style="color:#ef4444;font-weight:600">⚠️ ${t('igFailed')}</span>`;
+  if (row.status === 'skipped') return `<span style="color:#999;font-weight:600">⏭️ ${t('igSkipped')}</span>`;
+  return `<span style="color:#a16207;font-weight:600">⏳ ${t('igQueued')}</span>`;
+}
+
+function igProductPostItem(row) {
+  const product = row.products || {};
+  const media = (product.product_media || [])[0];
+  const imgSrc = media ? `${SERVER_URL}${esc(media.url)}` : '';
+  return `
+    <div style="flex:0 0 auto;width:150px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--white)">
+      ${imgSrc ? `<img src="${imgSrc}" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block">` : ''}
+      <div style="padding:8px">
+        <div style="font-weight:700;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(product.name_fa || '')}</div>
+        <div style="font-size:11px;color:#999;margin:2px 0">${esc(product.brand || '')}</div>
+        <div style="font-size:11px">${igProductStatusBadge(row)}</div>
+        ${row.error_message ? `<div style="font-size:10px;color:#ef4444;margin-top:6px">${esc(row.error_message)}</div>` : ''}
+      </div>
+    </div>`;
+}
+
+function renderIgProductPosts() {
+  const grid  = document.getElementById('ig-posts-grid');
+  const empty = document.getElementById('ig-posts-empty');
+  if (!grid) return;
+  empty.classList.toggle('hidden', _igProductPosts.length > 0);
+  const map = new Map();
+  for (const row of _igProductPosts) {
+    const date = row.created_at ? row.created_at.slice(0, 10) : t('igNoDate');
+    if (!map.has(date)) map.set(date, []);
+    map.get(date).push(row);
+  }
+  const groups = [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  grid.innerHTML = groups.map(([date, rows]) => `
+    <div class="card" style="margin-bottom:16px">
+      <div style="font-weight:700;font-size:14px;margin-bottom:12px">
+        📅 ${date === t('igNoDate') ? esc(date) : esc(new Date(date).toLocaleDateString('en-GB'))}
+        <span style="font-weight:400;font-size:12px;color:#999">(${rows.filter(r => r.status === 'posted').length}/${rows.length} ${t('igPosted')})</span>
+      </div>
+      <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:6px">
+        ${rows.map(igProductPostItem).join('')}
       </div>
     </div>
   `).join('');
