@@ -22,6 +22,7 @@ const { checkSiteStock, importSite, cleanupStaleChromeProfiles } = require('./ut
 const { syncSubcategoryActiveState } = require('./utils/subcategorySync');
 const { buildSingleProductStory, buildCollageStory } = require('./utils/storyBuilder');
 const { deployStoryById } = require('./controllers/instagramContentController');
+const { publishAllChanges } = require('./controllers/adminController');
 const { queueNewProductsForInstagram } = require('./utils/instagramProductQueue');
 const {
   createFeedContainer, createCarouselChildContainer, createCarouselContainer,
@@ -473,8 +474,12 @@ async function tick() {
     await autoDeploySlot(EVENING_COLLAGE_TIME).catch(err => console.error('[scheduler] evening collage auto-deploy failed:', err));
   }
 
+  // Fetched every tick (not just when ranThisMinute is about to change) so
+  // maybeAutoPublish below can check its own interval independently of the
+  // site-import/stock-check schedule times.
+  const settings = await prisma.sync_settings.findUnique({ where: { id: 1 } });
+
   if (ranThisMinute !== nowHHMM) {
-    const settings = await prisma.sync_settings.findUnique({ where: { id: 1 } });
     if (settings && (settings.import_schedule_time === nowHHMM || settings.stock_check_schedule_time === nowHHMM)) {
       ranThisMinute = nowHHMM;
       const sites = await prisma.sites.findMany({ where: { is_active: true } });
@@ -499,6 +504,22 @@ async function tick() {
   // Drip-feed one queued new-product Instagram post at a time, throttled to
   // PRODUCT_POST_INTERVAL_MS -- runs every tick, self-throttles internally.
   await maybePostQueuedProduct().catch(err => console.error('[scheduler] product post drip-feed failed:', err));
+
+  await maybeAutoPublish(settings).catch(err => console.error('[scheduler] auto-publish failed:', err));
+}
+
+// Unlike the Instagram post/story pipelines, re-running publishAllChanges()
+// twice back to back is harmless (it just re-snapshots the same already-
+// published rows), so this only needs a simple in-memory interval guard, not
+// an atomic DB claim -- there's no "posted twice to a real external service"
+// risk here.
+let lastAutoPublishAt = 0;
+async function maybeAutoPublish(settings) {
+  if (!settings || !settings.auto_publish_enabled) return;
+  const intervalMs = Math.max(1, settings.auto_publish_interval_minutes || 30) * 60 * 1000;
+  if (Date.now() - lastAutoPublishAt < intervalMs) return;
+  lastAutoPublishAt = Date.now();
+  await publishAllChanges();
 }
 
 function start() {

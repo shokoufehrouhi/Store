@@ -86,13 +86,26 @@ async function getSyncSettings(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// The schedule form and the auto-publish toggle each save independently
+// (different cards in admin.html, saved by different buttons), so a request
+// from one only carries its own fields -- undefined here means "untouched by
+// this request", not "clear it". Falling back to the existing row (rather
+// than blanket `|| null`) keeps the other card's last-saved value intact.
 async function updateSyncSettings(req, res, next) {
   try {
-    const { import_schedule_time, stock_check_schedule_time } = req.body;
-    const settings = await prisma.sync_settings.upsert({
+    const { import_schedule_time, stock_check_schedule_time, auto_publish_enabled, auto_publish_interval_minutes } = req.body;
+    const existing = await prisma.sync_settings.upsert({ where: { id: 1 }, create: { id: 1 }, update: {} });
+    const settings = await prisma.sync_settings.update({
       where: { id: 1 },
-      create: { id: 1, import_schedule_time: import_schedule_time || null, stock_check_schedule_time: stock_check_schedule_time || null },
-      update: { import_schedule_time: import_schedule_time || null, stock_check_schedule_time: stock_check_schedule_time || null, updated_at: new Date() },
+      data: {
+        import_schedule_time: import_schedule_time !== undefined ? (import_schedule_time || null) : existing.import_schedule_time,
+        stock_check_schedule_time: stock_check_schedule_time !== undefined ? (stock_check_schedule_time || null) : existing.stock_check_schedule_time,
+        auto_publish_enabled: auto_publish_enabled !== undefined ? !!auto_publish_enabled : existing.auto_publish_enabled,
+        auto_publish_interval_minutes: (auto_publish_interval_minutes !== undefined && auto_publish_interval_minutes !== '')
+          ? Math.max(1, Number(auto_publish_interval_minutes) || existing.auto_publish_interval_minutes)
+          : existing.auto_publish_interval_minutes,
+        updated_at: new Date(),
+      },
     });
     res.json({ success: true, data: settings });
   } catch (err) { next(err); }

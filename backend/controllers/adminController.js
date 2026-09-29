@@ -584,28 +584,36 @@ async function getPublishStatus(req, res, next) {
 // rename correctly cascades into every product's embedded category label in
 // the same publish click. Do not "optimize" this to only touch dirty rows —
 // that would silently break cross-entity consistency.
+//
+// Shared by the manual "Publish Changes" button (below) and scheduler.js's
+// auto-publish timer, same as instagramContentController.js#deployStoryById
+// is shared by its manual/auto callers — one code path either way.
+async function publishAllChanges() {
+  const [products, categories, subcategories] = await Promise.all([
+    prisma.products.findMany({ include: PRODUCT_INCLUDE }),
+    prisma.categories.findMany(),
+    prisma.subcategories.findMany(),
+  ]);
+
+  await prisma.$transaction([
+    ...products.map(p => prisma.products.update({
+      where: { id: p.id },
+      data: { is_live: p.is_active, is_dirty: false, published_data: buildProductSnapshot(p) },
+    })),
+    ...categories.map(c => prisma.categories.update({
+      where: { id: c.id },
+      data: { is_live: c.is_active, is_dirty: false, published_data: buildCategorySnapshot(c) },
+    })),
+    ...subcategories.map(s => prisma.subcategories.update({
+      where: { id: s.id },
+      data: { is_live: s.is_active, is_dirty: false, published_data: buildSubcategorySnapshot(s) },
+    })),
+  ]);
+}
+
 async function publishChanges(req, res, next) {
   try {
-    const [products, categories, subcategories] = await Promise.all([
-      prisma.products.findMany({ include: PRODUCT_INCLUDE }),
-      prisma.categories.findMany(),
-      prisma.subcategories.findMany(),
-    ]);
-
-    await prisma.$transaction([
-      ...products.map(p => prisma.products.update({
-        where: { id: p.id },
-        data: { is_live: p.is_active, is_dirty: false, published_data: buildProductSnapshot(p) },
-      })),
-      ...categories.map(c => prisma.categories.update({
-        where: { id: c.id },
-        data: { is_live: c.is_active, is_dirty: false, published_data: buildCategorySnapshot(c) },
-      })),
-      ...subcategories.map(s => prisma.subcategories.update({
-        where: { id: s.id },
-        data: { is_live: s.is_active, is_dirty: false, published_data: buildSubcategorySnapshot(s) },
-      })),
-    ]);
+    await publishAllChanges();
     res.json({ success: true });
   } catch (err) { next(err); }
 }
@@ -1878,7 +1886,7 @@ async function getCouponReport(req, res, next) {
 
 module.exports = {
   login, uploadMedia, deleteMedia,
-  getPublishStatus, publishChanges,
+  getPublishStatus, publishChanges, publishAllChanges,
   getDeployStatus, deployToProduction,
   getCategories, createCategory, updateCategory, toggleCategory, deleteCategory,
   getSubcategories, createSubcategory, updateSubcategory, toggleSubcategory, deleteSubcategory,

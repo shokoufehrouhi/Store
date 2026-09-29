@@ -612,10 +612,12 @@ model sites {
 // every active site at that time — per-site scheduling isn't wanted, only
 // the manual "Sync Now" trigger is per-site, see sitesController.js).
 model sync_settings {
-  id                         Int       @id @default(1)
-  import_schedule_time       String?   @db.VarChar(5)
-  stock_check_schedule_time  String?   @db.VarChar(5)
-  updated_at                 DateTime  @default(now()) @db.Timestamptz(6)
+  id                             Int       @id @default(1)
+  import_schedule_time           String?   @db.VarChar(5)
+  stock_check_schedule_time      String?   @db.VarChar(5)
+  auto_publish_enabled           Boolean   @default(false)
+  auto_publish_interval_minutes  Int       @default(30)
+  updated_at                     DateTime  @default(now()) @db.Timestamptz(6)
 }
 
 // One row per auto-generated Instagram Story (built by scheduler.js at
