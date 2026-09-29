@@ -70,30 +70,66 @@ async function deactivateExpiredSoldOutProducts() {
   console.log(`[scheduler] auto-deactivated ${expired.length} product(s) sold out for over a month`);
 }
 
+// Product ids that already appeared in a story within the last `days` days
+// (drawn straight from instagram_content's own history) — used to keep
+// eligibleStoryProducts from repeating the same product/photo across
+// consecutive stories.
+async function recentlyUsedProductIds(days = 7) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const rows = await prisma.instagram_content.findMany({
+    where: { created_at: { gte: cutoff } },
+    select: { product_ids: true },
+  });
+  const ids = new Set();
+  for (const row of rows) for (const id of row.product_ids || []) ids.add(id);
+  return ids;
+}
+
 // Pool of postable products, freshest first (recent imports/edits are the
 // most relevant thing to promote day-to-day) — pulled a bit deeper than
 // `limit` and shuffled so the same top few items don't lead every story.
+// Excludes anything used in a story this week so the same product/photo
+// doesn't keep repeating -- falls back to ignoring that exclusion only if
+// it would otherwise leave too few candidates to fill `limit`.
 async function eligibleStoryProducts(limit, excludeIds = []) {
-  const pool = await prisma.products.findMany({
-    where: {
-      is_active: true,
-      is_live: true,
-      tag: { not: 'sold_out' },
-      id: { notIn: excludeIds },
-      product_media: { some: {} },
-    },
-    include: { product_media: { take: 1 } },
-    orderBy: { updated_at: 'desc' },
-    take: Math.max(limit * 10, 30),
+  const recent = await recentlyUsedProductIds();
+  const baseWhere = {
+    is_active: true,
+    is_live: true,
+    tag: { not: 'sold_out' },
+    product_media: { some: {} },
+  };
+
+  async function fetchPool(exclude) {
+    const pool = await prisma.products.findMany({
+      where: { ...baseWhere, id: { notIn: exclude } },
+      include: { product_media: { take: 1 } },
+      orderBy: { updated_at: 'desc' },
+      take: Math.max(limit * 10, 30),
+    });
+    // A product_media row pointing at a file that's actually missing on disk
+    // (seen in production data) would otherwise crash sharp mid-render —
+    // filter those out here rather than letting generateMorning/EveningStory
+    // fail silently for the whole day.
+    return pool.filter(p => {
+      const media = p.product_media[0];
+      return media && fs.existsSync(path.join(UPLOADS_DIR, path.basename(media.url)));
+    });
+  }
+
+  let withFiles = await fetchPool([...new Set([...excludeIds, ...recent])]);
+  if (withFiles.length < limit) withFiles = await fetchPool(excludeIds); // catalog too small to also avoid repeats
+
+  // Same-name duplicate catalog rows (seen in production data) would
+  // otherwise show up twice in one story even though they're distinct ids.
+  const seenNames = new Set();
+  withFiles = withFiles.filter(p => {
+    if (seenNames.has(p.name_fa)) return false;
+    seenNames.add(p.name_fa);
+    return true;
   });
-  // A product_media row pointing at a file that's actually missing on disk
-  // (seen in production data) would otherwise crash sharp mid-render —
-  // filter those out here rather than letting generateMorning/EveningStory
-  // fail silently for the whole day.
-  const withFiles = pool.filter(p => {
-    const media = p.product_media[0];
-    return media && fs.existsSync(path.join(UPLOADS_DIR, path.basename(media.url)));
-  });
+
   for (let i = withFiles.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [withFiles[i], withFiles[j]] = [withFiles[j], withFiles[i]];
