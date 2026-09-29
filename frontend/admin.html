@@ -5887,7 +5887,7 @@ function renderInstagramContent() {
   if (!grid) return;
   empty.classList.toggle('hidden', _igContent.length > 0);
   grid.innerHTML = _igContent.map(row => `
-    <div class="db-card" style="padding:0;overflow:hidden">
+    <div class="db-card" style="padding:0;overflow:hidden;display:flex;flex-direction:column;align-items:stretch">
       <img src="${SERVER_URL}${esc(row.image_url)}" style="width:100%;aspect-ratio:9/16;object-fit:cover;display:block">
       <div style="padding:12px">
         <div style="font-weight:700;font-size:13px">${igSlotLabel(row)}</div>
