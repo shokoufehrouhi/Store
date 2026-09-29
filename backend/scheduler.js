@@ -278,8 +278,30 @@ async function runImport(site) {
   }
 }
 
+function toHashtag(text) {
+  return '#' + String(text).replace(/[^\p{L}\p{N}]+/gu, '');
+}
+
+// #Shilista always, plus 4 more -- prefers this product's own brand/category
+// (genuinely "related" to the post) and pads with generic fallback tags only
+// when those aren't available, so it's always exactly 5 tags.
+function buildProductHashtags(product) {
+  const dynamicTags = [];
+  if (product.brand) dynamicTags.push(toHashtag(product.brand));
+  if (product.categories?.label_en) dynamicTags.push(toHashtag(product.categories.label_en));
+
+  const fallbackTags = ['#فشن', '#استایل', '#خرید_آنلاین', '#پوشاک'];
+  const otherTags = [...dynamicTags];
+  for (const t of fallbackTags) {
+    if (otherTags.length >= 4) break;
+    if (!otherTags.includes(t)) otherTags.push(t);
+  }
+  return ['#Shilista', ...otherTags.slice(0, 4)];
+}
+
 function buildProductCaption(product) {
-  return `${product.name_fa}\n\n${product.name_en}\n\n🛍 shilista.com`;
+  const tags = buildProductHashtags(product);
+  return `${product.name_fa}\n\n${product.name_en}\n\n🛍 shilista.com\n\n${tags.join(' ')}`;
 }
 
 // 2+ real photos -> a carousel (swipeable) post with all of them, up to
@@ -358,7 +380,7 @@ async function maybePostQueuedProduct() {
   const next = await prisma.instagram_product_posts.findFirst({
     where: { status: 'queued', products: { is_active: true, is_live: true } },
     orderBy: { created_at: 'asc' },
-    include: { products: { include: { product_media: true } } },
+    include: { products: { include: { product_media: true, categories: { select: { label_en: true } } } } },
   });
   if (!next) return;
 
