@@ -260,10 +260,19 @@ async function layoutFan(products, top) {
 // A diagonal cascade -- each product steps down and to the right of the
 // previous one, rotated independently, later cards drawn on top. Distinct
 // from both the grid and the fan so it reads as its own template.
+// Per-n size/step so the overlap stays a small corner (~15-20% of the card)
+// instead of burying most of the previous photo -- an earlier version used
+// a fixed small step that hid too much of each product ("maloum nist
+// product-e zir chi hast").
+const CASCADE_PARAMS = {
+  2: { size: 420, dx: 350, dy: 330 },
+  3: { size: 340, dx: 280, dy: 270 },
+  4: { size: 260, dx: 210, dy: 205 },
+};
+
 async function layoutCascade(products, top) {
   const n = products.length;
-  const size = 400;
-  const dx = 95, dy = 85;
+  const { size, dx, dy } = CASCADE_PARAMS[n] || CASCADE_PARAMS[3];
   const angles = [-6, 5, -4, 7];
   const totalW = size + dx * (n - 1);
   const totalH = size + dy * (n - 1);
