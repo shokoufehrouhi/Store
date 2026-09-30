@@ -2577,8 +2577,233 @@ async function Lefties(pm, site, opts = {}) {
   return { imported, skipped: notDiscounted + (candidateUrls.length - newUrls.length) };
 }
 
+// Mavi is an SAP Commerce (Spartacus/Angular) storefront behind a strict
+// Cloudflare WAF — confirmed live that a handful of consecutive headless
+// page navigations (listing -> listing -> listing) got this machine's IP
+// hard-blocked ("Sorry, you have been blocked", then 403 even for plain
+// curl). Its own OCC REST API (p1-api.mavi.com, the same one the
+// storefront itself calls) returns everything this importer needs as JSON
+// though — so this navigates exactly ONCE (the homepage, to pick up
+// Cloudflare's cookies in a real browser context) and does every listing/
+// product read after that as an in-page fetch() from that one page,
+// instead of one navigation per page like every other scraper here.
+//
+// Only the "İndirim" entry under each department's own menu (Kadın/Erkek/
+// Çocuk) is used — the user's explicit choice. Outlet (/outlet/c/4) was
+// deliberately left out: confirmed live that outlet items carry only a
+// single price with no old/struck-through one at all (their outlet price
+// IS the list price), so they're never a real discount. Every product on
+// these three listings, by contrast, had a genuine price > salePrice plus
+// Mavi's own stated discountRate (checked all 487 at the time of writing).
+const MAVI_API = 'https://p1-api.mavi.com/maviwebservices/v2/mavi';
+const MAVI_DISCOUNT_QUERY = ':relevance:categoryTheme:Sezon İndirimi';
+const MAVI_LISTINGS = [
+  { categoryCode: '1', gender: 'female' }, // Kadın
+  { categoryCode: '2', gender: 'male' },   // Erkek
+  { categoryCode: '3', gender: 'kids' },   // Çocuk
+];
+const MAVI_PAGE_SIZE = 100;
+const MAVI_MAX_PAGES_PER_LISTING = 10;
+
+async function ensureMaviPageSetup(page) {
+  if (page.__maviRequestBlockingSetup) return;
+  page.__maviRequestBlockingSetup = true;
+  await page.setRequestInterception(true);
+  page.on('request', (req) => {
+    const type = req.resourceType();
+    const url = req.url();
+    const isHeavyAsset = type === 'image' || type === 'font' || type === 'media';
+    const isTracker = /useinsider\.com|analytics\.google\.com|google-analytics\.com|googletagmanager|googlesyndication|doubleclick|facebook\.com\/tr|hotjar|stylitics|fitanalytics/i.test(url);
+    if (isHeavyAsset || isTracker) req.abort().catch(() => {});
+    else req.continue().catch(() => {});
+  });
+}
+
+async function openMaviApiPage(pm) {
+  const page = await pm.goto('https://www.mavi.com/', { waitUntil: 'domcontentloaded', timeout: 45000 });
+  await ensureMaviPageSetup(page);
+  await new Promise(r => setTimeout(r, 2000));
+  const title = await page.title();
+  if (/attention required|just a moment/i.test(title)) {
+    throw new Error(`Mavi: blocked by Cloudflare on the homepage ("${title}")`);
+  }
+  return page;
+}
+
+async function maviApiGet(page, apiPath) {
+  const res = await page.evaluate(async (url) => {
+    const r = await fetch(url);
+    return { status: r.status, text: await r.text() };
+  }, MAVI_API + apiPath);
+  if (res.status !== 200) throw new Error(`Mavi API ${res.status} for ${apiPath}`);
+  return JSON.parse(res.text);
+}
+
+// Mavi's own product code (e.g. "1011270-89353" — style + color), the
+// trailing segment of every product URL. Used for dedup instead of the full
+// URL since the slug part in front of it is just the (renameable) name.
+function maviProductCode(url) {
+  return url.match(/\/p\/([^/?#]+)/)?.[1] || url;
+}
+
+function routeMaviCategory(mainCategoryName) {
+  if (/çanta|cüzdan|aksesuar|kemer|şapka|bere|atkı|çorap/i.test(mainCategoryName || '')) return 3; // Accessories
+  return 1; // Clothing
+}
+
+function guessMaviGender(genderName, defaultGender) {
+  if (/çocuk|bebek/i.test(genderName || '')) return 'kids';
+  if (/kadın/i.test(genderName || '')) return 'female';
+  if (/erkek/i.test(genderName || '')) return 'male';
+  return defaultGender;
+}
+
+async function Mavi(pm, site, opts = {}) {
+  const limit = opts.limit || 30;
+  const page = await openMaviApiPage(pm);
+
+  const metaByCode = new Map();
+  const perListing = [];
+  for (const listing of MAVI_LISTINGS) {
+    const items = [];
+    for (let pg = 0; pg < MAVI_MAX_PAGES_PER_LISTING; pg++) {
+      const data = await maviApiGet(page, `/products/search?fields=FULL&query=${encodeURIComponent(MAVI_DISCOUNT_QUERY)}`
+        + `&categoryCode=${listing.categoryCode}&pageSize=${MAVI_PAGE_SIZE}&currentPage=${pg}`);
+      for (const p of data.products || []) {
+        if (!p.code || metaByCode.has(p.code)) continue;
+        metaByCode.set(p.code, { listing, search: p });
+        items.push(p.code);
+      }
+      if (pg + 1 >= (data.pagination?.totalPages || 0)) break;
+    }
+    perListing.push(items);
+  }
+  const candidateCodes = [];
+  for (let i = 0; i < Math.max(...perListing.map(l => l.length), 0); i++) {
+    for (const codes of perListing) if (codes[i]) candidateCodes.push(codes[i]);
+  }
+
+  const existing = await prisma.products.findMany({
+    where: { supplier_shop_name: site.name, product_link: { not: null } },
+    select: { product_link: true },
+  });
+  const existingCodes = new Set(existing.map(e => maviProductCode(e.product_link)));
+  const newCodes = candidateCodes.filter(c => !existingCodes.has(c));
+
+  const imported = [];
+  let notDiscounted = 0;
+
+  for (const code of newCodes) {
+    if (imported.filter(p => !p.error).length >= limit) break;
+    const { listing, search } = metaByCode.get(code);
+    const url = new URL(search.url, 'https://www.mavi.com').href;
+    try {
+      const data = await maviApiGet(page, `/products/basic/${encodeURIComponent(code)}?fields=FULL`);
+      if (!data || !data.name) continue;
+
+      const priceOriginal = data.price?.value;
+      const priceSite = data.salePrice?.value;
+      if (!priceOriginal || priceSite == null || priceOriginal <= priceSite) { notDiscounted++; continue; }
+
+      const sizes = (data.allSizeVariants || []).map(s => ({
+        size: String(s.size || '').slice(0, 10),
+        inStock: s.stockLevelStatus !== 'outOfStock',
+      })).filter(s => s.size);
+      // Nothing left to sell in any size — not worth importing at all.
+      if (sizes.length && !sizes.some(s => s.inStock)) { notDiscounted++; continue; }
+
+      const finalDiscountedPrice = Math.round(priceSite * (1 + site.markup_percent / 100) * 100) / 100;
+      const tag = resolveDiscountTag({
+        discountPercentText: data.discountRate != null ? String(data.discountRate) : null,
+        markupPercent: site.markup_percent,
+        finalDiscountedPrice, priceOriginal,
+      });
+      if (!tag) { notDiscounted++; continue; }
+
+      const mainCategoryName = (data.mainCategories || search.mainCategories || [])[0]?.name || '';
+      const gender = guessMaviGender(data.gender?.name || search.gender?.name, listing.gender);
+      const category_id = routeMaviCategory(mainCategoryName);
+      const subcategory_id = category_id === 1 ? guessSubcategoryId(`${mainCategoryName} ${data.name}`, 1)
+        : /çanta/i.test(mainCategoryName) ? 13
+        : null;
+
+      // Mavi's description text carries raw inline HTML ("...Tişört.</br>Yenilikçi...").
+      const description = (data.fullDescription || data.description || '')
+        .replace(/<\/?br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ')
+        .replace(/\n{2,}/g, '\n').trim();
+
+      const translateOrWarn = (text, target) => translateText(text, 'tr', target)
+        .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
+      const [name_fa, name_en, desc_fa, desc_en] = await Promise.all([
+        translateOrWarn(data.name, 'fa'),
+        translateOrWarn(data.name, 'en'),
+        description ? translateOrWarn(description, 'fa') : '',
+        description ? translateOrWarn(description, 'en') : '',
+      ]);
+
+      // galleryImagesNew entries are size templates ("//sky-static.mavi.com/
+      // mnresize/{x}/{y}/<code>_image_1.jpg?v=...") — 1005x1425 is the same
+      // size Mavi's own JSON-LD uses for the product page.
+      const imageUrls = [...new Set((data.galleryImagesNew || [])
+        .filter(u => typeof u === 'string')
+        .map(u => u.replace('{x}', '1005').replace('{y}', '1425'))
+        .map(u => u.startsWith('//') ? 'https:' + u : u))];
+      const mediaUrls = [];
+      for (const imgUrl of imageUrls) {
+        try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
+      }
+
+      const colorId = await getOrCreateColorId(data.colour?.name || search.colour?.name);
+
+      const product = await prisma.products.create({
+        data: {
+          code: await generateProductCode(),
+          category_id,
+          subcategory_id,
+          gender,
+          name_fa: name_fa.slice(0, 120), name_en: name_en.slice(0, 120), name_tr: data.name.slice(0, 120),
+          desc_fa, desc_en, desc_tr: description || null,
+          price: priceOriginal,
+          cost_price: priceSite,
+          discounted_price: finalDiscountedPrice,
+          tag,
+          stock: 0,
+          brand: site.name,
+          supplier_shop_name: site.name,
+          product_link: url,
+          product_media: mediaUrls.length ? { create: mediaUrls.map((u, i) => ({ type: 'image', url: u, sort_order: i })) } : undefined,
+          product_colors: colorId ? { create: [{ color_id: colorId, is_available: true }] } : undefined,
+          product_sizes: sizes.length ? {
+            create: sizes.map(s => ({ size_label: s.size, is_available: s.inStock })),
+          } : undefined,
+        },
+      });
+
+      if (sizes.length) {
+        await prisma.product_inventory.createMany({
+          data: sizes.map(s => ({
+            product_id: product.id, color_id: colorId, size_label: s.size,
+            quantity: s.inStock ? 10 : 0,
+          })),
+        });
+        const totalQty = sizes.filter(s => s.inStock).length * 10;
+        await prisma.products.update({ where: { id: product.id }, data: { stock: totalQty } });
+      }
+
+      imported.push({ id: product.id, name: data.name });
+    } catch (err) {
+      imported.push({ error: err.message, url });
+    }
+    // Gentle pacing — every call here goes through the same Cloudflare WAF
+    // that already hard-blocked rapid page navigations once.
+    await new Promise(r => setTimeout(r, 700));
+  }
+
+  return { imported, skipped: notDiscounted + (candidateCodes.length - newCodes.length) };
+}
+
 module.exports = {
-  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties,
+  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Mavi,
   // exported for backend/scripts/backfillMissingColors.js — reusing the
   // same lookup/create logic the live importers use, rather than
   // duplicating it in the backfill script.

@@ -126,6 +126,12 @@ async function checkSiteStock(site) {
   });
   const results = [];
   if (!products.length) return results;
+  // readSiteData below only understands Defacto's page structure (every
+  // other site just comes back "skipped (no data)"), and for Mavi it'd also
+  // mean one page navigation per imported product through a Cloudflare WAF
+  // that hard-blocks rapid navigations — which would then break Mavi's own
+  // import too, since that shares the same VPS IP. See Mavi() in siteImport.js.
+  if (site.name === 'Mavi') return results;
 
   await withBrowser(async (pm) => {
     for (const p of products) {
