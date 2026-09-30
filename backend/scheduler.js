@@ -506,11 +506,29 @@ async function runStockCheck(site) {
   }
 }
 
+// Product posts are queued per import run, i.e. every day brings a fresh
+// batch (up to each site's daily_ig_post_limit) -- so anything still queued
+// from an earlier day (typically left over because Instagram's rate limit
+// never cleared before midnight) is dropped rather than carried over and
+// stacked on top of the new day's batch. Runs once per day, on the first
+// tick after local midnight (and again after a restart -- harmless, it only
+// ever touches rows queued before today).
+async function expireStaleQueuedProductPosts() {
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const { count } = await prisma.instagram_product_posts.updateMany({
+    where: { status: 'queued', created_at: { lt: startOfDay } },
+    data: { status: 'skipped', error_message: 'not posted on the day it was queued' },
+  });
+  if (count) console.log(`[scheduler] skipped ${count} product post(s) left over from an earlier day`);
+}
+
 async function tick() {
   const today = currentDateStr();
   if (ranSoldOutSweepOn !== today) {
     ranSoldOutSweepOn = today;
     await deactivateExpiredSoldOutProducts().catch(err => console.error('[scheduler] sold-out expiry sweep failed:', err));
+    await expireStaleQueuedProductPosts().catch(err => console.error('[scheduler] stale product-post expiry failed:', err));
   }
 
   const nowHHMM = currentHHMM();
