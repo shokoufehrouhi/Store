@@ -998,7 +998,10 @@
     <!-- Products -->
     <div id="tab-products">
       <div class="page-header">
-        <h2>📦 <span data-i18n="navProducts">محصولات</span></h2>
+        <div style="display:flex;align-items:center;gap:14px">
+          <h2>📦 <span data-i18n="navProducts">محصولات</span></h2>
+          <button class="btn btn-secondary btn-sm" onclick="refreshProducts()" data-i18n="ordersRefresh">🔄 بروزرسانی</button>
+        </div>
         <button class="btn btn-primary" onclick="openProductModal()" data-i18n="addProduct">+ افزودن محصول</button>
       </div>
       <div class="page-body">
@@ -3169,6 +3172,17 @@ async function loadProducts() {
   _allProducts = pR.data || [];
   renderProductsTable(_allProducts);
   refreshPublishStatus();
+}
+
+// Refresh button: same reload as opening the tab, but keeps whatever search
+// text / stock filter is currently applied (loadProducts() itself clears the
+// search box, which is right on tab switch but not on an in-place refresh).
+async function refreshProducts() {
+  const q = document.getElementById('product-search')?.value || '';
+  await loadProducts();
+  const searchEl = document.getElementById('product-search');
+  if (searchEl) searchEl.value = q;
+  if (q || document.getElementById('product-stock-filter')?.value) filterProducts();
 }
 
 var _allProducts = [];
