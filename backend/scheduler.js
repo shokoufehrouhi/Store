@@ -26,7 +26,7 @@ const { publishAllChanges } = require('./controllers/adminController');
 const { queueNewProductsForInstagram } = require('./utils/instagramProductQueue');
 const {
   createFeedContainer, createCarouselChildContainer, createCarouselContainer,
-  publishContainer, waitUntilContainerReady, isRateLimitError,
+  publishContainer, waitUntilContainerReady, isRateLimitError, isRateLimitMessage,
 } = require('./utils/instagramPublish');
 const fs = require('fs');
 const path = require('path');
@@ -83,6 +83,23 @@ const PRODUCT_POST_RATE_LIMIT_BACKOFF_MS = 60 * 60 * 1000; // pause after Instag
 // its own first rate-limit error (worst case one extra wasted call per
 // process, or per restart) -- avoids a schema change for a single timestamp.
 let productPostPausedUntil = 0;
+
+// A story that hit a rate limit is retried every STORY_RETRY_INTERVAL_MS, but
+// only until STORY_RETRY_WINDOW_MIN after its own slot time -- a morning
+// story going up in the afternoon is no longer worth posting. Last-attempt
+// times are in-memory for the same reason as productPostPausedUntil; a row
+// this process hasn't attempted yet (e.g. right after a restart, or failed
+// in the other process) waits one full interval first rather than retrying
+// immediately. deployStoryById's own atomic claim keeps staging and
+// production from both posting the same retry.
+const STORY_RETRY_INTERVAL_MS = 30 * 60 * 1000;
+const STORY_RETRY_WINDOW_MIN = 3 * 60;
+const storyLastAttemptAt = new Map(); // instagram_content.id -> ms timestamp
+
+function hhmmToMinutes(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
 
 // A product stays visibly sold_out for a month (sold_out_at is stamped once,
 // on the transition into sold_out — see resolveProductTag's callers and
@@ -268,7 +285,32 @@ async function autoDeploySlot(slot) {
     orderBy: { created_at: 'desc' },
   });
   if (!row) return;
-  await deployStoryById(row.id);
+  await deployStoryAndHandleRateLimit(row.id);
+}
+
+// Stories take priority over product posts for the shared Instagram limit:
+// when a story gets rate-limited, product posting pauses too, so the limit
+// has room again by the time the story is retried.
+async function deployStoryAndHandleRateLimit(id) {
+  storyLastAttemptAt.set(id, Date.now());
+  const result = await deployStoryById(id);
+  if (result?.rateLimited) productPostPausedUntil = Date.now() + PRODUCT_POST_RATE_LIMIT_BACKOFF_MS;
+}
+
+async function maybeRetryRateLimitedStories() {
+  const rows = await prisma.instagram_content.findMany({
+    where: { status: 'failed', scheduled_date: new Date(currentDateStr()) },
+  });
+  const nowMin = hhmmToMinutes(currentHHMM());
+  for (const row of rows) {
+    if (!/^\d{2}:\d{2}$/.test(row.slot)) continue; // legacy 'morning'/'evening' rows
+    if (!isRateLimitMessage(row.error_message)) continue; // a real failure -- left for manual review
+    if (nowMin > hhmmToMinutes(row.slot) + STORY_RETRY_WINDOW_MIN) continue;
+    const last = storyLastAttemptAt.get(row.id);
+    if (last === undefined) { storyLastAttemptAt.set(row.id, Date.now()); continue; }
+    if (Date.now() - last < STORY_RETRY_INTERVAL_MS) continue;
+    await deployStoryAndHandleRateLimit(row.id);
+  }
 }
 
 async function runImport(site) {
@@ -507,6 +549,7 @@ async function tick() {
     ranEveningCollageDeployOn = today;
     await autoDeploySlot(EVENING_COLLAGE_TIME).catch(err => console.error('[scheduler] evening collage auto-deploy failed:', err));
   }
+  await maybeRetryRateLimitedStories().catch(err => console.error('[scheduler] story rate-limit retry failed:', err));
 
   // Fetched every tick (not just when ranThisMinute is about to change) so
   // maybeAutoPublish below can check its own interval independently of the

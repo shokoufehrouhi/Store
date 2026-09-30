@@ -33,8 +33,16 @@ async function graphFetch(url, opts) {
 // though it clears on its own), 17 = per-user, 32 = per-page, 613 = calls
 // within a time window. These say nothing about the post itself -- retrying
 // the same post later is expected to work.
+const RATE_LIMIT_CODES = [4, 9, 17, 32, 613];
 function isRateLimitError(err) {
-  return [4, 9, 17, 32, 613].includes(err?.igError?.code);
+  return RATE_LIMIT_CODES.includes(err?.igError?.code);
+}
+
+// Same check against a stored error_message (the JSON graphFetch embeds in
+// it), for rows that already failed in an earlier tick or process.
+function isRateLimitMessage(message) {
+  const m = (message || '').match(/"code":(\d+)/);
+  return !!m && RATE_LIMIT_CODES.includes(Number(m[1]));
 }
 
 function saveStoryImage(buffer, name) {
@@ -135,5 +143,5 @@ async function postStory(imageBuffer, { name }) {
 module.exports = {
   postStory, createStoryContainer, publishContainer, waitUntilContainerReady,
   createFeedContainer, createCarouselChildContainer, createCarouselContainer,
-  isRateLimitError,
+  isRateLimitError, isRateLimitMessage,
 };
