@@ -48,7 +48,7 @@ async function syncProductStockState(tx, productId) {
   const data = { stock: totalStock, is_dirty: true, updated_at: new Date() };
   if (allSoldOut) {
     data.tag = 'sold_out';
-    // Only stamped on the actual transition — see scheduler.js's month-later
+    // Only stamped on the actual transition — see scheduler.js's 5-days-later
     // auto-deactivation, which reads this and would fire early if this got
     // reset on every order touching an already-sold-out product.
     if (product?.tag !== 'sold_out') data.sold_out_at = new Date();

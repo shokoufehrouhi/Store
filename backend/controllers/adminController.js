@@ -850,7 +850,7 @@ async function updateProduct(req, res, next) {
     const newTag = resolveProductTag(sizes, tag, inventory, colors);
     // sold_out_at marks when a product FIRST went sold out (not re-stamped on
     // every save while it stays sold out) — the scheduler uses it to
-    // auto-deactivate products a month after this date, see scheduler.js.
+    // auto-deactivate products 5 days after this date, see scheduler.js.
     let soldOutAtUpdate = {};
     if (newTag === 'sold_out' && before?.tag !== 'sold_out') soldOutAtUpdate = { sold_out_at: new Date() };
     else if (newTag !== 'sold_out' && before?.tag === 'sold_out') soldOutAtUpdate = { sold_out_at: null };

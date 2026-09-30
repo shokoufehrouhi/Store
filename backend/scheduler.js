@@ -101,17 +101,20 @@ function hhmmToMinutes(hhmm) {
   return h * 60 + m;
 }
 
-// A product stays visibly sold_out for a month (sold_out_at is stamped once,
+// A product stays visibly sold_out for SOLD_OUT_DEACTIVATE_DAYS (sold_out_at is stamped once,
 // on the transition into sold_out — see resolveProductTag's callers and
 // checkSiteStock — not re-stamped on every check while it stays sold out).
 // Past that, it's deactivated AND published immediately here: every other
 // admin change waits for a manual "Publish" click (a deliberate review step),
-// but nothing about a product having sat sold out for a month needs a human
+// but nothing about a product having sat sold out that long needs a human
 // to confirm it should stop showing, so this flips is_live itself rather
 // than just marking it dirty and waiting for the next unrelated publish.
+// Was a month until 2026-09-30; shortened to 5 days on request.
+const SOLD_OUT_DEACTIVATE_DAYS = 5;
+
 async function deactivateExpiredSoldOutProducts() {
   const cutoff = new Date();
-  cutoff.setMonth(cutoff.getMonth() - 1);
+  cutoff.setDate(cutoff.getDate() - SOLD_OUT_DEACTIVATE_DAYS);
 
   const expired = await prisma.products.findMany({
     where: { tag: 'sold_out', sold_out_at: { lte: cutoff }, is_active: true },
@@ -131,7 +134,7 @@ async function deactivateExpiredSoldOutProducts() {
   });
   for (const id of subcategoryIds) await syncSubcategoryActiveState(id);
 
-  console.log(`[scheduler] auto-deactivated ${expired.length} product(s) sold out for over a month`);
+  console.log(`[scheduler] auto-deactivated ${expired.length} product(s) sold out for over ${SOLD_OUT_DEACTIVATE_DAYS} days`);
 }
 
 // Product ids that already appeared in a story within the last `days` days
