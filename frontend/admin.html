@@ -5967,6 +5967,15 @@ function groupIgContentByDate(rows) {
   return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]));
 }
 
+// Display order within each day, for both Stories and Posts: failed first
+// (needs attention), then waiting (story 'draft' / post 'queued', plus
+// 'posting' in flight), then posted, then skipped. Array.prototype.sort is
+// stable, so rows keep their existing relative order within one status.
+const IG_STATUS_ORDER = { failed: 0, draft: 1, queued: 1, posting: 1, posted: 2, skipped: 3 };
+function sortIgRowsByStatus(rows) {
+  return [...rows].sort((a, b) => (IG_STATUS_ORDER[a.status] ?? 1) - (IG_STATUS_ORDER[b.status] ?? 1));
+}
+
 function igStoryItem(row) {
   return `
     <div style="flex:0 0 auto;width:150px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--white)">
@@ -6000,7 +6009,7 @@ function renderInstagramContent() {
         📅 ${date === t('igNoDate') ? esc(date) : esc(new Date(date).toLocaleDateString('en-GB'))}
       </div>
       <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:6px">
-        ${rows.map(igStoryItem).join('')}
+        ${sortIgRowsByStatus(rows).map(igStoryItem).join('')}
       </div>
     </div>
   `).join('');
@@ -6060,7 +6069,7 @@ function renderIgProductPosts() {
         <span style="font-weight:400;font-size:12px;color:#999">(${rows.filter(r => r.status === 'posted').length}/${rows.filter(r => r.status !== 'skipped').length} ${t('igPosted')}${rows.some(r => r.status === 'skipped') ? `, ${rows.filter(r => r.status === 'skipped').length} ${t('igSkipped')}` : ''})</span>
       </div>
       <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:6px">
-        ${rows.map(igProductPostItem).join('')}
+        ${sortIgRowsByStatus(rows).map(igProductPostItem).join('')}
       </div>
     </div>
   `).join('');
