@@ -2692,13 +2692,31 @@ async function Mavi(pm, site, opts = {}) {
 
   const imported = [];
   let notDiscounted = 0;
+  let consecutiveErrors = 0;
 
   for (const code of newCodes) {
     if (imported.filter(p => !p.error).length >= limit) break;
     const { listing, search } = metaByCode.get(code);
     const url = new URL(search.url, 'https://www.mavi.com').href;
+
+    // The search results already carry price/salePrice/discountRate, so a
+    // product the markup rule would reject anyway is skipped here without its
+    // own API call. Confirmed live 2026-09-30: with markup 40% (above every
+    // Mavi discount at the time) nothing could pass, so one run walked all
+    // ~490 candidates one API call each -- 280 of them errored, most likely
+    // throttled; the same run with markup 25% needed only ~30 calls, 0 errors.
+    const searchOriginal = search.price?.value;
+    const searchSale = search.salePrice?.value;
+    if (!searchOriginal || searchSale == null || searchOriginal <= searchSale || !resolveDiscountTag({
+      discountPercentText: search.discountRate != null ? String(search.discountRate) : null,
+      markupPercent: site.markup_percent,
+      finalDiscountedPrice: Math.round(searchSale * (1 + site.markup_percent / 100) * 100) / 100,
+      priceOriginal: searchOriginal,
+    })) { notDiscounted++; continue; }
+
     try {
       const data = await maviApiGet(page, `/products/basic/${encodeURIComponent(code)}?fields=FULL`);
+      consecutiveErrors = 0;
       if (!data || !data.name) continue;
 
       const priceOriginal = data.price?.value;
@@ -2788,11 +2806,23 @@ async function Mavi(pm, site, opts = {}) {
         });
         const totalQty = sizes.filter(s => s.inStock).length * 10;
         await prisma.products.update({ where: { id: product.id }, data: { stock: totalQty } });
+      } else {
+        // No size variants at all (bags, wallets) -- one color-level row, or
+        // stock stays 0 and adminController's resolveProductTag turns it
+        // sold_out on the next admin save (its color-only branch).
+        await prisma.product_inventory.create({
+          data: { product_id: product.id, color_id: colorId, size_label: null, quantity: 10 },
+        });
+        await prisma.products.update({ where: { id: product.id }, data: { stock: 10 } });
       }
 
       imported.push({ id: product.id, name: data.name });
     } catch (err) {
       imported.push({ error: err.message, url });
+      // Several in a row almost certainly means Mavi/Cloudflare is refusing
+      // this IP now, not that each product is individually broken -- stop
+      // rather than keep hitting it (which only prolongs a block).
+      if (++consecutiveErrors >= 5) break;
     }
     // Gentle pacing — every call here goes through the same Cloudflare WAF
     // that already hard-blocked rapid page navigations once.

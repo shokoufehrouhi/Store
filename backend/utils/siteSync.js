@@ -193,4 +193,17 @@ async function importSite(site, opts = {}) {
   return withBrowser((pm, browser) => importer(pm, site, { ...opts, browser, createPageManager }));
 }
 
-module.exports = { checkSiteStock, importSite, withBrowser, cleanupStaleChromeProfiles };
+// One-line summary for sites.last_import_status, shared by the scheduled
+// import (scheduler.js#runImport) and the manual Sync Now button
+// (sitesController.js#syncImport). Includes the first error's actual message
+// -- before this only the error *count* was kept anywhere, so e.g. Mavi's
+// "280 errors" run on 2026-09-30 left no way to tell what had gone wrong.
+function importStatusText(result) {
+  const errors = result.imported.filter(r => r.error);
+  const ok = result.imported.length - errors.length;
+  let text = `imported ${ok}, ${errors.length} errors, ${result.skipped || 0} skipped`;
+  if (errors.length) text += ` — first error: ${String(errors[0].error).slice(0, 200)}`;
+  return text;
+}
+
+module.exports = { checkSiteStock, importSite, withBrowser, cleanupStaleChromeProfiles, importStatusText };

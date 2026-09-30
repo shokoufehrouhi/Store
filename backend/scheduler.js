@@ -18,7 +18,7 @@
 // existed to prevent. Back to one shared time + a single sequential
 // for-loop, which can't overlap no matter how long any one site takes.
 const prisma = require('./prisma/client');
-const { checkSiteStock, importSite, cleanupStaleChromeProfiles } = require('./utils/siteSync');
+const { checkSiteStock, importSite, cleanupStaleChromeProfiles, importStatusText } = require('./utils/siteSync');
 const { syncSubcategoryActiveState } = require('./utils/subcategorySync');
 const { buildSingleProductStory, buildCollageStory } = require('./utils/storyBuilder');
 const { deployStoryById } = require('./controllers/instagramContentController');
@@ -317,8 +317,6 @@ async function runImport(site) {
   try {
     await prisma.sites.update({ where: { id: site.id }, data: { import_in_progress: true } });
     const result = await importSite(site, { limit: 30 });
-    const ok = result.imported.filter(r => !r.error);
-    const failed = result.imported.length - ok.length;
 
     // Queue up to this site's configured daily cap of today's new products
     // for an automatic Instagram feed post (drip-fed, see
@@ -327,7 +325,7 @@ async function runImport(site) {
 
     await prisma.sites.update({
       where: { id: site.id },
-      data: { import_in_progress: false, last_import_at: new Date(), last_import_status: `imported ${ok.length}, ${failed} errors` },
+      data: { import_in_progress: false, last_import_at: new Date(), last_import_status: importStatusText(result) },
     });
   } catch (err) {
     await prisma.sites.update({
