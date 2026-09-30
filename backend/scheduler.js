@@ -26,7 +26,7 @@ const { publishAllChanges } = require('./controllers/adminController');
 const { queueNewProductsForInstagram } = require('./utils/instagramProductQueue');
 const {
   createFeedContainer, createCarouselChildContainer, createCarouselContainer,
-  publishContainer, waitUntilContainerReady,
+  publishContainer, waitUntilContainerReady, isRateLimitError,
 } = require('./utils/instagramPublish');
 const fs = require('fs');
 const path = require('path');
@@ -76,6 +76,13 @@ function currentDateStr() {
 
 const PRODUCT_POST_INTERVAL_MS = 10 * 60 * 1000; // drip-feed rate for new-product Instagram posts (6/hour)
 const PRODUCT_POST_START_TIME = '08:00'; // don't start posting before this time each day
+const PRODUCT_POST_RATE_LIMIT_BACKOFF_MS = 60 * 60 * 1000; // pause after Instagram says "request limit reached"
+
+// In-memory, not in the DB: staging and production each run this scheduler
+// against the one shared DB, so each process just backs off on its own after
+// its own first rate-limit error (worst case one extra wasted call per
+// process, or per restart) -- avoids a schema change for a single timestamp.
+let productPostPausedUntil = 0;
 
 // A product stays visibly sold_out for a month (sold_out_at is stamped once,
 // on the transition into sold_out — see resolveProductTag's callers and
@@ -344,9 +351,18 @@ async function postQueuedProductToInstagram(row) {
       data: { status: 'posted', ig_media_id: mediaId, posted_at: new Date(), error_message: null },
     });
   } catch (err) {
+    // A rate-limit error says nothing about this post -- back into the queue
+    // (not 'failed') and pause all product posting for a while. Before this,
+    // a failure didn't count toward PRODUCT_POST_INTERVAL_MS at all (only
+    // 'posted' rows do), so the very next tick 60s later tried the next row,
+    // which failed the same way, and so on -- confirmed live 2026-09-30: the
+    // whole queue (24 rows) burned through to 'failed' in ~24 minutes, each
+    // attempt itself another call against the exhausted limit.
+    const rateLimited = isRateLimitError(err);
+    if (rateLimited) productPostPausedUntil = Date.now() + PRODUCT_POST_RATE_LIMIT_BACKOFF_MS;
     await prisma.instagram_product_posts.update({
       where: { id: row.id },
-      data: { status: 'failed', error_message: err.message },
+      data: { status: rateLimited ? 'queued' : 'failed', error_message: err.message },
     }).catch(() => {});
   }
 }
@@ -379,6 +395,15 @@ async function productPostsMadeToday() {
 // defensive pattern as eligibleStoryProducts.
 async function maybePostQueuedProduct() {
   if (currentHHMM() < PRODUCT_POST_START_TIME) return;
+  if (Date.now() < productPostPausedUntil) return;
+
+  // A post takes ~1 minute (create + poll + publish), and the interval
+  // below is measured from the last *finished* post -- so a tick landing
+  // mid-post still saw the previous post as >10 min old and started a
+  // second one right alongside it (confirmed live: pairs of posts under a
+  // minute apart, e.g. 05:23:36/05:24:29 and 06:09:28/06:10:12 UTC).
+  const inFlight = await prisma.instagram_product_posts.count({ where: { status: 'posting' } });
+  if (inFlight > 0) return;
 
   const last = await prisma.instagram_product_posts.findFirst({
     where: { status: 'posted' },

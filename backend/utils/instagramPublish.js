@@ -18,8 +18,20 @@ function requireEnv(name) {
 async function graphFetch(url, opts) {
   const res = await fetch(url, opts);
   const data = await res.json();
-  if (!res.ok) throw new Error(`Instagram API error: ${JSON.stringify(data)}`);
+  if (!res.ok) {
+    const err = new Error(`Instagram API error: ${JSON.stringify(data)}`);
+    err.igError = data?.error || null;
+    throw err;
+  }
   return data;
+}
+
+// Meta's throttling error codes: 4 = app-level ("Application request limit
+// reached", hit live 2026-09-30), 17 = per-user, 32 = per-page, 613 = calls
+// within a time window. These say nothing about the post itself -- retrying
+// the same post later is expected to work.
+function isRateLimitError(err) {
+  return [4, 17, 32, 613].includes(err?.igError?.code);
 }
 
 function saveStoryImage(buffer, name) {
@@ -78,8 +90,11 @@ async function createCarouselContainer(childIds, caption) {
 // creation -- publishing immediately can 400 with "Media ID is not
 // available" (code 9007 / subcode 2207027) even though the container itself
 // was created successfully. Poll status_code until it's FINISHED (usually
-// a few seconds for an image) before calling media_publish.
-async function waitUntilContainerReady(creationId, { timeoutMs = 60000, intervalMs = 2000 } = {}) {
+// a few seconds for an image) before calling media_publish. Every poll is
+// its own API call against the same hourly budget as the posts themselves
+// (a 10-image carousel polls each child plus the parent) -- 5s rather than
+// 2s roughly halves that overhead for a few extra seconds of wall time.
+async function waitUntilContainerReady(creationId, { timeoutMs = 90000, intervalMs = 5000 } = {}) {
   const accessToken = requireEnv('INSTAGRAM_ACCESS_TOKEN');
   const deadline = Date.now() + timeoutMs;
   while (true) {
@@ -117,4 +132,5 @@ async function postStory(imageBuffer, { name }) {
 module.exports = {
   postStory, createStoryContainer, publishContainer, waitUntilContainerReady,
   createFeedContainer, createCarouselChildContainer, createCarouselContainer,
+  isRateLimitError,
 };
