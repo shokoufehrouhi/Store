@@ -6016,6 +6016,17 @@ function igProductPostItem(row) {
     </div>`;
 }
 
+// created_at is a real timestamp (stored in UTC) -- slicing its ISO string
+// directly gives the UTC calendar date, which is the wrong day for anything
+// posted in the last few hours of the local day (e.g. 00:30 local on the 30th
+// is still 21:30 UTC on the 29th). Group by the viewer's LOCAL calendar date
+// instead, unlike scheduled_date below which is a date-only column with no
+// real time-of-day, so slicing its UTC-midnight ISO string is already correct.
+function localDateKey(isoString) {
+  const d = new Date(isoString);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function renderIgProductPosts() {
   const grid  = document.getElementById('ig-posts-grid');
   const empty = document.getElementById('ig-posts-empty');
@@ -6023,7 +6034,7 @@ function renderIgProductPosts() {
   empty.classList.toggle('hidden', _igProductPosts.length > 0);
   const map = new Map();
   for (const row of _igProductPosts) {
-    const date = row.created_at ? row.created_at.slice(0, 10) : t('igNoDate');
+    const date = row.created_at ? localDateKey(row.created_at) : t('igNoDate');
     if (!map.has(date)) map.set(date, []);
     map.get(date).push(row);
   }
