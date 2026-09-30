@@ -202,7 +202,14 @@ function importStatusText(result) {
   const errors = result.imported.filter(r => r.error);
   const ok = result.imported.length - errors.length;
   let text = `imported ${ok}, ${errors.length} errors, ${result.skipped || 0} skipped`;
-  if (errors.length) text += ` — first error: ${String(errors[0].error).slice(0, 200)}`;
+  if (errors.length) {
+    // Prisma's messages start with a multi-line code frame ("Invalid
+    // `prisma.products.create()` invocation in ...") and only state the
+    // actual reason on the last line -- that line is the useful part.
+    const msg = String(errors[0].error);
+    const reason = /^\s*Invalid `prisma/.test(msg) ? msg.trim().split('\n').filter(l => l.trim()).pop() : msg;
+    text += ` — first error: ${reason.slice(0, 200)} (${errors[0].url || ''})`;
+  }
   return text;
 }
 

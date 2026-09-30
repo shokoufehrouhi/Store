@@ -2723,10 +2723,27 @@ async function Mavi(pm, site, opts = {}) {
       const priceSite = data.salePrice?.value;
       if (!priceOriginal || priceSite == null || priceOriginal <= priceSite) { notDiscounted++; continue; }
 
-      const sizes = (data.allSizeVariants || []).map(s => ({
-        size: String(s.size || '').slice(0, 10),
-        inStock: s.stockLevelStatus !== 'outOfStock',
-      })).filter(s => s.size);
+      // Jeans/trousers come as waist x length: every variant carries both
+      // `size` (waist) and `length`, so `size` alone repeats (e.g. 26 seven
+      // times for lengths 28-40) and product_sizes' @@unique([product_id,
+      // size_label]) rejected the whole create -- hit live 2026-09-30 on
+      // "Lisbon Açık Bej Denim Gabardin Pantolon" (113 variants). Label as
+      // "26/28" when there's a length; any remaining duplicate label is
+      // merged, in stock if any of its variants is.
+      const sizeByLabel = new Map();
+      for (const v of data.allSizeVariants || []) {
+        const label = (v.length ? `${v.size}/${v.length}` : String(v.size || '')).slice(0, 10);
+        if (!label) continue;
+        const inStock = v.stockLevelStatus !== 'outOfStock';
+        sizeByLabel.set(label, (sizeByLabel.get(label) || false) || inStock);
+      }
+      let sizes = [...sizeByLabel].map(([size, inStock]) => ({ size, inStock }));
+      // A waist x length grid runs to 100+ combinations (113 on that same
+      // product, only 16 in stock) -- listing every sold-out one as an
+      // unavailable chip swamps the product page, so for these only the
+      // in-stock combinations are kept (user's choice). Nothing re-adds a
+      // combination that comes back in stock later: checkSiteStock skips Mavi.
+      if ((data.allSizeVariants || []).some(v => v.length)) sizes = sizes.filter(s => s.inStock);
       // Nothing left to sell in any size — not worth importing at all.
       if (sizes.length && !sizes.some(s => s.inStock)) { notDiscounted++; continue; }
 
