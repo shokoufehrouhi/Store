@@ -61,8 +61,17 @@ function currentHHMM() {
   return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
 }
 
+// .toISOString() converts to UTC before formatting, unlike currentHHMM() above
+// which reads local hours/minutes -- on this VPS (system TZ +03), that mismatch
+// meant "today" here read as the UTC calendar date while nowHHMM already read
+// the local one, so during local 00:00-03:00 "today" would still be yesterday.
+// None of the current schedule times (10:00-19:30) fall in that window, so it
+// hasn't visibly broken anything yet, but it's the same class of bug the
+// Instagram product-post date grouping had (frontend/admin.html) -- fixed the
+// same way, by reading local date components instead of the UTC ISO string.
 function currentDateStr() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 const PRODUCT_POST_INTERVAL_MS = 10 * 60 * 1000; // drip-feed rate for new-product Instagram posts (6/hour)
