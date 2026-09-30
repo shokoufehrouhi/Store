@@ -2796,7 +2796,7 @@ async function Mavi(pm, site, opts = {}) {
           category_id,
           subcategory_id,
           gender,
-          name_fa: name_fa.slice(0, 120), name_en: name_en.slice(0, 120), name_tr: data.name.slice(0, 120),
+          name_fa: (name_fa || '').slice(0, 120), name_en: (name_en || '').slice(0, 120), name_tr: data.name.slice(0, 120),
           desc_fa, desc_en, desc_tr: description || null,
           price: priceOriginal,
           cost_price: priceSite,

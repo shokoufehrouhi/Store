@@ -38,7 +38,12 @@ async function translateMyMemory(text, sourceLang, targetLang, retries = 4) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (data.responseStatus !== 200) throw new Error(data.responseDetails || String(data.responseStatus));
-    return data.responseData.translatedText;
+    // Can come back null/empty despite responseStatus 200 -- returned as-is,
+    // that null reached a Mavi import's name_fa.slice() (2026-09-30, "Lyocell
+    // Çapraz Bağlamalı Kahverengi Bluz"). Throwing sends it to Azure instead.
+    const translated = data.responseData?.translatedText;
+    if (typeof translated !== 'string' || !translated.trim()) throw new Error('empty translation in response');
+    return translated;
   }
 }
 
