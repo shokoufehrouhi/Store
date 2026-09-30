@@ -4,7 +4,8 @@
 // way — the whole queue (24 rows) burned through to 'failed' in ~24 minutes
 // without any of those products ever being the actual problem. scheduler.js
 // now requeues + pauses on that error instead; this puts the rows already
-// stuck as 'failed' for that reason back in the queue. Only rate-limit
+// stuck as 'failed' for that reason back in the queue. Also covers code 9
+// ("User is performing too many actions", the rolling-24h publishing cap). Only rate-limit
 // failures are touched — any other failure reason stays 'failed' for review.
 // Run manually once: node scripts/requeueRateLimitedIgPosts.js
 const prisma = require('../prisma/client');
@@ -16,7 +17,7 @@ const prisma = require('../prisma/client');
   });
   const rateLimited = rows.filter(r => {
     const m = (r.error_message || '').match(/"code":(\d+)/);
-    return m && [4, 17, 32, 613].includes(Number(m[1]));
+    return m && [4, 9, 17, 32, 613].includes(Number(m[1]));
   });
   if (rateLimited.length) {
     await prisma.instagram_product_posts.updateMany({

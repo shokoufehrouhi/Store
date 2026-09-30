@@ -27,11 +27,14 @@ async function graphFetch(url, opts) {
 }
 
 // Meta's throttling error codes: 4 = app-level ("Application request limit
-// reached", hit live 2026-09-30), 17 = per-user, 32 = per-page, 613 = calls
+// reached", hit live 2026-09-30), 9 = "User is performing too many
+// actions" (subcode 2207042, the account's rolling-24h content-publishing
+// cap -- also hit live 2026-09-30, and marked is_transient:false by Meta even
+// though it clears on its own), 17 = per-user, 32 = per-page, 613 = calls
 // within a time window. These say nothing about the post itself -- retrying
 // the same post later is expected to work.
 function isRateLimitError(err) {
-  return [4, 17, 32, 613].includes(err?.igError?.code);
+  return [4, 9, 17, 32, 613].includes(err?.igError?.code);
 }
 
 function saveStoryImage(buffer, name) {
