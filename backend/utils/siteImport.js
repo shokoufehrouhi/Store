@@ -1483,10 +1483,32 @@ async function scrapeKotonProduct(pm, url) {
     // out-of-stock one just carries a -disabled modifier class instead of
     // being omitted from the DOM (unlike LCWaikiki, where out-of-stock
     // sizes simply don't render at all).
-    const sizes = Array.from(document.querySelectorAll('.variant__option.js-variant-option')).map(o => ({
+    //
+    // Jeans have a second group ("Boy Seç", length — data-key
+    // integration_secondary_size_id) next to the usual one ("Beden Seç",
+    // data-key integration_size_id). Reading both as one flat list stored
+    // the length as if it were a size, and a waist equal to a length (32
+    // and 32) broke product_sizes' unique (product_id, size_label) — hit
+    // live 2026-09-30 on a Koton baggy jean. Waist x length becomes
+    // "28/32", and only in-stock combinations are kept (same choice the
+    // user made for Mavi's jeans).
+    const readOpts = (key) => Array.from(document.querySelectorAll(`.variant__option.js-variant-option[data-key="${key}"]`)).map(o => ({
       size: o.textContent.trim().split('\n')[0].trim(),
       inStock: !o.classList.contains('-disabled'),
     }));
+    const primary = readOpts('integration_size_id');
+    const lengths = readOpts('integration_secondary_size_id');
+    let sizes = primary.length ? primary : Array.from(document.querySelectorAll('.variant__option.js-variant-option')).map(o => ({
+      size: o.textContent.trim().split('\n')[0].trim(),
+      inStock: !o.classList.contains('-disabled'),
+    }));
+    if (primary.length && lengths.length) {
+      sizes = primary.flatMap(w => lengths.map(l => ({ size: `${w.size}/${l.size}`, inStock: w.inStock && l.inStock })))
+        .filter(s => s.inStock);
+    }
+    const byLabel = new Map();
+    for (const s of sizes) byLabel.set(s.size, (byLabel.get(s.size) || false) || s.inStock);
+    sizes = [...byLabel].map(([size, inStock]) => ({ size, inStock }));
 
     return {
       name: prod.name,
