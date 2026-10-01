@@ -74,15 +74,23 @@ function currentDateStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// Product posts go out at a random 30-60 min gap rather than a fixed one --
-// an exact every-10-minutes cadence (plus ~80 posts/day) is the kind of
+// Product posts go out in pairs: two posts 3-4 min apart, then a random
+// 15-30 min break before the next pair -- never a fixed cadence, since an
+// exact every-10-minutes rhythm (plus ~80 posts/day) is the kind of
 // mechanical pattern Meta flagged as unusual activity on 2026-09-30/10-01
-// ("API access blocked."). The minimum also holds across restarts, via the
-// last real posted_at in the DB; the random part is in-memory.
-const PRODUCT_POST_MIN_INTERVAL_MS = 30 * 60 * 1000;
-const PRODUCT_POST_MAX_INTERVAL_MS = 60 * 60 * 1000;
+// ("API access blocked."). A plain random 30-60 min gap was tried first but
+// couldn't get through a full day's queue (~40-50 posts). The 3 min minimum
+// also holds across restarts, via the last real posted_at in the DB; the
+// rest is in-memory.
+const PRODUCT_POST_MIN_INTERVAL_MS = 3 * 60 * 1000;
+const PRODUCT_POSTS_PER_BURST = 2;
+const randomMs = (minMinutes, maxMinutes) => (minMinutes + Math.random() * (maxMinutes - minMinutes)) * 60 * 1000;
+let productPostsInCurrentBurst = 0;
 function randomProductPostGapMs() {
-  return PRODUCT_POST_MIN_INTERVAL_MS + Math.random() * (PRODUCT_POST_MAX_INTERVAL_MS - PRODUCT_POST_MIN_INTERVAL_MS);
+  productPostsInCurrentBurst++;
+  if (productPostsInCurrentBurst < PRODUCT_POSTS_PER_BURST) return randomMs(3, 4);
+  productPostsInCurrentBurst = 0;
+  return randomMs(15, 30);
 }
 let nextProductPostAllowedAt = 0;
 
@@ -467,7 +475,7 @@ async function productPostsMadeToday() {
   });
 }
 
-// Posts at most one queued new-product row per random 30-60 min gap,
+// Posts at most one queued new-product row at a time, in pairs (see randomProductPostGapMs),
 // derived from the last actual post time (not an in-memory timer, so it
 // self-corrects across restarts instead of bursting) -- never before
 // PRODUCT_POST_START_TIME each day, and never more than totalDailyPostCap()
@@ -640,7 +648,7 @@ async function tick() {
   }
 
   // Drip-feed one queued new-product Instagram post at a time, throttled to
-  // a random 30-60 min gap -- runs every tick, self-throttles internally.
+  // pairs 3-4 min apart, 15-30 min between pairs -- runs every tick, self-throttles internally.
   if (INSTAGRAM_ENABLED) await maybePostQueuedProduct().catch(err => console.error('[scheduler] product post drip-feed failed:', err));
 
   await maybeAutoPublish(settings).catch(err => console.error('[scheduler] auto-publish failed:', err));
