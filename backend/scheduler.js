@@ -74,8 +74,26 @@ function currentDateStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const PRODUCT_POST_INTERVAL_MS = 10 * 60 * 1000; // drip-feed rate for new-product Instagram posts (6/hour)
-const PRODUCT_POST_START_TIME = '08:00'; // don't start posting before this time each day
+// Product posts go out at a random 30-60 min gap rather than a fixed one --
+// an exact every-10-minutes cadence (plus ~80 posts/day) is the kind of
+// mechanical pattern Meta flagged as unusual activity on 2026-09-30/10-01
+// ("API access blocked."). The minimum also holds across restarts, via the
+// last real posted_at in the DB; the random part is in-memory.
+const PRODUCT_POST_MIN_INTERVAL_MS = 30 * 60 * 1000;
+const PRODUCT_POST_MAX_INTERVAL_MS = 60 * 60 * 1000;
+function randomProductPostGapMs() {
+  return PRODUCT_POST_MIN_INTERVAL_MS + Math.random() * (PRODUCT_POST_MAX_INTERVAL_MS - PRODUCT_POST_MIN_INTERVAL_MS);
+}
+let nextProductPostAllowedAt = 0;
+
+// Staging runs this same scheduler against the same DB and the same Instagram
+// account as production -- two posters doubled the API traffic and caused
+// real double posts. Only production talks to Instagram: staging is
+// recognised by PREVIEW_UNPUBLISHED=true (set only in Store-staging's .env,
+// see productsController.js); INSTAGRAM_POSTING_DISABLED=true also works
+// anywhere. Covers story generation, story posting/retries and product posts.
+const INSTAGRAM_ENABLED = process.env.PREVIEW_UNPUBLISHED !== 'true' && process.env.INSTAGRAM_POSTING_DISABLED !== 'true';
+const PRODUCT_POST_START_TIME = '08:00'; // don't start posting before this time each day (the day's imports are done by then)
 const PRODUCT_POST_RATE_LIMIT_BACKOFF_MS = 60 * 60 * 1000; // pause after Instagram says "request limit reached"
 
 // In-memory, not in the DB: staging and production each run this scheduler
@@ -94,8 +112,7 @@ const PRODUCT_POST_ACCOUNT_BLOCK_BACKOFF_MS = 6 * 60 * 60 * 1000;
 // row, since the interval only counted 'posted' rows -- an error neither
 // rate-limit nor account-level would still burn the whole queue a row a
 // minute (as "API access blocked." did on 2026-10-01: 50 rows in under an
-// hour). Attempts now count toward PRODUCT_POST_INTERVAL_MS too.
-let lastProductPostAttemptAt = 0;
+// hour). Every attempt now sets the next allowed time (nextProductPostAllowedAt).
 
 // A story that hit a rate limit is retried every STORY_RETRY_INTERVAL_MS, but
 // only until STORY_RETRY_WINDOW_MIN after its own slot time -- a morning
@@ -312,6 +329,11 @@ async function deployStoryAndHandleRateLimit(id) {
   const result = await deployStoryById(id);
   if (result?.rateLimited) productPostPausedUntil = Math.max(productPostPausedUntil, Date.now() + PRODUCT_POST_RATE_LIMIT_BACKOFF_MS);
   if (result?.accountBlocked) productPostPausedUntil = Math.max(productPostPausedUntil, Date.now() + PRODUCT_POST_ACCOUNT_BLOCK_BACKOFF_MS);
+  // A story that actually went up proves the API is reachable again, so any
+  // pause left over from an earlier block/limit no longer applies -- on
+  // 2026-10-01 the 11:00 story posted fine right after Meta lifted an "API
+  // access blocked", while product posts sat out the rest of a 6h pause.
+  if (result && !result.rateLimited && !result.accountBlocked && result.posted) productPostPausedUntil = 0;
 }
 
 async function maybeRetryRateLimitedStories() {
@@ -387,7 +409,7 @@ function buildProductCaption(product) {
 async function postQueuedProductToInstagram(row) {
   const media = (row.products.product_media || [])
     .filter(m => fs.existsSync(path.join(UPLOADS_DIR, path.basename(m.url))))
-    .slice(0, 10);
+    .slice(0, 5); // 5 images max (was Instagram's own cap of 10): each one is its own create + poll API calls
   const caption = buildProductCaption(row.products);
   try {
     let creationId;
@@ -410,7 +432,7 @@ async function postQueuedProductToInstagram(row) {
   } catch (err) {
     // A rate-limit error says nothing about this post -- back into the queue
     // (not 'failed') and pause all product posting for a while. Before this,
-    // a failure didn't count toward PRODUCT_POST_INTERVAL_MS at all (only
+    // a failure didn't count toward the posting interval at all (only
     // 'posted' rows do), so the very next tick 60s later tried the next row,
     // which failed the same way, and so on -- confirmed live 2026-09-30: the
     // whole queue (24 rows) burned through to 'failed' in ~24 minutes, each
@@ -445,7 +467,7 @@ async function productPostsMadeToday() {
   });
 }
 
-// Posts at most one queued new-product row per PRODUCT_POST_INTERVAL_MS,
+// Posts at most one queued new-product row per random 30-60 min gap,
 // derived from the last actual post time (not an in-memory timer, so it
 // self-corrects across restarts instead of bursting) -- never before
 // PRODUCT_POST_START_TIME each day, and never more than totalDailyPostCap()
@@ -457,7 +479,7 @@ async function productPostsMadeToday() {
 async function maybePostQueuedProduct() {
   if (currentHHMM() < PRODUCT_POST_START_TIME) return;
   if (Date.now() < productPostPausedUntil) return;
-  if (Date.now() - lastProductPostAttemptAt < PRODUCT_POST_INTERVAL_MS) return;
+  if (Date.now() < nextProductPostAllowedAt) return;
 
   // A post takes ~1 minute (create + poll + publish), and the interval
   // below is measured from the last *finished* post -- so a tick landing
@@ -471,7 +493,7 @@ async function maybePostQueuedProduct() {
     where: { status: 'posted' },
     orderBy: { posted_at: 'desc' },
   });
-  if (last && Date.now() - new Date(last.posted_at).getTime() < PRODUCT_POST_INTERVAL_MS) return;
+  if (last && Date.now() - new Date(last.posted_at).getTime() < PRODUCT_POST_MIN_INTERVAL_MS) return;
 
   const [postedToday, dailyCap] = await Promise.all([productPostsMadeToday(), totalDailyPostCap()]);
   if (postedToday >= dailyCap) return; // today's combined per-brand cap already reached
@@ -508,7 +530,7 @@ async function maybePostQueuedProduct() {
     });
     return;
   }
-  lastProductPostAttemptAt = Date.now();
+  nextProductPostAllowedAt = Date.now() + randomProductPostGapMs();
   await postQueuedProductToInstagram(next);
 }
 
@@ -559,12 +581,12 @@ async function tick() {
   // Generate the two morning drafts an hour+ ahead of their post time, and
   // the two evening drafts likewise -- gives a review window in admin.html's
   // Instagram Content tab before autoDeploySlot posts them for real.
-  if (nowHHMM === GEN_MORNING_TIME && ranMorningGenOn !== today) {
+  if (INSTAGRAM_ENABLED && nowHHMM === GEN_MORNING_TIME && ranMorningGenOn !== today) {
     ranMorningGenOn = today;
     await generateMorningSingleStory().catch(err => console.error('[scheduler] morning single story generation failed:', err));
     await generateMorningCollageStory().catch(err => console.error('[scheduler] morning collage story generation failed:', err));
   }
-  if (nowHHMM === GEN_EVENING_TIME && ranEveningGenOn !== today) {
+  if (INSTAGRAM_ENABLED && nowHHMM === GEN_EVENING_TIME && ranEveningGenOn !== today) {
     ranEveningGenOn = today;
     await generateEveningSingleStory().catch(err => console.error('[scheduler] evening single story generation failed:', err));
     await generateEveningCollageStory().catch(err => console.error('[scheduler] evening collage story generation failed:', err));
@@ -572,23 +594,23 @@ async function tick() {
 
   // Auto-post each slot's draft at its scheduled time (no-op if it was
   // already manually deployed or deleted during the review window).
-  if (nowHHMM === MORNING_SINGLE_TIME && ranMorningSingleDeployOn !== today) {
+  if (INSTAGRAM_ENABLED && nowHHMM === MORNING_SINGLE_TIME && ranMorningSingleDeployOn !== today) {
     ranMorningSingleDeployOn = today;
     await autoDeploySlot(MORNING_SINGLE_TIME).catch(err => console.error('[scheduler] morning single auto-deploy failed:', err));
   }
-  if (nowHHMM === MORNING_COLLAGE_TIME && ranMorningCollageDeployOn !== today) {
+  if (INSTAGRAM_ENABLED && nowHHMM === MORNING_COLLAGE_TIME && ranMorningCollageDeployOn !== today) {
     ranMorningCollageDeployOn = today;
     await autoDeploySlot(MORNING_COLLAGE_TIME).catch(err => console.error('[scheduler] morning collage auto-deploy failed:', err));
   }
-  if (nowHHMM === EVENING_SINGLE_TIME && ranEveningSingleDeployOn !== today) {
+  if (INSTAGRAM_ENABLED && nowHHMM === EVENING_SINGLE_TIME && ranEveningSingleDeployOn !== today) {
     ranEveningSingleDeployOn = today;
     await autoDeploySlot(EVENING_SINGLE_TIME).catch(err => console.error('[scheduler] evening single auto-deploy failed:', err));
   }
-  if (nowHHMM === EVENING_COLLAGE_TIME && ranEveningCollageDeployOn !== today) {
+  if (INSTAGRAM_ENABLED && nowHHMM === EVENING_COLLAGE_TIME && ranEveningCollageDeployOn !== today) {
     ranEveningCollageDeployOn = today;
     await autoDeploySlot(EVENING_COLLAGE_TIME).catch(err => console.error('[scheduler] evening collage auto-deploy failed:', err));
   }
-  await maybeRetryRateLimitedStories().catch(err => console.error('[scheduler] story rate-limit retry failed:', err));
+  if (INSTAGRAM_ENABLED) await maybeRetryRateLimitedStories().catch(err => console.error('[scheduler] story rate-limit retry failed:', err));
 
   // Fetched every tick (not just when ranThisMinute is about to change) so
   // maybeAutoPublish below can check its own interval independently of the
@@ -618,8 +640,8 @@ async function tick() {
   }
 
   // Drip-feed one queued new-product Instagram post at a time, throttled to
-  // PRODUCT_POST_INTERVAL_MS -- runs every tick, self-throttles internally.
-  await maybePostQueuedProduct().catch(err => console.error('[scheduler] product post drip-feed failed:', err));
+  // a random 30-60 min gap -- runs every tick, self-throttles internally.
+  if (INSTAGRAM_ENABLED) await maybePostQueuedProduct().catch(err => console.error('[scheduler] product post drip-feed failed:', err));
 
   await maybeAutoPublish(settings).catch(err => console.error('[scheduler] auto-publish failed:', err));
 }
@@ -682,7 +704,7 @@ function start() {
   }).catch(err => console.error('[scheduler] failed to reset stale story posting rows:', err));
 
   setInterval(() => { tick().catch(err => console.error('[scheduler] tick error:', err)); }, 60 * 1000);
-  console.log('[scheduler] site sync scheduler started');
+  console.log(`[scheduler] site sync scheduler started${INSTAGRAM_ENABLED ? '' : ' (Instagram posting disabled on this instance)'}`);
 }
 
 module.exports = { start };

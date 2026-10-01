@@ -56,7 +56,7 @@ async function deployStoryById(id) {
     }).catch(() => {});
     return { rateLimited: isRateLimitError(err), accountBlocked: isAccountBlockedError(err) };
   }
-  return { rateLimited: false, accountBlocked: false };
+  return { rateLimited: false, accountBlocked: false, posted: true };
 }
 
 // POST /api/admin/instagram-content/:id/deploy — manual trigger, same-day
