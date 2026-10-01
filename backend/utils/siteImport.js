@@ -808,19 +808,40 @@ async function scrapeZaraProduct(pm, url) {
     // the one on screen).
     const titleParts = document.title.split(' - ');
     const colorName = titleParts.length > 1 ? titleParts[titleParts.length - 1].split('|')[0].trim() : null;
-    const sameColorVariants = (group.hasVariant || []).filter(v => v.color === colorName);
+    // schema.org "image" can be a bare string (see Koton/Kiko's same fix) --
+    // spreading a string into a Set splits it into single characters.
+    const groupImages = Array.isArray(group.image) ? group.image : (group.image ? [group.image] : []);
+    // Two different colors can share one display name -- confirmed live
+    // 2026-10-01: a jean with two separate "Mavi" shades (color codes 400
+    // and 407), so filtering by name alone merged both shades' sizes and
+    // every size came out twice, breaking product_sizes' unique (product_id,
+    // size_label). The loaded color's 3-digit code is the tail of the main
+    // image's file name ("00840355400-p.jpg" -> 400) and the middle part of
+    // each variant's sku ("549089409-400-36"); match on that when both are
+    // readable, the name only as a fallback.
+    const loadedColorCode = String(groupImages[0] || '').match(/\/\d{8}(\d{3})-p\//)?.[1] || null;
+    const variantColorCode = v => String(v.sku || '').split('-')[1] || null;
+    let sameColorVariants = (group.hasVariant || []).filter(v => v.color === colorName);
+    if (loadedColorCode && sameColorVariants.some(v => variantColorCode(v) === loadedColorCode)) {
+      sameColorVariants = sameColorVariants.filter(v => variantColorCode(v) === loadedColorCode);
+    }
+    const sizeByLabel = new Map();
+    for (const v of sameColorVariants) {
+      const inStock = v.offers?.availability ? !/OutOfStock/i.test(v.offers.availability) : true;
+      // "EU 36 (US 29)" (jeans) doesn't fit product_sizes.size_label's
+      // VarChar(10) -- it used to be cut to "EU 36 (US " -- keep the EU size.
+      const label = String(v.size || '').replace(/^EU\s+(\S+)\s*\(US[^)]*\)$/, '$1');
+      sizeByLabel.set(label, (sizeByLabel.get(label) || false) || inStock);
+    }
 
     return {
       name: group.name,
-      images: [...new Set(group.image || [])],
+      images: [...new Set(groupImages)],
       description: group.description || '',
       delText: delEl?.textContent || null,
       insText: insEl?.textContent || null,
       color: colorName,
-      sizes: sameColorVariants.map(v => ({
-        size: v.size,
-        inStock: v.offers?.availability ? !/OutOfStock/i.test(v.offers.availability) : true,
-      })),
+      sizes: [...sizeByLabel].map(([size, inStock]) => ({ size, inStock })),
     };
   });
 }
