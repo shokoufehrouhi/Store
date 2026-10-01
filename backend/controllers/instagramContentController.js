@@ -1,7 +1,7 @@
 const prisma = require('../prisma/client');
 const fs     = require('fs');
 const path   = require('path');
-const { createStoryContainer, publishContainer, isRateLimitError } = require('../utils/instagramPublish');
+const { createStoryContainer, publishContainer, isRateLimitError, isAccountBlockedError } = require('../utils/instagramPublish');
 
 // GET /api/admin/instagram-content
 async function listStories(req, res, next) {
@@ -18,9 +18,10 @@ async function listStories(req, res, next) {
 // the manual Deploy button (below) and scheduler.js's auto-deploy at each
 // story's scheduled slot time -- same code path either way, so "what
 // clicking Deploy does" and "what happens automatically" never diverge.
-// Returns { rateLimited: true } when Instagram refused with a rate-limit
-// error, so scheduler.js can pause product posts and retry the story later
-// (the row itself is still marked 'failed' either way).
+// Returns { rateLimited: true } (or accountBlocked) when Instagram refused
+// with a rate-limit (or account-level) error, so scheduler.js can pause
+// product posts and retry the story later (the row itself is still marked
+// 'failed' either way).
 async function deployStoryById(id) {
   const story = await prisma.instagram_content.findUnique({ where: { id } });
   if (!story || story.status === 'posted') return;
@@ -53,9 +54,9 @@ async function deployStoryById(id) {
       where: { id },
       data: { status: 'failed', error_message: err.message },
     }).catch(() => {});
-    return { rateLimited: isRateLimitError(err) };
+    return { rateLimited: isRateLimitError(err), accountBlocked: isAccountBlockedError(err) };
   }
-  return { rateLimited: false };
+  return { rateLimited: false, accountBlocked: false };
 }
 
 // POST /api/admin/instagram-content/:id/deploy — manual trigger, same-day

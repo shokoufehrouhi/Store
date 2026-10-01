@@ -38,6 +38,16 @@ function isRateLimitError(err) {
   return RATE_LIMIT_CODES.includes(err?.igError?.code);
 }
 
+// Errors about the whole account/app rather than one post: 200 = permission
+// denied / "API access blocked." (Meta blocked the app's API access -- hit
+// live 2026-10-01, every call failing until Meta lifts it), 190 = access
+// token invalid/expired, 10 = permission not granted. Like a rate limit,
+// nothing is wrong with the post itself, but retrying soon is pointless.
+const ACCOUNT_BLOCK_CODES = [10, 190, 200];
+function isAccountBlockedError(err) {
+  return ACCOUNT_BLOCK_CODES.includes(err?.igError?.code);
+}
+
 // Same check against a stored error_message (the JSON graphFetch embeds in
 // it), for rows that already failed in an earlier tick or process.
 function isRateLimitMessage(message) {
@@ -143,5 +153,5 @@ async function postStory(imageBuffer, { name }) {
 module.exports = {
   postStory, createStoryContainer, publishContainer, waitUntilContainerReady,
   createFeedContainer, createCarouselChildContainer, createCarouselContainer,
-  isRateLimitError, isRateLimitMessage,
+  isRateLimitError, isRateLimitMessage, isAccountBlockedError,
 };

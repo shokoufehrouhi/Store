@@ -26,7 +26,7 @@ const { publishAllChanges } = require('./controllers/adminController');
 const { queueNewProductsForInstagram } = require('./utils/instagramProductQueue');
 const {
   createFeedContainer, createCarouselChildContainer, createCarouselContainer,
-  publishContainer, waitUntilContainerReady, isRateLimitError, isRateLimitMessage,
+  publishContainer, waitUntilContainerReady, isRateLimitError, isRateLimitMessage, isAccountBlockedError,
 } = require('./utils/instagramPublish');
 const fs = require('fs');
 const path = require('path');
@@ -83,6 +83,19 @@ const PRODUCT_POST_RATE_LIMIT_BACKOFF_MS = 60 * 60 * 1000; // pause after Instag
 // its own first rate-limit error (worst case one extra wasted call per
 // process, or per restart) -- avoids a schema change for a single timestamp.
 let productPostPausedUntil = 0;
+
+// Account-level errors (see isAccountBlockedError) pause product posting much
+// longer than a rate limit -- Meta lifting an "API access blocked" takes hours
+// at least, and hammering a blocked app only risks making it worse.
+const PRODUCT_POST_ACCOUNT_BLOCK_BACKOFF_MS = 6 * 60 * 60 * 1000;
+
+// Start time of the last product-post attempt, successful or not. Any
+// failure used to leave the very next tick (60s later) free to try the next
+// row, since the interval only counted 'posted' rows -- an error neither
+// rate-limit nor account-level would still burn the whole queue a row a
+// minute (as "API access blocked." did on 2026-10-01: 50 rows in under an
+// hour). Attempts now count toward PRODUCT_POST_INTERVAL_MS too.
+let lastProductPostAttemptAt = 0;
 
 // A story that hit a rate limit is retried every STORY_RETRY_INTERVAL_MS, but
 // only until STORY_RETRY_WINDOW_MIN after its own slot time -- a morning
@@ -297,7 +310,8 @@ async function autoDeploySlot(slot) {
 async function deployStoryAndHandleRateLimit(id) {
   storyLastAttemptAt.set(id, Date.now());
   const result = await deployStoryById(id);
-  if (result?.rateLimited) productPostPausedUntil = Date.now() + PRODUCT_POST_RATE_LIMIT_BACKOFF_MS;
+  if (result?.rateLimited) productPostPausedUntil = Math.max(productPostPausedUntil, Date.now() + PRODUCT_POST_RATE_LIMIT_BACKOFF_MS);
+  if (result?.accountBlocked) productPostPausedUntil = Math.max(productPostPausedUntil, Date.now() + PRODUCT_POST_ACCOUNT_BLOCK_BACKOFF_MS);
 }
 
 async function maybeRetryRateLimitedStories() {
@@ -401,11 +415,15 @@ async function postQueuedProductToInstagram(row) {
     // which failed the same way, and so on -- confirmed live 2026-09-30: the
     // whole queue (24 rows) burned through to 'failed' in ~24 minutes, each
     // attempt itself another call against the exhausted limit.
+    // Account-level errors ("API access blocked.", invalid token) are handled
+    // the same way, with a longer pause.
     const rateLimited = isRateLimitError(err);
-    if (rateLimited) productPostPausedUntil = Date.now() + PRODUCT_POST_RATE_LIMIT_BACKOFF_MS;
+    const accountBlocked = isAccountBlockedError(err);
+    if (rateLimited) productPostPausedUntil = Math.max(productPostPausedUntil, Date.now() + PRODUCT_POST_RATE_LIMIT_BACKOFF_MS);
+    if (accountBlocked) productPostPausedUntil = Math.max(productPostPausedUntil, Date.now() + PRODUCT_POST_ACCOUNT_BLOCK_BACKOFF_MS);
     await prisma.instagram_product_posts.update({
       where: { id: row.id },
-      data: { status: rateLimited ? 'queued' : 'failed', error_message: err.message },
+      data: { status: (rateLimited || accountBlocked) ? 'queued' : 'failed', error_message: err.message },
     }).catch(() => {});
   }
 }
@@ -439,6 +457,7 @@ async function productPostsMadeToday() {
 async function maybePostQueuedProduct() {
   if (currentHHMM() < PRODUCT_POST_START_TIME) return;
   if (Date.now() < productPostPausedUntil) return;
+  if (Date.now() - lastProductPostAttemptAt < PRODUCT_POST_INTERVAL_MS) return;
 
   // A post takes ~1 minute (create + poll + publish), and the interval
   // below is measured from the last *finished* post -- so a tick landing
@@ -489,6 +508,7 @@ async function maybePostQueuedProduct() {
     });
     return;
   }
+  lastProductPostAttemptAt = Date.now();
   await postQueuedProductToInstagram(next);
 }
 
