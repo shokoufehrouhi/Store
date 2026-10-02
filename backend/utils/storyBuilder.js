@@ -48,10 +48,10 @@ async function solidBackground() {
 
 // Rounded-corner card with a thin white border frame, optionally rotated —
 // used for both the single hero photo and the collage cards.
-async function photoCard(imagePath, { size, radius = 28, rotateDeg = 0 }) {
-  const img = await sharp(imagePath).resize(size, size, { fit: 'cover' }).toBuffer();
+async function photoCard(imagePath, { size, height = size, radius = 28, rotateDeg = 0 }) {
+  const img = await sharp(imagePath).resize(size, height, { fit: 'cover', position: 'top' }).toBuffer();
   const mask = Buffer.from(
-    `<svg width="${size}" height="${size}"><rect width="${size}" height="${size}" rx="${radius}" ry="${radius}" fill="#fff"/></svg>`
+    `<svg width="${size}" height="${height}"><rect width="${size}" height="${height}" rx="${radius}" ry="${radius}" fill="#fff"/></svg>`
   );
   const rounded = await sharp(img)
     .composite([{ input: mask, blend: 'dest-in' }])
@@ -59,14 +59,14 @@ async function photoCard(imagePath, { size, radius = 28, rotateDeg = 0 }) {
     .toBuffer();
 
   const border = Buffer.from(
-    `<svg width="${size}" height="${size}">
-       <rect x="2" y="2" width="${size - 4}" height="${size - 4}" rx="${radius}" ry="${radius}"
+    `<svg width="${size}" height="${height}">
+       <rect x="2" y="2" width="${size - 4}" height="${height - 4}" rx="${radius}" ry="${radius}"
              fill="none" stroke="#ffffff" stroke-width="6"/>
      </svg>`
   );
   const withBorder = await sharp(rounded).composite([{ input: border }]).png().toBuffer();
 
-  if (!rotateDeg) return { buffer: withBorder, width: size, height: size };
+  if (!rotateDeg) return { buffer: withBorder, width: size, height };
   const rotated = await sharp(withBorder)
     .rotate(rotateDeg, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
@@ -158,8 +158,8 @@ async function buildCtaBadge(text = 'مشاهده و خرید') {
 // Rounded card holding the subline text, framed in gold — replaces the old
 // bare centered text so the promo line reads as one deliberate element
 // sitting under the product grid, not a second disconnected headline.
-async function buildCaptionCard(text) {
-  const textW = 860, textH = 160, padX = 50, padY = 30;
+async function buildCaptionCard(text, { textH = 160 } = {}) {
+  const textW = 860, padX = 50, padY = 30;
   const textBuf = await renderText({
     text, fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium',
     width: textW, height: textH, color: '#ffffff',
@@ -178,127 +178,48 @@ async function buildCaptionCard(text) {
   return { buffer, width: boxW, height: boxH };
 }
 
-// Grid positions for n products (2-4): a single row for 2, top-pair +
-// bottom-left for 3 (asymmetric -- reads fine, no empty cell drawn since
-// the caller only uses the first n), a full 2x2 for 4.
-function collageGridPositions(n, cardSize, gap) {
-  const rowW = cardSize * 2 + gap;
+// Collage layout: a plain grid of large portrait cards -- 2 side by side,
+// 3 as two on top + one centered below, 4 as a full 2x2. Fan and diagonal
+// cascade layouts (tilted, overlapping cards) used to be picked at random
+// too, but they shrank every photo to a small square -- dropped on request
+// 2026-10-02 in favor of this grid only.
+const COLLAGE_CARD_W = 450, COLLAGE_GAP = 18;
+function collageCardHeight(n) {
+  return n <= 2 ? 760 : 500;
+}
+
+function collageGridPositions(n, cardW, cardH, gap) {
+  const rowW = cardW * 2 + gap;
+  const left0 = -rowW / 2;
   if (n <= 2) {
-    const totalW = cardSize * n + gap * (n - 1);
-    const left0 = -totalW / 2;
-    return Array.from({ length: n }, (_, i) => ({ left: left0 + i * (cardSize + gap), top: 0 }));
+    const totalW = cardW * n + gap * (n - 1);
+    return Array.from({ length: n }, (_, i) => ({ left: -totalW / 2 + i * (cardW + gap), top: 0 }));
   }
-  return [
-    { left: -rowW / 2, top: 0 },
-    { left: -rowW / 2 + cardSize + gap, top: 0 },
-    { left: -rowW / 2, top: cardSize + gap },
-    { left: -rowW / 2 + cardSize + gap, top: cardSize + gap },
+  const positions = [
+    { left: left0, top: 0 },
+    { left: left0 + cardW + gap, top: 0 },
   ];
+  if (n === 3) positions.push({ left: -cardW / 2, top: cardH + gap });
+  else positions.push({ left: left0, top: cardH + gap }, { left: left0 + cardW + gap, top: cardH + gap });
+  return positions;
 }
 
 async function layoutGrid(products, top) {
   const n = products.length;
-  const cardSize = 420, gap = 16;
-  const positions = collageGridPositions(n, cardSize, gap);
+  const cardW = COLLAGE_CARD_W, cardH = collageCardHeight(n), gap = COLLAGE_GAP;
+  const positions = collageGridPositions(n, cardW, cardH, gap);
   const layers = [];
   for (let i = 0; i < n; i++) {
     const imgPath = productImagePath(products[i]);
     if (!imgPath) continue;
-    const card = await photoCard(imgPath, { size: cardSize });
+    const card = await photoCard(imgPath, { size: cardW, height: cardH });
     layers.push({
       input: card.buffer,
       left: Math.round(W / 2 + positions[i].left),
       top: Math.round(top + positions[i].top),
     });
   }
-  return { layers, height: n <= 2 ? cardSize : cardSize * 2 + gap };
-}
-
-// A square rotated by θ has bounding-box side = size*(|cosθ|+|sinθ|) — used
-// to keep every card fully on-canvas when rotated (see layoutFan).
-function rotatedHalf(size, deg) {
-  const rad = Math.abs(deg) * Math.PI / 180;
-  return (size * (Math.cos(rad) + Math.sin(rad))) / 2;
-}
-
-const FAN_ANGLES = { 2: [-8, 8], 3: [-9, 0, 9], 4: [-11, -4, 4, 11] };
-
-// An overlapping fan, cards rotated and tucked behind their neighbors along
-// a horizontal arc (not sitting cleanly side by side) — one of a few
-// randomly-picked layouts so consecutive collages don't all look the same.
-async function layoutFan(products, top) {
-  const n = products.length;
-  const layers = [];
-  const size = n >= 4 ? 340 : 380;
-  const angles = FAN_ANGLES[n] || FAN_ANGLES[3];
-  const maxHalf = Math.max(...angles.map(deg => rotatedHalf(size, deg)));
-  // Overlap by only ~100px of the card (not half of it) so every product
-  // stays clearly identifiable -- an earlier tighter spread buried most of
-  // the side cards behind the centered one.
-  const spread = Math.min(size - 100, W / 2 - 20 - maxHalf);
-  const step = n > 1 ? (2 * spread) / (n - 1) : 0;
-  const xs = Array.from({ length: n }, (_, i) => W / 2 - spread + i * step);
-  const centerY = top + maxHalf;
-  // Draw outer cards first, innermost/centermost last, so the middle of the
-  // fan reads as the "front" card rather than whichever came first in array.
-  const order = [...products.keys()].sort((a, b) => Math.abs(a - (n - 1) / 2) - Math.abs(b - (n - 1) / 2));
-  order.reverse();
-
-  for (const i of order) {
-    const imgPath = productImagePath(products[i]);
-    if (!imgPath) continue;
-    const card = await photoCard(imgPath, { size, rotateDeg: angles[i] });
-    layers.push({
-      input: card.buffer,
-      left: Math.round(xs[i] - card.width / 2),
-      top: Math.round(centerY - card.height / 2),
-    });
-  }
-  return { layers, height: maxHalf * 2 };
-}
-
-// A diagonal cascade -- each product steps down and to the right of the
-// previous one, rotated independently, later cards drawn on top. Distinct
-// from both the grid and the fan so it reads as its own template.
-// Per-n size/step so the overlap stays a small corner (~15-20% of the card)
-// instead of burying most of the previous photo -- an earlier version used
-// a fixed small step that hid too much of each product ("maloum nist
-// product-e zir chi hast").
-const CASCADE_PARAMS = {
-  2: { size: 480, dx: 400, dy: 375 },
-  3: { size: 350, dx: 290, dy: 280 },
-  4: { size: 270, dx: 220, dy: 215 },
-};
-
-async function layoutCascade(products, top) {
-  const n = products.length;
-  const { size, dx, dy } = CASCADE_PARAMS[n] || CASCADE_PARAMS[3];
-  const angles = [-6, 5, -4, 7];
-  const totalW = size + dx * (n - 1);
-  const totalH = size + dy * (n - 1);
-  const left0 = (W - totalW) / 2;
-  // Random per generation: top-left→bottom-right (default) or mirrored
-  // top-right→bottom-left, so the diagonal direction itself varies too.
-  const mirrored = Math.random() < 0.5;
-  const layers = [];
-  for (let i = 0; i < n; i++) {
-    const imgPath = productImagePath(products[i]);
-    if (!imgPath) continue;
-    const card = await photoCard(imgPath, { size, rotateDeg: angles[i % angles.length] });
-    const col = mirrored ? (n - 1 - i) : i;
-    const left = Math.round(left0 + col * dx - (card.width - size) / 2);
-    const cardTop = Math.round(top + i * dy - (card.height - size) / 2);
-    layers.push({ input: card.buffer, left, top: cardTop });
-  }
-  return { layers, height: totalH + 30 };
-}
-
-// Randomly picks one of the three layouts above so consecutive collages
-// don't all look identical, per explicit request ("hamash yejour nazar").
-async function chooseCollageLayout(products, top) {
-  const templates = [layoutGrid, layoutFan, layoutCascade];
-  const pick = templates[Math.floor(Math.random() * templates.length)];
-  return pick(products, top);
+  return { layers, height: n <= 2 ? cardH : cardH * 2 + gap };
 }
 
 // Story 2: 2-4 products, with a promo headline, a bordered caption card, a
@@ -319,17 +240,19 @@ async function buildCollageStory(products, { headline }) {
   layers.push({ input: headlineBuf, left: Math.round((W - headlineMeta.width) / 2), top: 250 });
 
   const n = Math.min(products.length, 4);
-  const gridTop = 440;
-  const layout = await chooseCollageLayout(products.slice(0, n), gridTop);
+  const gridTop = 420;
+  const layout = await layoutGrid(products.slice(0, n), gridTop);
   layers.push(...layout.layers);
   const gridBottom = gridTop + layout.height;
 
-  const caption = await buildCaptionCard(STANDARD_CAPTION);
-  const captionTop = Math.round(gridBottom + 40);
+  // Shorter caption box than the single-product story's, so the larger
+  // grid above still leaves room for the CTA and link on a 1920px canvas.
+  const caption = await buildCaptionCard(STANDARD_CAPTION, { textH: 100 });
+  const captionTop = Math.round(gridBottom + 30);
   layers.push({ input: caption.buffer, left: Math.round((W - caption.width) / 2), top: captionTop });
 
   const cta = await buildCtaBadge('شروع خرید');
-  const ctaTop = Math.round(captionTop + caption.height + 30);
+  const ctaTop = Math.round(captionTop + caption.height + 25);
   layers.push({ input: cta.buffer, left: Math.round((W - cta.width) / 2), top: ctaTop });
 
   const linkBuf = await renderText({
