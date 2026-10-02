@@ -281,7 +281,7 @@ async function generateSingleStory(slot, headline, prefix, excludeIds = []) {
 
 async function generateCollageStory(slot, headline, prefix, excludeIds = []) {
   const products = await eligibleStoryProducts(4, excludeIds);
-  if (products.length < 2) return; // not enough distinct products for a collage today
+  if (products.length < 2) return false; // not enough distinct products for a collage today
   const buffer = await buildCollageStory(products, { headline });
   const imageUrl = saveGeneratedStoryImage(buffer, prefix);
   await prisma.instagram_content.create({
@@ -294,6 +294,7 @@ async function generateCollageStory(slot, headline, prefix, excludeIds = []) {
       link: `${process.env.FRONTEND_URL}/index.html`,
     },
   });
+  return true;
 }
 
 async function generateMorningSingleStory() {
@@ -316,6 +317,48 @@ async function generateEveningSingleStory() {
 async function generateEveningCollageStory() {
   const excludeIds = lastEveningSingleProductId ? [lastEveningSingleProductId] : [];
   await generateCollageStory(EVENING_COLLAGE_TIME, 'انتخاب‌های امشب', 'evening-collage', excludeIds);
+}
+
+// Manual "rebuild" from admin.html's Instagram Content tab: replaces today's
+// story for one slot with a freshly generated one (new products, current
+// layout) -- e.g. after a layout change, or to swap out a draft the admin
+// didn't like. Any not-yet-posted row for that slot today is removed first
+// (deleting a draft used to leave the slot empty until the next day's
+// generation run). Refuses if that slot already went out. A collage still
+// avoids the product its paired single story is showing, read from today's
+// DB row rather than the in-memory last*SingleProductId (lost on restart).
+const STORY_SLOTS = {
+  [MORNING_SINGLE_TIME]:  { kind: 'single',  headline: 'پیشنهاد امروز شیلیستا', prefix: 'morning-single' },
+  [MORNING_COLLAGE_TIME]: { kind: 'collage', headline: 'محصولات جدید ما',      prefix: 'morning-collage', pairedSingle: MORNING_SINGLE_TIME },
+  [EVENING_SINGLE_TIME]:  { kind: 'single',  headline: 'پیشنهاد ویژه‌ی امشب',   prefix: 'evening-single' },
+  [EVENING_COLLAGE_TIME]: { kind: 'collage', headline: 'انتخاب‌های امشب',       prefix: 'evening-collage', pairedSingle: EVENING_SINGLE_TIME },
+};
+
+async function rebuildStoryForSlot(slot) {
+  const def = STORY_SLOTS[slot];
+  if (!def) throw Object.assign(new Error('unknown_slot'), { status: 400 });
+  const today = new Date(currentDateStr());
+  const existing = await prisma.instagram_content.findMany({ where: { slot, scheduled_date: today } });
+  if (existing.some(r => r.status === 'posted' || r.status === 'posting')) {
+    throw Object.assign(new Error('already_posted'), { status: 409 });
+  }
+  for (const r of existing) {
+    if (r.image_url) fs.unlink(path.join(UPLOADS_DIR, path.basename(r.image_url)), () => {});
+    await prisma.instagram_content.delete({ where: { id: r.id } });
+  }
+
+  let excludeIds = [];
+  if (def.pairedSingle) {
+    const single = await prisma.instagram_content.findFirst({
+      where: { slot: def.pairedSingle, scheduled_date: today },
+      orderBy: { created_at: 'desc' },
+    });
+    excludeIds = Array.isArray(single?.product_ids) ? single.product_ids : [];
+  }
+  const ok = def.kind === 'single'
+    ? await generateSingleStory(slot, def.headline, def.prefix, excludeIds)
+    : await generateCollageStory(slot, def.headline, def.prefix, excludeIds);
+  if (!ok) throw Object.assign(new Error('not_enough_products'), { status: 422 });
 }
 
 // Auto-posts today's draft for a given slot, if one still exists and is
@@ -750,4 +793,4 @@ function start() {
   console.log(`[scheduler] site sync scheduler started${INSTAGRAM_ENABLED ? '' : ' (Instagram posting disabled on this instance)'}`);
 }
 
-module.exports = { start };
+module.exports = { start, rebuildStoryForSlot };

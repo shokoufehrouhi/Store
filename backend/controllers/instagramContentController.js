@@ -95,4 +95,18 @@ async function deleteStory(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { listStories, deployStory, deleteStory, deployStoryById };
+// POST /api/admin/instagram-content/rebuild  { slot: '11:00' | '11:30' | '19:00' | '19:30' }
+// Regenerates today's story for that slot (see scheduler.js#rebuildStoryForSlot).
+// Required lazily: scheduler.js itself requires this controller.
+async function rebuildStory(req, res, next) {
+  try {
+    const { rebuildStoryForSlot } = require('../scheduler');
+    await rebuildStoryForSlot(String(req.body?.slot || ''));
+    res.json({ success: true });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ success: false, message: err.message });
+    next(err);
+  }
+}
+
+module.exports = { listStories, deployStory, deleteStory, deployStoryById, rebuildStory };

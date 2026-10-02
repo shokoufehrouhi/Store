@@ -141,6 +141,7 @@ router.delete('/product-photos/:id',    pp.adminDeletePhoto);
 
 const ic = require('../controllers/instagramContentController');
 router.get('/instagram-content',             ic.listStories);
+router.post('/instagram-content/rebuild',     ic.rebuildStory);
 router.post('/instagram-content/:id/deploy', ic.deployStory);
 router.delete('/instagram-content/:id',      ic.deleteStory);
 
