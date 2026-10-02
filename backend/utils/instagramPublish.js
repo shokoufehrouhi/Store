@@ -139,6 +139,22 @@ async function publishContainer(creationId) {
   return data.id;
 }
 
+// Instagram's own count of how much of its rolling-24h publishing cap is
+// used -- authoritative, unlike counting our own DB rows: on 2026-10-02 our
+// DB showed 45 posts in the last 24h (cap 50) while Instagram still refused
+// with "User is performing too many actions" (code 9 / 2207042).
+// Returns { used, total } (total falls back to 50 if config is missing).
+async function getPublishingQuota() {
+  const igUserId = requireEnv('INSTAGRAM_USER_ID');
+  const accessToken = requireEnv('INSTAGRAM_ACCESS_TOKEN');
+  const data = await graphFetch(
+    `${GRAPH_BASE}/${igUserId}/content_publishing_limit?fields=quota_usage,config&access_token=${accessToken}`,
+    { method: 'GET' }
+  );
+  const row = data?.data?.[0] || {};
+  return { used: Number(row.quota_usage) || 0, total: Number(row.config?.quota_total) || 50 };
+}
+
 async function postStory(imageBuffer, { name }) {
   const { filename, url } = saveStoryImage(imageBuffer, name);
   try {
@@ -153,5 +169,5 @@ async function postStory(imageBuffer, { name }) {
 module.exports = {
   postStory, createStoryContainer, publishContainer, waitUntilContainerReady,
   createFeedContainer, createCarouselChildContainer, createCarouselContainer,
-  isRateLimitError, isRateLimitMessage, isAccountBlockedError,
+  isRateLimitError, isRateLimitMessage, isAccountBlockedError, getPublishingQuota,
 };

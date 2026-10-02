@@ -27,6 +27,7 @@ const { queueNewProductsForInstagram } = require('./utils/instagramProductQueue'
 const {
   createFeedContainer, createCarouselChildContainer, createCarouselContainer,
   publishContainer, waitUntilContainerReady, isRateLimitError, isRateLimitMessage, isAccountBlockedError,
+  getPublishingQuota,
 } = require('./utils/instagramPublish');
 const fs = require('fs');
 const path = require('path');
@@ -484,6 +485,23 @@ async function productPostsMadeToday() {
 // that have actually gone live (an admin publish can lag well behind
 // import) -- skips (not blocks on) a row whose photo file is missing, same
 // defensive pattern as eligibleStoryProducts.
+// Instagram's own publishing cap is 50 posts per rolling 24h, stories
+// included -- confirmed live 2026-10-02: 46 product posts + 4 stories in the
+// previous 24h, then "User is performing too many actions" (code 9 /
+// 2207042). totalDailyPostCap() is per *calendar* day, so a busy afternoon
+// plus the next morning could still hit it. Counted from our own DB (no API
+// call), leaving IG_ROLLING_RESERVE slots for the day's 4 stories.
+const IG_ROLLING_LIMIT = 50;
+const IG_ROLLING_RESERVE = 5;
+async function igPostsInLast24h() {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const [products, stories] = await Promise.all([
+    prisma.instagram_product_posts.count({ where: { status: 'posted', posted_at: { gte: since } } }),
+    prisma.instagram_content.count({ where: { status: 'posted', posted_at: { gte: since } } }),
+  ]);
+  return products + stories;
+}
+
 async function maybePostQueuedProduct() {
   if (currentHHMM() < PRODUCT_POST_START_TIME) return;
   if (Date.now() < productPostPausedUntil) return;
@@ -505,6 +523,23 @@ async function maybePostQueuedProduct() {
 
   const [postedToday, dailyCap] = await Promise.all([productPostsMadeToday(), totalDailyPostCap()]);
   if (postedToday >= dailyCap) return; // today's combined per-brand cap already reached
+  if (await igPostsInLast24h() >= IG_ROLLING_LIMIT - IG_ROLLING_RESERVE) return; // Instagram's rolling 24h cap (see above)
+  // Then ask Instagram itself -- its count can be higher than ours (see
+  // getPublishingQuota). One cheap GET; when full, check again in 15 min
+  // rather than every tick. If the check itself fails, fall through to the
+  // attempt below, whose own error handling (rate limit / blocked) applies.
+  try {
+    const quota = await getPublishingQuota();
+    if (quota.used >= quota.total - IG_ROLLING_RESERVE) {
+      nextProductPostAllowedAt = Date.now() + 15 * 60 * 1000;
+      return;
+    }
+  } catch (err) {
+    if (isRateLimitError(err) || isAccountBlockedError(err)) {
+      productPostPausedUntil = Math.max(productPostPausedUntil, Date.now() + (isAccountBlockedError(err) ? PRODUCT_POST_ACCOUNT_BLOCK_BACKOFF_MS : PRODUCT_POST_RATE_LIMIT_BACKOFF_MS));
+      return;
+    }
+  }
 
   const next = await prisma.instagram_product_posts.findFirst({
     where: { status: 'queued', products: { is_active: true, is_live: true } },
