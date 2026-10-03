@@ -1,7 +1,20 @@
 const prisma = require('../prisma/client');
 const fs     = require('fs');
 const path   = require('path');
-const { createStoryContainer, publishContainer, isRateLimitError, isAccountBlockedError } = require('../utils/instagramPublish');
+const {
+  createStoryContainer, publishContainer, isRateLimitError, isAccountBlockedError, isMissingContainerError,
+} = require('../utils/instagramPublish');
+
+// See isMissingContainerError -- a brand-new container is the fix, so one
+// automatic retry instead of leaving the story 'failed' until someone
+// re-deploys it by hand (2026-10-03's 19:00 story went up ~2h late that way).
+const MISSING_CONTAINER_RETRY_DELAY_MS = 60 * 1000;
+
+async function createAndPublishStory(publicUrl) {
+  const creationId = await createStoryContainer(publicUrl)
+    .catch(err => { throw Object.assign(err, { stage: 'create_container' }); });
+  return publishContainer(creationId);
+}
 
 // GET /api/admin/instagram-content
 async function listStories(req, res, next) {
@@ -43,16 +56,26 @@ async function deployStoryById(id) {
 
   const publicUrl = `${process.env.FRONTEND_URL}${story.image_url}`;
   try {
-    const creationId = await createStoryContainer(publicUrl);
-    const mediaId = await publishContainer(creationId);
+    let mediaId;
+    try {
+      mediaId = await createAndPublishStory(publicUrl);
+    } catch (err) {
+      if (!isMissingContainerError(err)) throw err;
+      console.warn(`[instagram] story ${id}: container ${err.creationId} not found at ${err.stage}, retrying with a new container in ${MISSING_CONTAINER_RETRY_DELAY_MS / 1000}s`);
+      await new Promise(r => setTimeout(r, MISSING_CONTAINER_RETRY_DELAY_MS));
+      mediaId = await createAndPublishStory(publicUrl);
+    }
     await prisma.instagram_content.update({
       where: { id },
       data: { status: 'posted', ig_media_id: mediaId, posted_at: new Date(), error_message: null },
     });
   } catch (err) {
+    // Also logged: error_message is cleared once a later re-deploy succeeds,
+    // which otherwise leaves no trace of what went wrong the first time.
+    console.error(`[instagram] story ${id} failed${err.stage ? ` at ${err.stage}` : ''}: ${err.message}`);
     await prisma.instagram_content.update({
       where: { id },
-      data: { status: 'failed', error_message: err.message },
+      data: { status: 'failed', error_message: `${err.stage ? `[${err.stage}] ` : ''}${err.message}` },
     }).catch(() => {});
     return { rateLimited: isRateLimitError(err), accountBlocked: isAccountBlockedError(err) };
   }

@@ -130,13 +130,35 @@ async function waitUntilContainerReady(creationId, { timeoutMs = 90000, interval
   }
 }
 
+// err.stage says which of the two calls failed ('status_check' or
+// 'media_publish') -- the error text alone doesn't, and on 2026-10-03 a
+// story's "media not found" (code 24) left no way to tell which it was.
 async function publishContainer(creationId) {
   const igUserId = requireEnv('INSTAGRAM_USER_ID');
   const accessToken = requireEnv('INSTAGRAM_ACCESS_TOKEN');
-  await waitUntilContainerReady(creationId);
+  try {
+    await waitUntilContainerReady(creationId);
+  } catch (err) {
+    throw Object.assign(err, { stage: 'status_check', creationId });
+  }
   const params = { creation_id: creationId, access_token: accessToken };
-  const data = await graphFetch(`${GRAPH_BASE}/${igUserId}/media_publish?${new URLSearchParams(params)}`, { method: 'POST' });
-  return data.id;
+  try {
+    const data = await graphFetch(`${GRAPH_BASE}/${igUserId}/media_publish?${new URLSearchParams(params)}`, { method: 'POST' });
+    return data.id;
+  } catch (err) {
+    throw Object.assign(err, { stage: 'media_publish', creationId });
+  }
+}
+
+// Code 24 / subcode 2207006 ("The requested resource does not exist" --
+// "Medya Bulunamadı") for a container Instagram itself created seconds
+// earlier. Hit live on 2026-10-03's 19:00 story; the exact same image
+// posted fine with a fresh container when re-deployed later, and the 19:30
+// story went up normally in between -- a Meta-side glitch with that one
+// container, not a problem with the post. Marked is_transient:false by Meta
+// regardless.
+function isMissingContainerError(err) {
+  return err?.igError?.code === 24 && err?.igError?.error_subcode === 2207006;
 }
 
 // Instagram's own count of how much of its rolling-24h publishing cap is
@@ -169,5 +191,5 @@ async function postStory(imageBuffer, { name }) {
 module.exports = {
   postStory, createStoryContainer, publishContainer, waitUntilContainerReady,
   createFeedContainer, createCarouselChildContainer, createCarouselContainer,
-  isRateLimitError, isRateLimitMessage, isAccountBlockedError, getPublishingQuota,
+  isRateLimitError, isRateLimitMessage, isAccountBlockedError, isMissingContainerError, getPublishingQuota,
 };
