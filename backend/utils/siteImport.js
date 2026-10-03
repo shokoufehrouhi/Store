@@ -821,13 +821,28 @@ async function scrapeZaraProduct(pm, url) {
     // readable, the name only as a fallback.
     const loadedColorCode = String(groupImages[0] || '').match(/\/\d{8}(\d{3})-p\//)?.[1] || null;
     const variantColorCode = v => String(v.sku || '').split('-')[1] || null;
+    const isVariantInStock = v => (v.offers?.availability ? !/OutOfStock/i.test(v.offers.availability) : true);
     let sameColorVariants = (group.hasVariant || []).filter(v => v.color === colorName);
     if (loadedColorCode && sameColorVariants.some(v => variantColorCode(v) === loadedColorCode)) {
       sameColorVariants = sameColorVariants.filter(v => variantColorCode(v) === loadedColorCode);
     }
+    // Colorless one-size items (perfumes -- confirmed live 2026-10-03): the
+    // title has no " - <Color>" part and the only variant is color "",
+    // size "STANDART", so nothing above matched and the product was saved
+    // with no sizes AND a hardcoded stock of 0 even while in stock. Read
+    // their availability as a whole-product flag instead of a fake size.
+    let oneSizeInStock = null;
+    if (!colorName) {
+      const plain = (group.hasVariant || []).filter(v => !v.color);
+      if (plain.length && plain.every(v => !v.size || /^standart$/i.test(String(v.size).trim()))) {
+        oneSizeInStock = plain.some(isVariantInStock);
+      } else {
+        sameColorVariants = plain;
+      }
+    }
     const sizeByLabel = new Map();
     for (const v of sameColorVariants) {
-      const inStock = v.offers?.availability ? !/OutOfStock/i.test(v.offers.availability) : true;
+      const inStock = isVariantInStock(v);
       // "EU 36 (US 29)" (jeans) doesn't fit product_sizes.size_label's
       // VarChar(10) -- it used to be cut to "EU 36 (US " -- keep the EU size.
       const label = String(v.size || '').replace(/^EU\s+(\S+)\s*\(US[^)]*\)$/, '$1');
@@ -842,6 +857,7 @@ async function scrapeZaraProduct(pm, url) {
       insText: insEl?.textContent || null,
       color: colorName,
       sizes: [...sizeByLabel].map(([size, inStock]) => ({ size, inStock })),
+      oneSizeInStock,
     };
   });
 }
@@ -954,7 +970,9 @@ async function Zara(pm, site, opts = {}) {
           cost_price: priceSite,
           discounted_price: finalDiscountedPrice,
           tag,
-          stock: 0,
+          // Sized products get their total from inventory just below; a
+          // colorless one-size item (perfume) has no inventory rows at all.
+          stock: data.sizes.length ? 0 : (data.oneSizeInStock ? 10 : 0),
           brand: site.name,
           supplier_shop_name: site.name,
           product_link: url,
