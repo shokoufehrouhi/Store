@@ -482,13 +482,13 @@
       text-align: start; white-space: nowrap; background: #fafafa;
       font-weight: 600; display: flex; align-items: center; gap: 6px; min-width: 110px;
     }
-    .inv-qty-input {
+    .inv-qty-input, .inv-qty-input-plain {
       width: 60px; padding: 4px 6px; border: 1.5px solid var(--border);
       border-radius: 6px; text-align: center; font-family: monospace; font-size: 13px;
       direction: ltr; outline: none; transition: border-color .15s;
     }
-    .inv-qty-input:focus { border-color: var(--primary); }
-    .inv-qty-input.zero { color: #bbb; }
+    .inv-qty-input:focus, .inv-qty-input-plain:focus { border-color: var(--primary); }
+    .inv-qty-input.zero, .inv-qty-input-plain.zero { color: #bbb; }
     .inv-matrix-empty { font-size: 13px; color: #999; padding: 8px 0; }
 
     /* Gradient preview */
@@ -2006,7 +2006,7 @@ const LANGS = {
     tagNone:'بدون برچسب', tagBestseller:'پرفروش', tagNew:'جدید', tagOriginal:'اورجینال', tagDiscount:'تخفیف', tagSoldOut:'ناموجود',
     noColorsDefined:'ابتدا از تب رنگ‌ها، رنگ تعریف کنید',
     availYes:'موجود', availNo:'ناموجود',
-    inventorySection:'موجودی انبار', inventoryNoSelections:'ابتدا رنگ یا سایز انتخاب کنید',
+    inventorySection:'موجودی انبار', inventoryNoSelections:'ابتدا رنگ یا سایز انتخاب کنید', inventoryNoVariantQty:'موجودی (بدون رنگ و سایز)',
     colorLbl:'رنگ', sizeLbl:'سایز', qtyLbl:'تعداد',
     sizesHint:'Enter یا کاما بزن تا سایز اضافه بشه', sizePlaceholder:'سایز + Enter (مثال: S یا 40)',
     catSubtitle:'دسته‌بندی‌ها', addCatBtn:'+ افزودن دسته‌بندی',
@@ -2215,7 +2215,7 @@ const LANGS = {
     tagNone:'No tag', tagBestseller:'Bestseller', tagNew:'New', tagOriginal:'Original', tagDiscount:'Discount', tagSoldOut:'Sold Out',
     noColorsDefined:'First define colors in the Colors tab',
     availYes:'In Stock', availNo:'Out of Stock',
-    inventorySection:'Inventory', inventoryNoSelections:'First select colors or sizes',
+    inventorySection:'Inventory', inventoryNoSelections:'First select colors or sizes', inventoryNoVariantQty:'Stock (no color/size)',
     colorLbl:'Color', sizeLbl:'Size', qtyLbl:'Qty',
     sizesHint:'Press Enter or comma to add a size', sizePlaceholder:'Type size + Enter (e.g. S or 40)',
     catSubtitle:'Categories', addCatBtn:'+ Add Category',
@@ -2424,7 +2424,7 @@ const LANGS = {
     tagNone:'Etiket yok', tagBestseller:'Çok Satan', tagNew:'Yeni', tagOriginal:'Orijinal', tagDiscount:'İndirim', tagSoldOut:'Tükendi',
     noColorsDefined:'Önce Renkler sekmesinde renk tanımlayın',
     availYes:'Mevcut', availNo:'Stokta Yok',
-    inventorySection:'Stok Takibi', inventoryNoSelections:'Önce renk veya beden seçin',
+    inventorySection:'Stok Takibi', inventoryNoSelections:'Önce renk veya beden seçin', inventoryNoVariantQty:'Stok (renk/beden yok)',
     colorLbl:'Renk', sizeLbl:'Beden', qtyLbl:'Adet',
     sizesHint:'Beden eklemek için Enter veya virgül', sizePlaceholder:'Beden yaz + Enter (örn. S veya 40)',
     catSubtitle:'Kategoriler', addCatBtn:'+ Kategori Ekle',
@@ -2564,6 +2564,9 @@ const API        = SERVER_URL + '/api';
 let token = localStorage.getItem('admin_token');
 let currentLang = localStorage.getItem('admin_lang_v2') || 'en';
 let allCategories = [], allColors = [], allSizes = [], editingSizes = [], editingMedia = [], editingInventory = [];
+// products.stock of the product being edited -- only used for a product with
+// no colors and no sizes, which has no inventory rows to sum (see renderInventoryMatrix).
+let editingStock = null;
 let currentTab = localStorage.getItem('admin_tab') || 'dashboard';
 let _adminShown = false;
 
@@ -3330,6 +3333,7 @@ async function openProductModal(id = null) {
   editingSizes = [];
   editingMedia = [];
   editingInventory = [];
+  editingStock = null;
   const fetchList = [];
   if (!allCategories.length || !allSizes.length) fetchList.push(
     api('/admin/categories').then(r => { allCategories = r?.data || []; }),
@@ -3352,6 +3356,7 @@ async function openProductModal(id = null) {
       editingSizes    = (product.product_sizes||[]).map(s => s.size_label);
       editingMedia    = (product.product_media||[]).map(m => ({ id: m.id, type: m.type, url: m.url }));
       editingInventory = product.product_inventory || [];
+      editingStock     = product.stock;
     }
   }
 
@@ -3606,7 +3611,15 @@ function renderInventoryMatrix() {
   const checkedSizes = [...document.querySelectorAll('input[name="size"]:checked')].map(cb => cb.value);
 
   if (!checkedColors.length && !checkedSizes.length) {
-    wrap.innerHTML = `<p class="inv-matrix-empty">${t('inventoryNoSelections')||'ابتدا رنگ یا سایز انتخاب کنید'}</p>`;
+    // No variants at all (e.g. a single cosmetic or accessory) -- one plain
+    // quantity. Without it, saving such a product summed zero inventory
+    // inputs and silently reset its stock to 0 (hit 2026-10-03: 83 imported
+    // mClub products went to stock 0 after being saved in admin).
+    const qty = editingStock ?? 6;
+    wrap.innerHTML = `<p class="inv-matrix-empty">${t('inventoryNoSelections')||'ابتدا رنگ یا سایز انتخاب کنید'}</p>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px">${t('inventoryNoVariantQty')||'موجودی (بدون رنگ و سایز)'}
+        <input type="number" id="f-plain-stock" class="inv-qty-input-plain${qty===0?' zero':''}" min="0" value="${qty}"
+          oninput="this.classList.toggle('zero',!+this.value)"></label>`;
     return;
   }
 
@@ -3771,7 +3784,9 @@ async function saveProduct(id) {
     price: Number(document.getElementById('f-price')?.value) || 0,
     discounted_price: document.getElementById('f-discounted-price')?.value !== '' ? Number(document.getElementById('f-discounted-price')?.value) || null : null,
     cost_price: document.getElementById('f-cost-price')?.value !== '' ? Number(document.getElementById('f-cost-price')?.value) || null : null,
-    stock: [...document.querySelectorAll('.inv-qty-input')].reduce((sum, inp) => sum + (Number(inp.value) || 0), 0),
+    stock: document.getElementById('f-plain-stock')
+      ? Number(document.getElementById('f-plain-stock').value) || 0
+      : [...document.querySelectorAll('.inv-qty-input')].reduce((sum, inp) => sum + (Number(inp.value) || 0), 0),
     colors,
     sizes,
     extra_categories: [...document.querySelectorAll('.extra-cat-sel')].reduce((acc, sel) => {
