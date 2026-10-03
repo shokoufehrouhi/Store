@@ -2892,8 +2892,345 @@ async function Mavi(pm, site, opts = {}) {
   return { imported, skipped: notDiscounted + (candidateCodes.length - newCodes.length) };
 }
 
+// mClub (mclub.com.tr) is a Korean-cosmetics retailer carrying ~24 brands;
+// only the brands in MCLUB_BRANDS are imported (the user's choice — MISSHA
+// to start with). Unlike every other importer here it imports the brand's
+// WHOLE catalog, not just discounted items: only products with a real price
+// cut get tag 'discount', the rest are imported with no tag at all, sold at
+// mClub's own price + site.markup_percent.
+//
+// The site is a React SPA whose own GET api.mclub.com.tr/home returns the
+// ENTIRE catalog (all ~2800 products, ~5MB) in one response — every listing
+// page is just a client-side filter over it — so a whole run is a single
+// request, no per-product page visits at all. That matters: the API sits
+// behind Akamai, and 6 parallel productDetail requests from one IP got
+// "Access Denied" within seconds (confirmed live 2026-10-03). Unlike Mavi,
+// it's fetched straight from Node, not in-page: Akamai answers headless
+// Chrome's own fetch with a 403 (confirmed live), while a plain request with
+// a browser User-Agent gets the full 200 response.
+//
+// Per-product fields used (the site's own minified names), confirmed against
+// the storefront's own product-card render code:
+//   n  = [name, Turkish subtitle, shade label, url slug, ...]
+//   p  = list price; ci.cD > 0 renders p as a struck-through old price and
+//        p - ci.cD as the current one; ci.eD > 0 is a "Sepette" (in-cart)
+//        price of p - ci.eD. ci.c is a campaign label like "2 Al 1 Öde" —
+//        NOT a price cut, and deliberately not treated as a discount (user's
+//        choice: Shilista can't offer buy-2-pay-1).
+//   s  = stock (the card shows "Gelince Haber Ver" when s <= 0)
+//   fl = filter-value ids (Kategori / Ürün Tipi among them)
+//   ic = image count: <id>.jpg, <id>-1.jpg ... <id>-(ic-1).jpg on the CDN
+// At the time of writing no product in the whole catalog had cD or eD > 0,
+// so every MISSHA product imports untagged until mClub runs a real sale.
+const MCLUB_BRANDS = ['MISSHA'];
+const MCLUB_IMAGE_BASE = 'https://imagemclub.sm.mncdn.com/products';
+const MCLUB_MAX_IMAGES = 8;
+const MCLUB_STOCK_PER_SHADE = 10;
+const MCLUB_FILTER_KATEGORI = 1;
+const MCLUB_FILTER_URUN_TIPI = 8;
+const MCLUB_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+
+// mClub's own "Ürün Tipi" (product type) value -> our Cosmetics (category 10)
+// subcategory. Anchored on the exact type names where a loose match would
+// misfire (e.g. "Göz Kremi" is skincare, not eye makeup), and makeup
+// removers / sun creams pinned to skincare up front — Kategori alone sent
+// "Perfect Lip & Eye Make Up Remover" to Lip and a sun mist to Body. Types not listed
+// here (masks, serums, toners, "Set", "Mist", ...) fall back to the
+// product's mClub "Kategori" below.
+const MCLUB_TYPE_TO_SUBCATEGORY = [
+  [/^(makyaj temizleme|cilt temizleme|güneş kremi)$/, 45],
+  [/aksesuar|fırça|sünger|puf|yağ kontrol kağıdı/, 50],
+  [/^(far|far paleti|maskara|eyeliner|göz kalemi|kaş kalemi|kaş maskarası|kirpik.*)$/, 43],
+  [/^(ruj|tint|dudak kalemi|dudak bakımı|dolgunlaştırıcı|lip.*)$/, 44],
+  [/^(bb krem|cc krem|cushion|fondöten|pudra|baz|allık|concelear|kapatıcı|bronzer\/contour|aydınlatıcı|highlighter|makyaj sabitleyici)$/, 42],
+  [/şampuan|saç/, 46],
+  [/vücut|el kremi|intim/, 47],
+  [/parfüm/, 48],
+  [/oje|tırnak/, 49],
+];
+
+function routeMClubSubcategory(typeNames, kategoriNames, name) {
+  for (const t of typeNames) {
+    const hit = MCLUB_TYPE_TO_SUBCATEGORY.find(([re]) => re.test(t));
+    if (hit) return hit[1];
+  }
+  for (const k of kategoriNames) {
+    if (k === 'cilt bakımı') return 45;
+    if (k === 'saç bakımı') return 46;
+    if (k === 'vücut bakımı' || k === 'kişisel bakım/hijyen') return 47;
+    if (k === 'aksesuarlar') return 50;
+    if (k === 'makyaj') return guessSubcategoryId(name, 10) || 42;
+  }
+  return guessSubcategoryId(name, 10);
+}
+
+// Fetches /home once and returns only MCLUB_BRANDS' products (trimmed to the
+// fields used here) plus the Kategori/Ürün Tipi filter-value names their
+// `fl` ids refer to.
+async function fetchMClubCatalog() {
+  const res = await fetch('https://api.mclub.com.tr/home', {
+    headers: { 'User-Agent': MCLUB_USER_AGENT, Accept: 'application/json' },
+  });
+  if (!res.ok) throw new Error(`mClub API ${res.status} for /home`);
+  const d = await res.json();
+  const keep = new Set(MCLUB_BRANDS);
+  const products = (d.products || []).filter(p => keep.has(p.m)).map(p => ({
+    id: p._id, n: p.n, p: p.p, s: p.s, m: p.m, fl: p.fl, ic: p.ic, ci: p.ci,
+  }));
+  // A brand vanishing entirely is far more likely a changed API than a
+  // brand dropped overnight — fail loudly rather than "import 0" quietly.
+  if (!products.length) throw new Error(`mClub: /home had no products for ${MCLUB_BRANDS.join(', ')}`);
+  const filterValues = {};
+  for (const f of d.filters || []) {
+    if (f.filtre_id !== MCLUB_FILTER_KATEGORI && f.filtre_id !== MCLUB_FILTER_URUN_TIPI) continue;
+    for (const v of f.filtreDegerler || []) filterValues[v.fd_id] = { filterId: f.filtre_id, name: v.fd_ad };
+  }
+  return { products, filterValues };
+}
+
+// mClub lists every shade as its own product ("Modern Shadow Matte (101
+// Pale Bloom)", "... (117 Pink Sis)", ...). These are grouped into ONE
+// Shilista product with one color per shade (user's choice, same as Kiko)
+// by name: the shade label n[2] sits in trailing parentheses of the name,
+// so stripping it gives the shared base name. mClub's own grouping fields
+// can't be used for this — `pr` and productDetail's `vl` were both
+// confirmed live to lump unrelated products together (vl put BB cream
+// shades and Time Revolution sample sachets in one 39-item group). Every
+// base-name group checked had one identical price across all its shades.
+function groupMClubShades(products) {
+  const groups = new Map();
+  for (const p of products) {
+    const [fullName = '', subtitle = '', shade = '', slug = ''] = Array.isArray(p.n) ? p.n : [];
+    const label = String(shade).trim();
+    let base = String(fullName).trim();
+    if (label) {
+      base = base.replace(/\s*\(([^()]*)\)\s*$/, (m, inner) =>
+        inner.trim().toLocaleLowerCase('tr') === label.toLocaleLowerCase('tr') ? '' : m).trim();
+    }
+    const key = `${p.m}|${base.toLocaleLowerCase('tr')}`;
+    if (!groups.has(key)) groups.set(key, { base, members: [] });
+    groups.get(key).members.push({
+      ...p,
+      fullName: String(fullName).trim(),
+      subtitle: String(subtitle).trim(),
+      label,
+      url: `https://mclub.com.tr/${slug}-p-${p.id}`,
+      inStock: Number(p.s) > 0,
+    });
+  }
+  return [...groups.values()].map(g => {
+    g.members.sort((a, b) => a.id - b.id);
+    // Lowest-id in-stock shade stands for the whole group (price, images,
+    // product_link) — stable from run to run as long as it stays in stock.
+    g.rep = g.members.find(m => m.inStock) || g.members[0];
+    g.name = g.members.length > 1 ? g.base : g.rep.fullName;
+    return g;
+  });
+}
+
+// Selling price is always mClub's current price + markup. Only a genuine
+// price cut (ci.cD, or the in-cart ci.eD — taking the bigger one, they're
+// never shown stacked) that still leaves the marked-up price under mClub's
+// own list price gets tag 'discount' with the list price shown struck
+// through; anything else is a plain untagged product (discounted_price
+// null — the frontend only shows a discount when discounted_price < price).
+function mclubPricing(member, markupPercent) {
+  const listPrice = Number(member.p);
+  const cut = Math.max(Number(member.ci?.cD) || 0, Number(member.ci?.eD) || 0);
+  const sitePrice = Math.round((listPrice - cut) * 100) / 100;
+  const finalPrice = Math.round(sitePrice * (1 + markupPercent / 100) * 100) / 100;
+  if (cut > 0 && finalPrice < listPrice) {
+    return { price: listPrice, discounted_price: finalPrice, cost_price: sitePrice, tag: 'discount' };
+  }
+  return { price: finalPrice, discounted_price: null, cost_price: sitePrice, tag: null };
+}
+
+// Shade labels are English shade names, often numbered ("101 Pale Bloom",
+// "No.8 Stella Prism") — same shape as Kiko's, so they go through Kiko's
+// en-source color helper (which already strips a leading shade number).
+// A bare number ("No.17", BB cream shades) is kept whole, otherwise it
+// would strip down to nothing and the shade would get no color at all.
+async function getOrCreateMClubShadeColorId(label) {
+  if (/^no\.?\s*\d+$/i.test(label)) return getOrCreateKikoColorId(label);
+  return getOrCreateKikoColorId(label.replace(/^no\.?\s*/i, ''));
+}
+
+async function mclubShadeColors(group) {
+  if (group.members.length < 2) return [];
+  const entries = [];
+  const seen = new Map(); // color id -> entry (two labels can clean to one color)
+  for (const m of group.members) {
+    if (!m.label) continue;
+    const colorId = await getOrCreateMClubShadeColorId(m.label);
+    if (!colorId) continue;
+    if (seen.has(colorId)) { seen.get(colorId).inStock ||= m.inStock; continue; }
+    const entry = { colorId, inStock: m.inStock };
+    seen.set(colorId, entry);
+    entries.push(entry);
+  }
+  return entries;
+}
+
+async function MClub(pm, site, opts = {}) {
+  const limit = opts.limit || 30;
+  const { products, filterValues } = await fetchMClubCatalog();
+  const groups = groupMClubShades(products);
+
+  const allUrls = groups.flatMap(g => g.members.map(m => m.url));
+  const existing = await prisma.products.findMany({
+    where: { product_link: { in: allUrls } },
+    select: { product_link: true },
+  });
+  const existingSet = new Set(existing.map(e => e.product_link));
+  const fresh = groups.filter(g => !g.members.some(m => existingSet.has(m.url)));
+  // Nothing to sell yet — picked up by a later run once back in stock.
+  const sellable = fresh.filter(g => g.members.some(m => m.inStock));
+  // Real discounts first, so a sale is never stuck behind the plain backlog.
+  sellable.sort((a, b) => (mclubPricing(b.rep, 0).tag ? 1 : 0) - (mclubPricing(a.rep, 0).tag ? 1 : 0));
+
+  const imported = [];
+  for (const group of sellable) {
+    if (imported.filter(p => !p.error).length >= limit) break;
+    const url = group.rep.url;
+    try {
+      const pricing = mclubPricing(group.rep, site.markup_percent);
+
+      const fl = Array.isArray(group.rep.fl) ? group.rep.fl : [];
+      const namesFor = (filterId) => fl.map(id => filterValues[id])
+        .filter(v => v && v.filterId === filterId)
+        .map(v => v.name.toLocaleLowerCase('tr'));
+      const subcategory_id = routeMClubSubcategory(
+        namesFor(MCLUB_FILTER_URUN_TIPI), namesFor(MCLUB_FILTER_KATEGORI), group.name);
+
+      // Names are English product names (K-beauty), the subtitle is Turkish.
+      const nameTr = group.name.slice(0, 120);
+      const subtitle = group.rep.subtitle;
+      const translateOrWarn = (text, source, target) => translateText(text, source, target)
+        .catch(err => { console.warn(`[siteImport] translate ${source}->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
+      const [name_fa, desc_fa, desc_en] = await Promise.all([
+        translateOrWarn(group.name, 'en', 'fa'),
+        subtitle ? translateOrWarn(subtitle, 'tr', 'fa') : '',
+        subtitle ? translateOrWarn(subtitle, 'tr', 'en') : '',
+      ]);
+
+      const imageCount = Math.min(Math.max(Number(group.rep.ic) || 1, 1), MCLUB_MAX_IMAGES);
+      const mediaUrls = [];
+      for (let i = 0; i < imageCount; i++) {
+        const imgUrl = `${MCLUB_IMAGE_BASE}/${group.rep.id}/${group.rep.id}${i ? '-' + i : ''}.jpg`;
+        try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
+      }
+
+      const colorEntries = await mclubShadeColors(group);
+      const stock = colorEntries.length
+        ? colorEntries.filter(c => c.inStock).length * MCLUB_STOCK_PER_SHADE
+        : (group.rep.inStock ? MCLUB_STOCK_PER_SHADE : 0);
+
+      const product = await prisma.products.create({
+        data: {
+          code: await generateProductCode(),
+          category_id: 10, subcategory_id,
+          gender: 'unisex',
+          name_fa: name_fa.slice(0, 120), name_en: nameTr, name_tr: nameTr,
+          desc_fa, desc_en, desc_tr: subtitle || null,
+          price: pricing.price,
+          discounted_price: pricing.discounted_price,
+          cost_price: pricing.cost_price,
+          tag: pricing.tag,
+          stock,
+          brand: group.rep.m,
+          supplier_shop_name: site.name,
+          product_link: url,
+          product_media: mediaUrls.length ? { create: mediaUrls.map((u, i) => ({ type: 'image', url: u, sort_order: i })) } : undefined,
+          product_colors: colorEntries.length ? { create: colorEntries.map(c => ({ color_id: c.colorId, is_available: c.inStock })) } : undefined,
+        },
+      });
+      if (colorEntries.length) {
+        await prisma.product_inventory.createMany({
+          data: colorEntries.map(c => ({
+            product_id: product.id, color_id: c.colorId, size_label: null,
+            quantity: c.inStock ? MCLUB_STOCK_PER_SHADE : 0,
+          })),
+        });
+      }
+      imported.push({ id: product.id, name: group.name });
+    } catch (err) {
+      imported.push({ error: err.message, url });
+    }
+  }
+
+  return { imported, skipped: (groups.length - fresh.length) + (fresh.length - sellable.length) };
+}
+
+// mClub's stock check (called from siteSync.js#checkSiteStock instead of its
+// generic Defacto-page reader): re-reads the same single /home response and
+// brings every already-imported product's price, discount tag and per-shade
+// stock up to date — this is what tags a product 'discount' once mClub
+// starts a sale on something imported earlier untagged, and untags it when
+// the sale ends. Admin-set 'bestseller'/'new' tags are left alone unless a
+// discount or sell-out has to take their place.
+async function checkMClubStock(site, products) {
+  const { products: catalog } = await fetchMClubCatalog();
+  const groupByUrl = new Map();
+  for (const g of groupMClubShades(catalog)) for (const m of g.members) groupByUrl.set(m.url, g);
+
+  const results = [];
+  for (const p of products) {
+    try {
+      const group = groupByUrl.get(p.product_link);
+      const pricing = group
+        ? mclubPricing(group.members.find(m => m.inStock) || group.rep, site.markup_percent)
+        : null;
+
+      // Gone from mClub's catalog entirely = can't be bought anymore.
+      let totalStock = 0;
+      if (group) {
+        const colorEntries = await mclubShadeColors(group);
+        if (colorEntries.length) {
+          for (const c of colorEntries) {
+            const quantity = c.inStock ? MCLUB_STOCK_PER_SHADE : 0;
+            await prisma.product_inventory.updateMany({ where: { product_id: p.id, color_id: c.colorId }, data: { quantity } });
+            await prisma.product_colors.updateMany({ where: { product_id: p.id, color_id: c.colorId }, data: { is_available: c.inStock } });
+          }
+          totalStock = colorEntries.filter(c => c.inStock).length * MCLUB_STOCK_PER_SHADE;
+        } else {
+          totalStock = group.members.some(m => m.inStock) ? MCLUB_STOCK_PER_SHADE : 0;
+        }
+      }
+
+      const keepAdminTag = ['bestseller', 'new'].includes(p.tag) ? p.tag : null;
+      const tag = totalStock === 0 ? 'sold_out' : (pricing.tag || keepAdminTag);
+      const update = {};
+      if (pricing) {
+        if (Number(p.price) !== pricing.price) update.price = pricing.price;
+        if ((p.discounted_price == null ? null : Number(p.discounted_price)) !== pricing.discounted_price) update.discounted_price = pricing.discounted_price;
+        if (Number(p.cost_price) !== pricing.cost_price) update.cost_price = pricing.cost_price;
+      }
+      if (p.stock !== totalStock) update.stock = totalStock;
+      if (p.tag !== tag) {
+        update.tag = tag;
+        // Stamped only on the transition into sold_out (see scheduler.js's
+        // deactivateExpiredSoldOutProducts), cleared when it comes back.
+        update.sold_out_at = tag === 'sold_out' ? new Date() : null;
+      }
+      if (Object.keys(update).length) {
+        await prisma.products.update({ where: { id: p.id }, data: { ...update, is_dirty: true, updated_at: new Date() } });
+      }
+      results.push({
+        id: p.id, name: p.name_tr,
+        status: tag === 'sold_out' ? 'sold_out' : `ok (stock=${totalStock})${Object.keys(update).length ? ', updated' : ''}`,
+      });
+    } catch (err) {
+      results.push({ id: p.id, name: p.name_tr, status: `error: ${err.message}` });
+    }
+  }
+  return results;
+}
+
 module.exports = {
-  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Mavi,
+  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Mavi, MClub,
+  // exported for siteSync.js#checkSiteStock, which hands mClub's stock
+  // check off to its own API-based reader.
+  checkMClubStock,
   // exported for backend/scripts/backfillMissingColors.js — reusing the
   // same lookup/create logic the live importers use, rather than
   // duplicating it in the backfill script.

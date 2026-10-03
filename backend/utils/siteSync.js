@@ -132,6 +132,9 @@ async function checkSiteStock(site) {
   // that hard-blocks rapid navigations — which would then break Mavi's own
   // import too, since that shares the same VPS IP. See Mavi() in siteImport.js.
   if (site.name === 'Mavi') return results;
+  // mClub's whole catalog (price, discount, per-shade stock) comes from one
+  // API response — see checkMClubStock in siteImport.js.
+  if (site.name === 'MClub') return importers.checkMClubStock(site, products);
 
   await withBrowser(async (pm) => {
     for (const p of products) {
