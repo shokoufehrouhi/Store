@@ -3050,7 +3050,8 @@ function mclubPricing(member, markupPercent) {
 // en-source color helper (which already strips a leading shade number).
 // A bare number ("No.17", BB cream shades) is kept whole, otherwise it
 // would strip down to nothing and the shade would get no color at all.
-async function getOrCreateMClubShadeColorId(label) {
+async function getOrCreateMClubShadeColorId(rawLabel) {
+  const label = rawLabel.replace(/^#\s*/, ''); // "#1 Rosy Rooftop" -> "1 Rosy Rooftop"
   if (/^no\.?\s*\d+$/i.test(label)) return getOrCreateKikoColorId(label);
   return getOrCreateKikoColorId(label.replace(/^no\.?\s*/i, ''));
 }
@@ -3089,6 +3090,7 @@ async function MClub(pm, site, opts = {}) {
   sellable.sort((a, b) => (mclubPricing(b.rep, 0).tag ? 1 : 0) - (mclubPricing(a.rep, 0).tag ? 1 : 0));
 
   const imported = [];
+  let consecutiveErrors = 0;
   for (const group of sellable) {
     if (imported.filter(p => !p.error).length >= limit) break;
     const url = group.rep.url;
@@ -3153,8 +3155,13 @@ async function MClub(pm, site, opts = {}) {
         });
       }
       imported.push({ id: product.id, name: group.name });
+      consecutiveErrors = 0;
     } catch (err) {
       imported.push({ error: err.message, url });
+      // The same failure on every group (e.g. a DB constraint) would
+      // otherwise walk the whole ~400-group backlog, downloading images
+      // and spending translation quota for each one before failing it.
+      if (++consecutiveErrors >= 5) break;
     }
   }
 
