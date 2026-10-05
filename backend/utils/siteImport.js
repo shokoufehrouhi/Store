@@ -3268,7 +3268,7 @@ const ARMALIFE_COMPANY = 'Fr-5500172';
 const ARMALIFE_PAGE_SIZE = 60;
 const ARMALIFE_MAX_PAGES = 200;
 const ARMALIFE_IMAGE_BASE = 'https://farktorcdn.com/Library/Upl/5500172/Product/';
-const ARMALIFE_MAX_IMAGES = 8;
+const ARMALIFE_MAX_GALLERY_IMAGES = 14;
 const ARMALIFE_MAX_STOCK_PER_SIZE = 10;
 
 // ArmaLife's own "Alt Ürün Grubu" style class (cl 08) -> our Clothing
@@ -3296,12 +3296,16 @@ function routeArmaLifeCategory(card) {
 }
 
 // About a third of the names are ArmaLife's raw ERP description instead of
-// a display name: "ARMALIFE 1706 ASKILI ÇITÇITLI ESNEK KADIN BODYSUIT".
+// a display name: "ARMALIFE 1706 ASKILI ÇITÇITLI ESNEK KADIN BODYSUIT" or
+// "ARMALIFE 1644-1 ...". Turkish-lowercasing turns the plain I of English
+// loanwords into ı ("T-Shırt"), so those few words are put back.
+const ARMALIFE_ENGLISH_WORDS = /^(t-shırt|shırt|sweatshırt|bodysuıt|premıum|denım|bıker|slım|fıt|basıc|vıntage|skınny|chıno|mını)$/;
 function cleanArmaLifeName(name) {
   const n = String(name || '').replace(/\s+/g, ' ').trim();
   if (n !== n.toLocaleUpperCase('tr')) return n;
-  return n.replace(/^ARMALIFE\s+\d+\s+/i, '')
+  return n.replace(/^ARMALIFE\s+[\d-]+\s+/i, '')
     .toLocaleLowerCase('tr')
+    .split(' ').map(w => (ARMALIFE_ENGLISH_WORDS.test(w) ? w.replace(/ı/g, 'i') : w)).join(' ')
     .replace(/(^|[\s(/-])(\S)/g, (m, sep, ch) => sep + ch.toLocaleUpperCase('tr'));
 }
 
@@ -3348,7 +3352,7 @@ async function fetchArmaLifeCatalog() {
 
 // Every Farktor product id belonging to this color (one per size, plus the
 // one its own color switcher links to) — any of them in a stored
-// product_link's "_<id>" suffix means this color was already imported.
+// product_link's "_<id>" suffix points at this color.
 function armalifeIds(card) {
   const ids = new Set((card.sizes || []).map(s => String(s.productId)));
   ids.add(String(card.productId));
@@ -3364,6 +3368,38 @@ function armalifeLinkId(link) {
 function armalifeUrl(card) {
   const own = (card.colors || []).find(c => c.modelCodes === card.modelCode);
   return `https://www.armalife.com.tr/tr/${card.seoUrl}_${own ? own.productId : card.productId}`;
+}
+
+function armalifeColorName(card) {
+  const own = (card.colors || []).find(c => c.modelCodes === card.modelCode);
+  return own?.colorName || card.classSubName || null;
+}
+
+// User's choice: every color of one ArmaLife model is ONE Shilista product
+// (one color entry each, per color x size stock), not one product per
+// color. Grouped by productCode — every card's modelCode is its
+// productCode + color, and checked live that each group is a single
+// style. (Each card's own `colors` list can't be used for this: it misses
+// some sibling colors.)
+function groupArmaLifeCatalog(catalog) {
+  const groups = new Map();
+  for (const card of catalog) {
+    const key = card.productCode || card.modelCode;
+    if (!groups.has(key)) groups.set(key, { key, members: [] });
+    groups.get(key).members.push(card);
+  }
+  return [...groups.values()].map(g => {
+    const inStock = c => armalifeSizes(c).some(s => s.qty > 0);
+    g.members.sort((a, b) => (inStock(b) - inStock(a)) || String(a.modelCode).localeCompare(String(b.modelCode)));
+    g.rep = g.members[0];
+    g.inStock = g.members.some(inStock);
+    g.ids = new Set(g.members.flatMap(c => [...armalifeIds(c)]));
+    // Siblings often carry the proper display name while one color still
+    // has the raw ERP one ("ARMALIFE 0142 TAM BALIKÇI ...").
+    const display = g.members.find(c => c.name && c.name !== c.name.toLocaleUpperCase('tr'));
+    g.name = cleanArmaLifeName((display || g.rep).name);
+    return g;
+  });
 }
 
 // A handful of cards price some sizes differently from the card itself
@@ -3382,53 +3418,113 @@ function armalifePricing(card, markupPercent) {
   return { price: finalPrice, discounted_price: null, cost_price: sitePrice, tag: null };
 }
 
+// Priced off the most expensive in-stock color — the 12 or so models
+// whose colors are priced differently then never sell one below cost.
+function armalifeGroupPricing(group, markupPercent) {
+  const candidates = group.members.filter(c => armalifeSizes(c).some(s => s.qty > 0));
+  const priced = (candidates.length ? candidates : group.members).map(c => armalifePricing(c, markupPercent));
+  return priced.reduce((best, p) => (p.cost_price > best.cost_price ? p : best));
+}
+
+// The rep color's full photo set first, then the first two photos (front
+// and back) of every other color, so each color can be seen in the gallery
+// — product_media has no color link to swap photos per selected color.
+function armalifeGroupPhotos(group) {
+  const photosOf = c => String(c.photoAll || c.photo || '').split('||').map(p => p.trim()).filter(Boolean);
+  const list = [...photosOf(group.rep)];
+  for (const c of group.members.slice(1)) {
+    if (!armalifeSizes(c).some(s => s.qty > 0)) continue;
+    list.push(...photosOf(c).slice(0, 2));
+  }
+  return [...new Set(list)].slice(0, ARMALIFE_MAX_GALLERY_IMAGES);
+}
+
+// Rebuilds a product's colors, sizes and per color x size stock from its
+// ArmaLife group. Nothing references these rows by id (cart/order items
+// store the color and size label themselves), so replacing them outright is
+// safe — and it's what adds a color ArmaLife launches after the import.
+// Two ArmaLife colors can land on one of our colors ("Siyah", "Siyah
+// Puantiye" -> siyah): their stock is merged. Rows are only rewritten
+// when something actually changed. Returns { stock, changed }.
+async function writeArmaLifeVariants(productId, group) {
+  const byColor = new Map(); // colorId -> Map(label -> qty)
+  const sizeOrder = [];
+  for (const card of group.members) {
+    const colorId = await getOrCreateColorId(armalifeColorName(card));
+    if (!byColor.has(colorId)) byColor.set(colorId, new Map());
+    const qtys = byColor.get(colorId);
+    for (const s of armalifeSizes(card)) {
+      if (!sizeOrder.includes(s.label)) sizeOrder.push(s.label);
+      qtys.set(s.label, Math.max(qtys.get(s.label) || 0, Math.min(s.qty, ARMALIFE_MAX_STOCK_PER_SIZE)));
+    }
+  }
+  const inventory = [];
+  for (const [colorId, qtys] of byColor) {
+    for (const label of sizeOrder) inventory.push({ product_id: productId, color_id: colorId, size_label: label, quantity: qtys.get(label) || 0 });
+  }
+  const colorRows = [...byColor].filter(([colorId]) => colorId != null)
+    .map(([colorId, qtys]) => ({ product_id: productId, color_id: colorId, is_available: [...qtys.values()].some(q => q > 0) }));
+  const sizeRows = sizeOrder.map(label => ({
+    product_id: productId, size_label: label,
+    is_available: inventory.some(i => i.size_label === label && i.quantity > 0),
+  }));
+  const sig = rows => rows.map(r => `${r.color_id}|${r.size_label}|${r.quantity}`).sort().join(',');
+  const current = await prisma.product_inventory.findMany({ where: { product_id: productId } });
+  const stock = inventory.reduce((sum, i) => sum + i.quantity, 0);
+  if (sig(current) === sig(inventory)) return { stock, changed: false };
+  await prisma.$transaction([
+    prisma.product_inventory.deleteMany({ where: { product_id: productId } }),
+    prisma.product_colors.deleteMany({ where: { product_id: productId } }),
+    prisma.product_sizes.deleteMany({ where: { product_id: productId } }),
+    prisma.product_colors.createMany({ data: colorRows }),
+    prisma.product_sizes.createMany({ data: sizeRows }),
+    prisma.product_inventory.createMany({ data: inventory }),
+  ]);
+  return { stock, changed: true };
+}
+
 async function ArmaLife(pm, site, opts = {}) {
   const limit = opts.limit || 30;
-  const catalog = await fetchArmaLifeCatalog();
+  const groups = groupArmaLifeCatalog(await fetchArmaLifeCatalog());
 
   const existing = await prisma.products.findMany({
     where: { supplier_shop_name: site.name, product_link: { not: null } },
     select: { product_link: true },
   });
   const existingIds = new Set(existing.map(e => armalifeLinkId(e.product_link)).filter(Boolean));
-  const fresh = catalog.filter(c => ![...armalifeIds(c)].some(id => existingIds.has(id)));
+  // Any color of the model already imported = the whole model is (its
+  // other colors get added by the stock check / merge script instead).
+  const fresh = groups.filter(g => ![...g.ids].some(id => existingIds.has(id)));
   // Nothing to sell yet — picked up by a later run once back in stock.
-  const sellable = fresh.filter(c => armalifeSizes(c).some(s => s.qty > 0));
+  const sellable = fresh.filter(g => g.inStock);
   // Real discounts first, so a sale is never stuck behind the plain backlog.
-  const isDiscount = c => armalifePricing(c, site.markup_percent).tag === 'discount';
+  const isDiscount = g => armalifeGroupPricing(g, site.markup_percent).tag === 'discount';
   sellable.sort((a, b) => isDiscount(b) - isDiscount(a));
 
   const imported = [];
   let consecutiveErrors = 0;
-  for (const card of sellable) {
+  for (const group of sellable) {
     if (imported.filter(p => !p.error).length >= limit) break;
-    const url = armalifeUrl(card);
+    const url = armalifeUrl(group.rep);
     try {
-      const pricing = armalifePricing(card, site.markup_percent);
-      const { category_id, subcategory_id } = routeArmaLifeCategory(card);
-      const name = cleanArmaLifeName(card.name);
-      const description = armalifeDescription(card);
+      const pricing = armalifeGroupPricing(group, site.markup_percent);
+      const { category_id, subcategory_id } = routeArmaLifeCategory(group.rep);
+      const description = armalifeDescription(group.rep);
 
       const translateOrWarn = (text, target) => translateText(text, 'tr', target)
         .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
       const [name_fa, name_en, desc_fa, desc_en] = await Promise.all([
-        translateOrWarn(name, 'fa'),
-        translateOrWarn(name, 'en'),
+        translateOrWarn(group.name, 'fa'),
+        translateOrWarn(group.name, 'en'),
         description ? translateOrWarn(description, 'fa') : '',
         description ? translateOrWarn(description, 'en') : '',
       ]);
-      const nameTr = name.slice(0, 120);
+      const nameTr = group.name.slice(0, 120);
 
-      const photos = String(card.photoAll || card.photo || '').split('||').map(p => p.trim()).filter(Boolean);
       const mediaUrls = [];
-      for (const photo of photos.slice(0, ARMALIFE_MAX_IMAGES)) {
+      for (const photo of armalifeGroupPhotos(group)) {
         try { mediaUrls.push(await saveImageFromUrl(ARMALIFE_IMAGE_BASE + photo)); } catch (e) { /* skip broken image */ }
       }
-
-      const own = (card.colors || []).find(c => c.modelCodes === card.modelCode);
-      const colorId = await getOrCreateColorId(own?.colorName || card.classSubName);
-      const sizes = armalifeSizes(card);
-      const quantity = s => Math.min(s.qty, ARMALIFE_MAX_STOCK_PER_SIZE);
 
       const product = await prisma.products.create({
         data: {
@@ -3441,20 +3537,15 @@ async function ArmaLife(pm, site, opts = {}) {
           discounted_price: pricing.discounted_price,
           cost_price: pricing.cost_price,
           tag: pricing.tag,
-          stock: sizes.reduce((sum, s) => sum + quantity(s), 0),
+          stock: 0,
           brand: site.name,
           supplier_shop_name: site.name,
           product_link: url,
           product_media: mediaUrls.length ? { create: mediaUrls.map((u, i) => ({ type: 'image', url: u, sort_order: i })) } : undefined,
-          product_colors: colorId ? { create: [{ color_id: colorId, is_available: true }] } : undefined,
-          product_sizes: sizes.length ? { create: sizes.map(s => ({ size_label: s.label, is_available: s.qty > 0 })) } : undefined,
         },
       });
-      if (sizes.length) {
-        await prisma.product_inventory.createMany({
-          data: sizes.map(s => ({ product_id: product.id, color_id: colorId, size_label: s.label, quantity: quantity(s) })),
-        });
-      }
+      const { stock } = await writeArmaLifeVariants(product.id, group);
+      await prisma.products.update({ where: { id: product.id }, data: { stock } });
       imported.push({ id: product.id, name: nameTr });
       consecutiveErrors = 0;
     } catch (err) {
@@ -3463,37 +3554,34 @@ async function ArmaLife(pm, site, opts = {}) {
     }
   }
 
-  return { imported, skipped: (catalog.length - fresh.length) + (fresh.length - sellable.length) };
+  return { imported, skipped: (groups.length - fresh.length) + (fresh.length - sellable.length) };
 }
 
 // ArmaLife's stock check (called from siteSync.js#checkSiteStock instead of
 // its generic Defacto-page reader): re-reads the same catalog API and brings
-// every imported product's price, discount tag and per-size stock up to
-// date — tags a product 'discount' once ArmaLife cuts its price far enough,
-// and untags it when the sale ends. Admin-set 'bestseller'/'new' tags are
-// left alone unless a discount or sell-out has to take their place.
+// every imported product's price, discount tag, colors and per color x size
+// stock up to date — tags a product 'discount' once ArmaLife cuts its price
+// far enough, untags it when the sale ends, and adds colors ArmaLife adds
+// later. Admin-set 'bestseller'/'new' tags are left alone unless a discount
+// or sell-out has to take their place.
 async function checkArmaLifeStock(site, products) {
-  const catalog = await fetchArmaLifeCatalog();
-  const cardById = new Map();
-  for (const c of catalog) for (const id of armalifeIds(c)) cardById.set(id, c);
+  const groupById = new Map();
+  for (const g of groupArmaLifeCatalog(await fetchArmaLifeCatalog())) for (const id of g.ids) groupById.set(id, g);
 
   const results = [];
   for (const p of products) {
     try {
       // Gone from ArmaLife's catalog entirely = can't be bought anymore.
-      const card = cardById.get(armalifeLinkId(p.product_link));
-      const pricing = card ? armalifePricing(card, site.markup_percent) : null;
-      const sizes = card ? armalifeSizes(card) : [];
+      const group = groupById.get(armalifeLinkId(p.product_link));
+      const pricing = group ? armalifeGroupPricing(group, site.markup_percent) : null;
       let totalStock = 0;
-      for (const s of sizes) {
-        const quantity = Math.min(s.qty, ARMALIFE_MAX_STOCK_PER_SIZE);
-        totalStock += quantity;
-        await prisma.product_inventory.updateMany({ where: { product_id: p.id, size_label: s.label }, data: { quantity } });
-        await prisma.product_sizes.updateMany({ where: { product_id: p.id, size_label: s.label }, data: { is_available: s.qty > 0 } });
-      }
-      if (!card) {
+      let variantsChanged = false;
+      if (group) {
+        ({ stock: totalStock, changed: variantsChanged } = await writeArmaLifeVariants(p.id, group));
+      } else {
         await prisma.product_inventory.updateMany({ where: { product_id: p.id }, data: { quantity: 0 } });
         await prisma.product_sizes.updateMany({ where: { product_id: p.id }, data: { is_available: false } });
+        await prisma.product_colors.updateMany({ where: { product_id: p.id }, data: { is_available: false } });
       }
 
       const keepAdminTag = ['bestseller', 'new'].includes(p.tag) ? p.tag : null;
@@ -3511,12 +3599,13 @@ async function checkArmaLifeStock(site, products) {
         // deactivateExpiredSoldOutProducts), cleared when it comes back.
         update.sold_out_at = tag === 'sold_out' ? new Date() : null;
       }
-      if (Object.keys(update).length) {
+      // Rewritten variant rows alone also make the published copy stale.
+      if (Object.keys(update).length || variantsChanged) {
         await prisma.products.update({ where: { id: p.id }, data: { ...update, is_dirty: true, updated_at: new Date() } });
       }
       results.push({
         id: p.id, name: p.name_tr,
-        status: tag === 'sold_out' ? 'sold_out' : `ok (stock=${totalStock})${Object.keys(update).length ? ', updated' : ''}`,
+        status: tag === 'sold_out' ? 'sold_out' : `ok (stock=${totalStock})${Object.keys(update).length || variantsChanged ? ', updated' : ''}`,
       });
     } catch (err) {
       results.push({ id: p.id, name: p.name_tr, status: `error: ${err.message}` });
@@ -3525,11 +3614,92 @@ async function checkArmaLifeStock(site, products) {
   return results;
 }
 
+// One-off for products imported before ArmaLife's colors were grouped
+// (2026-10-05, one product per color): folds every color of a model into
+// its oldest product — moves the other products' photos over, rebuilds its
+// colors/sizes/stock from the whole model (adding colors that were never
+// imported, with their first two photos), re-prices it, and deactivates the
+// now-redundant products. Products of a single-color model also get any
+// missing colors added. Dry run (nothing written) unless apply is true.
+// Run via backend/scripts/mergeArmaLifeColors.js.
+async function mergeArmaLifeColors(site, { apply = false } = {}) {
+  const { syncSubcategoryActiveState } = require('./subcategorySync');
+  const groupById = new Map();
+  for (const g of groupArmaLifeCatalog(await fetchArmaLifeCatalog())) for (const id of g.ids) groupById.set(id, g);
+
+  const products = await prisma.products.findMany({
+    where: { supplier_shop_name: site.name, is_active: true, product_link: { not: null } },
+    orderBy: { id: 'asc' },
+    include: { product_media: { orderBy: { sort_order: 'asc' } } },
+  });
+  const byGroup = new Map();
+  const unmatched = [];
+  for (const p of products) {
+    const group = groupById.get(armalifeLinkId(p.product_link));
+    if (!group) { unmatched.push(p); continue; }
+    if (!byGroup.has(group.key)) byGroup.set(group.key, { group, products: [] });
+    byGroup.get(group.key).products.push(p);
+  }
+
+  const log = [];
+  for (const { group, products: ps } of byGroup.values()) {
+    const [keeper, ...extras] = ps;
+    // Colors no existing product came from still need photos of their own.
+    const coveredIds = new Set(ps.map(p => armalifeLinkId(p.product_link)));
+    const uncovered = group.members.filter(c => armalifeSizes(c).some(s => s.qty > 0)
+      && ![...armalifeIds(c)].some(id => coveredIds.has(id)));
+    log.push(`${keeper.code} "${group.name}": ${group.members.length} color(s), merging ${extras.length} product(s) [${extras.map(e => e.code).join(' ') || '-'}], adding photos for ${uncovered.length} new color(s)`);
+    if (!apply) continue;
+
+    let sort = keeper.product_media.length;
+    for (const e of extras) {
+      for (const m of e.product_media) {
+        await prisma.product_media.update({ where: { id: m.id }, data: { product_id: keeper.id, sort_order: sort++ } });
+      }
+    }
+    for (const c of uncovered) {
+      const photos = String(c.photoAll || c.photo || '').split('||').map(x => x.trim()).filter(Boolean).slice(0, 2);
+      for (const photo of photos) {
+        try {
+          const url = await saveImageFromUrl(ARMALIFE_IMAGE_BASE + photo);
+          await prisma.product_media.create({ data: { product_id: keeper.id, type: 'image', url, sort_order: sort++ } });
+        } catch (e) { /* skip broken image */ }
+      }
+    }
+
+    const { stock } = await writeArmaLifeVariants(keeper.id, group);
+    const pricing = armalifeGroupPricing(group, site.markup_percent);
+    const keepAdminTag = ['bestseller', 'new'].includes(keeper.tag) ? keeper.tag : null;
+    const tag = stock === 0 ? 'sold_out' : (pricing.tag || keepAdminTag);
+    await prisma.products.update({
+      where: { id: keeper.id },
+      data: {
+        name_tr: group.name.slice(0, 120),
+        price: pricing.price, discounted_price: pricing.discounted_price, cost_price: pricing.cost_price,
+        stock, tag,
+        ...(tag !== keeper.tag ? { sold_out_at: tag === 'sold_out' ? new Date() : null } : {}),
+        is_dirty: true, updated_at: new Date(),
+      },
+    });
+    if (extras.length) {
+      await prisma.products.updateMany({
+        where: { id: { in: extras.map(e => e.id) } },
+        data: { is_active: false, is_live: false, is_dirty: false, updated_at: new Date() },
+      });
+      for (const id of new Set(extras.map(e => e.subcategory_id).filter(Boolean))) await syncSubcategoryActiveState(id);
+    }
+  }
+  for (const p of unmatched) log.push(`${p.code} "${p.name_tr}": not in ArmaLife's catalog anymore, left as is`);
+  return log;
+}
+
 module.exports = {
   Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Mavi, MClub, ArmaLife,
   // exported for siteSync.js#checkSiteStock, which hands mClub's and
   // ArmaLife's stock checks off to their own API-based readers.
   checkMClubStock, checkArmaLifeStock,
+  // exported for backend/scripts/mergeArmaLifeColors.js.
+  mergeArmaLifeColors,
   // exported for backend/scripts/backfillMissingColors.js — reusing the
   // same lookup/create logic the live importers use, rather than
   // duplicating it in the backfill script.
