@@ -181,13 +181,22 @@ function guessGenderFromTitle(title, defaultGender) {
 // Same SHIL#### code scheme as the admin panel's manual "add product" form
 // (adminController.js#createProduct) — products created here bypass that
 // endpoint (direct prisma.products.create), so it isn't generated for free.
+//
+// Every importer runs 2 products at a time (IMPORT_CONCURRENCY), and two
+// calls landing between the same findFirst and create would otherwise both
+// get "last + 1" — products.code is unique, so one create would fail. The
+// highest number handed out in this process is remembered and never
+// reused, even before its product row exists.
+let lastIssuedProductCodeNum = 0;
 async function generateProductCode() {
   const last = await prisma.products.findFirst({
     where: { code: { startsWith: 'SHIL' } },
     orderBy: { code: 'desc' },
     select: { code: true },
   });
-  const nextNum = last?.code ? Number(last.code.replace('SHIL', '')) + 1 : 100;
+  const fromDb = last?.code ? Number(last.code.replace('SHIL', '')) + 1 : 100;
+  const nextNum = Math.max(fromDb, lastIssuedProductCodeNum + 1);
+  lastIssuedProductCodeNum = nextNum;
   return 'SHIL' + String(nextNum).padStart(8, '0');
 }
 
@@ -317,15 +326,14 @@ async function Defacto(pm, site, opts = {}) {
   const imported = [];
   let skipped = candidateUrls.length - newUrls.length;
 
-  // Up to 2 PageManagers sharing this run's one already-launched browser
-  // (separate tabs, not separate browsers) -- same pattern as Lefties (which
-  // runs 4), but capped lower here: rolling this out to a second importer at
-  // Lefties' own concurrency of 4 pushed this VPS's 3.8GB RAM into full swap
-  // and crashed the production process mid-import (confirmed live testing
-  // Zara, 2026-09-29). Only raise this back toward 4 after confirming the
-  // VPS actually has the headroom, not by assumption.
+  // IMPORT_CONCURRENCY (2) PageManagers sharing this run's one already-
+  // launched browser (separate tabs, not separate browsers) -- same pattern
+  // as Lefties. Was 4 until 4 tabs on a second importer (Zara) pushed this
+  // VPS's 3.8GB RAM into full swap and crashed the production process
+  // mid-import (confirmed live, 2026-09-29). Only raise it after confirming
+  // the VPS actually has the headroom, not by assumption.
   const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
-  const CONCURRENCY = canParallelize ? 2 : 1;
+  const CONCURRENCY = canParallelize ? IMPORT_CONCURRENCY : 1;
   const pms = [pm];
   if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
 
@@ -597,7 +605,7 @@ async function MadameCoco(pm, site, opts = {}) {
   let notDiscounted = 0;
 
   const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
-  const CONCURRENCY = canParallelize ? 2 : 1;
+  const CONCURRENCY = canParallelize ? IMPORT_CONCURRENCY : 1;
   const pms = [pm];
   if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
 
@@ -896,7 +904,7 @@ async function Zara(pm, site, opts = {}) {
   let notDiscounted = 0;
 
   const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
-  const CONCURRENCY = canParallelize ? 2 : 1;
+  const CONCURRENCY = canParallelize ? IMPORT_CONCURRENCY : 1;
   const pms = [pm];
   if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
 
@@ -1274,7 +1282,7 @@ async function LCWaikiki(pm, site, opts = {}) {
   let wrongBrand = 0;
 
   const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
-  const CONCURRENCY = canParallelize ? 2 : 1;
+  const CONCURRENCY = canParallelize ? IMPORT_CONCURRENCY : 1;
   const pms = [pm];
   if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
 
@@ -1628,7 +1636,7 @@ async function Koton(pm, site, opts = {}) {
   let notDiscounted = 0;
 
   const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
-  const CONCURRENCY = canParallelize ? 2 : 1;
+  const CONCURRENCY = canParallelize ? IMPORT_CONCURRENCY : 1;
   const pms = [pm];
   if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
 
@@ -1989,17 +1997,24 @@ async function KikoMilano(pm, site, opts = {}) {
   // never reprocessed as its own separate candidate later in this run.
   const consumedUrls = new Set();
 
-  for (const url of newUrls) {
-    if (imported.filter(p => !p.error).length >= limit) break;
-    if (consumedUrls.has(url)) continue;
+  // One tab per worker, same pattern as Lefties.
+  const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
+  const pms = [pm];
+  if (canParallelize) for (let i = 1; i < IMPORT_CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
+
+  let stopped = false;
+  await runQueue(newUrls, pms, async (workerPm, url) => {
+    if (stopped) return;
+    if (imported.filter(p => !p.error).length >= limit) return void (stopped = true);
+    if (consumedUrls.has(url)) return;
     try {
-      const data = await scrapeKikoProduct(pm, url);
-      if (!data || !data.name) continue;
-      if (!data.hasRetail) { notDiscounted++; continue; }
+      const data = await scrapeKikoProduct(workerPm, url);
+      if (!data || !data.name) return;
+      if (!data.hasRetail) { notDiscounted++; return; }
 
       const priceOriginal = parseTLPrice(data.originalText);
       const priceSite = parseTLPrice(data.currentText);
-      if (!priceOriginal || priceSite == null || priceOriginal <= priceSite) { notDiscounted++; continue; }
+      if (!priceOriginal || priceSite == null || priceOriginal <= priceSite) { notDiscounted++; return; }
 
       const finalDiscountedPrice = Math.round(priceSite * (1 + site.markup_percent / 100) * 100) / 100;
       const tag = resolveDiscountTag({
@@ -2007,7 +2022,15 @@ async function KikoMilano(pm, site, opts = {}) {
         markupPercent: site.markup_percent,
         finalDiscountedPrice, priceOriginal,
       });
-      if (!tag) { notDiscounted++; continue; }
+      if (!tag) { notDiscounted++; return; }
+
+      // Two shades of one product can be in flight on the two workers at
+      // once: the first to get here claims the whole group (nothing between
+      // reading its page and this claim awaits), the other drops out instead
+      // of importing a duplicate.
+      const groupUrls = [url, ...data.variantUrls.filter(u => u !== url)].slice(0, KIKO_MAX_SHADES_PER_PRODUCT);
+      if (groupUrls.some(u => consumedUrls.has(u))) return;
+      groupUrls.forEach(u => consumedUrls.add(u));
 
       const category_id = 10;
       const subcategory_id = guessSubcategoryId(data.name, 10);
@@ -2037,11 +2060,10 @@ async function KikoMilano(pm, site, opts = {}) {
           continue;
         }
         try {
-          const sData = await scrapeKikoShade(pm, sUrl);
+          const sData = await scrapeKikoShade(workerPm, sUrl);
           if (sData) shades.push(sData);
         } catch (e) { /* skip a broken shade page, keep the rest of the group */ }
       }
-      siblingUrls.forEach(u => consumedUrls.add(u));
 
       const colorEntries = [];
       const seenColorIds = new Set();
@@ -2089,7 +2111,9 @@ async function KikoMilano(pm, site, opts = {}) {
     } catch (err) {
       imported.push({ error: err.message, url });
     }
-  }
+  });
+
+  for (let i = 1; i < pms.length; i++) await pms[i].close().catch(() => {});
 
   return { imported, skipped: notDiscounted + (candidateUrls.length - newUrls.length) };
 }
@@ -2398,6 +2422,12 @@ function guessLeftiesAccessorySubcategoryId(nameTr) {
   return /çanta|canta/i.test(nameTr || '') ? 13 : null;
 }
 
+// User's choice (2026-10-05): every importer works on 2 products at a time.
+// Browser-based importers get one PageManager (tab) per worker; API-only
+// ones (Mavi, MClub, ArmaLife, Mango) just need 2 slots to run in.
+const IMPORT_CONCURRENCY = 2;
+const IMPORT_WORKER_SLOTS = Array.from({ length: IMPORT_CONCURRENCY }, (_, i) => i);
+
 // Runs `work(resource, item, idx)` over `items`, one call in flight per
 // entry in `resources` (e.g. one PageManager each), each worker pulling the
 // next item off a shared index counter (a plain shared queue) rather than a
@@ -2460,11 +2490,12 @@ async function Lefties(pm, site, opts = {}) {
     listings = await fetchLeftiesListingMeta(pm);
   }
 
-  // Concurrency: up to 4 PageManagers sharing this run's ONE already-
-  // launched browser (separate tabs, not separate browsers) — chosen after
-  // confirming live that a full sequential scan of every listing's every
-  // candidate (no cap; see its own removal below) took 2+ hours for only a
-  // handful of real finds. Deliberately NOT one browser per worker: that's
+  // Concurrency: IMPORT_CONCURRENCY (2; was 4 until 2026-10-05, now the
+  // same as every other importer) PageManagers sharing this run's ONE
+  // already-launched browser (separate tabs, not separate browsers) — added
+  // after confirming live that a full sequential scan of every listing's
+  // every candidate (no cap; see its own removal below) took 2+ hours for
+  // only a handful of real finds. Deliberately NOT one browser per worker: that's
   // the exact "several simultaneous Chrome processes competing for this
   // VPS's CPU/RAM" problem scheduler.js was just fixed for (see 3525278),
   // just relocated to inside a single site's own import instead of across
@@ -2473,7 +2504,7 @@ async function Lefties(pm, site, opts = {}) {
   // (siteSync.js#importSite passes both) — falls back to the one `pm`,
   // fully sequential, otherwise.
   const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
-  const CONCURRENCY = canParallelize ? 4 : 1;
+  const CONCURRENCY = canParallelize ? IMPORT_CONCURRENCY : 1;
   const pms = [pm];
   if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
 
@@ -2755,8 +2786,12 @@ async function Mavi(pm, site, opts = {}) {
   let notDiscounted = 0;
   let consecutiveErrors = 0;
 
-  for (const code of newCodes) {
-    if (imported.filter(p => !p.error).length >= limit) break;
+  let stopped = false;
+  // One at a time, unlike every other importer: Mavi's Cloudflare WAF has
+  // already blocked this IP for request bursts once (see Mavi's own notes).
+  await runQueue(newCodes, [0], async (_worker, code) => {
+    if (stopped) return;
+    if (imported.filter(p => !p.error).length >= limit) return void (stopped = true);
     const { listing, search } = metaByCode.get(code);
     const url = new URL(search.url, 'https://www.mavi.com').href;
 
@@ -2773,16 +2808,16 @@ async function Mavi(pm, site, opts = {}) {
       markupPercent: site.markup_percent,
       finalDiscountedPrice: Math.round(searchSale * (1 + site.markup_percent / 100) * 100) / 100,
       priceOriginal: searchOriginal,
-    })) { notDiscounted++; continue; }
+    })) { notDiscounted++; return; }
 
     try {
       const data = await maviApiGet(page, `/products/basic/${encodeURIComponent(code)}?fields=FULL`);
       consecutiveErrors = 0;
-      if (!data || !data.name) continue;
+      if (!data || !data.name) return;
 
       const priceOriginal = data.price?.value;
       const priceSite = data.salePrice?.value;
-      if (!priceOriginal || priceSite == null || priceOriginal <= priceSite) { notDiscounted++; continue; }
+      if (!priceOriginal || priceSite == null || priceOriginal <= priceSite) { notDiscounted++; return; }
 
       // Jeans/trousers come as waist x length: every variant carries both
       // `size` (waist) and `length`, so `size` alone repeats (e.g. 26 seven
@@ -2806,7 +2841,7 @@ async function Mavi(pm, site, opts = {}) {
       // combination that comes back in stock later: checkSiteStock skips Mavi.
       if ((data.allSizeVariants || []).some(v => v.length)) sizes = sizes.filter(s => s.inStock);
       // Nothing left to sell in any size — not worth importing at all.
-      if (sizes.length && !sizes.some(s => s.inStock)) { notDiscounted++; continue; }
+      if (sizes.length && !sizes.some(s => s.inStock)) { notDiscounted++; return; }
 
       const finalDiscountedPrice = Math.round(priceSite * (1 + site.markup_percent / 100) * 100) / 100;
       const tag = resolveDiscountTag({
@@ -2814,7 +2849,7 @@ async function Mavi(pm, site, opts = {}) {
         markupPercent: site.markup_percent,
         finalDiscountedPrice, priceOriginal,
       });
-      if (!tag) { notDiscounted++; continue; }
+      if (!tag) { notDiscounted++; return; }
 
       const mainCategoryName = (data.mainCategories || search.mainCategories || [])[0]?.name || '';
       const gender = guessMaviGender(data.gender?.name || search.gender?.name, listing.gender);
@@ -2900,12 +2935,12 @@ async function Mavi(pm, site, opts = {}) {
       // Several in a row almost certainly means Mavi/Cloudflare is refusing
       // this IP now, not that each product is individually broken -- stop
       // rather than keep hitting it (which only prolongs a block).
-      if (++consecutiveErrors >= 5) break;
+      if (++consecutiveErrors >= 5) return void (stopped = true);
     }
     // Gentle pacing — every call here goes through the same Cloudflare WAF
     // that already hard-blocked rapid page navigations once.
     await new Promise(r => setTimeout(r, 700));
-  }
+  });
 
   return { imported, skipped: notDiscounted + (candidateCodes.length - newCodes.length) };
 }
@@ -3109,8 +3144,12 @@ async function MClub(pm, site, opts = {}) {
 
   const imported = [];
   let consecutiveErrors = 0;
-  for (const group of sellable) {
-    if (imported.filter(p => !p.error).length >= limit) break;
+  let stopped = false;
+  // One at a time, unlike every other importer: mClub's Akamai blocked
+  // this IP for 20+ minutes over a burst of parallel requests once.
+  await runQueue(sellable, [0], async (_worker, group) => {
+    if (stopped) return;
+    if (imported.filter(p => !p.error).length >= limit) return void (stopped = true);
     const url = group.rep.url;
     try {
       const pricing = mclubPricing(group.rep, site.markup_percent);
@@ -3179,9 +3218,9 @@ async function MClub(pm, site, opts = {}) {
       // The same failure on every group (e.g. a DB constraint) would
       // otherwise walk the whole ~400-group backlog, downloading images
       // and spending translation quota for each one before failing it.
-      if (++consecutiveErrors >= 5) break;
+      if (++consecutiveErrors >= 5) return void (stopped = true);
     }
-  }
+  });
 
   return { imported, skipped: (groups.length - fresh.length) + (fresh.length - sellable.length) };
 }
@@ -3503,8 +3542,10 @@ async function ArmaLife(pm, site, opts = {}) {
 
   const imported = [];
   let consecutiveErrors = 0;
-  for (const group of sellable) {
-    if (imported.filter(p => !p.error).length >= limit) break;
+  let stopped = false;
+  await runQueue(sellable, IMPORT_WORKER_SLOTS, async (_worker, group) => {
+    if (stopped) return;
+    if (imported.filter(p => !p.error).length >= limit) return void (stopped = true);
     const url = armalifeUrl(group.rep);
     try {
       const pricing = armalifeGroupPricing(group, site.markup_percent);
@@ -3550,9 +3591,9 @@ async function ArmaLife(pm, site, opts = {}) {
       consecutiveErrors = 0;
     } catch (err) {
       imported.push({ error: err.message, url });
-      if (++consecutiveErrors >= 5) break;
+      if (++consecutiveErrors >= 5) return void (stopped = true);
     }
-  }
+  });
 
   return { imported, skipped: (groups.length - fresh.length) + (fresh.length - sellable.length) };
 }
@@ -3904,17 +3945,19 @@ async function Mango(pm, site, opts = {}) {
   let notDiscounted = 0;
   let lookups = 0;
   let consecutiveErrors = 0;
-  for (const productId of fresh) {
-    if (imported.filter(p => !p.error).length >= limit || lookups >= MANGO_MAX_PRICE_LOOKUPS) break;
+  let stopped = false;
+  await runQueue(fresh, IMPORT_WORKER_SLOTS, async (_worker, productId) => {
+    if (stopped) return;
+    if (imported.filter(p => !p.error).length >= limit || lookups >= MANGO_MAX_PRICE_LOOKUPS) return void (stopped = true);
     lookups++;
     let url = `${MANGO_SITE}/tr/tr/p/${productId}`;
     try {
       const prices = await mangoPrices(productId);
       // Cheap first pass on price alone — most products stop here.
-      if (!mangoPricing(prices, site.markup_percent)) { notDiscounted++; consecutiveErrors = 0; continue; }
+      if (!mangoPricing(prices, site.markup_percent)) { notDiscounted++; consecutiveErrors = 0; return; }
       const stock = await mangoStock(productId);
       const pricing = mangoPricing(prices, site.markup_percent, mangoAvailableColors(stock));
-      if (!pricing) { notDiscounted++; consecutiveErrors = 0; continue; }
+      if (!pricing) { notDiscounted++; consecutiveErrors = 0; return; }
 
       const detail = await mangoProduct(productId);
       if (detail.url) url = MANGO_SITE + detail.url;
@@ -3962,9 +4005,9 @@ async function Mango(pm, site, opts = {}) {
       imported.push({ error: err.message, url });
       // The same failure on every product (an API change, a block) would
       // otherwise burn the whole lookup budget one error at a time.
-      if (++consecutiveErrors >= 5) break;
+      if (++consecutiveErrors >= 5) return void (stopped = true);
     }
-  }
+  });
 
   return { imported, skipped: notDiscounted + (candidates.size - fresh.length) };
 }
