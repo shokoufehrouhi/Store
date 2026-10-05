@@ -939,6 +939,10 @@ async function Zara(pm, site, opts = {}) {
         gender = listingMeta.gender || 'unisex';
       }
       data.sizes = data.sizes.map(s => ({ ...s, size: (s.size || '').slice(0, 10) }));
+      // Nothing left to buy in any size — not worth importing (it would sit
+      // at stock 0 without ever being tagged sold_out: found 2026-10-05,
+      // 60 such Zara/Koton products). Same rule Mavi already had.
+      if (data.sizes.length && !data.sizes.some(s => s.inStock)) { notDiscounted++; return; }
 
       const priceOriginal = originalPrice;
       const priceSite = discountedPrice;
@@ -1305,6 +1309,10 @@ async function LCWaikiki(pm, site, opts = {}) {
       const listingMeta = metaByUrl.get(url) || { gender: 'unisex' };
       const gender = guessGenderFromTitle(data.title, listingMeta.gender);
       data.sizes = data.sizes.map(s => ({ ...s, size: (s.size || '').slice(0, 10) }));
+      // Nothing left to buy in any size — not worth importing (it would sit
+      // at stock 0 without ever being tagged sold_out: found 2026-10-05,
+      // 60 such Zara/Koton products). Same rule Mavi already had.
+      if (data.sizes.length && !data.sizes.some(s => s.inStock)) { notDiscounted++; return; }
 
       const category_id = routeLcWaikikiCategory(data.category);
       const subcategory_id = category_id === 1 ? guessSubcategoryId(data.name, 1)
@@ -1584,6 +1592,10 @@ async function scrapeKotonProduct(pm, url) {
       size: o.textContent.trim().split('\n')[0].trim(),
       inStock: !o.classList.contains('-disabled'),
     }));
+    // Whether the page offered sizes at all — the jeans filter below can
+    // empty the list when no waist x length combination is in stock, which
+    // would otherwise look like a size-less product.
+    const hasSizeOptions = sizes.length > 0;
     if (primary.length && lengths.length) {
       sizes = primary.flatMap(w => lengths.map(l => ({ size: `${w.size}/${l.size}`, inStock: w.inStock && l.inStock })))
         .filter(s => s.inStock);
@@ -1609,6 +1621,7 @@ async function scrapeKotonProduct(pm, url) {
       discountPercentText,
       color: colorText,
       sizes,
+      hasSizeOptions,
       breadcrumbNames,
     };
   });
@@ -1715,6 +1728,10 @@ async function Koton(pm, site, opts = {}) {
       const listingMeta = metaByUrl.get(url) || { gender: 'unisex' };
       const gender = guessKotonGender(data.breadcrumbNames, listingMeta.gender);
       data.sizes = data.sizes.map(s => ({ ...s, size: (s.size || '').slice(0, 10) }));
+      // Nothing left to buy in any size — not worth importing (it would sit
+      // at stock 0 without ever being tagged sold_out: found 2026-10-05,
+      // 60 such Zara/Koton products). Same rule Mavi already had.
+      if (data.hasSizeOptions && !data.sizes.some(s => s.inStock)) { notDiscounted++; return; }
 
       const priceOriginal = originalPrice;
       const priceSite = discountedPrice;
