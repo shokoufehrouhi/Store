@@ -135,6 +135,8 @@ async function checkSiteStock(site) {
   // mClub's whole catalog (price, discount, per-shade stock) comes from one
   // API response — see checkMClubStock in siteImport.js.
   if (site.name === 'MClub') return importers.checkMClubStock(site, products);
+  // Same for ArmaLife — see checkArmaLifeStock in siteImport.js.
+  if (site.name === 'ArmaLife') return importers.checkArmaLifeStock(site, products);
 
   await withBrowser(async (pm) => {
     for (const p of products) {
