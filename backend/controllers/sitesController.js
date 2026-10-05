@@ -21,7 +21,7 @@ async function createSite(req, res, next) {
         logo_url:                    logo_url?.trim() || null,
         is_active:                   is_active !== undefined ? !!is_active : true,
         discount_check_mode:         discount_check_mode === 'auto' ? 'auto' : 'manual',
-        markup_percent:              markup_percent != null && markup_percent !== '' ? Number(markup_percent) : 40,
+        markup_percent:              markup_percent != null && markup_percent !== '' ? Number(markup_percent) : 25,
         daily_ig_post_limit:         daily_ig_post_limit != null && daily_ig_post_limit !== '' ? Number(daily_ig_post_limit) : 5,
       },
     });
