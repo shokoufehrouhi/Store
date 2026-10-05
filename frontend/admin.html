@@ -1014,6 +1014,8 @@
             <option value="available" data-i18n="availYes">موجود</option>
             <option value="sold_out" data-i18n="tagSoldOut">ناموجود</option>
           </select>
+          <select id="product-cat-filter" onchange="onProductCatFilterChange()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px"></select>
+          <select id="product-subcat-filter" onchange="filterProducts()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;display:none"></select>
         </div>
         <div class="card"><div class="table-wrap">
           <table>
@@ -1993,6 +1995,7 @@ const LANGS = {
     descriptions:'توضیحات', statusSection:'وضعیت',
     productCodeLbl:'کد محصول', productCodePlh:'مثال: SHF-001', productCodeAuto:'خودکار',
     productSearchPlh:'جستجو بر اساس نام، توضیحات، کد محصول، برند یا برچسب...',
+    filterAllCategories:'همه دسته‌ها', filterAllSubcategories:'همه زیردسته‌ها',
     paginationPageNum:'صفحه', paginationGo:'برو',
     nameFa:'نام فارسی *', nameEn:'نام انگلیسی', nameTr:'نام ترکی', deliveryDaysLbl:'زمان تحویل (روز کاری)', minOrderQtyLbl:'حداقل تعداد خرید',
     categoryField:'دسته‌بندی *', subcategoryField:'زیردسته',
@@ -2202,6 +2205,7 @@ const LANGS = {
     descriptions:'Descriptions', statusSection:'Status',
     productCodeLbl:'Product Code', productCodePlh:'e.g. SHF-001', productCodeAuto:'Auto',
     productSearchPlh:'Search by name, description, product code, brand or tag...',
+    filterAllCategories:'All categories', filterAllSubcategories:'All subcategories',
     paginationPageNum:'Page', paginationGo:'Go',
     nameFa:'Farsi Name *', nameEn:'English Name', nameTr:'Turkish Name', deliveryDaysLbl:'Delivery Time (working days)', minOrderQtyLbl:'Minimum Order Quantity',
     categoryField:'Category *', subcategoryField:'Subcategory',
@@ -2411,6 +2415,7 @@ const LANGS = {
     descriptions:'Açıklamalar', statusSection:'Durum',
     productCodeLbl:'Ürün Kodu', productCodePlh:'örn. SHF-001', productCodeAuto:'Otomatik',
     productSearchPlh:'Ad, açıklama, ürün kodu, marka veya etikete göre ara...',
+    filterAllCategories:'Tüm kategoriler', filterAllSubcategories:'Tüm alt kategoriler',
     paginationPageNum:'Sayfa', paginationGo:'Git',
     nameFa:'Farsça Ad *', nameEn:'İngilizce Ad', nameTr:'Türkçe Ad', deliveryDaysLbl:'Teslimat Süresi (iş günü)', minOrderQtyLbl:'Minimum Sipariş Adedi',
     categoryField:'Kategori *', subcategoryField:'Alt Kategori',
@@ -3180,8 +3185,34 @@ async function loadProducts() {
   allSizes      = szR?.data  || [];
   allSizeCharts = scR?.data  || [];
   _allProducts = pR.data || [];
+  renderProductCatFilter('', '');
   renderProductsTable(_allProducts);
   refreshPublishStatus();
+}
+
+function categoryLabel(c) {
+  return c?.[`label_${currentLang}`] || c?.label_fa || c?.key || '';
+}
+
+// Category / subcategory dropdowns of the products toolbar. The subcategory
+// one only shows once a category with subcategories is picked.
+function renderProductCatFilter(catId, subId) {
+  const catSel = document.getElementById('product-cat-filter');
+  const subSel = document.getElementById('product-subcat-filter');
+  if (!catSel || !subSel) return;
+  catSel.innerHTML = `<option value="">${t('filterAllCategories')}</option>` +
+    allCategories.map(c => `<option value="${c.id}">${categoryLabel(c)}</option>`).join('');
+  catSel.value = catId ? String(catId) : '';
+  const subs = allCategories.find(c => c.id === Number(catSel.value))?.subcategories || [];
+  subSel.innerHTML = `<option value="">${t('filterAllSubcategories')}</option>` +
+    subs.map(sc => `<option value="${sc.id}">${categoryLabel(sc)}</option>`).join('');
+  subSel.value = subId && subs.some(sc => sc.id === Number(subId)) ? String(subId) : '';
+  subSel.style.display = subs.length ? '' : 'none';
+}
+
+function onProductCatFilterChange() {
+  renderProductCatFilter(document.getElementById('product-cat-filter')?.value, '');
+  filterProducts();
 }
 
 // Refresh button: same reload as opening the tab, but keeps whatever search
@@ -3189,10 +3220,13 @@ async function loadProducts() {
 // search box, which is right on tab switch but not on an in-place refresh).
 async function refreshProducts() {
   const q = document.getElementById('product-search')?.value || '';
+  const catId = document.getElementById('product-cat-filter')?.value || '';
+  const subId = document.getElementById('product-subcat-filter')?.value || '';
   await loadProducts();
   const searchEl = document.getElementById('product-search');
   if (searchEl) searchEl.value = q;
-  if (q || document.getElementById('product-stock-filter')?.value) filterProducts();
+  renderProductCatFilter(catId, subId);
+  if (q || catId || document.getElementById('product-stock-filter')?.value) filterProducts();
 }
 
 var _allProducts = [];
@@ -3203,10 +3237,17 @@ function filterProducts() {
   _productsPage = 1;
   const q = (document.getElementById('product-search')?.value || '').trim().toLowerCase();
   const stockFilter = document.getElementById('product-stock-filter')?.value || '';
+  const catId = Number(document.getElementById('product-cat-filter')?.value) || null;
+  const subId = Number(document.getElementById('product-subcat-filter')?.value) || null;
   const tagLabelKey = { bestseller: 'tagBestseller', new: 'tagNew', original: 'tagOriginal', discount: 'tagDiscount', sold_out: 'tagSoldOut' };
   const filtered = _allProducts.filter(p => {
     if (stockFilter === 'sold_out' && p.tag !== 'sold_out') return false;
     if (stockFilter === 'available' && p.tag === 'sold_out') return false;
+    if (catId) {
+      // A product also shows up under its extra categories (product_categories).
+      const placements = [{ category_id: p.category_id, subcategory_id: p.subcategory_id }, ...(p.product_categories || [])];
+      if (!placements.some(pc => pc.category_id === catId && (!subId || pc.subcategory_id === subId))) return false;
+    }
     if (!q) return true;
     return (p.code                || '').toLowerCase().includes(q) ||
            (p.name_fa             || '').toLowerCase().includes(q) ||
