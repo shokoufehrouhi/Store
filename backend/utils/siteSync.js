@@ -193,9 +193,16 @@ async function checkSiteStock(site) {
 // scraper module in ./siteImport (matched by site.name) since every site has
 // a different page structure — there is no generic "works for any site"
 // scraper. Sites without a matching module throw a clear error.
+// Per-site override of the per-run import limit callers pass (30): sites
+// with a big backlog worth catching up on faster. ArmaLife imports its
+// whole catalog (~500 models on 2026-10-05) and Lefties now scans every
+// category; at 30 a run, ArmaLife alone would take over two weeks.
+const SITE_IMPORT_LIMITS = { ArmaLife: 100, Lefties: 50 };
+
 async function importSite(site, opts = {}) {
   const importer = importers[site.name];
   if (!importer) throw new Error(`no importer implemented for site "${site.name}"`);
+  if (SITE_IMPORT_LIMITS[site.name]) opts = { ...opts, limit: SITE_IMPORT_LIMITS[site.name] };
   // browser/createPageManager: see withBrowser's own comment — only Lefties
   // currently uses either, every other importer's opts.limit-only signature
   // just ignores the extra fields.
