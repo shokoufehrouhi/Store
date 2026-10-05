@@ -1450,20 +1450,44 @@ async function ensureKotonPageSetup(page) {
 // link is clicked in-page (history.pushState + its own data fetch), so
 // pagination happens by clicking within one continuous page session rather
 // than by navigating to each page's URL like Defacto's own ?page=N does.
-async function collectKotonListingLinks(pm, listingUrl) {
+//
+// Every card already shows Koton's own retail price, current price and
+// discount badge ("%60"), so cards are read here (not just links) and a
+// product whose discount can't clear the markup is never opened at all —
+// before, every candidate's product page was opened just to find that out.
+// Pagination also stops as soon as `enough` wanted cards have been found
+// (default: all 8 pages), instead of always walking every page.
+async function collectKotonListingCards(pm, listingUrl, { isWanted = () => true, enough = Infinity } = {}) {
   const page = await pm.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await ensureKotonPageSetup(page);
-  await new Promise(r => setTimeout(r, 1500));
+  await page.waitForSelector('.product-item a.product-link', { timeout: 10000 }).catch(() => {});
 
-  const links = new Set();
+  const cards = new Map(); // href -> card
+  let wanted = 0;
   for (let i = 0; i < KOTON_MAX_PAGES_PER_LISTING; i++) {
-    const pageLinks = await page.evaluate(() => [...new Set(
-      Array.from(document.querySelectorAll('a[href]'))
-        .map(a => a.getAttribute('href').split('?')[0])
-        .filter(h => h && /-\d{6,}(-\d+)?\/?$/.test(h))
-    )]);
-    pageLinks.forEach(h => links.add(h));
+    // <pz-price> fills its own text after load (see scrapeKotonProduct):
+    // wait until this page's cards have prices before reading them.
+    await page.waitForFunction(
+      () => [...document.querySelectorAll('.product-item pz-price')].some(el => el.textContent.trim()),
+      { timeout: 8000 }
+    ).catch(() => {});
+    const pageCards = await page.evaluate(() => [...document.querySelectorAll('.product-item')].map(item => {
+      const href = item.querySelector('a.product-link')?.getAttribute('href')?.split('?')[0];
+      return {
+        href,
+        retailText: item.querySelector('pz-price.-retail')?.textContent.trim() || null,
+        currentText: item.querySelector('pz-price.-actuel')?.textContent.trim() || null,
+        discountPercentText: item.querySelector('.product-item__info-price-discount')?.textContent.trim() || null,
+      };
+    }).filter(c => c.href && /-\d{6,}(-\d+)?\/?$/.test(c.href)));
+    for (const c of pageCards) {
+      if (cards.has(c.href)) continue;
+      cards.set(c.href, c);
+      if (isWanted(c)) wanted++;
+    }
+    if (wanted >= enough) break;
 
+    const firstHref = pageCards[0]?.href || null;
     const clicked = await page.evaluate(() => {
       const a = document.querySelector('a.pz-pagination-link.-next')
         || Array.from(document.querySelectorAll('a.pz-pagination-link')).find(el => /sonraki/i.test(el.textContent));
@@ -1471,9 +1495,14 @@ async function collectKotonListingLinks(pm, listingUrl) {
       return false;
     });
     if (!clicked) break;
-    await new Promise(r => setTimeout(r, 2500));
+    // The next page is fetched client-side: wait for the grid to actually
+    // change rather than a fixed pause.
+    await page.waitForFunction(
+      (prev) => document.querySelector('.product-item a.product-link')?.getAttribute('href')?.split('?')[0] !== prev,
+      { timeout: 10000 }, firstHref
+    ).catch(() => {});
   }
-  return [...links];
+  return [...cards.values()];
 }
 
 async function scrapeKotonProduct(pm, url) {
@@ -1609,31 +1638,59 @@ function guessKotonGender(breadcrumbNames, defaultGender) {
 async function Koton(pm, site, opts = {}) {
   const limit = opts.limit || 30;
 
-  const metaByUrl = new Map();
-  const perListing = [];
-  for (const listing of KOTON_LISTINGS) {
-    const hrefs = await collectKotonListingLinks(pm, listing.url);
-    const urls = [];
-    for (const h of hrefs) {
-      const url = new URL(h, site.url).href;
-      if (!metaByUrl.has(url)) { metaByUrl.set(url, listing); urls.push(url); }
-    }
-    perListing.push(urls);
-  }
-  const candidateUrls = [];
-  for (let i = 0; i < Math.max(...perListing.map(l => l.length), 0); i++) {
-    for (const urls of perListing) if (urls[i]) candidateUrls.push(urls[i]);
-  }
-
   const existing = await prisma.products.findMany({
-    where: { product_link: { in: candidateUrls } },
+    where: { supplier_shop_name: site.name, product_link: { not: null } },
     select: { product_link: true },
   });
   const existingSet = new Set(existing.map(e => e.product_link));
-  const newUrls = candidateUrls.filter(u => !existingSet.has(u));
+
+  // A card is worth opening only if it's new and Koton's own stated rate
+  // (or, without a badge, its two prices) clears the markup — the same
+  // resolveDiscountTag check the product page gets again below.
+  let notDiscounted = 0;
+  const cardIsWanted = (c) => {
+    const original = parseTLPrice(c.retailText);
+    const current = parseTLPrice(c.currentText);
+    if (!original || current == null || original <= current) return false;
+    return !!resolveDiscountTag({
+      discountPercentText: c.discountPercentText,
+      markupPercent: site.markup_percent,
+      finalDiscountedPrice: Math.round(current * (1 + site.markup_percent / 100) * 100) / 100,
+      priceOriginal: original,
+    });
+  };
+  // Twice the run's limit spread across the listings is plenty: most wanted
+  // cards import, and the next run picks up where this one stopped.
+  const enoughPerListing = Math.ceil((limit * 2) / KOTON_LISTINGS.length);
+
+  const metaByUrl = new Map();
+  const perListing = [];
+  for (const listing of KOTON_LISTINGS) {
+    let cards = [];
+    try {
+      cards = await collectKotonListingCards(pm, listing.url, {
+        isWanted: (c) => !existingSet.has(new URL(c.href, site.url).href) && cardIsWanted(c),
+        enough: enoughPerListing,
+      });
+    } catch (err) {
+      console.warn(`[siteImport] Koton listing failed, skipping: ${listing.url} — ${err.message}`);
+    }
+    const urls = [];
+    for (const c of cards) {
+      const url = new URL(c.href, site.url).href;
+      if (metaByUrl.has(url) || existingSet.has(url)) continue;
+      metaByUrl.set(url, listing);
+      if (!cardIsWanted(c)) { notDiscounted++; continue; }
+      urls.push(url);
+    }
+    perListing.push(urls);
+  }
+  const newUrls = [];
+  for (let i = 0; i < Math.max(...perListing.map(l => l.length), 0); i++) {
+    for (const urls of perListing) if (urls[i]) newUrls.push(urls[i]);
+  }
 
   const imported = [];
-  let notDiscounted = 0;
 
   const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
   const CONCURRENCY = canParallelize ? IMPORT_CONCURRENCY : 1;
@@ -1732,7 +1789,7 @@ async function Koton(pm, site, opts = {}) {
   await runQueue(newUrls, pms, (workerPm, url) => processOne(workerPm, url));
   for (let i = 1; i < pms.length; i++) await pms[i].close().catch(() => {});
 
-  return { imported, skipped: notDiscounted + (candidateUrls.length - newUrls.length) };
+  return { imported, skipped: notDiscounted };
 }
 
 // Kiko is an Akinon-platform cosmetics-only storefront (same `pz-` custom
