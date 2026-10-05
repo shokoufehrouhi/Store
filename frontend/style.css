@@ -128,6 +128,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
      plain margin-right:auto did here (RTL's "right" is nav-links' side
      facing the logo, not the button cluster). */
   margin-inline-end: auto;
+  /* Room between the logo and "All Products" (the dropdown arrows were
+     removed 2026-10-05, which left the menu bunched against the logo);
+     shrinks on narrower screens so the menu still fits. */
+  margin-inline-start: clamp(12px, 3vw, 44px);
 }
 
 /* آیتم اصلی nav */
