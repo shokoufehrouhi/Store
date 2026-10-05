@@ -29,15 +29,96 @@ const TR_COLOR_TO_ID = {
   'vizon': 13, 'somon': 11, 'gümüş': 7, 'gumus': 7, 'altın': 9, 'altin': 9,
 };
 
-// Turkish keyword (in the product name) -> our subcategories.id, within
-// category_id 1 (Clothing). Falls back to null (no subcategory) if nothing matches.
+// Subcategories added 2026-10-05 so the "All Products" menu covers what
+// the site actually sells (before, ~800 products had no subcategory at
+// all: dresses, shirts, skirts, every shoe, most accessories). Created by
+// backend/scripts/addMenuSubcategories.js; the importers refer to them by
+// key since their ids are whatever the database hands out. Keys are unique
+// per category. Labels: [tr, en, fa].
+const MENU_SUBCATEGORY_DEFS = {
+  1: { // Clothing
+    dresses:          ['Elbise & Tulum', 'Dresses & Jumpsuits', 'پیراهن زنانه و سرهمی'],
+    'shirts-blouses': ['Gömlek & Bluz', 'Shirts & Blouses', 'بلوز، شومیز و پیراهن'],
+    skirts:           ['Etek', 'Skirts', 'دامن'],
+    tops:             ['Body & Atlet', 'Tops & Bodysuits', 'تاپ و بادی'],
+    underwear:        ['İç Giyim & Pijama', 'Underwear & Sleepwear', 'لباس زیر و خواب'],
+    swimwear:         ['Mayo & Bikini', 'Swimwear', 'مایو و بیکینی'],
+    sets:             ['Takım', 'Sets', 'ست لباس'],
+  },
+  2: { // Shoes
+    sneakers:         ['Spor Ayakkabı', 'Sneakers', 'کفش ورزشی و اسنیکر'],
+    boots:            ['Bot & Çizme', 'Boots', 'بوت و چکمه'],
+    flats:            ['Babet & Loafer', 'Flats & Loafers', 'کفش عروسکی و کالج'],
+    heels:            ['Topuklu Ayakkabı', 'Heels', 'کفش پاشنه‌دار'],
+    sandals:          ['Sandalet & Terlik', 'Sandals & Slippers', 'صندل و دمپایی'],
+    'classic-shoes':  ['Klasik Ayakkabı', 'Classic Shoes', 'کفش کلاسیک و رسمی'],
+  },
+  3: { // Accessories (besides the existing "bag", id 13)
+    wallets:          ['Cüzdan & Kartlık', 'Wallets & Cardholders', 'کیف پول و جاکارتی'],
+    jewelry:          ['Takı', 'Jewelry', 'زیورآلات'],
+    'hats-scarves':   ['Şapka, Atkı & Eldiven', 'Hats, Scarves & Gloves', 'کلاه، شال و دستکش'],
+    belts:            ['Kemer', 'Belts', 'کمربند'],
+    hair:             ['Saç Aksesuarı', 'Hair Accessories', 'گیره و اکسسوری مو'],
+    sunglasses:       ['Güneş Gözlüğü', 'Sunglasses', 'عینک آفتابی'],
+  },
+  10: { // Cosmetics
+    sets:             ['Set & Palet', 'Sets & Palettes', 'ست و پالت آرایشی'],
+  },
+};
+
+// "<category id>:<key>" -> subcategories.id, filled by loadSubcategoryIds()
+// (siteSync.js#importSite calls it before every import). Until it's loaded,
+// or before the script above has created a key, that key just resolves to
+// null — the product lands without a subcategory, like before.
+const subcategoryIdByKey = new Map();
+// `planned` (rows not in the database yet) lets addMenuSubcategories.js's
+// dry run preview where products would go.
+async function loadSubcategoryIds(planned = []) {
+  const rows = await prisma.subcategories.findMany({ select: { id: true, key: true, category_id: true } });
+  subcategoryIdByKey.clear();
+  for (const r of [...rows, ...planned]) subcategoryIdByKey.set(`${r.category_id}:${r.key}`, r.id);
+}
+
+// Turkish keyword (in the product name) -> our subcategory, within
+// category_id 1 (Clothing): a numeric id (the original six) or a
+// MENU_SUBCATEGORY_DEFS key. First match wins, so the specific garments
+// come before the broad ones ("Tişört Elbise" is a dress, "Şort Etek" a
+// skirt, "Sweatshirt ve Şort Takımı" a set). Falls back to null.
 const TR_KEYWORD_TO_SUBCATEGORY = [
-  [/tişört|\btshirt|t-shirt/i, 1],
+  [/pijama|gecelik|sabahlık|iç çamaşır|külot|boxer|sütyen|bralet|slip\b/i, 'underwear'],
+  [/mayo|bikini/i, 'swimwear'],
+  [/elbise|tulum|abiye|salopet/i, 'dresses'],
+  [/etek/i, 'skirts'],
+  [/takım|\bset\b|seti\b/i, 'sets'],
+  [/tişört|\btshirt|t-shirt|polo/i, 1],
   [/şort|bermuda/i, 2],
-  [/pantolon|eşofman altı|jogger/i, 3],
+  [/pantolon|eşofman altı|jogger|\bjean/i, 3],
   [/tayt/i, 4],
-  [/sweatshirt|hırka|kazak|triko/i, 5],
-  [/mont|ceket|yelek|kaban|trençkot|yağmurluk|parka|blazer/i, 6],
+  [/sweatshirt|hırka|kazak|triko|polar/i, 5],
+  [/mont|ceket|yelek|kaban|trençkot|yağmurluk|parka|blazer|palto/i, 6],
+  [/gömlek|bluz|tunik|şömiz/i, 'shirts-blouses'],
+  [/\bbody\b|bodysuit|atlet|büstiyer|korse|\btop\b|crop/i, 'tops'],
+];
+
+// category_id 2 (Shoes).
+const TR_KEYWORD_TO_SHOE_SUBCATEGORY = [
+  [/sandalet|terlik|parmak arası|slipper|flip/i, 'sandals'],
+  [/\bbot\b|botu\b|bootie|çizme|postal/i, 'boots'],
+  [/topuklu|stiletto|\bheel/i, 'heels'],
+  [/babet|loafer|makosen|espadril|ballerina/i, 'flats'],
+  [/spor|sneaker|koşu|trainer|basketbol|tenis/i, 'sneakers'],
+  [/klasik|oxford|deri ayakkabı/i, 'classic-shoes'],
+];
+
+// category_id 3 (Accessories).
+const TR_KEYWORD_TO_ACCESSORY_SUBCATEGORY = [
+  [/cüzdan|kartlık/i, 'wallets'],
+  [/çanta|canta|valiz|clutch/i, 13],
+  [/kolye|küpe|bileklik|yüzük|takı|broş|choker|halhal/i, 'jewelry'],
+  [/şapka|bere\b|kasket|atkı|şal\b|eldiven|fular|bandana|boyunluk|kulaklık/i, 'hats-scarves'],
+  [/kemer\b|kemeri\b|kemerler/i, 'belts'],
+  [/toka|saç bandı|taç\b|saç aksesuar/i, 'hair'],
+  [/gözlük/i, 'sunglasses'],
 ];
 
 // Same idea, within category_id 7 (Sports) — the "Fit" listing's own
@@ -68,14 +149,23 @@ const TR_KEYWORD_TO_COSMETIC_SUBCATEGORY = [
   [/vücut|body/i, 47],
   [/fırça|sünger|aparat|cihaz|brush|booster cap/i, 50],
   [/serum|krem|maske|tonik|nemlendirici|temizleyici|peeling|esans|mask|cream|cleanser|essence|toner/i, 45],
+  [/\bset\b|seti\b|setleri|\bkit\b|trio|\bduo\b|palette|palet/i, 'sets'],
 ];
 
 function guessSubcategoryId(nameTr, categoryId = 1) {
   const map = categoryId === 7 ? TR_KEYWORD_TO_SPORT_SUBCATEGORY
     : categoryId === 10 ? TR_KEYWORD_TO_COSMETIC_SUBCATEGORY
-    : TR_KEYWORD_TO_SUBCATEGORY;
-  const hit = map.find(([re]) => re.test(nameTr));
-  return hit ? hit[1] : null;
+    : categoryId === 2 ? TR_KEYWORD_TO_SHOE_SUBCATEGORY
+    : categoryId === 3 ? TR_KEYWORD_TO_ACCESSORY_SUBCATEGORY
+    : categoryId === 1 ? TR_KEYWORD_TO_SUBCATEGORY
+    : []; // e.g. Lifestyle: its importers pick those subcategories themselves
+  for (const [re, target] of map) {
+    if (!re.test(nameTr || '')) continue;
+    if (typeof target === 'number') return target;
+    const id = subcategoryIdByKey.get(`${categoryId}:${target}`);
+    if (id) return id;
+  }
+  return null;
 }
 
 // Every product page's title leads with the color regardless of gender
@@ -1092,11 +1182,9 @@ function routeLcWaikikiCategory(categoryPath) {
   return 1; // Clothing (default — also every plain Kadın/Erkek/Çocuk/Bebek garment)
 }
 
-// Accessories(3) currently only has one real subcategory in production
-// ("bag" / Çantalar, id 13) — anything else under this category is left
-// uncategorized, same null-fallback convention as guessSubcategoryId.
+// Accessories(3): bags, wallets, jewelry, ... — see TR_KEYWORD_TO_ACCESSORY_SUBCATEGORY.
 function guessLcWaikikiAccessorySubcategoryId(nameTr) {
-  return /çanta|canta/i.test(nameTr || '') ? 13 : null;
+  return guessSubcategoryId(nameTr, 3);
 }
 
 // LC Waikiki's own Ev & Yaşam breadcrumb (2nd segment, e.g. "Yatak Odası
@@ -1319,7 +1407,7 @@ async function LCWaikiki(pm, site, opts = {}) {
         : category_id === 3 ? guessLcWaikikiAccessorySubcategoryId(data.name)
         : category_id === LIFESTYLE_CATEGORY_ID ? guessLcWaikikiLifestyleSubcategoryId(data.category)
         : category_id === 10 ? guessSubcategoryId(data.name, 10)
-        : null; // category_id 2 (Shoes) has no subcategories in production yet
+        : guessSubcategoryId(data.name, category_id); // Shoes
 
       const priceOriginal = originalPrice;
       const priceSite = discountedPrice;
@@ -1631,15 +1719,20 @@ async function scrapeKotonProduct(pm, url) {
 // own category sitemap — only Kadın/Erkek/Çocuk/Bebek roots exist), so
 // routing only ever needs to pick between Clothing/Shoes/Accessories/
 // Cosmetics, checked against the full breadcrumb text same as LCWaikiki.
+//
+// The last breadcrumb item is the product's own name, so it's left out:
+// a "Kemerli Pantolon" (belted trousers) or "Metal Aksesuarlı Bluz" was
+// filed under Accessories because of words in its name (25 Koton products
+// on 2026-10-05).
 function routeKotonCategory(breadcrumbNames) {
-  const joined = (breadcrumbNames || []).join(' > ');
+  const joined = (breadcrumbNames || []).slice(0, -1).join(' > ');
   if (/ayakkabı|bot\b|sandalet|terlik/i.test(joined)) return 2; // Shoes
   if (/kozmetik|parfüm/i.test(joined)) return 10; // Cosmetics
   if (/aksesuar|çanta|kemer|cüzdan|küpe|yüzük|takı|şapka|bere/i.test(joined)) return 3; // Accessories
   return 1; // Clothing (default)
 }
 function guessKotonAccessorySubcategoryId(nameTr) {
-  return /çanta|canta/i.test(nameTr || '') ? 13 : null;
+  return guessSubcategoryId(nameTr, 3);
 }
 
 function guessKotonGender(breadcrumbNames, defaultGender) {
@@ -1747,7 +1840,7 @@ async function Koton(pm, site, opts = {}) {
       const subcategory_id = category_id === 1 ? guessSubcategoryId(data.name, 1)
         : category_id === 3 ? guessKotonAccessorySubcategoryId(data.name)
         : category_id === 10 ? guessSubcategoryId(data.name, 10)
-        : null; // category_id 2 (Shoes) has no subcategories in production yet
+        : guessSubcategoryId(data.name, category_id); // Shoes
 
       const translateOrWarn = (text, target) => translateText(text, 'tr', target)
         .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
@@ -2293,11 +2386,10 @@ async function ensureLeftiesPageSetup(page) {
   });
 }
 
-// Accessories(3) currently only has one real subcategory in production
-// ("bag" / Çantalar, id 13), same as every other scraper's own version of
-// this helper.
+// Accessories(3): same shared keyword table as every other scraper's version
+// of this helper.
 function guessLeftiesAccessorySubcategoryId(nameTr) {
-  return /çanta|canta/i.test(nameTr || '') ? 13 : null;
+  return guessSubcategoryId(nameTr, 3);
 }
 
 // User's choice (2026-10-05): every importer works on 2 products at a time.
@@ -2603,7 +2695,7 @@ async function Lefties(pm, site, opts = {}) {
       const subcategory_id = category_id === 1 || category_id === 7 ? guessSubcategoryId(product.name, category_id)
         : category_id === 3 ? guessLeftiesAccessorySubcategoryId(product.name)
         : category_id === LIFESTYLE_CATEGORY_ID ? getLifestyleSubcategoryId(listing.homeSlug)
-        : null; // category_id 2 (Shoes) has no subcategories in production yet
+        : guessSubcategoryId(product.name, category_id); // Shoes
 
       const translateOrWarn = (text, target) => translateText(text, 'tr', target)
         .catch((err) => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
@@ -2926,8 +3018,7 @@ async function Mavi(pm, site, opts = {}) {
       const gender = guessMaviGender(data.gender?.name || search.gender?.name, listing.gender);
       const category_id = routeMaviCategory(mainCategoryName);
       const subcategory_id = category_id === 1 ? guessSubcategoryId(`${mainCategoryName} ${data.name}`, 1)
-        : /çanta/i.test(mainCategoryName) ? 13
-        : null;
+        : guessSubcategoryId(`${data.name} ${mainCategoryName}`, category_id);
 
       // Mavi's description text carries raw inline HTML ("...Tişört.</br>Yenilikçi...").
       const description = (data.fullDescription || data.description || '')
@@ -3864,10 +3955,10 @@ const MANGO_HOME_FAMILY_TO_SLUG = [
 
 function routeMangoCategory(familyLabel, name, catalog) {
   const fam = familyLabel || '';
-  if (/ayakkabı/i.test(fam)) return { category_id: 2, subcategory_id: null };
-  if (/çanta|cüzdan|kalem kutu/i.test(fam)) return { category_id: 3, subcategory_id: /çanta/i.test(fam) ? 13 : null };
+  if (/ayakkabı/i.test(fam)) return { category_id: 2, subcategory_id: guessSubcategoryId(name, 2) };
+  if (/çanta|cüzdan|kalem kutu/i.test(fam)) return { category_id: 3, subcategory_id: guessSubcategoryId(`${name} ${fam}`, 3) };
   if (/aksesuar|bijuteri|takı|kemer|gözlüğ|şapka|bere|atkı|eldiven|kravat|papyon/i.test(fam)) {
-    return { category_id: 3, subcategory_id: null };
+    return { category_id: 3, subcategory_id: guessSubcategoryId(`${name} ${fam}`, 3) };
   }
   if (catalog.home) {
     const hit = MANGO_HOME_FAMILY_TO_SLUG.find(([re]) => re.test(fam));
@@ -4142,6 +4233,8 @@ module.exports = {
   checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock,
   // exported for backend/scripts/mergeArmaLifeColors.js.
   mergeArmaLifeColors,
+  // exported for siteSync.js#importSite and backend/scripts/addMenuSubcategories.js.
+  loadSubcategoryIds, guessSubcategoryId, MENU_SUBCATEGORY_DEFS,
   // exported for backend/scripts/backfillMissingColors.js — reusing the
   // same lookup/create logic the live importers use, rather than
   // duplicating it in the backfill script.

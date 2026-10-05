@@ -203,6 +203,9 @@ async function importSite(site, opts = {}) {
   const importer = importers[site.name];
   if (!importer) throw new Error(`no importer implemented for site "${site.name}"`);
   if (SITE_IMPORT_LIMITS[site.name]) opts = { ...opts, limit: SITE_IMPORT_LIMITS[site.name] };
+  // Subcategories are matched by key (see MENU_SUBCATEGORY_DEFS); refresh
+  // their ids so ones created since the last run are used.
+  await importers.loadSubcategoryIds();
   // browser/createPageManager: see withBrowser's own comment — only Lefties
   // currently uses either, every other importer's opts.limit-only signature
   // just ignores the extra fields.
