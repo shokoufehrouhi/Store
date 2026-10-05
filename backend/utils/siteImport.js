@@ -200,10 +200,16 @@ async function generateProductCode() {
   return 'SHIL' + String(nextNum).padStart(8, '0');
 }
 
+// Anything this small isn't a product photo: confirmed 2026-10-05 on
+// Lefties, whose photo lists include a ~300-byte color swatch that ended up
+// as a product's first (broken) image.
+const MIN_IMAGE_BYTES = 2000;
+
 async function saveImageFromUrl(imageUrl) {
   const res = await fetch(imageUrl);
   if (!res.ok) throw new Error(`image fetch failed ${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.length < MIN_IMAGE_BYTES) throw new Error(`image too small (${buf.length} bytes), not a product photo`);
   const ext = path.extname(new URL(imageUrl).pathname) || '.jpg';
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
   const filePath = path.join(UPLOAD_DIR, filename);
@@ -2375,9 +2381,17 @@ function leftiesReadProductsInPage({ api, stockApi, lang, batch, categoryId, ids
           addStock(await get(`${stockApi}/product/${b.id}/stock?languageId=${lang}&appId=1`).catch(() => ({})));
         }
         const imagesByColor = {};
+        // Some (older) products give `url` as a relative path — only
+        // extraInfo.deliveryUrl is always absolute. clazz 2 is the tiny color
+        // swatch ("-R", a few hundred bytes), not a product photo.
         for (const x of d.xmedia || []) {
-          imagesByColor[x.colorCode] = (x.xmediaItems || []).flatMap(it => it.medias || [])
-            .map(m => m.url || m.extraInfo?.url).filter(u => u && /\.jpe?g/i.test(u));
+          imagesByColor[x.colorCode] = [...new Set((x.xmediaItems || []).flatMap(it => it.medias || [])
+            .filter(m => m.clazz !== 2)
+            .map(m => {
+              const u = m.extraInfo?.deliveryUrl || m.url || m.extraInfo?.url || '';
+              return (/^https?:/.test(u) ? u : 'https://static.lefties.com/' + u.replace(/^\//, '')).split('?')[0];
+            })
+            .filter(u => /\.jpe?g$/i.test(u)))];
         }
         out.push({
           id: String(b.id),
@@ -2474,6 +2488,14 @@ async function writeLeftiesVariants(productId, colors) {
     prisma.product_inventory.createMany({ data: inventory }),
   ]);
   return { stock, changed: true };
+}
+
+// The first color's photos, then the first two of every other color, so
+// each color can be seen in the gallery (same as ArmaLife/Mango).
+function leftiesGalleryPhotos(colors) {
+  const photos = [...(colors[0]?.images || []).slice(0, 8)];
+  for (const c of colors.slice(1)) photos.push(...c.images.slice(0, 2));
+  return [...new Set(photos)].slice(0, LEFTIES_MAX_GALLERY_IMAGES);
 }
 
 // Lefties shows its own rate as the cut over the old price ("-28%"), which
@@ -2577,10 +2599,8 @@ async function Lefties(pm, site, opts = {}) {
       const nameTr = product.name.slice(0, 120);
 
       const colors = product.colors.filter((c) => pricing.colorIds.includes(c.id));
-      const photos = [...colors[0].images.slice(0, 8)];
-      for (const c of colors.slice(1)) photos.push(...c.images.slice(0, 2));
       const mediaUrls = [];
-      for (const imgUrl of [...new Set(photos)].slice(0, LEFTIES_MAX_GALLERY_IMAGES)) {
+      for (const imgUrl of leftiesGalleryPhotos(colors)) {
         try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
       }
 
@@ -2665,6 +2685,18 @@ async function checkLeftiesStock(site, products, pm) {
         }
         const colors = item.colors.filter(c => pricing.colorIds.includes(c.id));
         const { stock, changed } = await writeLeftiesVariants(p.id, colors);
+        // Products imported while photo URLs were still misread (relative
+        // paths on older products, 2026-10-05) landed with no photos.
+        let photosAdded = false;
+        if (!(await prisma.product_media.count({ where: { product_id: p.id } }))) {
+          let sort = 0;
+          for (const imgUrl of leftiesGalleryPhotos(colors)) {
+            try {
+              await prisma.product_media.create({ data: { product_id: p.id, type: 'image', url: await saveImageFromUrl(imgUrl), sort_order: sort++ } });
+              photosAdded = true;
+            } catch (e) { /* skip broken image */ }
+          }
+        }
         const keepAdminTag = ['bestseller', 'new'].includes(p.tag) ? p.tag : null;
         const tag = stock === 0 ? 'sold_out' : (pricing.tag || keepAdminTag);
         const update = {};
@@ -2676,12 +2708,12 @@ async function checkLeftiesStock(site, products, pm) {
           update.tag = tag;
           update.sold_out_at = tag === 'sold_out' ? new Date() : null;
         }
-        if (Object.keys(update).length || changed) {
+        if (Object.keys(update).length || changed || photosAdded) {
           await prisma.products.update({ where: { id: p.id }, data: { ...update, is_dirty: true, updated_at: new Date() } });
         }
         results.push({
           id: p.id, name: p.name_tr,
-          status: tag === 'sold_out' ? 'sold_out' : `ok (stock=${stock})${Object.keys(update).length || changed ? ', updated' : ''}`,
+          status: tag === 'sold_out' ? 'sold_out' : `ok (stock=${stock})${Object.keys(update).length || changed || photosAdded ? ', updated' : ''}`,
         });
       } catch (err) {
         results.push({ id: p.id, name: p.name_tr, status: `error: ${err.message}` });
