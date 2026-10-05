@@ -1022,7 +1022,11 @@ function buildMegaMenu(categories) {
 
   var isProfile = !!window.IS_PROFILE_PAGE;
   var html = '';
-  categories.forEach(function(cat) {
+  // Lifestyle goes last, same as the top menu (... Cosmetics, Lifestyle);
+  // every other category keeps the order the API returns.
+  var ordered = categories.filter(function(c) { return c.key !== 'Lifestyle'; })
+    .concat(categories.filter(function(c) { return c.key === 'Lifestyle'; }));
+  ordered.forEach(function(cat) {
     var catHref = isProfile
       ? ('/?_cat=' + encodeURIComponent(cat.key))
       : '#products';

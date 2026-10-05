@@ -983,7 +983,10 @@ function buildPdNav(cats) {
   var mega = document.getElementById('nav-mega-all');
   if (mega) {
     var mh = '';
-    cats.forEach(function(cat) {
+    // Lifestyle last, same as main.js's buildMegaMenu and the top menu.
+    cats.filter(function(c) { return c.key !== 'Lifestyle'; })
+      .concat(cats.filter(function(c) { return c.key === 'Lifestyle'; }))
+      .forEach(function(cat) {
       mh += '<div class="mega-col">';
       mh += '<a class="mega-cat-title" href="/#cat=' + enc(cat.key) + '">' + lbl(cat) + '</a>';
       (cat.subcategories || []).forEach(function(sub) {
