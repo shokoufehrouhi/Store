@@ -139,6 +139,8 @@ async function checkSiteStock(site) {
   if (site.name === 'ArmaLife') return importers.checkArmaLifeStock(site, products);
   // And Mango — see checkMangoStock in siteImport.js.
   if (site.name === 'Mango') return importers.checkMangoStock(site, products);
+  // Lefties' API only answers from inside one of its pages, hence the browser.
+  if (site.name === 'Lefties') return withBrowser((pm) => importers.checkLeftiesStock(site, products, pm));
 
   await withBrowser(async (pm) => {
     for (const p of products) {

@@ -2132,124 +2132,60 @@ async function KikoMilano(pm, site, opts = {}) {
 // expected to import 0 until Lefties' next seasonal sale, not a bug).
 //
 // Unlike every other scraper here, the candidate LISTING urls aren't
-// hardcoded IDs: Lefties' own category tree is unusually fragmented for
-// this codebase ("Clothing" has no aggregate "See All" the way
-// Footwear/Accessories do — each of its ~20-per-gender leaf types is its
-// own separate crawlable page), so a fixed list of numeric -c<id> URLs
-// would need hand-updating whenever Lefties adds/renames a category.
-// Lefties' own robots.txt links a gzipped category sitemap instead —
-// fetched and parsed fresh every import run (DecompressionStream is
-// standard in any Chromium recent enough to run this codebase's Puppeteer)
-// — so the *slugs* below stay stable even as the numeric ids behind them
-// change. The slug allowlists themselves ARE a deliberately curated
-// subset, not full coverage, though: a first real run against literally
-// every leaf (~25/gender clothing types, all 5 Kids subgenders, all of
-// Home — 174 listings total) was confirmed live on 2026-09-24 to still be
-// running after over an hour with zero results (expected — see above), tying
-// up the VPS's one Puppeteer browser far longer than this codebase's other
-// importers (7-18 listings each) ever do. These lists trade some category
-// coverage for staying in that same practical range.
+// hardcoded IDs: Lefties' own gzipped category sitemap (linked from its
+// robots.txt) is fetched and parsed fresh every run, so the numeric -c<id>s
+// never need hand-updating as Lefties adds/renames categories. Since the
+// switch to its catalog API (see readLeftiesCategory) reading a listing
+// takes well under a second, so EVERY category is used (~540 on
+// 2026-10-05: all of Woman/Man/Kids incl. babies, Home, Sportswear) —
+// before, page scrolling capped this to a curated ~38 to keep runs under a
+// few hours. Pure marketing collections (new-in, halloween, ...) are
+// skipped: they only re-list products that already have a real category.
+// Deeper (more specific) categories come first so a product shared with
+// its parent is filed under e.g. "kids/girl/footwear" rather than "kids".
+const LEFTIES_EXCLUDE = /\/(new-in|halloween|seasonal-basics|back-to-office|ready-22|collabs|promotion|total-look|bestsellers)(\/|-c)/;
+const LEFTIES_HOME_SLUGS = [
+  [/\/(tableware|glassware|cutlery|table-linen)/, 'sofra'],
+  [/\/dining-room|\/kitchen/, 'mutfak'],
+  [/\/bathroom/, 'banyo'],
+  [/\/bedroom/, 'yatak-odasi'],
+  [/\/fragrances/, 'kozmetik'],
+  [/\/decoration/, 'dekorasyon'],
+];
+
+function routeLeftiesListing(path) {
+  const top = path.split('/')[0];
+  const gender = { woman: 'female', man: 'male', kids: 'kids' }[top] || 'unisex';
+  const p = '/' + path;
+  if (top === 'home') {
+    const hit = LEFTIES_HOME_SLUGS.find(([re]) => re.test(p));
+    return { gender, categoryId: LIFESTYLE_CATEGORY_ID, homeSlug: hit ? hit[1] : 'ev-yasam' };
+  }
+  if (/\/footwear(\/|$)/.test(p)) return { gender, categoryId: 2 };
+  if (/\/(accessories|bags|bags-%7c-backpacks|maternity-bags)(\/|$)/i.test(p)) return { gender, categoryId: 3 };
+  if (/\/sportswear(\/|$)/.test(p)) return { gender, categoryId: 7 };
+  return { gender, categoryId: 1 };
+}
+
 async function fetchLeftiesListingMeta(pm) {
   const page = await pm.goto('https://www.lefties.com/tr/tr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
   await ensureLeftiesPageSetup(page);
-  const listings = await page.evaluate(async (lifestyleCategoryId) => {
+  const urls = await page.evaluate(async () => {
     const res = await fetch('https://www.lefties.com/9/info/sitemaps/sitemap-home-categories-lf-tr-0.xml.gz');
     const buf = await res.arrayBuffer();
     const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'));
     const text = await new Response(stream).text();
-    const locs = [...text.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => m[1]);
-    // The sitemap lists every locale/country pair together; /tr/en/ paths
-    // are plain ASCII (unlike the native-Turkish-slug ones, which are
-    // percent-encoded Turkish words) and resolve to the exact same numbered
-    // category once "en" is swapped for "tr" below — Inditex's own routing
-    // keys off the trailing -c<id> number, not the slug text in front of it
-    // (confirmed live: /tr/tr/woman/clothing/waistcoat-c1030401748.html
-    // redirects straight to the real Turkish-slug URL for that same id).
-    const en = locs.filter((u) => u.includes('/tr/en/') && /-c\d+\.html$/.test(u));
-    const rel = (u) => u.replace('https://www.lefties.com/tr/en/', '');
-
-    // Pure marketing collections that only ever re-surface products already
-    // reachable from their own real category page — skipping them just
-    // avoids redundant listing-page visits; candidate dedup would otherwise
-    // handle the overlap fine anyway.
-    const EXCLUDE = /\/(new-in|bestsellers|total-look|collabs|promotion)-c\d+\.html$/;
-
-    function immediateChildrenOf(prefixParts, folder, slugAllowlist) {
-      return en.filter((u) => {
-        const parts = rel(u).replace(/\.html$/, '').split('/');
-        if (parts.length !== prefixParts.length + 2
-          || !prefixParts.every((p, i) => parts[i] === p)
-          || parts[prefixParts.length] !== folder) return false;
-        if (!slugAllowlist) return true;
-        const leaf = parts[parts.length - 1]; // e.g. "dresses-c1030267514"
-        return slugAllowlist.some((s) => leaf.startsWith(s + '-c'));
-      });
-    }
-    function findRoot(prefixParts, folder) {
-      const prefix = prefixParts.join('/') + '/';
-      return en.find((u) => {
-        const p = rel(u);
-        if (!p.startsWith(prefix)) return false;
-        const remainder = p.slice(prefix.length);
-        return remainder.startsWith(folder + '-c') && !remainder.includes('/');
-      }) || null;
-    }
-    function findViewAll(prefixParts, folder) {
-      return en.filter((u) => rel(u).startsWith(prefixParts.join('/') + '/' + folder + '/'))
-        .find((u) => /view-all-c\d+\.html$/.test(u)) || null;
-    }
-
-    const listings = [];
-    const add = (url, gender, categoryId, homeSlug) => {
-      if (!url || EXCLUDE.test(url)) return;
-      listings.push({ url: url.replace('/tr/en/', '/tr/tr/'), gender, categoryId, homeSlug: homeSlug || null });
-    };
-
-    // Woman/Man: each Clothing leaf (dresses, jeans, t-shirts, ...) is
-    // already the full "See All" state for that garment type (confirmed
-    // live — its own filter chips, e.g. "Midi | Long", are just narrower
-    // views of the same page, not additional coverage). A full run against
-    // EVERY leaf (~25/gender) plus every Kids subgender plus all of Home
-    // was confirmed live on 2026-09-24 to take multiple hours end to end —
-    // this codebase's other importers all stay in the 7-18 listing range,
-    // so CLOTHING_SLUGS below caps it to the highest-volume garment types
-    // per gender instead of full enumeration, closer to that same scale.
-    // Footwear, Accessories, Bags and Underwear|Pyjamas each have exactly
-    // one combined root/"view all" page regardless (Bags' own aggregate
-    // sits one level deeper than the others — confirmed live on both
-    // genders), so those stay full-coverage at no extra listing-count cost.
-    const CLOTHING_SLUGS = ['dresses', 't-shirts', 'shirts', 'shirts-%7C-blouses', 'trousers', 'jeans', 'knitwear', 'sweatshirts', 'jackets-%7C-coats', 'skirts', 'shorts', 'sweaters-%7C-cardigans'];
-    for (const g of ['woman', 'man']) {
-      const gender = g === 'woman' ? 'female' : 'male';
-      immediateChildrenOf([g], 'clothing', CLOTHING_SLUGS).forEach((u) => add(u, gender, 1));
-      add(findRoot([g], 'footwear'), gender, 2);
-      add(findRoot([g], 'accessories') || findViewAll([g], 'accessories'), gender, 3);
-      add(findRoot([g], 'bags') || findRoot([g], 'bags-%7C-backpacks') || findViewAll([g], 'bags') || findViewAll([g], 'bags-%7C-backpacks'), gender, 3);
-      add(findRoot([g], 'underwear-%7C-pyjamas'), gender, 1);
-    }
-    // Kids: same per-subgender leaf enumeration, but capped to the two
-    // highest-volume segments (boy/girl) and a smaller clothing slug set —
-    // baby-boy/baby-girl/newborn and Kids' own footwear/accessories/bags
-    // are skipped entirely for run-time's sake, same tradeoff as above.
-    const KIDS_CLOTHING_SLUGS = ['t-shirts', 'trousers', 'sweatshirts', 'jackets', 'dresses', 'shirts'];
-    for (const sg of ['boy', 'girl']) {
-      immediateChildrenOf(['kids', sg], 'clothing', KIDS_CLOTHING_SLUGS).forEach((u) => add(u, 'kids', 1));
-    }
-    // Home: no per-area aggregate exists at all (confirmed live:
-    // "Decoration" and "Dining Room|Kitchen" don't even have their own root
-    // page, only leaf sub-pages), and it's a small enough department that
-    // just its two real depth-2 leaves (Bedroom, Fragrances) are kept —
-    // routed to the closest existing LIFESTYLE_SUBCATEGORY_DEFS slug (same
-    // infrastructure Zara Home/MadameCoco already share).
-    const HOME_SLUG = { bedroom: 'yatak-odasi', fragrances: 'kozmetik' };
-    en.filter((u) => rel(u).split('/').length === 2 && rel(u).startsWith('home/')).forEach((u) => {
-      const seg2 = rel(u).split('/')[1].replace(/-c\d+\.html$/, '');
-      if (!HOME_SLUG[seg2]) return;
-      add(u, 'unisex', lifestyleCategoryId, HOME_SLUG[seg2]);
-    });
-
-    return listings;
-  }, LIFESTYLE_CATEGORY_ID);
+    // The sitemap lists every locale together; /tr/en/ paths are plain
+    // ASCII and resolve to the same numbered category as the Turkish ones
+    // (Inditex routes by the trailing -c<id>, not the slug).
+    return [...text.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => m[1])
+      .filter((u) => u.includes('/tr/en/') && /-c\d+\.html$/.test(u));
+  });
+  const listings = urls
+    .map((u) => ({ u, path: u.replace('https://www.lefties.com/tr/en/', '').replace(/-c\d+\.html$/, '') }))
+    .filter(({ u, path }) => path.split('/').length >= 2 && !LEFTIES_EXCLUDE.test(u))
+    .sort((a, b) => b.path.split('/').length - a.path.split('/').length)
+    .map(({ u, path }) => ({ url: u.replace('/tr/en/', '/tr/tr/'), homeSlug: null, ...routeLeftiesListing(path) }));
   return { page, listings };
 }
 
@@ -2347,30 +2283,40 @@ const LEFTIES_BATCH = 50;
 const LEFTIES_STOCK_PER_SIZE = 10;
 const LEFTIES_MAX_GALLERY_IMAGES = 14;
 
-// Reads one listing (category) in full, inside the page. Returns plain
-// objects trimmed to what the import needs. A bundle product carries its
-// real details in bundleProductSummaries[0], whose id is the one product
-// pages and our stored product_link use.
-async function readLeftiesCategory(page, categoryId) {
-  return page.evaluate(async ({ api, stockApi, lang, batch, categoryId }) => {
-    const get = async (url) => {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`Lefties API ${res.status} for category ${categoryId}`);
-      return res.json();
+// Reads Lefties products inside the page (Akamai blocks the API outside
+// it) and returns plain objects trimmed to what the import needs. A bundle
+// product carries its real details in bundleProductSummaries[0], whose id
+// is the one product pages and our stored product_link use. Stock comes
+// from the stock endpoint, not the size's own isBuyable (confirmed
+// 2026-10-05: true even for sold-out sizes). `stockScope` is either a
+// category id (one call covers every product in it) or null to ask per
+// product.
+function leftiesReadProductsInPage({ api, stockApi, lang, batch, categoryId, ids, stockScope }) {
+  const get = async (url) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Lefties API ${res.status} (category ${categoryId})`);
+    return res.json();
+  };
+  return (async () => {
+    const availability = new Map(); // sku -> 'in_stock' | 'out_of_stock' | ...
+    const addStock = (data) => {
+      for (const s of data.stocks || []) for (const sku of s.stocks || []) availability.set(String(sku.id), sku.availability);
     };
-    const list = await get(`${api}/category/${categoryId}/product?showProducts=false&languageId=${lang}&appId=1`);
-    const ids = list.productIds || [];
-    if (!ids.length) return [];
-    const stock = await get(`${stockApi}/category/${categoryId}/stock?withSubCategories=false&languageId=${lang}&appId=1`).catch(() => ({ stocks: [] }));
-    const available = new Set();
-    for (const s of stock.stocks || []) for (const sku of s.stocks || []) if (sku.availability === 'in_stock') available.add(String(sku.id));
-
+    if (stockScope) {
+      addStock(await get(`${stockApi}/category/${stockScope}/stock?withSubCategories=false&languageId=${lang}&appId=1`).catch(() => ({})));
+    }
     const out = [];
     for (let i = 0; i < ids.length; i += batch) {
       const data = await get(`${api}/productsArray?productIds=${ids.slice(i, i + batch).join('%2C')}&languageId=${lang}&categoryId=${categoryId}&appId=1`);
       for (const p of data.products || []) {
         const b = p.bundleProductSummaries?.[0] || p;
         const d = b.detail || {};
+        const skus = (d.colors || []).flatMap(c => (c.sizes || []).map(s => String(s.sku)));
+        // Not covered by the category's stock list (or none was read):
+        // ask for this one product's stock instead.
+        if (skus.some(sku => !availability.has(sku))) {
+          addStock(await get(`${stockApi}/product/${b.id}/stock?languageId=${lang}&appId=1`).catch(() => ({})));
+        }
         const imagesByColor = {};
         for (const x of d.xmedia || []) {
           imagesByColor[x.colorCode] = (x.xmediaItems || []).flatMap(it => it.medias || [])
@@ -2378,7 +2324,9 @@ async function readLeftiesCategory(page, categoryId) {
         }
         out.push({
           id: String(b.id),
+          topId: String(p.id),
           name: p.name || b.name,
+          family: [b.familyName, b.subFamilyName, p.familyName].filter(Boolean).join(' '),
           slug: String(b.productUrl || p.productUrl || '').replace(/-l\d+$/, ''),
           description: String(d.longDescription || d.description || '').trim(),
           colors: (d.colors || []).map(c => ({
@@ -2389,14 +2337,86 @@ async function readLeftiesCategory(page, categoryId) {
               name: s.name,
               price: Number(s.price) / 100,
               oldPrice: s.oldPrice ? Number(s.oldPrice) / 100 : null,
-              inStock: available.size ? available.has(String(s.sku)) : !!s.isBuyable,
+              inStock: availability.get(String(s.sku)) === 'in_stock',
             })),
           })),
         });
       }
     }
     return out;
-  }, { api: LEFTIES_API, stockApi: LEFTIES_STOCK_API, lang: LEFTIES_LANGUAGE_ID, batch: LEFTIES_BATCH, categoryId });
+  })();
+}
+
+const leftiesApiArgs = () => ({ api: LEFTIES_API, stockApi: LEFTIES_STOCK_API, lang: LEFTIES_LANGUAGE_ID, batch: LEFTIES_BATCH });
+
+// One listing (category). Product ids already read from an earlier listing
+// this run, or already imported, are remembered inside the page itself
+// (window.__leftiesSkip, seeded once per run) and never re-read — most
+// products sit in several categories (parent, child, "view all").
+async function readLeftiesCategory(page, categoryId) {
+  const args = { ...leftiesApiArgs(), categoryId };
+  const ids = await page.evaluate(async ({ api, lang, categoryId }) => {
+    const res = await fetch(`${api}/category/${categoryId}/product?showProducts=false&languageId=${lang}&appId=1`);
+    if (!res.ok) throw new Error(`Lefties API ${res.status} (category ${categoryId})`);
+    const list = await res.json();
+    const skip = window.__leftiesSkip || (window.__leftiesSkip = new Set());
+    const fresh = (list.productIds || []).map(String).filter(id => !skip.has(id));
+    fresh.forEach(id => skip.add(id));
+    return fresh;
+  }, args);
+  if (!ids.length) return [];
+  const products = await page.evaluate(leftiesReadProductsInPage, { ...args, ids, stockScope: categoryId });
+  // Bundles list under a top-level id but are stored by their inner id.
+  await page.evaluate((more) => more.forEach(id => window.__leftiesSkip.add(id)), products.flatMap(p => [p.id, p.topId]));
+  return products;
+}
+
+// Specific products (stock check), grouped by the category in their link.
+async function readLeftiesProducts(page, categoryId, ids) {
+  return page.evaluate(leftiesReadProductsInPage, { ...leftiesApiArgs(), categoryId, ids, stockScope: null });
+}
+
+// Rebuilds a Lefties product's colors, sizes and per color x size stock for
+// the given colors (same approach as writeArmaLifeVariants: nothing
+// references these rows by id), only when something changed.
+async function writeLeftiesVariants(productId, colors) {
+  const inventory = [];
+  const sizeOrder = [];
+  const colorRows = new Map();
+  for (const c of colors) {
+    const colorId = await getOrCreateColorId(c.name);
+    for (const s of c.sizes) {
+      const label = String(s.name || '').trim().slice(0, 10);
+      if (!label) continue;
+      if (!sizeOrder.includes(label)) sizeOrder.push(label);
+      const quantity = s.inStock ? LEFTIES_STOCK_PER_SIZE : 0;
+      const same = inventory.find((i) => i.color_id === colorId && i.size_label === label);
+      if (same) { same.quantity = Math.max(same.quantity, quantity); continue; }
+      inventory.push({ product_id: productId, color_id: colorId, size_label: label, quantity });
+    }
+    if (colorId != null) {
+      const inStock = c.sizes.some((s) => s.inStock);
+      colorRows.set(colorId, { product_id: productId, color_id: colorId, is_available: inStock || !!colorRows.get(colorId)?.is_available });
+    }
+  }
+  const stock = inventory.reduce((sum, i) => sum + i.quantity, 0);
+  const sig = (rows) => rows.map((r) => `${r.color_id}|${r.size_label}|${r.quantity}`).sort().join(',');
+  const current = await prisma.product_inventory.findMany({ where: { product_id: productId } });
+  if (sig(current) === sig(inventory)) return { stock, changed: false };
+  await prisma.$transaction([
+    prisma.product_inventory.deleteMany({ where: { product_id: productId } }),
+    prisma.product_colors.deleteMany({ where: { product_id: productId } }),
+    prisma.product_sizes.deleteMany({ where: { product_id: productId } }),
+    prisma.product_colors.createMany({ data: [...colorRows.values()] }),
+    prisma.product_sizes.createMany({
+      data: sizeOrder.map((label) => ({
+        product_id: productId, size_label: label,
+        is_available: inventory.some((i) => i.size_label === label && i.quantity > 0),
+      })),
+    }),
+    prisma.product_inventory.createMany({ data: inventory }),
+  ]);
+  return { stock, changed: true };
 }
 
 // Lefties shows its own rate as the cut over the old price ("-28%"), which
@@ -2440,6 +2460,13 @@ async function Lefties(pm, site, opts = {}) {
   }
   const { page, listings } = meta;
 
+  const existingLinks = await prisma.products.findMany({
+    where: { supplier_shop_name: site.name, product_link: { not: null } },
+    select: { product_link: true },
+  });
+  const existingIds = new Set(existingLinks.map((e) => leftiesProductId(e.product_link)));
+  await page.evaluate((ids) => { window.__leftiesSkip = new Set(ids); }, [...existingIds]);
+
   // Each product once, under the first listing that has it — the same
   // product shows up in several listings (see leftiesProductId).
   const products = new Map(); // id -> { product, listing, categoryId }
@@ -2456,12 +2483,7 @@ async function Lefties(pm, site, opts = {}) {
     }
   }
 
-  const existingLinks = await prisma.products.findMany({
-    where: { supplier_shop_name: site.name, product_link: { not: null } },
-    select: { product_link: true },
-  });
-  const existingIds = new Set(existingLinks.map((e) => leftiesProductId(e.product_link)));
-  const fresh = [...products.values()].filter(({ product }) => !existingIds.has(product.id));
+  const fresh = [...products.values()].filter(({ product }) => !existingIds.has(product.id) && !existingIds.has(product.topId));
   const candidates = fresh
     .map((entry) => ({ ...entry, pricing: leftiesPricing(entry.product, site.markup_percent) }))
     .filter((entry) => entry.pricing);
@@ -2473,8 +2495,16 @@ async function Lefties(pm, site, opts = {}) {
     if (imported.filter((p) => !p.error).length >= limit) return void (stopped = true);
     const url = `https://www.lefties.com/tr/${product.slug}-c${categoryId}p${product.id}.html`;
     try {
-      const category_id = listing.categoryId;
-      const subcategory_id = category_id === 1 ? guessSubcategoryId(product.name, 1)
+      // A listing's path alone misfiles some products — kids' sneakers live
+      // under character collections like "Hello Kitty", not "footwear" — so
+      // Lefties' own product family (e.g. "FLATSHOES") wins when it says
+      // shoes or bags (e.g. "TRAINERS", "FLATSHOES"; it's sometimes blank,
+      // so the Turkish name is checked too).
+      const isShoe = /SHOE|TRAINER|SNEAKER|SANDAL|BOOT|FOOTWEAR|SLIPPER|BALLERINA|ESPADRILLE|CLOG|MOCCASIN|LOAFER|FLIP/i.test(product.family)
+        || /ayakkabı|sneaker|\bbot\b|çizme|sandalet|terlik|babet|patik/i.test(product.name);
+      const isBag = /BAG|BACKPACK|WALLET|PURSE/i.test(product.family) || /çanta|cüzdan/i.test(product.name);
+      const category_id = isShoe ? 2 : isBag ? 3 : listing.categoryId;
+      const subcategory_id = category_id === 1 || category_id === 7 ? guessSubcategoryId(product.name, category_id)
         : category_id === 3 ? guessLeftiesAccessorySubcategoryId(product.name)
         : category_id === LIFESTYLE_CATEGORY_ID ? getLifestyleSubcategoryId(listing.homeSlug)
         : null; // category_id 2 (Shoes) has no subcategories in production yet
@@ -2516,37 +2546,8 @@ async function Lefties(pm, site, opts = {}) {
         },
       });
 
-      // Per color x size stock, like ArmaLife/Mango.
-      const inventory = [];
-      const sizeOrder = [];
-      const colorRows = new Map();
-      for (const c of colors) {
-        const colorId = await getOrCreateColorId(c.name);
-        for (const s of c.sizes) {
-          const label = String(s.name || '').trim().slice(0, 10);
-          if (!label) continue;
-          if (!sizeOrder.includes(label)) sizeOrder.push(label);
-          const quantity = s.inStock ? LEFTIES_STOCK_PER_SIZE : 0;
-          const same = inventory.find((i) => i.color_id === colorId && i.size_label === label);
-          if (same) { same.quantity = Math.max(same.quantity, quantity); continue; }
-          inventory.push({ product_id: created.id, color_id: colorId, size_label: label, quantity });
-        }
-        if (colorId != null) {
-          const inStock = c.sizes.some((s) => s.inStock);
-          colorRows.set(colorId, { product_id: created.id, color_id: colorId, is_available: inStock || !!colorRows.get(colorId)?.is_available });
-        }
-      }
-      await prisma.$transaction([
-        prisma.product_colors.createMany({ data: [...colorRows.values()] }),
-        prisma.product_sizes.createMany({
-          data: sizeOrder.map((label) => ({
-            product_id: created.id, size_label: label,
-            is_available: inventory.some((i) => i.size_label === label && i.quantity > 0),
-          })),
-        }),
-        prisma.product_inventory.createMany({ data: inventory }),
-        prisma.products.update({ where: { id: created.id }, data: { stock: inventory.reduce((sum, i) => sum + i.quantity, 0) } }),
-      ]);
+      const { stock } = await writeLeftiesVariants(created.id, colors);
+      await prisma.products.update({ where: { id: created.id }, data: { stock } });
 
       imported.push({ id: created.id, name: product.name });
     } catch (err) {
@@ -2555,6 +2556,82 @@ async function Lefties(pm, site, opts = {}) {
   });
 
   return { imported, skipped: (products.size - fresh.length) + (fresh.length - candidates.length) };
+}
+
+// Lefties' stock check (called from siteSync.js#checkSiteStock, with a
+// browser page since the API only answers from inside one): re-reads each
+// imported product's prices, colors and per-size stock. Same rule as
+// Mango's: a product whose discount ended, no longer clears the markup, or
+// sold out in every qualifying color is taken off the site — selling it
+// at the old discounted price would be selling below Lefties' price.
+// Otherwise it's re-priced and its colors/sizes/stock rewritten (products
+// imported before colors were grouped pick up their other discounted
+// colors here).
+async function checkLeftiesStock(site, products, pm) {
+  const { syncSubcategoryActiveState } = require('./subcategorySync');
+  const { page } = await fetchLeftiesListingMeta(pm);
+
+  const byCategory = new Map();
+  for (const p of products) {
+    const categoryId = p.product_link?.match(/-c(\d+)p\d+\.html/)?.[1] || '0';
+    if (!byCategory.has(categoryId)) byCategory.set(categoryId, []);
+    byCategory.get(categoryId).push(p);
+  }
+
+  const results = [];
+  for (const [categoryId, group] of byCategory) {
+    let found = new Map();
+    try {
+      for (let i = 0; i < group.length; i += LEFTIES_BATCH) {
+        const ids = group.slice(i, i + LEFTIES_BATCH).map(p => leftiesProductId(p.product_link));
+        for (const item of await readLeftiesProducts(page, categoryId, ids)) {
+          found.set(item.id, item);
+          found.set(item.topId, item);
+        }
+      }
+    } catch (err) {
+      for (const p of group) results.push({ id: p.id, name: p.name_tr, status: `error: ${err.message}` });
+      continue;
+    }
+    for (const p of group) {
+      try {
+        const item = found.get(leftiesProductId(p.product_link));
+        const pricing = item ? leftiesPricing(item, site.markup_percent) : null;
+        if (!pricing) {
+          await prisma.products.update({
+            where: { id: p.id },
+            data: { is_active: false, is_live: false, is_dirty: false, updated_at: new Date() },
+          });
+          if (p.subcategory_id) await syncSubcategoryActiveState(p.subcategory_id);
+          results.push({ id: p.id, name: p.name_tr, status: 'deactivated (discount ended, sold out or gone)' });
+          continue;
+        }
+        const colors = item.colors.filter(c => pricing.colorIds.includes(c.id));
+        const { stock, changed } = await writeLeftiesVariants(p.id, colors);
+        const keepAdminTag = ['bestseller', 'new'].includes(p.tag) ? p.tag : null;
+        const tag = stock === 0 ? 'sold_out' : (pricing.tag || keepAdminTag);
+        const update = {};
+        if (Number(p.price) !== pricing.price) update.price = pricing.price;
+        if ((p.discounted_price == null ? null : Number(p.discounted_price)) !== pricing.discounted_price) update.discounted_price = pricing.discounted_price;
+        if (Number(p.cost_price) !== pricing.cost_price) update.cost_price = pricing.cost_price;
+        if (p.stock !== stock) update.stock = stock;
+        if (p.tag !== tag) {
+          update.tag = tag;
+          update.sold_out_at = tag === 'sold_out' ? new Date() : null;
+        }
+        if (Object.keys(update).length || changed) {
+          await prisma.products.update({ where: { id: p.id }, data: { ...update, is_dirty: true, updated_at: new Date() } });
+        }
+        results.push({
+          id: p.id, name: p.name_tr,
+          status: tag === 'sold_out' ? 'sold_out' : `ok (stock=${stock})${Object.keys(update).length || changed ? ', updated' : ''}`,
+        });
+      } catch (err) {
+        results.push({ id: p.id, name: p.name_tr, status: `error: ${err.message}` });
+      }
+    }
+  }
+  return results;
 }
 
 // Mavi is an SAP Commerce (Spartacus/Angular) storefront behind a strict
@@ -3954,9 +4031,9 @@ async function checkMangoStock(site, products) {
 
 module.exports = {
   Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Mavi, MClub, ArmaLife, Mango,
-  // exported for siteSync.js#checkSiteStock, which hands mClub's, ArmaLife's
-  // and Mango's stock checks off to their own API-based readers.
-  checkMClubStock, checkArmaLifeStock, checkMangoStock,
+  // exported for siteSync.js#checkSiteStock, which hands mClub's, ArmaLife's,
+  // Mango's and Lefties' stock checks off to their own API-based readers.
+  checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock,
   // exported for backend/scripts/mergeArmaLifeColors.js.
   mergeArmaLifeColors,
   // exported for backend/scripts/backfillMissingColors.js — reusing the
