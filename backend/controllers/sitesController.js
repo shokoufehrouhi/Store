@@ -93,7 +93,7 @@ async function getSyncSettings(req, res, next) {
 // than blanket `|| null`) keeps the other card's last-saved value intact.
 async function updateSyncSettings(req, res, next) {
   try {
-    const { import_schedule_time, stock_check_schedule_time, auto_publish_enabled, auto_publish_interval_minutes } = req.body;
+    const { import_schedule_time, stock_check_schedule_time, auto_publish_enabled, auto_publish_interval_minutes, auto_publish_excluded_category_ids } = req.body;
     const existing = await prisma.sync_settings.upsert({ where: { id: 1 }, create: { id: 1 }, update: {} });
     const settings = await prisma.sync_settings.update({
       where: { id: 1 },
@@ -104,6 +104,9 @@ async function updateSyncSettings(req, res, next) {
         auto_publish_interval_minutes: (auto_publish_interval_minutes !== undefined && auto_publish_interval_minutes !== '')
           ? Math.max(1, Number(auto_publish_interval_minutes) || existing.auto_publish_interval_minutes)
           : existing.auto_publish_interval_minutes,
+        auto_publish_excluded_category_ids: Array.isArray(auto_publish_excluded_category_ids)
+          ? [...new Set(auto_publish_excluded_category_ids.map(Number).filter(Number.isInteger))]
+          : existing.auto_publish_excluded_category_ids,
         updated_at: new Date(),
       },
     });

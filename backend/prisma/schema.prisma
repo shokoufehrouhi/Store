@@ -618,6 +618,10 @@ model sync_settings {
   auto_publish_enabled           Boolean   @default(false)
   auto_publish_interval_minutes  Int       @default(30)
   auto_publish_last_run          DateTime? @db.Timestamptz(6)
+  // Categories whose NEW products (never published yet) are held back from
+  // both auto-publish and the "Publish Changes" button until published one
+  // by one from admin.html's review tab (see adminController.js#isHeldForReview).
+  auto_publish_excluded_category_ids Int[]  @default([])
   updated_at                     DateTime  @default(now()) @db.Timestamptz(6)
 }
 

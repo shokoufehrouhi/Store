@@ -1,4 +1,5 @@
 const prisma  = require('../prisma/client');
+const { Prisma } = require('@prisma/client');
 const path    = require('path');
 const fs      = require('fs');
 const util    = require('util');
@@ -569,14 +570,37 @@ async function deleteMedia(req, res, next) {
 // ─── Publish ───────────────────────────────────────────────────────────────────
 const { PRODUCT_INCLUDE, buildProductSnapshot, buildCategorySnapshot, buildSubcategorySnapshot } = require('../utils/publishSnapshot');
 
+// A product is held back for manual review when it has never been published
+// (published_data null -- typically a fresh import) and its category is one
+// the admin excluded from auto-publish (sync_settings, Deploy tab). Held
+// products are skipped by both auto-publish and the "Publish Changes" button
+// and only go live one at a time via publishProduct below, after the admin
+// has checked them (e.g. a cosmetic's machine-translated name). Updates to
+// products that are already live are never held: a stock, price or sold-out
+// change shouldn't wait on a review.
+async function getHeldCategoryIds() {
+  const settings = await prisma.sync_settings.findUnique({ where: { id: 1 }, select: { auto_publish_excluded_category_ids: true } });
+  return settings?.auto_publish_excluded_category_ids || [];
+}
+
+function isHeldForReview(p, heldCategoryIds) {
+  return p.published_data == null && heldCategoryIds.includes(p.category_id);
+}
+
+function heldProductsWhere(heldCategoryIds) {
+  return { published_data: { equals: Prisma.DbNull }, category_id: { in: heldCategoryIds } };
+}
+
 async function getPublishStatus(req, res, next) {
   try {
-    const [products, categories, subcategories] = await Promise.all([
-      prisma.products.count({ where: { is_dirty: true } }),
+    const heldCategoryIds = await getHeldCategoryIds();
+    const [products, categories, subcategories, held] = await Promise.all([
+      prisma.products.count({ where: { is_dirty: true, NOT: heldProductsWhere(heldCategoryIds) } }),
       prisma.categories.count({ where: { is_dirty: true } }),
       prisma.subcategories.count({ where: { is_dirty: true } }),
+      heldCategoryIds.length ? prisma.products.count({ where: heldProductsWhere(heldCategoryIds) }) : 0,
     ]);
-    res.json({ success: true, data: { pending_count: products + categories + subcategories, pending: { products, categories, subcategories } } });
+    res.json({ success: true, data: { pending_count: products + categories + subcategories, pending: { products, categories, subcategories }, held_count: held } });
   } catch (err) { next(err); }
 }
 
@@ -587,13 +611,20 @@ async function getPublishStatus(req, res, next) {
 //
 // Shared by the manual "Publish Changes" button (below) and scheduler.js's
 // auto-publish timer, same as instagramContentController.js#deployStoryById
-// is shared by its manual/auto callers — one code path either way.
-async function publishAllChanges() {
-  const [products, categories, subcategories] = await Promise.all([
-    prisma.products.findMany({ include: PRODUCT_INCLUDE }),
+// is shared by its manual/auto callers — one code path either way. Both skip
+// products held for review (isHeldForReview); `onlyProductIds` publishes just
+// those products (held or not) -- the review tab's per-product Publish.
+async function publishAllChanges({ onlyProductIds = null } = {}) {
+  const [allProducts, categories, subcategories, heldCategoryIds] = await Promise.all([
+    prisma.products.findMany({
+      where: onlyProductIds ? { id: { in: onlyProductIds } } : undefined,
+      include: PRODUCT_INCLUDE,
+    }),
     prisma.categories.findMany(),
     prisma.subcategories.findMany(),
+    getHeldCategoryIds(),
   ]);
+  const products = onlyProductIds ? allProducts : allProducts.filter(p => !isHeldForReview(p, heldCategoryIds));
 
   await prisma.$transaction([
     ...products.map(p => prisma.products.update({
@@ -614,6 +645,36 @@ async function publishAllChanges() {
 async function publishChanges(req, res, next) {
   try {
     await publishAllChanges();
+    res.json({ success: true });
+  } catch (err) { next(err); }
+}
+
+// GET /api/admin/products/held -- the review tab's list (see isHeldForReview).
+async function getHeldProducts(req, res, next) {
+  try {
+    const heldCategoryIds = await getHeldCategoryIds();
+    if (!heldCategoryIds.length) return res.json({ success: true, data: [] });
+    const products = await prisma.products.findMany({
+      where: heldProductsWhere(heldCategoryIds),
+      include: {
+        categories:    { select: { key: true, label_fa: true, label_en: true, label_tr: true } },
+        subcategories: { select: { key: true, label_fa: true, label_en: true, label_tr: true } },
+        product_media: { orderBy: { sort_order: 'asc' } },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+    res.json({ success: true, data: products });
+  } catch (err) { next(err); }
+}
+
+// POST /api/admin/products/:id/publish -- publishes this one product (held
+// or not), plus the usual category/subcategory re-snapshot.
+async function publishProduct(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const exists = await prisma.products.findUnique({ where: { id }, select: { id: true } });
+    if (!exists) return res.status(404).json({ success: false, message: 'not_found' });
+    await publishAllChanges({ onlyProductIds: [id] });
     res.json({ success: true });
   } catch (err) { next(err); }
 }
@@ -1886,7 +1947,7 @@ async function getCouponReport(req, res, next) {
 
 module.exports = {
   login, uploadMedia, deleteMedia,
-  getPublishStatus, publishChanges, publishAllChanges,
+  getPublishStatus, publishChanges, publishAllChanges, getHeldProducts, publishProduct,
   getDeployStatus, deployToProduction,
   getCategories, createCategory, updateCategory, toggleCategory, deleteCategory,
   getSubcategories, createSubcategory, updateSubcategory, toggleSubcategory, deleteSubcategory,

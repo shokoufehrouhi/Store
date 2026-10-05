@@ -204,6 +204,12 @@
       background: #fff; color: #16a34a; font-size: 10px; font-weight: 800;
       display: none; align-items: center; justify-content: center; padding: 0 4px;
     }
+    .held-badge {
+      margin-inline-start: auto; min-width: 18px; height: 18px; border-radius: 9px;
+      background: #f59e0b; color: #fff; font-size: 10px; font-weight: 800;
+      display: none; align-items: center; justify-content: center; padding: 0 4px;
+    }
+    .nav-item.active .held-badge { background: #fff; color: #f59e0b; }
     .pending-dot {
       display: inline-block; width: 8px; height: 8px; border-radius: 50%;
       background: #f59e0b; margin-inline-start: 6px; vertical-align: middle;
@@ -826,6 +832,10 @@
           <button class="nav-item" onclick="showTab('products')" id="nav-products">
             <span class="nav-icon">📦</span><span data-i18n="navProducts">محصولات</span>
           </button>
+          <button class="nav-item" onclick="showTab('held-products')" id="nav-held-products">
+            <span class="nav-icon">🕒</span><span data-i18n="navHeldProducts">منتظر بررسی</span>
+            <span id="held-badge" class="held-badge"></span>
+          </button>
           <button class="nav-item" onclick="showTab('categories')" id="nav-categories">
             <span class="nav-icon">🏷️</span><span data-i18n="navCategories">دسته‌بندی‌ها</span>
           </button>
@@ -1055,6 +1065,33 @@
     </div>
 
     <!-- Categories -->
+    <!-- Held for review: new products in categories excluded from auto-publish -->
+    <div id="tab-held-products" class="hidden">
+      <div class="page-header">
+        <div style="display:flex;align-items:center;gap:14px">
+          <h2>🕒 <span data-i18n="navHeldProducts">منتظر بررسی</span></h2>
+          <button class="btn btn-secondary btn-sm" onclick="loadHeldProducts()" data-i18n="ordersRefresh">🔄 بروزرسانی</button>
+        </div>
+      </div>
+      <div class="page-body">
+        <p style="font-size:13px;color:#666;margin:0 0 12px" data-i18n="heldProductsNote">محصولات جدید دسته‌هایی که در «انتشار خودکار تغییرات» استثنا شده‌اند. نه خودکار منتشر می‌شوند و نه با دکمه‌ی «انتشار تغییرات» — هر کدام را بررسی و ویرایش کنید و جداگانه منتشر کنید.</p>
+        <div class="card"><div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th data-i18n="colId">#</th>
+              <th data-i18n="colMedia">رسانه</th>
+              <th data-i18n="colName">نام محصول</th>
+              <th data-i18n="colCategory">دسته‌بندی</th>
+              <th data-i18n="colPrice">قیمت</th>
+              <th data-i18n="colBrand">برند</th>
+              <th data-i18n="colActions">عملیات</th>
+            </tr></thead>
+            <tbody id="held-products-tbody"></tbody>
+          </table>
+        </div></div>
+      </div>
+    </div>
+
     <div id="tab-categories" class="hidden">
       <div class="page-header">
         <h2>🏷️ <span data-i18n="catSubtitle">دسته‌بندی‌ها</span></h2>
@@ -1358,6 +1395,9 @@
             </div>
             <button class="btn btn-primary btn-sm" onclick="saveAutoPublishSettings()" data-i18n="autoPublishSave">ذخیره</button>
           </div>
+          <div style="margin-top:14px;font-size:13px;font-weight:600" data-i18n="autoPublishExcludedTitle">این دسته‌ها خودکار منتشر نشوند:</div>
+          <div style="font-size:12px;color:#999;margin:4px 0 8px" data-i18n="autoPublishExcludedNote">محصولات جدید این دسته‌ها به صفحه‌ی «منتظر بررسی» می‌روند تا دستی بررسی و منتشر شوند. تغییرات محصولاتی که قبلاً منتشر شده‌اند (موجودی، قیمت، ناموجود شدن) همچنان خودکار منتشر می‌شوند.</div>
+          <div id="auto-publish-excluded-cats" style="display:flex;flex-wrap:wrap;gap:8px 18px"></div>
           <div id="auto-publish-last-run" style="font-size:12px;color:#999;margin-top:10px"></div>
         </div>
       </div>
@@ -1949,7 +1989,7 @@ const LANGS = {
     storeAdmin:'پنل مدیریت فروشگاه', adminPanel:'پنل مدیریت',
     loginBtn:'ورود به پنل', username:'نام کاربری', password:'رمز عبور',
     connecting:'در حال ورود...', connFail:'اتصال به سرور ناموفق بود',
-    navGroupOverview:'نمای کلی', navGroupCatalog:'فروشگاه', navGroupConfig:'تنظیمات پایه', navGroupUsers:'کاربران', navGroupSystem:'سیستم',
+    navGroupOverview:'نمای کلی', navGroupCatalog:'فروشگاه', navHeldProducts:'منتظر بررسی', heldProductsNote:'محصولات جدید دسته‌هایی که در «انتشار خودکار تغییرات» استثنا شده‌اند. نه خودکار منتشر می‌شوند و نه با دکمه‌ی «انتشار تغییرات» — هر کدام را بررسی و ویرایش کنید و جداگانه منتشر کنید.', heldPublishBtn:'انتشار', heldPublishConfirm:'این محصول روی سایت منتشر شود؟', heldNone:'محصولی منتظر بررسی نیست', autoPublishExcludedTitle:'این دسته‌ها خودکار منتشر نشوند:', autoPublishExcludedNote:'محصولات جدید این دسته‌ها به صفحه‌ی «منتظر بررسی» می‌روند تا دستی بررسی و منتشر شوند. تغییرات محصولاتی که قبلاً منتشر شده‌اند (موجودی، قیمت، ناموجود شدن) همچنان خودکار منتشر می‌شوند.', navGroupConfig:'تنظیمات پایه', navGroupUsers:'کاربران', navGroupSystem:'سیستم',
     navDashboard:'داشبورد', navNotifications:'اعلان‌ها', navProducts:'محصولات', navCategories:'دسته‌بندی‌ها', navColors:'رنگ‌ها', navSizes:'سایزها', navSizeCharts:'جدول سایز', navCustomers:'مشتریان', navLeads:'لیدها', navGroupOrders:'سفارشات', navActiveOrders:'سفارشات فعال', navOrders:'سفارشات تکمیل‌شده', navGroupPayment:'پرداخت', navBankAccounts:'حساب‌های بانکی', navPaymentLinks:'لینک‌های پرداخت', navCoupons:'کدهای تخفیف', navGroupAnalytics:'آمار', navReports:'گزارش‌ها', logout:'خروج', navSuppliers:'تامین‌کنندگان', navSites:'سایت‌ها', navSync:'همگام‌سازی سایت‌ها', navProductPhotos:'عکس‌های خریداران', navDeploy:'استقرار', refresh:'بروزرسانی',
     syncSelectSite:'انتخاب سایت', syncImportSchedule:'زمان‌بندی وارد کردن محصولات', syncStockSchedule:'زمان‌بندی بررسی موجودی', syncMarkup:'درصد افزایش قیمت (روی قیمت تخفیف‌خورده سایت)', syncSaveSchedule:'ذخیره تنظیمات', syncScheduleSaved:'تنظیمات ذخیره شد', syncNoTime:'زمان‌بندی نشده', syncImportNow:'وارد کردن محصولات الان', syncStockNow:'بررسی موجودی الان', syncInProgress:'در حال انجام…', syncLastImport:'آخرین وارد کردن', syncLastStockCheck:'آخرین بررسی موجودی', syncNever:'هنوز انجام نشده', syncStarted:'شروع شد — نتیجه به‌زودی در همین صفحه نمایش داده می‌شود', syncGlobalScheduleTitle:'زمان‌بندی سراسری (همه‌ی سایت‌های فعال)', syncGlobalScheduleNote:'زمان وارد کردن محصولات و زمان بررسی موجودی برای همه‌ی سایت‌های فعال یکسانه — همه سر یک ساعت مشترک، یکی پس از دیگری اجرا می‌شن', syncPerSiteTitle:'همگام‌سازی دستی (بر اساس سایت)', autoPublishTitle:'📢 انتشار خودکار تغییرات', autoPublishEnable:'فعال', autoPublishEvery:'هر', autoPublishMinutes:'دقیقه', autoPublishSave:'ذخیره', autoPublishLastRun:'آخرین اجرای خودکار',
     navCommunications:'ارتباطات', commAllTypes:'همه انواع', commSubject:'موضوع', commTo:'گیرنده', commType:'نوع', commDate:'تاریخ', commCustomer:'مشتری', commView:'مشاهده', commEmpty:'ایمیلی ثبت نشده',
@@ -2160,7 +2200,7 @@ const LANGS = {
     storeAdmin:'Store Admin Panel', adminPanel:'Admin Panel',
     loginBtn:'Login', username:'Username', password:'Password',
     connecting:'Logging in...', connFail:'Could not connect to server',
-    navGroupOverview:'Overview', navGroupCatalog:'Store', navGroupConfig:'Configuration', navGroupUsers:'Users', navGroupSystem:'System',
+    navGroupOverview:'Overview', navGroupCatalog:'Store', navHeldProducts:'Awaiting Review', heldProductsNote:'New products in categories excluded from auto-publish. They are published neither automatically nor by the "Publish Changes" button — review and edit each one, then publish it here.', heldPublishBtn:'Publish', heldPublishConfirm:'Publish this product to the live site?', heldNone:'No products awaiting review', autoPublishExcludedTitle:'Don\'t auto-publish these categories:', autoPublishExcludedNote:'New products in these categories go to the "Awaiting Review" page to be checked and published by hand. Changes to already-published products (stock, price, sold out) are still published automatically.', navGroupConfig:'Configuration', navGroupUsers:'Users', navGroupSystem:'System',
     navDashboard:'Dashboard', navNotifications:'Notifications', navProducts:'Products', navCategories:'Categories', navColors:'Colors', navSizes:'Sizes', navSizeCharts:'Size Charts', navCustomers:'Customers', navLeads:'Leads', navGroupOrders:'Orders', navActiveOrders:'Active Orders', navOrders:'Completed Orders', navGroupPayment:'Payment', navBankAccounts:'Bank Accounts', navPaymentLinks:'Payment Links', navCoupons:'Discount Codes', navGroupAnalytics:'Analytics', navReports:'Reports', logout:'Logout', navSuppliers:'Suppliers', navSites:'Sites', navSync:'Sync Sites', navProductPhotos:'Buyer Photos', navDeploy:'Deploy', refresh:'Refresh',
     syncSelectSite:'Select Site', syncImportSchedule:'Product Import Schedule', syncStockSchedule:'Stock Check Schedule', syncMarkup:'Markup % (over the site\'s discounted price)', syncSaveSchedule:'Save Settings', syncScheduleSaved:'Settings saved', syncNoTime:'Not scheduled', syncImportNow:'Import Products Now', syncStockNow:'Check Stock Now', syncInProgress:'Running…', syncLastImport:'Last import', syncLastStockCheck:'Last stock check', syncNever:'Never run yet', syncStarted:'Started — result will show on this page shortly', syncGlobalScheduleTitle:'Global Schedule (all active sites)', syncGlobalScheduleNote:'Import and stock check both run at this one shared time for every active site — one after another, in order', syncPerSiteTitle:'Manual Sync (per site)', autoPublishTitle:'📢 Auto-Publish Changes', autoPublishEnable:'Enabled', autoPublishEvery:'Every', autoPublishMinutes:'minutes', autoPublishSave:'Save', autoPublishLastRun:'Last auto-run',
     navCommunications:'Communications', commAllTypes:'All types', commSubject:'Subject', commTo:'To', commType:'Type', commDate:'Date', commCustomer:'Customer', commView:'View', commEmpty:'No emails logged yet',
@@ -2371,7 +2411,7 @@ const LANGS = {
     storeAdmin:'Mağaza Yönetim Paneli', adminPanel:'Yönetim Paneli',
     loginBtn:'Giriş Yap', username:'Kullanıcı Adı', password:'Şifre',
     connecting:'Giriş yapılıyor...', connFail:'Sunucuya bağlanılamadı',
-    navGroupOverview:'Genel Bakış', navGroupCatalog:'Mağaza', navGroupConfig:'Yapılandırma', navGroupUsers:'Kullanıcılar', navGroupSystem:'Sistem',
+    navGroupOverview:'Genel Bakış', navGroupCatalog:'Mağaza', navHeldProducts:'İnceleme Bekleyenler', heldProductsNote:'Otomatik yayından hariç tutulan kategorilerdeki yeni ürünler. Ne otomatik ne de "Değişiklikleri Yayınla" düğmesiyle yayınlanırlar — her birini inceleyip düzenleyin ve burada ayrı ayrı yayınlayın.', heldPublishBtn:'Yayınla', heldPublishConfirm:'Bu ürün canlı sitede yayınlansın mı?', heldNone:'İnceleme bekleyen ürün yok', autoPublishExcludedTitle:'Bu kategoriler otomatik yayınlanmasın:', autoPublishExcludedNote:'Bu kategorilerdeki yeni ürünler elle kontrol edilip yayınlanmak üzere "İnceleme Bekleyenler" sayfasına gider. Zaten yayınlanmış ürünlerdeki değişiklikler (stok, fiyat, tükendi) yine otomatik yayınlanır.', navGroupConfig:'Yapılandırma', navGroupUsers:'Kullanıcılar', navGroupSystem:'Sistem',
     navDashboard:'Gösterge Paneli', navNotifications:'Bildirimler', navProducts:'Ürünler', navCategories:'Kategoriler', navColors:'Renkler', navSizes:'Bedenler', navSizeCharts:'Beden Tablosu', navCustomers:'Müşteriler', navLeads:'Adaylar', navGroupOrders:'Siparişler', navActiveOrders:'Aktif Siparişler', navOrders:'Tamamlanan Siparişler', navGroupPayment:'Ödeme', navBankAccounts:'Banka Hesapları', navPaymentLinks:'Ödeme Linkleri', navCoupons:'İndirim Kodları', navGroupAnalytics:'Analitik', navReports:'Raporlar', logout:'Çıkış', navSuppliers:'Tedarikçiler', navSites:'Siteler', navSync:'Site Senkronizasyonu', navProductPhotos:'Alıcı Fotoğrafları', navDeploy:'Dağıtım', refresh:'Yenile',
     syncSelectSite:'Site Seç', syncImportSchedule:'Ürün İçe Aktarma Zamanlaması', syncStockSchedule:'Stok Kontrol Zamanlaması', syncMarkup:'Kâr Marjı % (sitenin indirimli fiyatı üzerine)', syncSaveSchedule:'Ayarları Kaydet', syncScheduleSaved:'Ayarlar kaydedildi', syncNoTime:'Zamanlanmadı', syncImportNow:'Şimdi Ürün İçe Aktar', syncStockNow:'Şimdi Stok Kontrol Et', syncInProgress:'Çalışıyor…', syncLastImport:'Son içe aktarma', syncLastStockCheck:'Son stok kontrolü', syncNever:'Henüz çalıştırılmadı', syncStarted:'Başladı — sonuç kısa süre içinde bu sayfada görünecek', syncGlobalScheduleTitle:'Genel Zamanlama (tüm aktif siteler)', syncGlobalScheduleNote:'İçe aktarma ve stok kontrolü, tüm aktif siteler için aynı ortak saatte, sırayla çalışır', syncPerSiteTitle:'Manuel Senkronizasyon (siteye göre)', autoPublishTitle:'📢 Değişiklikleri Otomatik Yayınla', autoPublishEnable:'Etkin', autoPublishEvery:'Her', autoPublishMinutes:'dakikada bir', autoPublishSave:'Kaydet', autoPublishLastRun:'Son otomatik çalıştırma',
     navCommunications:'İletişim', commAllTypes:'Tüm türler', commSubject:'Konu', commTo:'Alıcı', commType:'Tür', commDate:'Tarih', commCustomer:'Müşteri', commView:'Görüntüle', commEmpty:'Henüz e-posta kaydı yok',
@@ -2750,7 +2790,7 @@ function showTab(tab) {
   currentTab = tab;
   localStorage.setItem('admin_tab', tab);
   if (window.innerWidth <= 768) closeSidebar();
-  ['communications','notifications','dashboard','products','categories','colors','sizes','size-charts','customers','active-orders','orders','prizes','returns','product-photos','suppliers','sites','bank-accounts','payment-links','coupons','leads','reports','deploy','sync','instagram-content'].forEach(t2 => {
+  ['communications','notifications','dashboard','products','held-products','categories','colors','sizes','size-charts','customers','active-orders','orders','prizes','returns','product-photos','suppliers','sites','bank-accounts','payment-links','coupons','leads','reports','deploy','sync','instagram-content'].forEach(t2 => {
     const el = document.getElementById(`tab-${t2}`);
     const nav = document.getElementById(`nav-${t2}`);
     if (el)  el.classList.add('hidden');
@@ -2764,6 +2804,7 @@ function showTab(tab) {
   if (tab === 'notifications')  loadNotifications();
   if (tab === 'dashboard')      loadDashboard();
   if (tab === 'products')       loadProducts();
+  if (tab === 'held-products')  loadHeldProducts();
   if (tab === 'categories')     loadCategories();
   if (tab === 'colors')         loadColors();
   if (tab === 'sizes')          loadSizes();
@@ -2837,6 +2878,12 @@ async function refreshPublishStatus() {
   const n = res?.success ? res.data.pending_count : 0;
   if (n > 0) { badge.textContent = n > 99 ? '99+' : n; badge.style.display = 'flex'; }
   else { badge.style.display = 'none'; }
+  const heldBadge = document.getElementById('held-badge');
+  const held = res?.success ? (res.data.held_count || 0) : 0;
+  if (heldBadge) {
+    heldBadge.textContent = held > 99 ? '99+' : held;
+    heldBadge.style.display = held > 0 ? 'flex' : 'none';
+  }
 }
 function openPublishConfirm() {
   showConfirm(t('confirmPublish'), async () => {
@@ -2844,6 +2891,7 @@ function openPublishConfirm() {
     if (res?.success) {
       showToast(t('publishedOk'));
       if (currentTab === 'products')   loadProducts();
+      if (currentTab === 'held-products') loadHeldProducts();
       if (currentTab === 'categories') loadCategories();
       refreshPublishStatus();
     } else {
@@ -3314,6 +3362,56 @@ function onProductCatFilterChange() {
 // Refresh button -- loadProducts() itself restores the saved filters.
 async function refreshProducts() {
   await loadProducts();
+}
+
+// ─── Awaiting review (held products) ────────────────────────────────────────
+// See adminController.js#isHeldForReview for which products land here.
+async function loadHeldProducts() {
+  const res = await api('/admin/products/held');
+  const tbody = document.getElementById('held-products-tbody');
+  if (!tbody || !res?.success) return;
+  refreshPublishStatus();
+  if (!res.data.length) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon">✅</div><p>${t('heldNone')}</p></div></td></tr>`;
+    return;
+  }
+  const money = v => (Math.floor(Number(v) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL';
+  tbody.innerHTML = res.data.map(p => {
+    const img = (p.product_media || []).find(m => m.type === 'image');
+    const thumb = img
+      ? `<img src="${SERVER_URL + img.url}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" onerror="this.style.display='none'">`
+      : `<div style="width:48px;height:48px;border-radius:6px;background:#f0f0f0"></div>`;
+    return `<tr>
+      <td style="color:#999;font-size:12px">${p.id}</td>
+      <td>${thumb}</td>
+      <td>
+        ${p.code ? `<div style="font-size:11px;color:#6b7280;font-family:monospace;margin-bottom:2px">${esc(p.code)}</div>` : ''}
+        <div style="font-weight:600">${esc(p.name_fa)}</div>
+        <div style="font-size:11px;color:#999">${esc(p.name_tr || p.name_en || '')}</div>
+      </td>
+      <td>
+        ${esc(categoryLabel(p.categories))}
+        ${p.subcategories ? `<span style="font-size:11px;color:#999;display:block;margin-top:2px">${esc(categoryLabel(p.subcategories))}</span>` : ''}
+      </td>
+      <td style="direction:ltr;text-align:right">
+        ${p.price ? money(p.price) : '—'}
+        ${p.discounted_price ? `<br><span style="color:#ef4444;font-size:11px;font-weight:700">${money(p.discounted_price)}</span>` : ''}
+      </td>
+      <td>${esc(p.brand || '—')}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secondary btn-sm" onclick="openProductModal(${p.id})">${t('edit')}</button>
+        <button class="btn btn-primary btn-sm" onclick="publishHeldProduct(${p.id})">🚀 ${t('heldPublishBtn')}</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function publishHeldProduct(id) {
+  showConfirm(t('heldPublishConfirm'), async () => {
+    const res = await api(`/admin/products/${id}/publish`, { method: 'POST' });
+    if (res?.success) { showToast(t('publishedOk')); loadHeldProducts(); }
+    else showToast(res?.message || t('saveError'), 'error');
+  }, { icon: '🚀', title: t('heldPublishBtn'), yesText: t('heldPublishBtn'), btnClass: 'btn-primary' });
 }
 
 var _allProducts = [];
@@ -3943,7 +4041,10 @@ async function saveProduct(id) {
     ? await api(`/admin/products/${id}`, { method:'PUT', body:JSON.stringify(payload) })
     : await api('/admin/products',        { method:'POST', body:JSON.stringify(payload) });
 
-  if (res?.success) { closeModal(); showToast(id ? t('savedProduct') : t('addedProduct')); loadProducts(); }
+  if (res?.success) {
+    closeModal(); showToast(id ? t('savedProduct') : t('addedProduct'));
+    if (currentTab === 'held-products') loadHeldProducts(); else loadProducts();
+  }
   else showToast(res?.message || t('saveError'), 'error');
 }
 
@@ -6571,6 +6672,12 @@ async function loadAutoPublishSettings() {
   document.getElementById('auto-publish-toggle').checked = !!data.data.auto_publish_enabled;
   document.getElementById('auto-publish-interval').value = data.data.auto_publish_interval_minutes || 30;
   onAutoPublishToggleChange();
+  if (!allCategories.length) allCategories = (await api('/admin/categories'))?.data || [];
+  const excluded = new Set(data.data.auto_publish_excluded_category_ids || []);
+  document.getElementById('auto-publish-excluded-cats').innerHTML = allCategories.map(c =>
+    `<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+      <input type="checkbox" class="auto-publish-excluded-cat" value="${c.id}" ${excluded.has(c.id) ? 'checked' : ''}>
+      ${esc(categoryLabel(c))}</label>`).join('');
   const lastRunEl = document.getElementById('auto-publish-last-run');
   lastRunEl.textContent = data.data.auto_publish_last_run
     ? `${t('autoPublishLastRun')}: ${new Date(data.data.auto_publish_last_run).toLocaleString('en-GB')}`
@@ -6585,9 +6692,10 @@ async function saveAutoPublishSettings() {
   const body = {
     auto_publish_enabled: document.getElementById('auto-publish-toggle').checked,
     auto_publish_interval_minutes: Number(document.getElementById('auto-publish-interval').value) || 30,
+    auto_publish_excluded_category_ids: [...document.querySelectorAll('.auto-publish-excluded-cat:checked')].map(cb => Number(cb.value)),
   };
   const data = await api('/admin/sync-settings', { method: 'PUT', body: JSON.stringify(body) });
-  if (data?.success) { showToast(t('syncScheduleSaved')); loadAutoPublishSettings(); }
+  if (data?.success) { showToast(t('syncScheduleSaved')); loadAutoPublishSettings(); refreshPublishStatus(); }
   else showToast(data?.message || 'Error', 'error');
 }
 
