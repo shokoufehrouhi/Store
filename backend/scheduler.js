@@ -198,6 +198,11 @@ async function recentlyUsedProductIds(days = 7) {
 // Excludes anything used in a story this week so the same product/photo
 // doesn't keep repeating -- falls back to ignoring that exclusion only if
 // it would otherwise leave too few candidates to fill `limit`.
+// Only products whose selling price (the discounted price when there is
+// one, otherwise the regular price) is at least this many TL -- user's
+// request 2026-10-05, cheap items aren't worth a story slot.
+const STORY_MIN_PRICE_TL = 300;
+
 async function eligibleStoryProducts(limit, excludeIds = []) {
   const recent = await recentlyUsedProductIds();
   const baseWhere = {
@@ -205,6 +210,10 @@ async function eligibleStoryProducts(limit, excludeIds = []) {
     is_live: true,
     tag: { not: 'sold_out' },
     product_media: { some: {} },
+    OR: [
+      { discounted_price: { gte: STORY_MIN_PRICE_TL } },
+      { discounted_price: null, price: { gte: STORY_MIN_PRICE_TL } },
+    ],
   };
 
   async function fetchPool(exclude) {
