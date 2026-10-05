@@ -474,6 +474,18 @@
     }
 
     /* ── Inventory Matrix ───────────────────────────────── */
+    .active-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+    .active-filters:empty { display: none; }
+    .filter-chip {
+      display: inline-flex; align-items: center; gap: 6px; padding: 5px 6px 5px 12px;
+      background: #fff; border: 1.5px solid var(--primary); border-radius: 999px; font-size: 13px;
+    }
+    .filter-chip b { font-weight: 700; }
+    .filter-chip button {
+      border: none; background: var(--primary); color: #fff; width: 20px; height: 20px; border-radius: 50%;
+      cursor: pointer; font-size: 13px; line-height: 20px; padding: 0;
+    }
+    .filter-chip-clear { border: none; background: none; color: #999; cursor: pointer; font-size: 13px; text-decoration: underline; font-family: inherit; }
     .inv-matrix-wrap { overflow-x: auto; }
     .inv-matrix { border-collapse: collapse; font-size: 13px; min-width: 100%; }
     .inv-matrix th, .inv-matrix td { padding: 7px 10px; text-align: center; border: 1px solid var(--border); }
@@ -1005,9 +1017,9 @@
         <button class="btn btn-primary" onclick="openProductModal()" data-i18n="addProduct">+ افزودن محصول</button>
       </div>
       <div class="page-body">
-        <div class="card" style="padding:14px 20px;margin-bottom:12px;display:flex;gap:10px;align-items:center">
+        <div class="card" style="padding:14px 20px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
           <input id="product-search" type="text" placeholder="" data-i18n-placeholder="productSearchPlh"
-            style="flex:1;border:1.5px solid var(--border);border-radius:8px;padding:9px 14px;font-size:14px;font-family:inherit;outline:none;direction:ltr;text-align:left"
+            style="flex:1;min-width:220px;border:1.5px solid var(--border);border-radius:8px;padding:9px 14px;font-size:14px;font-family:inherit;outline:none;direction:ltr;text-align:left"
             oninput="filterProducts()" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
           <select id="product-stock-filter" onchange="filterProducts()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px">
             <option value="" data-i18n="ordersFilterAll">همه</option>
@@ -1016,7 +1028,9 @@
           </select>
           <select id="product-cat-filter" onchange="onProductCatFilterChange()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px"></select>
           <select id="product-subcat-filter" onchange="filterProducts()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px;display:none"></select>
+          <select id="product-brand-filter" onchange="filterProducts()" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:14px"></select>
         </div>
+        <div id="products-active-filters" class="active-filters"></div>
         <div class="card"><div class="table-wrap">
           <table>
             <thead><tr>
@@ -1995,7 +2009,8 @@ const LANGS = {
     descriptions:'توضیحات', statusSection:'وضعیت',
     productCodeLbl:'کد محصول', productCodePlh:'مثال: SHF-001', productCodeAuto:'خودکار',
     productSearchPlh:'جستجو بر اساس نام، توضیحات، کد محصول، برند یا برچسب...',
-    filterAllCategories:'همه دسته‌ها', filterAllSubcategories:'همه زیردسته‌ها',
+    filterAllCategories:'همه دسته‌ها', filterAllSubcategories:'همه زیردسته‌ها', filterAllBrands:'همه برندها',
+    filterSearchLbl:'جستجو', filterStockLbl:'موجودی', filterCategoryLbl:'دسته', filterSubcategoryLbl:'زیردسته', filterBrandLbl:'برند', filterClearAll:'پاک کردن همه فیلترها',
     paginationPageNum:'صفحه', paginationGo:'برو',
     nameFa:'نام فارسی *', nameEn:'نام انگلیسی', nameTr:'نام ترکی', deliveryDaysLbl:'زمان تحویل (روز کاری)', minOrderQtyLbl:'حداقل تعداد خرید',
     categoryField:'دسته‌بندی *', subcategoryField:'زیردسته',
@@ -2205,7 +2220,8 @@ const LANGS = {
     descriptions:'Descriptions', statusSection:'Status',
     productCodeLbl:'Product Code', productCodePlh:'e.g. SHF-001', productCodeAuto:'Auto',
     productSearchPlh:'Search by name, description, product code, brand or tag...',
-    filterAllCategories:'All categories', filterAllSubcategories:'All subcategories',
+    filterAllCategories:'All categories', filterAllSubcategories:'All subcategories', filterAllBrands:'All brands',
+    filterSearchLbl:'Search', filterStockLbl:'Stock', filterCategoryLbl:'Category', filterSubcategoryLbl:'Subcategory', filterBrandLbl:'Brand', filterClearAll:'Clear all filters',
     paginationPageNum:'Page', paginationGo:'Go',
     nameFa:'Farsi Name *', nameEn:'English Name', nameTr:'Turkish Name', deliveryDaysLbl:'Delivery Time (working days)', minOrderQtyLbl:'Minimum Order Quantity',
     categoryField:'Category *', subcategoryField:'Subcategory',
@@ -2415,7 +2431,8 @@ const LANGS = {
     descriptions:'Açıklamalar', statusSection:'Durum',
     productCodeLbl:'Ürün Kodu', productCodePlh:'örn. SHF-001', productCodeAuto:'Otomatik',
     productSearchPlh:'Ad, açıklama, ürün kodu, marka veya etikete göre ara...',
-    filterAllCategories:'Tüm kategoriler', filterAllSubcategories:'Tüm alt kategoriler',
+    filterAllCategories:'Tüm kategoriler', filterAllSubcategories:'Tüm alt kategoriler', filterAllBrands:'Tüm markalar',
+    filterSearchLbl:'Arama', filterStockLbl:'Stok', filterCategoryLbl:'Kategori', filterSubcategoryLbl:'Alt kategori', filterBrandLbl:'Marka', filterClearAll:'Tüm filtreleri temizle',
     paginationPageNum:'Sayfa', paginationGo:'Git',
     nameFa:'Farsça Ad *', nameEn:'İngilizce Ad', nameTr:'Türkçe Ad', deliveryDaysLbl:'Teslimat Süresi (iş günü)', minOrderQtyLbl:'Minimum Sipariş Adedi',
     categoryField:'Kategori *', subcategoryField:'Alt Kategori',
@@ -3174,8 +3191,6 @@ async function loadDashboard() {
 
 // ─── PRODUCTS ─────────────────────────────────────────────────────────────────
 async function loadProducts() {
-  const searchEl = document.getElementById('product-search');
-  if (searchEl) searchEl.value = '';
   const [pR, cR, colR, szR, scR] = await Promise.all([
     api('/admin/products'), api('/admin/categories'), api('/admin/colors'), api('/admin/sizes'), api('/admin/size-charts')
   ]);
@@ -3185,9 +3200,90 @@ async function loadProducts() {
   allSizes      = szR?.data  || [];
   allSizeCharts = scR?.data  || [];
   _allProducts = pR.data || [];
-  renderProductCatFilter('', '');
-  renderProductsTable(_allProducts);
+  // Filters survive everything except being cleared by hand -- saving a
+  // product, switching admin tabs, a browser refresh (see saveProductFilters).
+  applyProductFiltersToForm(loadSavedProductFilters());
+  filterProducts({ keepPage: true });
   refreshPublishStatus();
+}
+
+const PRODUCT_FILTERS_KEY = 'admin_product_filters_v1';
+
+function loadSavedProductFilters() {
+  try { return JSON.parse(localStorage.getItem(PRODUCT_FILTERS_KEY)) || {}; } catch { return {}; }
+}
+
+function saveProductFilters(f) {
+  try { localStorage.setItem(PRODUCT_FILTERS_KEY, JSON.stringify(f)); } catch { /* private mode etc. */ }
+}
+
+function readProductFilters() {
+  const val = id => document.getElementById(id)?.value || '';
+  return {
+    q: val('product-search'), stock: val('product-stock-filter'),
+    cat: val('product-cat-filter'), sub: val('product-subcat-filter'), brand: val('product-brand-filter'),
+  };
+}
+
+function applyProductFiltersToForm(f) {
+  const searchEl = document.getElementById('product-search');
+  if (searchEl) searchEl.value = f.q || '';
+  const stockEl = document.getElementById('product-stock-filter');
+  if (stockEl) stockEl.value = f.stock || '';
+  renderProductCatFilter(f.cat, f.sub);
+  renderProductBrandFilter(f.brand);
+}
+
+// Brands compared case-insensitively -- the same brand imported as "DeFacto"
+// and "Defacto" once showed up as two separate brands. Plain toLowerCase(),
+// not the Turkish locale: that maps "I" to dotless "ı", so "MISSHA" and
+// "Missha" would still come out as two different brands.
+function brandKey(brand) {
+  return (brand || '').trim().toLowerCase();
+}
+
+function renderProductBrandFilter(selectedKey) {
+  const sel = document.getElementById('product-brand-filter');
+  if (!sel) return;
+  const labelByKey = new Map();
+  for (const p of _allProducts) {
+    const k = brandKey(p.brand);
+    if (k && !labelByKey.has(k)) labelByKey.set(k, p.brand.trim());
+  }
+  const keys = [...labelByKey.keys()].sort((a, b) => a.localeCompare(b, 'tr'));
+  sel.innerHTML = `<option value="">${t('filterAllBrands')}</option>` +
+    keys.map(k => `<option value="${esc(k)}">${esc(labelByKey.get(k))}</option>`).join('');
+  sel.value = selectedKey && labelByKey.has(selectedKey) ? selectedKey : '';
+}
+
+// One removable chip per active filter, above the table.
+function renderActiveProductFilters(f) {
+  const bar = document.getElementById('products-active-filters');
+  if (!bar) return;
+  const selectedText = id => { const el = document.getElementById(id); return el?.options[el.selectedIndex]?.text || ''; };
+  const chips = [];
+  if (f.q)     chips.push(['q',     t('filterSearchLbl'),      f.q]);
+  if (f.stock) chips.push(['stock', t('filterStockLbl'),       selectedText('product-stock-filter')]);
+  if (f.cat)   chips.push(['cat',   t('filterCategoryLbl'),    selectedText('product-cat-filter')]);
+  if (f.sub)   chips.push(['sub',   t('filterSubcategoryLbl'), selectedText('product-subcat-filter')]);
+  if (f.brand) chips.push(['brand', t('filterBrandLbl'),       selectedText('product-brand-filter')]);
+  bar.innerHTML = chips.map(([key, label, value]) =>
+    `<span class="filter-chip"><span><b>${esc(label)}:</b> ${esc(value)}</span>` +
+    `<button type="button" onclick="clearProductFilter('${key}')" aria-label="×">×</button></span>`
+  ).join('') + (chips.length > 1 ? `<button type="button" class="filter-chip-clear" onclick="clearAllProductFilters()">${t('filterClearAll')}</button>` : '');
+}
+
+function clearProductFilter(key) {
+  const f = readProductFilters();
+  f[key] = '';
+  if (key === 'cat') f.sub = '';
+  applyProductFiltersToForm(f);
+  filterProducts();
+}
+
+function clearAllProductFilters() {
+  applyProductFiltersToForm({});
+  filterProducts();
 }
 
 function categoryLabel(c) {
@@ -3215,34 +3311,29 @@ function onProductCatFilterChange() {
   filterProducts();
 }
 
-// Refresh button: same reload as opening the tab, but keeps whatever search
-// text / stock filter is currently applied (loadProducts() itself clears the
-// search box, which is right on tab switch but not on an in-place refresh).
+// Refresh button -- loadProducts() itself restores the saved filters.
 async function refreshProducts() {
-  const q = document.getElementById('product-search')?.value || '';
-  const catId = document.getElementById('product-cat-filter')?.value || '';
-  const subId = document.getElementById('product-subcat-filter')?.value || '';
   await loadProducts();
-  const searchEl = document.getElementById('product-search');
-  if (searchEl) searchEl.value = q;
-  renderProductCatFilter(catId, subId);
-  if (q || catId || document.getElementById('product-stock-filter')?.value) filterProducts();
 }
 
 var _allProducts = [];
 var PRODUCTS_PAGE_SIZE = 25;
 var _productsPage = 1;
 
-function filterProducts() {
-  _productsPage = 1;
-  const q = (document.getElementById('product-search')?.value || '').trim().toLowerCase();
-  const stockFilter = document.getElementById('product-stock-filter')?.value || '';
-  const catId = Number(document.getElementById('product-cat-filter')?.value) || null;
-  const subId = Number(document.getElementById('product-subcat-filter')?.value) || null;
+function filterProducts({ keepPage = false } = {}) {
+  if (!keepPage) _productsPage = 1;
+  const f = readProductFilters();
+  saveProductFilters(f);
+  renderActiveProductFilters(f);
+  const q = f.q.trim().toLowerCase();
+  const stockFilter = f.stock;
+  const catId = Number(f.cat) || null;
+  const subId = Number(f.sub) || null;
   const tagLabelKey = { bestseller: 'tagBestseller', new: 'tagNew', original: 'tagOriginal', discount: 'tagDiscount', sold_out: 'tagSoldOut' };
   const filtered = _allProducts.filter(p => {
     if (stockFilter === 'sold_out' && p.tag !== 'sold_out') return false;
     if (stockFilter === 'available' && p.tag === 'sold_out') return false;
+    if (f.brand && brandKey(p.brand) !== f.brand) return false;
     if (catId) {
       // A product also shows up under its extra categories (product_categories).
       const placements = [{ category_id: p.category_id, subcategory_id: p.subcategory_id }, ...(p.product_categories || [])];
