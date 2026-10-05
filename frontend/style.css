@@ -147,13 +147,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .nav-link:hover { color: var(--primary); background: rgba(255,92,0,.06); }
 .nav-link.active { color: var(--primary); }
 
-/* فلش dropdown */
-.nav-arrow {
-  opacity: .45;
-  flex-shrink: 0;
-  transition: transform .2s, opacity .2s;
-}
-.nav-group:hover .nav-arrow { transform: rotate(180deg); opacity: 1; color: var(--primary); }
+/* فلش dropdown — hidden: the top menu shows titles only (dropdowns still
+   open on hover). Kept in the markup so it can come back by removing this. */
+.nav-arrow { display: none; }
 
 /* گروه nav */
 .nav-group { position: relative; }

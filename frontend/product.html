@@ -23,7 +23,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=96">
+  <link rel="stylesheet" href="style.css?v=97">
   <style>
     /* ── fix sticky on product page ── */
     body { overflow-x: clip; }
@@ -286,18 +286,18 @@
           <div class="nav-dropdown" id="pd-drop-women"></div>
         </div>
         <div class="nav-group">
-          <a class="nav-link has-drop" href="/#gender=kids">
-            <span data-i18n="menu_kids">بچگانه</span>
-            <svg class="nav-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 7L1 3h8z"/></svg>
-          </a>
-          <div class="nav-dropdown" id="pd-drop-kids"></div>
-        </div>
-        <div class="nav-group">
           <a class="nav-link has-drop" href="/#gender=male">
             <span data-i18n="menu_men">مردانه</span>
             <svg class="nav-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 7L1 3h8z"/></svg>
           </a>
           <div class="nav-dropdown" id="pd-drop-men"></div>
+        </div>
+        <div class="nav-group">
+          <a class="nav-link has-drop" href="/#gender=kids">
+            <span data-i18n="menu_kids">بچگانه</span>
+            <svg class="nav-arrow" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M5 7L1 3h8z"/></svg>
+          </a>
+          <div class="nav-dropdown" id="pd-drop-kids"></div>
         </div>
         <a href="/#contact" class="nav-link" data-i18n="nav_contact">تماس با ما</a>
       </nav>
@@ -331,8 +331,8 @@
     <nav class="mobile-menu" id="pd-mobile-menu">
       <a href="/" data-i18n="menu_all">همه محصولات</a>
       <a href="/#gender=female" data-i18n="menu_women">زنانه</a>
-      <a href="/#gender=kids" data-i18n="menu_kids">بچگانه</a>
       <a href="/#gender=male" data-i18n="menu_men">مردانه</a>
+      <a href="/#gender=kids" data-i18n="menu_kids">بچگانه</a>
       <button class="mobile-order-btn" onclick="sessionStorage.setItem('pd_open_checkout','1');window.location='/'" data-i18n="order_btn">Sipariş Ver</button>
       <div class="mobile-lang-wrap">
         <button class="mobile-lang-opt" onclick="pdSetLang('fa')">FA</button>

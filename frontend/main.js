@@ -1175,6 +1175,12 @@ function renderExtraCategoryNav(categories) {
   var mobileMenu = document.getElementById('mobile-menu');
   var mobileContactLink = mobileMenu ? mobileMenu.querySelector('a[href="#contact"]') : null;
   if (!navLinks || !contactLink) return;
+  // Extra categories (e.g. Cosmetics) go right before Lifestyle, which the
+  // menu order keeps last before Contact: ... Accessories, Cosmetics,
+  // Lifestyle, Contact. Falls back to before Contact on a page without it.
+  var lifestyleSpan = navLinks.querySelector('[data-i18n="menu_lifestyle"]');
+  var navAnchor = (lifestyleSpan && lifestyleSpan.closest('.nav-group')) || contactLink;
+  var mobileAnchor = (mobileMenu && mobileMenu.querySelector('a[data-i18n="menu_lifestyle"]')) || mobileContactLink;
 
   // Rebuilt from scratch each call (language switch re-invokes this with the
   // same cached categories) so labels stay in sync instead of going stale.
@@ -1212,7 +1218,7 @@ function renderExtraCategoryNav(categories) {
 
       group.appendChild(link);
       group.appendChild(dropdown);
-      navLinks.insertBefore(group, contactLink);
+      navLinks.insertBefore(group, navAnchor);
 
       if (!isProfile) {
         link.addEventListener('click', function(e) {
@@ -1231,7 +1237,7 @@ function renderExtraCategoryNav(categories) {
         };
       }
 
-      if (mobileMenu && mobileContactLink) {
+      if (mobileMenu && mobileAnchor) {
         var mobileLink = document.createElement('a');
         mobileLink.setAttribute('data-dyn-cat', cat.key);
         mobileLink.href = '#products';
@@ -1239,7 +1245,7 @@ function renderExtraCategoryNav(categories) {
         mobileLink.setAttribute('data-gender', 'all');
         mobileLink.setAttribute('data-sub', '');
         mobileLink.textContent = lbl(cat);
-        mobileMenu.insertBefore(mobileLink, mobileContactLink);
+        mobileMenu.insertBefore(mobileLink, mobileAnchor);
         if (!isProfile) {
           mobileLink.addEventListener('click', function(e) {
             e.preventDefault();
