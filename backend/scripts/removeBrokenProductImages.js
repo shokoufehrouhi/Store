@@ -2,17 +2,22 @@
 // so a product shows its real first photo instead of a broken one.
 // Happened 2026-10-05 to the first Lefties imports after the API rewrite:
 // their first "photo" was a tiny color swatch that never became a real
-// file. Checked over HTTP against the live site (what customers actually
-// see) rather than the local disk. A product left with no photos at all is
+// file. Checked against the uploads folder on this server's disk (the same
+// folder the site serves /uploads from) — an HTTP check against
+// https://shilista.com didn't work from the VPS itself (every request
+// failed, and the first version silently counted that as "not broken").
+// A product left with no photos at all is
 // only reported — for Lefties the next stock check downloads its photos
 // again. Changed products are marked dirty: publish them from the admin.
 // Dry run first (prints what would change), for one site:
 //   node scripts/removeBrokenProductImages.js Lefties
 // Then for real:
 //   node scripts/removeBrokenProductImages.js Lefties --apply
+const fs = require('fs');
+const path = require('path');
 const prisma = require('../prisma/client');
 
-const SITE_BASE = 'https://shilista.com';
+const UPLOAD_DIR = path.join(__dirname, '../public/uploads');
 
 (async () => {
   const apply = process.argv.includes('--apply');
@@ -23,13 +28,15 @@ const SITE_BASE = 'https://shilista.com';
     where: { supplier_shop_name: site, product_media: { some: {} } },
     select: { id: true, code: true, name_tr: true, product_media: { select: { id: true, url: true } } },
   });
+  if (!fs.existsSync(UPLOAD_DIR) || !fs.readdirSync(UPLOAD_DIR).length) {
+    throw new Error(`uploads folder ${UPLOAD_DIR} is missing or empty — run this from the backend folder that serves the site's photos`);
+  }
   let removed = 0;
   for (const p of products) {
     const broken = [];
     for (const m of p.product_media) {
       if (!m.url.startsWith('/uploads/')) continue;
-      const res = await fetch(SITE_BASE + m.url, { method: 'HEAD' }).catch(() => null);
-      if (res && res.status === 404) broken.push(m);
+      if (!fs.existsSync(path.join(UPLOAD_DIR, path.basename(m.url)))) broken.push(m);
     }
     if (!broken.length) continue;
     const left = p.product_media.length - broken.length;
