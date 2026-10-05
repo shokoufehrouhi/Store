@@ -2151,7 +2151,8 @@ async function KikoMilano(pm, site, opts = {}) {
 // coverage for staying in that same practical range.
 async function fetchLeftiesListingMeta(pm) {
   const page = await pm.goto('https://www.lefties.com/tr/tr/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-  return page.evaluate(async (lifestyleCategoryId) => {
+  await ensureLeftiesPageSetup(page);
+  const listings = await page.evaluate(async (lifestyleCategoryId) => {
     const res = await fetch('https://www.lefties.com/9/info/sitemaps/sitemap-home-categories-lf-tr-0.xml.gz');
     const buf = await res.arrayBuffer();
     const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'));
@@ -2249,6 +2250,7 @@ async function fetchLeftiesListingMeta(pm) {
 
     return listings;
   }, LIFESTYLE_CATEGORY_ID);
+  return { page, listings };
 }
 
 // Same event-tracker.inditex.com/GTM/Facebook-pixel telemetry pattern as
@@ -2273,146 +2275,6 @@ async function ensureLeftiesPageSetup(page) {
     if (isTracker) req.abort().catch(() => {});
     else req.continue().catch(() => {});
   });
-}
-
-async function collectLeftiesListingLinks(pm, listingUrl) {
-  const page = await pm.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  await ensureLeftiesPageSetup(page);
-  await new Promise((r) => setTimeout(r, 1500));
-
-  // The GA4 view_item_list event's own im_items_number is this listing's
-  // REAL total (confirmed live: Woman Bags reports 220), independent of how
-  // many have actually lazy-rendered so far — used as the real stopping
-  // condition below instead of trusting "2 quiet rounds in a row" alone.
-  // BUG FIXED 2026-09-24: that 2-quiet-rounds heuristic alone stopped this
-  // exact listing at ~98-137 of its real 220 (confirmed live, position
-  // varies run to run) — the site's lazy-load has brief pauses between
-  // batches long enough to look "done" for 2 rounds even mid-list, which
-  // is exactly how a genuinely live discount (a bag on a dated promo,
-  // "Quilted Shopper") went completely unseen despite the price-selector
-  // fix being correct: the candidate list itself never reached it. The
-  // event itself fires well after domcontentloaded (confirmed live: still
-  // absent at 1.5s, present by 3.5s) — polled for rather than read once.
-  await page.waitForFunction(
-    () => (window.dataLayer || []).some((e) => e && e.event === 'view_item_list'),
-    { timeout: 5000 }
-  ).catch(() => {});
-  const expectedTotal = await page.evaluate(() => {
-    const ev = (window.dataLayer || []).find((e) => e && e.event === 'view_item_list');
-    return ev?.ecommerce?.im_items_number || null;
-  });
-
-  const links = new Set();
-  let stableRounds = 0;
-  // When the real total IS known, "stable for N rounds" is abandoned
-  // entirely in favor of a wall-clock budget: confirmed live (repeatedly,
-  // on this exact listing) that the site's own lazy-load goes quiet for
-  // 5+ consecutive rounds mid-list, at a DIFFERENT count each run (98 one
-  // run, 137 another, real total 220 both times) — any fixed stable-round
-  // threshold either quits too early on a slow run or wastes time on a
-  // fast one. A per-listing time budget instead keeps trying for as long
-  // as it's actually worth it regardless of which pattern this run hits,
-  // and still exits immediately once the known total is actually reached.
-  const deadline = Date.now() + (expectedTotal ? 45000 : 15000);
-  for (let i = 0; i < 60 && stableRounds < 2 && Date.now() < deadline; i++) {
-    if (expectedTotal && links.size >= expectedTotal) break;
-    const before = links.size;
-    const pageLinks = await page.evaluate(() => [...new Set(
-      Array.from(document.querySelectorAll('a[href]'))
-        .map((a) => a.getAttribute('href').split('?')[0])
-        .filter((h) => h && /c\d+p\d+\.html$/.test(h))
-    )]);
-    pageLinks.forEach((h) => links.add(h));
-    // A thinly-stocked listing (confirmed live: Home > Bedroom's own grid
-    // only finishes hydrating well after domcontentloaded) can still read
-    // zero products on the very first round or two — only treat "no new
-    // links this round" as real stability once at least one has actually
-    // been found, so a slow-to-hydrate empty-looking page keeps polling
-    // instead of exiting after its first (still-empty) round. Only allowed
-    // to actually END the loop early when the real total is unknown —
-    // otherwise it's just what resets the loop back into scrolling.
-    const wentStable = links.size === before && links.size > 0;
-    stableRounds = expectedTotal ? 0 : (wentStable ? stableRounds + 1 : 0);
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await new Promise((r) => setTimeout(r, 1200));
-  }
-  return [...links].map((h) => new URL(h, listingUrl).href);
-}
-
-// Sizes never exist in the initial DOM for the product currently being
-// viewed — only the "Add" button does. Clicking it either opens a
-// `.size-selector` panel (confirmed live: XS-XL buttons, an out-of-stock
-// one carries an extra "no-stock" class per this site's own bundled
-// Backbone.js source) or, for a genuinely single-size item (some
-// dresses/scarves), adds straight to a cart-confirmation dialog with no
-// selector at all — both are harmless in this throwaway scraping session,
-// so a single-size product just gets no product_sizes/product_inventory
-// rows, same accepted gap every other scraper here already has for
-// sizeless items (see Koton/LCWaikiki's own comments on this).
-async function scrapeLeftiesProduct(pm, url) {
-  const page = await pm.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  await ensureLeftiesPageSetup(page);
-  await new Promise((r) => setTimeout(r, 1500));
-
-  const base = await page.evaluate(() => {
-    // Every lookup below is scoped inside `.lft-product-wrapper` — the
-    // "you might also like" carousel further down the page renders its own
-    // per-card price component too, confusingly confirmed live to be a
-    // *different* class (`price-wrapper`, no "product-" prefix) from this
-    // page's own single real price block (`.product-price-wrapper`) despite
-    // sharing the rest of their class list — an unscoped `.price-wrapper`
-    // query actually pulled in 15+ unrelated recommendation prices and none
-    // of the real one. The recommendation carousel sits outside this
-    // wrapper entirely, unlike the same-garment "other colourways"
-    // thumbnails, which are a legitimate part of this wrapper's own gallery.
-    const info = document.querySelector('.lft-product-wrapper');
-    if (!info) return null;
-    const name = info.querySelector('.lft-product-info-name')?.textContent.trim();
-    if (!name) return null;
-
-    // A genuinely discounted product renders TWO `.price-line`s (old +
-    // current); a full-price one renders only one. Which line is which
-    // isn't trusted by position — whichever parses larger is the original.
-    // BUG FIXED 2026-09-24: the old price's own element is class
-    // `old-price` (not `price`!) — a query for just `.price` silently
-    // missed it on every genuinely discounted product (confirmed live on
-    // "Quilted Shopper", 1.390,00 TL struck to 990,00 TL: the old query
-    // returned only the one current-price string), which meant `imported 0`
-    // wasn't "no live discounts" as first assumed — it was this scraper
-    // never seeing the discount signal at all. Also grabs the real
-    // `.tag-discount` badge (e.g. "-28%") when present, Lefties' own stated
-    // rate — preferred by resolveDiscountTag over deriving one from prices.
-    const priceTexts = Array.from(info.querySelectorAll('.product-price-wrapper .price-line .price, .product-price-wrapper .price-line .old-price'))
-      .map((el) => el.textContent.trim()).filter(Boolean);
-    const discountPercentText = info.querySelector('.product-price-wrapper .tag-discount')?.textContent.trim() || null;
-
-    const description = info.querySelector('.description-wrapper')?.textContent.trim() || '';
-    const color = info.querySelector('.lft-product-info-color')?.textContent.replace(/^Renk:\s*/i, '').trim() || null;
-
-    const images = [...new Set(
-      Array.from(info.querySelectorAll('img'))
-        .map((img) => (img.currentSrc || img.src || '').split('?')[0])
-        .filter((src) => src.includes('/assets/public/'))
-    )];
-
-    return { name, priceTexts, discountPercentText, description, color, images };
-  });
-  if (!base) return null;
-
-  await page.evaluate(() => { document.querySelector('.lft-product-info-add-bag')?.click(); });
-  await page.waitForSelector('.size-selector.is-open', { timeout: 4000 }).catch(() => {});
-  await new Promise((r) => setTimeout(r, 300));
-
-  const sizes = await page.evaluate(() => {
-    const sel = document.querySelector('.size-selector');
-    if (!sel) return [];
-    return Array.from(sel.querySelectorAll('.size-selector-size')).map((b) => ({
-      size: b.textContent.trim(),
-      inStock: !b.className.includes('no-stock'),
-    }));
-  });
-
-  return { ...base, sizes };
 }
 
 // Accessories(3) currently only has one real subcategory in production
@@ -2470,203 +2332,229 @@ function leftiesProductId(url) {
   return url.match(/p(\d+)\.html/)?.[1] || url;
 }
 
+// Lefties' own storefront API (Inditex's itxrest — the same JSON its listing
+// pages fill themselves from). Akamai blocks plain requests to it, so it's
+// called with fetch() from inside the one Lefties page this run opens (the
+// homepage, see fetchLeftiesListingMeta), like Mavi. Per listing that's one
+// call for its product ids, one for per-size stock, and one per 50 products
+// for names/prices/colors/sizes/images — versus the old approach of
+// scrolling every listing and opening every product page, which took hours
+// (2026-10-05: 18 categories / ~3,500 products read in 37s this way).
+const LEFTIES_API = '/itxrest/3/catalog/store/94009021/90009064';
+const LEFTIES_STOCK_API = '/itxrest/2/catalog/store/94009021/90009064';
+const LEFTIES_LANGUAGE_ID = -43; // Turkish
+const LEFTIES_BATCH = 50;
+const LEFTIES_STOCK_PER_SIZE = 10;
+const LEFTIES_MAX_GALLERY_IMAGES = 14;
+
+// Reads one listing (category) in full, inside the page. Returns plain
+// objects trimmed to what the import needs. A bundle product carries its
+// real details in bundleProductSummaries[0], whose id is the one product
+// pages and our stored product_link use.
+async function readLeftiesCategory(page, categoryId) {
+  return page.evaluate(async ({ api, stockApi, lang, batch, categoryId }) => {
+    const get = async (url) => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Lefties API ${res.status} for category ${categoryId}`);
+      return res.json();
+    };
+    const list = await get(`${api}/category/${categoryId}/product?showProducts=false&languageId=${lang}&appId=1`);
+    const ids = list.productIds || [];
+    if (!ids.length) return [];
+    const stock = await get(`${stockApi}/category/${categoryId}/stock?withSubCategories=false&languageId=${lang}&appId=1`).catch(() => ({ stocks: [] }));
+    const available = new Set();
+    for (const s of stock.stocks || []) for (const sku of s.stocks || []) if (sku.availability === 'in_stock') available.add(String(sku.id));
+
+    const out = [];
+    for (let i = 0; i < ids.length; i += batch) {
+      const data = await get(`${api}/productsArray?productIds=${ids.slice(i, i + batch).join('%2C')}&languageId=${lang}&categoryId=${categoryId}&appId=1`);
+      for (const p of data.products || []) {
+        const b = p.bundleProductSummaries?.[0] || p;
+        const d = b.detail || {};
+        const imagesByColor = {};
+        for (const x of d.xmedia || []) {
+          imagesByColor[x.colorCode] = (x.xmediaItems || []).flatMap(it => it.medias || [])
+            .map(m => m.url || m.extraInfo?.url).filter(u => u && /\.jpe?g/i.test(u));
+        }
+        out.push({
+          id: String(b.id),
+          name: p.name || b.name,
+          slug: String(b.productUrl || p.productUrl || '').replace(/-l\d+$/, ''),
+          description: String(d.longDescription || d.description || '').trim(),
+          colors: (d.colors || []).map(c => ({
+            id: c.id,
+            name: c.name,
+            images: imagesByColor[c.id] || [],
+            sizes: (c.sizes || []).filter(s => s.visibilityValue !== 'HIDE').map(s => ({
+              name: s.name,
+              price: Number(s.price) / 100,
+              oldPrice: s.oldPrice ? Number(s.oldPrice) / 100 : null,
+              inStock: available.size ? available.has(String(s.sku)) : !!s.isBuyable,
+            })),
+          })),
+        });
+      }
+    }
+    return out;
+  }, { api: LEFTIES_API, stockApi: LEFTIES_STOCK_API, lang: LEFTIES_LANGUAGE_ID, batch: LEFTIES_BATCH, categoryId });
+}
+
+// Lefties shows its own rate as the cut over the old price ("-28%"), which
+// is what's compared against the markup (case (a) of resolveDiscountTag).
+// Every in-stock color that clears it goes into one product (same as
+// ArmaLife/Mango); the most expensive of them sets the price. Null when no
+// color qualifies.
+function leftiesPricing(product, markupPercent) {
+  const qualifying = [];
+  for (const c of product.colors) {
+    const sized = c.sizes.filter(s => s.oldPrice > s.price && s.price > 0);
+    if (!sized.length || !c.sizes.some(s => s.inStock)) continue;
+    const current = Math.max(...sized.map(s => s.price));
+    const original = Math.max(...sized.map(s => s.oldPrice));
+    const pct = Math.round((original - current) / original * 100);
+    const finalDiscountedPrice = Math.round(current * (1 + markupPercent / 100) * 100) / 100;
+    const tag = resolveDiscountTag({ discountPercentText: String(pct), markupPercent, finalDiscountedPrice, priceOriginal: original });
+    if (tag === 'discount') qualifying.push({ colorId: c.id, original, current, finalDiscountedPrice });
+  }
+  if (!qualifying.length) return null;
+  const top = qualifying.reduce((a, b) => (b.current > a.current ? b : a));
+  return {
+    colorIds: qualifying.map(q => q.colorId),
+    price: top.original, discounted_price: top.finalDiscountedPrice, cost_price: top.current, tag: 'discount',
+  };
+}
+
 async function Lefties(pm, site, opts = {}) {
   const limit = opts.limit || 30;
   await seedLifestyleSubcategories();
 
-  // The one remaining unprotected navigation in this scraper (confirmed
-  // live: a transient "Navigation timeout of 30000 ms exceeded" fetching
-  // Lefties' own homepage aborted the entire run before a single listing
-  // was even visited — every per-listing/per-product call already has its
-  // own try/catch, this was the one gap). One retry after a short pause
-  // covers a one-off network blip; a second failure is genuinely worth
-  // surfacing as an error rather than silently returning zero listings.
-  let listings;
+  // The one navigation of the run (homepage + category sitemap). A
+  // transient timeout here once aborted a whole run, so it gets one retry.
+  let meta;
   try {
-    listings = await fetchLeftiesListingMeta(pm);
+    meta = await fetchLeftiesListingMeta(pm);
   } catch (err) {
     console.warn(`[siteImport] Lefties listing-meta fetch failed, retrying once: ${err.message}`);
     await new Promise((r) => setTimeout(r, 3000));
-    listings = await fetchLeftiesListingMeta(pm);
+    meta = await fetchLeftiesListingMeta(pm);
   }
+  const { page, listings } = meta;
 
-  // Concurrency: IMPORT_CONCURRENCY (2; was 4 until 2026-10-05, now the
-  // same as every other importer) PageManagers sharing this run's ONE
-  // already-launched browser (separate tabs, not separate browsers) — added
-  // after confirming live that a full sequential scan of every listing's
-  // every candidate (no cap; see its own removal below) took 2+ hours for
-  // only a handful of real finds. Deliberately NOT one browser per worker: that's
-  // the exact "several simultaneous Chrome processes competing for this
-  // VPS's CPU/RAM" problem scheduler.js was just fixed for (see 3525278),
-  // just relocated to inside a single site's own import instead of across
-  // sites. `pm` (this call's own PageManager) is reused as worker 0; the
-  // rest only exist if the caller actually gave us the means to make more
-  // (siteSync.js#importSite passes both) — falls back to the one `pm`,
-  // fully sequential, otherwise.
-  const canParallelize = typeof opts.createPageManager === 'function' && opts.browser;
-  const CONCURRENCY = canParallelize ? IMPORT_CONCURRENCY : 1;
-  const pms = [pm];
-  if (canParallelize) for (let i = 1; i < CONCURRENCY; i++) pms.push(opts.createPageManager(opts.browser));
-
-  const metaByUrl = new Map();
-  const seenProductIds = new Set();
-  const perListing = new Array(listings.length).fill(null);
-  await runQueue(listings, pms, async (workerPm, listing, idx) => {
-    // One flaky navigation (confirmed live: a "Navigation timeout of 30000
-    // ms exceeded" on some listing) used to abort the ENTIRE run here —
-    // nothing caught it, so it propagated all the way to
-    // sitesController.js's own catch and reported `last_import_status:
-    // "error: ..."` with zero candidates ever collected, even from the 37
-    // other listings that loaded fine. A dozens-of-listings run has much
-    // more surface area for this than any other scraper here (7-18
-    // listings each), so one bad listing is now just skipped instead.
-    let hrefs = [];
+  // Each product once, under the first listing that has it — the same
+  // product shows up in several listings (see leftiesProductId).
+  const products = new Map(); // id -> { product, listing, categoryId }
+  for (const listing of listings) {
+    const categoryId = listing.url.match(/-c(\d+)\.html/)?.[1];
+    if (!categoryId) continue;
     try {
-      hrefs = await collectLeftiesListingLinks(workerPm, listing.url);
+      for (const product of await readLeftiesCategory(page, categoryId)) {
+        if (!products.has(product.id)) products.set(product.id, { product, listing, categoryId });
+      }
     } catch (err) {
+      // One failing listing shouldn't cost the run every other listing.
       console.warn(`[siteImport] Lefties listing failed, skipping: ${listing.url} — ${err.message}`);
     }
-    // First listing (in whatever order the shared queue happens to hand
-    // them out) to surface a given product id wins — see leftiesProductId's
-    // own comment for why a raw URL isn't enough here.
-    const deduped = [];
-    for (const h of hrefs) {
-      const pid = leftiesProductId(h);
-      if (seenProductIds.has(pid)) continue;
-      seenProductIds.add(pid);
-      deduped.push(h);
-    }
-    perListing[idx] = deduped;
-    deduped.forEach((h) => { if (!metaByUrl.has(h)) metaByUrl.set(h, listing); });
-  });
-  const candidateUrls = [];
-  for (let i = 0; i < Math.max(...perListing.map((l) => l.length), 0); i++) {
-    for (const urls of perListing) if (urls[i]) candidateUrls.push(urls[i]);
   }
 
-  // Matched by product id (see leftiesProductId), not exact product_link
-  // string — a re-run isn't guaranteed to rediscover the same one of
-  // Lefties' several possible URLs for the same product first (concurrent
-  // workers race for queue slots), so an exact-string match against what
-  // got saved last time could miss it and re-import a duplicate again.
   const existingLinks = await prisma.products.findMany({
     where: { supplier_shop_name: site.name, product_link: { not: null } },
     select: { product_link: true },
   });
-  const existingIdSet = new Set(existingLinks.map((e) => leftiesProductId(e.product_link)));
-  const existingSet = { has: (url) => existingIdSet.has(leftiesProductId(url)) };
-  // A MAX_CANDIDATES_PER_RUN cap used to live here (trimming listing count
-  // alone wasn't enough — several surviving listings are still full "See
-  // All" aggregates with 100+ products each). Removed after confirming live
-  // it actively hid real discounts rather than just slowing things down: a
-  // genuinely live one ("Quilted Shopper", Woman Bags) sat at index 24 of
-  // that listing's own 138 candidates, but the cap's round-robin interleave
-  // across 38 listings only ever reached roughly the first 8 per listing
-  // before cutting off — so real discounts sitting anywhere but near the
-  // front of a large, unordered listing were structurally unreachable, not
-  // just slow to reach. This runs as an unattended nightly cron (see
-  // backend/scheduler.js) — correctness matters more than a bounded
-  // wall-clock for that use case; the concurrency above is what actually
-  // brings the wall-clock cost down now, not a cap that hides real results.
-  const newUrls = candidateUrls.filter((u) => !existingSet.has(u));
+  const existingIds = new Set(existingLinks.map((e) => leftiesProductId(e.product_link)));
+  const fresh = [...products.values()].filter(({ product }) => !existingIds.has(product.id));
+  const candidates = fresh
+    .map((entry) => ({ ...entry, pricing: leftiesPricing(entry.product, site.markup_percent) }))
+    .filter((entry) => entry.pricing);
 
   const imported = [];
-  let notDiscounted = 0;
-
-  async function processOne(workerPm, url) {
-    if (imported.filter((p) => !p.error).length >= limit) return;
+  let stopped = false;
+  await runQueue(candidates, IMPORT_WORKER_SLOTS, async (_worker, { product, listing, categoryId, pricing }) => {
+    if (stopped) return;
+    if (imported.filter((p) => !p.error).length >= limit) return void (stopped = true);
+    const url = `https://www.lefties.com/tr/${product.slug}-c${categoryId}p${product.id}.html`;
     try {
-      const data = await scrapeLeftiesProduct(workerPm, url);
-      if (!data || !data.name) return;
-
-      const prices = data.priceTexts.map(parseTLPrice).filter((n) => n != null).sort((a, b) => b - a);
-      if (prices.length < 2) { notDiscounted++; return; }
-      const originalPrice = prices[0];
-      const sitePrice = prices[prices.length - 1];
-      if (originalPrice <= sitePrice) { notDiscounted++; return; }
-
-      const listingMeta = metaByUrl.get(url) || { gender: 'unisex', categoryId: 1 };
-      const finalDiscountedPrice = Math.round(sitePrice * (1 + site.markup_percent / 100) * 100) / 100;
-      const tag = resolveDiscountTag({
-        discountPercentText: data.discountPercentText,
-        markupPercent: site.markup_percent,
-        finalDiscountedPrice, priceOriginal: originalPrice,
-      });
-      if (!tag) { notDiscounted++; return; }
-
-      const category_id = listingMeta.categoryId;
-      const subcategory_id = category_id === 1 ? guessSubcategoryId(data.name, 1)
-        : category_id === 3 ? guessLeftiesAccessorySubcategoryId(data.name)
-        : category_id === LIFESTYLE_CATEGORY_ID ? getLifestyleSubcategoryId(listingMeta.homeSlug)
+      const category_id = listing.categoryId;
+      const subcategory_id = category_id === 1 ? guessSubcategoryId(product.name, 1)
+        : category_id === 3 ? guessLeftiesAccessorySubcategoryId(product.name)
+        : category_id === LIFESTYLE_CATEGORY_ID ? getLifestyleSubcategoryId(listing.homeSlug)
         : null; // category_id 2 (Shoes) has no subcategories in production yet
-      const gender = listingMeta.gender || 'unisex';
-
-      data.sizes = data.sizes.map((s) => ({ ...s, size: (s.size || '').slice(0, 10) }));
 
       const translateOrWarn = (text, target) => translateText(text, 'tr', target)
         .catch((err) => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
       const [name_fa, name_en, desc_fa, desc_en] = await Promise.all([
-        translateOrWarn(data.name, 'fa'),
-        translateOrWarn(data.name, 'en'),
-        data.description ? translateOrWarn(data.description, 'fa') : '',
-        data.description ? translateOrWarn(data.description, 'en') : '',
+        translateOrWarn(product.name, 'fa'),
+        translateOrWarn(product.name, 'en'),
+        product.description ? translateOrWarn(product.description, 'fa') : '',
+        product.description ? translateOrWarn(product.description, 'en') : '',
       ]);
-      const nameTr = data.name.slice(0, 120);
-      const nameFa = name_fa.slice(0, 120);
-      const nameEn = name_en.slice(0, 120);
+      const nameTr = product.name.slice(0, 120);
 
+      const colors = product.colors.filter((c) => pricing.colorIds.includes(c.id));
+      const photos = [...colors[0].images.slice(0, 8)];
+      for (const c of colors.slice(1)) photos.push(...c.images.slice(0, 2));
       const mediaUrls = [];
-      for (const imgUrl of data.images) {
+      for (const imgUrl of [...new Set(photos)].slice(0, LEFTIES_MAX_GALLERY_IMAGES)) {
         try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
       }
 
-      const colorId = await getOrCreateColorId(data.color);
-
-      const product = await prisma.products.create({
+      const created = await prisma.products.create({
         data: {
           code: await generateProductCode(),
           category_id, subcategory_id,
-          gender,
-          name_fa: nameFa, name_en: nameEn, name_tr: nameTr,
-          desc_fa, desc_en, desc_tr: data.description || null,
-          price: originalPrice,
-          cost_price: sitePrice,
-          discounted_price: finalDiscountedPrice,
-          tag,
+          gender: listing.gender || 'unisex',
+          name_fa: (name_fa || nameTr).slice(0, 120), name_en: (name_en || nameTr).slice(0, 120), name_tr: nameTr,
+          desc_fa, desc_en, desc_tr: product.description || null,
+          price: pricing.price,
+          discounted_price: pricing.discounted_price,
+          cost_price: pricing.cost_price,
+          tag: pricing.tag,
           stock: 0,
           brand: site.name,
           supplier_shop_name: site.name,
           product_link: url,
           product_media: mediaUrls.length ? { create: mediaUrls.map((u, i) => ({ type: 'image', url: u, sort_order: i })) } : undefined,
-          product_colors: colorId ? { create: [{ color_id: colorId, is_available: true }] } : undefined,
-          product_sizes: data.sizes.length ? {
-            create: data.sizes.map((s) => ({ size_label: s.size, is_available: s.inStock })),
-          } : undefined,
         },
       });
 
-      if (data.sizes.length) {
-        await prisma.product_inventory.createMany({
-          data: data.sizes.map((s) => ({
-            product_id: product.id, color_id: colorId, size_label: s.size,
-            quantity: s.inStock ? 10 : 0,
-          })),
-        });
-        const totalQty = data.sizes.filter((s) => s.inStock).length * 10;
-        await prisma.products.update({ where: { id: product.id }, data: { stock: totalQty } });
+      // Per color x size stock, like ArmaLife/Mango.
+      const inventory = [];
+      const sizeOrder = [];
+      const colorRows = new Map();
+      for (const c of colors) {
+        const colorId = await getOrCreateColorId(c.name);
+        for (const s of c.sizes) {
+          const label = String(s.name || '').trim().slice(0, 10);
+          if (!label) continue;
+          if (!sizeOrder.includes(label)) sizeOrder.push(label);
+          const quantity = s.inStock ? LEFTIES_STOCK_PER_SIZE : 0;
+          const same = inventory.find((i) => i.color_id === colorId && i.size_label === label);
+          if (same) { same.quantity = Math.max(same.quantity, quantity); continue; }
+          inventory.push({ product_id: created.id, color_id: colorId, size_label: label, quantity });
+        }
+        if (colorId != null) {
+          const inStock = c.sizes.some((s) => s.inStock);
+          colorRows.set(colorId, { product_id: created.id, color_id: colorId, is_available: inStock || !!colorRows.get(colorId)?.is_available });
+        }
       }
+      await prisma.$transaction([
+        prisma.product_colors.createMany({ data: [...colorRows.values()] }),
+        prisma.product_sizes.createMany({
+          data: sizeOrder.map((label) => ({
+            product_id: created.id, size_label: label,
+            is_available: inventory.some((i) => i.size_label === label && i.quantity > 0),
+          })),
+        }),
+        prisma.product_inventory.createMany({ data: inventory }),
+        prisma.products.update({ where: { id: created.id }, data: { stock: inventory.reduce((sum, i) => sum + i.quantity, 0) } }),
+      ]);
 
-      imported.push({ id: product.id, name: data.name });
+      imported.push({ id: created.id, name: product.name });
     } catch (err) {
       imported.push({ error: err.message, url });
     }
-  }
+  });
 
-  await runQueue(newUrls, pms, (workerPm, url) => processOne(workerPm, url));
-
-  for (let i = 1; i < pms.length; i++) await pms[i].close().catch(() => {});
-
-  return { imported, skipped: notDiscounted + (candidateUrls.length - newUrls.length) };
+  return { imported, skipped: (products.size - fresh.length) + (fresh.length - candidates.length) };
 }
 
 // Mavi is an SAP Commerce (Spartacus/Angular) storefront behind a strict
