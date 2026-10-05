@@ -32,7 +32,7 @@ const TR_COLOR_TO_ID = {
 // Turkish keyword (in the product name) -> our subcategories.id, within
 // category_id 1 (Clothing). Falls back to null (no subcategory) if nothing matches.
 const TR_KEYWORD_TO_SUBCATEGORY = [
-  [/tişört|tshirt|t-shirt/i, 1],
+  [/tişört|\btshirt|t-shirt/i, 1],
   [/şort|bermuda/i, 2],
   [/pantolon|eşofman altı|jogger/i, 3],
   [/tayt/i, 4],
@@ -43,7 +43,7 @@ const TR_KEYWORD_TO_SUBCATEGORY = [
 // Same idea, within category_id 7 (Sports) — the "Fit" listing's own
 // subcategory taxonomy differs from regular clothing's.
 const TR_KEYWORD_TO_SPORT_SUBCATEGORY = [
-  [/tişört|tshirt|t-shirt|polo/i, 26],
+  [/tişört|\btshirt|t-shirt|polo/i, 26],
   [/şort/i, 27],
   [/\bset\b|takım/i, 28],
   [/tayt|leg\b|pantolon/i, 29],
@@ -3693,11 +3693,339 @@ async function mergeArmaLifeColors(site, { apply = false } = {}) {
   return log;
 }
 
+// Mango (shop.mango.com/tr) — its storefront sits behind a Vercel bot
+// checkpoint (plain requests get 429/403), but the three JSON APIs the
+// storefront itself calls answer plain Node fetch, so no page is opened:
+//   - api.shop.mango.com .../catalogs/<id>/filters: every product+color of
+//     one menu's "Tümünü görüntüle" list, in one response
+//   - online-orchestrator.mango.com /v4/prices/products: per-color current
+//     price, original price and Mango's own discountRate (ONE product per
+//     call — it rejects lists)
+//   - online-orchestrator.mango.com /v4/products + /v3/stock/products:
+//     names (Turkish + English), families, colors, sizes, images, and
+//     per color x size availability
+// Discounts are spread across every menu (user: "too hame menuha
+// promotion dare"), not one sale page, so every menu's full list is
+// scanned and each product's price is checked. Only a color whose own
+// stated discountRate is bigger than site.markup_percent counts — case (a)
+// of resolveDiscountTag, like LCWaikiki/Koton. Every qualifying color of a
+// product goes into ONE Shilista product (same as ArmaLife); colors that
+// aren't discounted enough are left out, since they'd sell at the wrong
+// price.
+const MANGO_LIST_API = 'https://api.shop.mango.com/cs/product-lists-drive-thru/v4/channels/shop/countries/tr/catalogs';
+const MANGO_ORCHESTRATOR = 'https://online-orchestrator.mango.com';
+const MANGO_SITE = 'https://shop.mango.com';
+const MANGO_MEDIA = 'https://media.mango.com';
+const MANGO_STOCK_PER_SIZE = 10;
+const MANGO_MAX_GALLERY_IMAGES = 14;
+// Price lookups are one product per call — with ~10,000 products across
+// every menu, a run with few discounts would otherwise check them all.
+// Candidates are shuffled each run, so the whole catalog still gets
+// covered across runs.
+const MANGO_MAX_PRICE_LOOKUPS = 1500;
+
+// Each menu's "Tümünü görüntüle" (view all) list. teenA/teenO = Teen
+// girls/boys (adult XS-XL sizing, so filed as female/male, not kids).
+const MANGO_CATALOGS = [
+  { id: 'dest_vertodo_she', gender: 'female' },
+  { id: 'dest_vertodo_he', gender: 'male' },
+  { id: 'dest_vertodo_teenA', gender: 'female' },
+  { id: 'dest_vertodo_teenO', gender: 'male' },
+  { id: 'dest_vertodo_nina', gender: 'kids' },
+  { id: 'dest_vertodo_nino', gender: 'kids' },
+  { id: 'dest_vertodo_babyNina', gender: 'kids' },
+  { id: 'dest_vertodo_babyNino', gender: 'kids' },
+  { id: 'dest_vertodo_newborn', gender: 'kids' },
+  { id: 'dest_vertodo_home', gender: 'unisex', home: true },
+];
+
+// Mango's main family label -> one of our Lifestyle subcategory slugs
+// (LIFESTYLE_SUBCATEGORY_DEFS). Only used for products from the Home menu.
+const MANGO_HOME_FAMILY_TO_SLUG = [
+  [/banyo|havlu|bornoz/i, 'banyo'],
+  [/halı|halıları/i, 'hali-kilim'],
+  [/masa örtü/i, 'sofra'],
+  [/mutfak/i, 'mutfak'],
+  [/nevresim|çarşaf|yorgan|yastık|yatak|battaniye|beşik|dolgu/i, 'yatak-odasi'],
+  [/kırlent|perde|living|dekorasyon|çocuk odası/i, 'dekorasyon'],
+];
+
+function routeMangoCategory(familyLabel, name, catalog) {
+  const fam = familyLabel || '';
+  if (/ayakkabı/i.test(fam)) return { category_id: 2, subcategory_id: null };
+  if (/çanta|cüzdan|kalem kutu/i.test(fam)) return { category_id: 3, subcategory_id: /çanta/i.test(fam) ? 13 : null };
+  if (/aksesuar|bijuteri|takı|kemer|gözlüğ|şapka|bere|atkı|eldiven|kravat|papyon/i.test(fam)) {
+    return { category_id: 3, subcategory_id: null };
+  }
+  if (catalog.home) {
+    const hit = MANGO_HOME_FAMILY_TO_SLUG.find(([re]) => re.test(fam));
+    // Pyjamas, swimwear and the like also live under Home -> still clothing.
+    if (hit || !/pijama|bikini|mayo/i.test(fam)) {
+      return { category_id: LIFESTYLE_CATEGORY_ID, subcategory_id: hit ? getLifestyleSubcategoryId(hit[1]) : null };
+    }
+  }
+  return { category_id: 1, subcategory_id: guessSubcategoryId(`${name} ${fam}`, 1) };
+}
+
+async function mangoGet(url) {
+  const res = await fetch(url, {
+    headers: { 'User-Agent': MCLUB_USER_AGENT, Accept: 'application/json', Origin: MANGO_SITE, Referer: MANGO_SITE + '/' },
+  });
+  if (!res.ok) throw new Error(`Mango API ${res.status} for ${new URL(url).pathname}`);
+  return res.json();
+}
+
+const mangoPrices = (productId) => mangoGet(`${MANGO_ORCHESTRATOR}/v4/prices/products?channelId=shop&countryIso=TR&productId=${productId}`);
+const mangoStock = (productId) => mangoGet(`${MANGO_ORCHESTRATOR}/v3/stock/products?countryIso=TR&channelId=shop&productId=${productId}`);
+const mangoProduct = (productId) => mangoGet(`${MANGO_ORCHESTRATOR}/v4/products?countryIso=TR&channelId=shop&productId=${productId}&languageIso=tr`);
+
+function mangoLinkProductId(link) {
+  return String(link || '').match(/\/(\d{8})(?:[/?#]|$)/)?.[1] || null;
+}
+
+// Every color whose own discount clears the markup, with the pricing the
+// product gets: the most expensive of those colors sets it, so no included
+// color is ever sold below Mango's price for it. `availableColors` (a Set
+// of color ids with at least one size in stock) narrows it further when
+// known. Returns null when no color qualifies.
+function mangoPricing(prices, markupPercent, availableColors = null) {
+  const qualifying = [];
+  for (const [colorId, byKey] of Object.entries(prices || {})) {
+    const pr = byKey?.default;
+    const original = Number(pr?.previousPrices?.originalShop);
+    const current = Number(pr?.price);
+    if (!pr || !(original > current) || !(current > 0)) continue;
+    if (availableColors && !availableColors.has(colorId)) continue;
+    const finalDiscountedPrice = Math.round(current * (1 + markupPercent / 100) * 100) / 100;
+    const tag = resolveDiscountTag({
+      discountPercentText: pr.discountRate != null ? String(pr.discountRate) : null,
+      markupPercent, finalDiscountedPrice, priceOriginal: original,
+    });
+    if (tag === 'discount') qualifying.push({ colorId, original, current, finalDiscountedPrice });
+  }
+  if (!qualifying.length) return null;
+  const top = qualifying.reduce((a, b) => (b.current > a.current ? b : a));
+  return {
+    colorIds: qualifying.map(q => q.colorId),
+    price: top.original, discounted_price: top.finalDiscountedPrice, cost_price: top.current, tag: 'discount',
+  };
+}
+
+function mangoAvailableColors(stock) {
+  return new Set(Object.entries(stock?.colors || {})
+    .filter(([, c]) => Object.values(c.sizes || {}).some(s => s.available))
+    .map(([colorId]) => colorId));
+}
+
+// Image paths for one color, model shots first, de-duplicated (several
+// keys point at the same picture).
+function mangoColorImages(color) {
+  const looks = color?.looks || {};
+  const look = looks['00'] || Object.values(looks)[0];
+  return [...new Set(Object.values(look?.images || {}).map(i => i.img).filter(Boolean))];
+}
+
+// Rebuilds a Mango product's colors, sizes and per color x size stock for
+// `colorIds` (same approach as writeArmaLifeVariants: nothing references
+// these rows by id). Rows are only rewritten when something changed.
+// Returns { stock, changed }.
+async function writeMangoVariants(productId, detail, stock, colorIds) {
+  const inventory = [];
+  const sizeOrder = [];
+  const colorRows = new Map();
+  for (const color of (detail.colors || []).filter(c => colorIds.includes(c.id))) {
+    const colorId = await getOrCreateColorId(color.label);
+    const sizes = color.sizes || [];
+    for (const s of sizes) {
+      const label = String(s.shortDescription || s.label || '').trim().slice(0, 10);
+      if (!label) continue;
+      if (!sizeOrder.includes(label)) sizeOrder.push(label);
+      const available = !!stock?.colors?.[color.id]?.sizes?.[s.id]?.available;
+      const existing = inventory.find(i => i.color_id === colorId && i.size_label === label);
+      if (existing) { if (available) existing.quantity = MANGO_STOCK_PER_SIZE; continue; }
+      inventory.push({ product_id: productId, color_id: colorId, size_label: label, quantity: available ? MANGO_STOCK_PER_SIZE : 0 });
+    }
+    if (colorId != null) {
+      const anyAvailable = inventory.some(i => i.color_id === colorId && i.quantity > 0);
+      colorRows.set(colorId, { product_id: productId, color_id: colorId, is_available: anyAvailable || !!colorRows.get(colorId)?.is_available });
+    }
+  }
+  const sizeRows = sizeOrder.map(label => ({
+    product_id: productId, size_label: label,
+    is_available: inventory.some(i => i.size_label === label && i.quantity > 0),
+  }));
+  const total = inventory.reduce((sum, i) => sum + i.quantity, 0);
+  const sig = rows => rows.map(r => `${r.color_id}|${r.size_label}|${r.quantity}`).sort().join(',');
+  const current = await prisma.product_inventory.findMany({ where: { product_id: productId } });
+  if (sig(current) === sig(inventory)) return { stock: total, changed: false };
+  await prisma.$transaction([
+    prisma.product_inventory.deleteMany({ where: { product_id: productId } }),
+    prisma.product_colors.deleteMany({ where: { product_id: productId } }),
+    prisma.product_sizes.deleteMany({ where: { product_id: productId } }),
+    prisma.product_colors.createMany({ data: [...colorRows.values()] }),
+    prisma.product_sizes.createMany({ data: sizeRows }),
+    prisma.product_inventory.createMany({ data: inventory }),
+  ]);
+  return { stock: total, changed: true };
+}
+
+async function Mango(pm, site, opts = {}) {
+  const limit = opts.limit || 30;
+  await seedLifestyleSubcategories();
+
+  // Every product once, under the first menu that lists it.
+  const candidates = new Map(); // productId -> catalog
+  for (const catalog of MANGO_CATALOGS) {
+    let list;
+    try {
+      list = await mangoGet(`${MANGO_LIST_API}/${catalog.id}/filters?languageIso=tr`);
+    } catch (err) {
+      console.warn(`[siteImport] Mango list ${catalog.id} failed, skipping: ${err.message}`);
+      continue;
+    }
+    for (const item of list.items || []) {
+      if (item.productId && !candidates.has(item.productId)) candidates.set(item.productId, catalog);
+    }
+  }
+  if (!candidates.size) throw new Error('Mango: every catalog list failed or came back empty');
+
+  const existing = await prisma.products.findMany({
+    where: { supplier_shop_name: site.name, product_link: { not: null } },
+    select: { product_link: true },
+  });
+  const existingIds = new Set(existing.map(e => mangoLinkProductId(e.product_link)).filter(Boolean));
+  const fresh = [...candidates.keys()].filter(id => !existingIds.has(id));
+  for (let i = fresh.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [fresh[i], fresh[j]] = [fresh[j], fresh[i]];
+  }
+
+  const imported = [];
+  let notDiscounted = 0;
+  let lookups = 0;
+  let consecutiveErrors = 0;
+  for (const productId of fresh) {
+    if (imported.filter(p => !p.error).length >= limit || lookups >= MANGO_MAX_PRICE_LOOKUPS) break;
+    lookups++;
+    let url = `${MANGO_SITE}/tr/tr/p/${productId}`;
+    try {
+      const prices = await mangoPrices(productId);
+      // Cheap first pass on price alone — most products stop here.
+      if (!mangoPricing(prices, site.markup_percent)) { notDiscounted++; consecutiveErrors = 0; continue; }
+      const stock = await mangoStock(productId);
+      const pricing = mangoPricing(prices, site.markup_percent, mangoAvailableColors(stock));
+      if (!pricing) { notDiscounted++; consecutiveErrors = 0; continue; }
+
+      const detail = await mangoProduct(productId);
+      if (detail.url) url = MANGO_SITE + detail.url;
+      const catalog = candidates.get(productId);
+      const mainFamily = (detail.families || []).find(f => f.isMainFamily) || (detail.families || [])[0];
+      const nameTr = String(detail.name || '').trim();
+      const nameEn = String(detail.nameEn || nameTr).trim();
+      if (!nameTr) throw new Error('no product name');
+      const { category_id, subcategory_id } = routeMangoCategory(mainFamily?.label, nameTr, catalog);
+
+      // Mango's own English name is better input for Farsi than Turkish.
+      const name_fa = await translateText(nameEn, 'en', 'fa')
+        .catch(err => { console.warn(`[siteImport] translate en->fa failed for "${nameEn.slice(0, 40)}...": ${err.message}`); return ''; });
+
+      const colors = (detail.colors || []).filter(c => pricing.colorIds.includes(c.id));
+      const photos = [...mangoColorImages(colors[0]).slice(0, 8)];
+      for (const c of colors.slice(1)) photos.push(...mangoColorImages(c).slice(0, 2));
+      const mediaUrls = [];
+      for (const img of [...new Set(photos)].slice(0, MANGO_MAX_GALLERY_IMAGES)) {
+        try { mediaUrls.push(await saveImageFromUrl(`${MANGO_MEDIA}${img}?wid=1200`)); } catch (e) { /* skip broken image */ }
+      }
+
+      const product = await prisma.products.create({
+        data: {
+          code: await generateProductCode(),
+          category_id, subcategory_id,
+          gender: catalog.gender,
+          name_fa: (name_fa || nameEn).slice(0, 120), name_en: nameEn.slice(0, 120), name_tr: nameTr.slice(0, 120),
+          price: pricing.price,
+          discounted_price: pricing.discounted_price,
+          cost_price: pricing.cost_price,
+          tag: pricing.tag,
+          stock: 0,
+          brand: site.name,
+          supplier_shop_name: site.name,
+          product_link: url,
+          product_media: mediaUrls.length ? { create: mediaUrls.map((u, i) => ({ type: 'image', url: u, sort_order: i })) } : undefined,
+        },
+      });
+      const { stock: total } = await writeMangoVariants(product.id, detail, stock, pricing.colorIds);
+      await prisma.products.update({ where: { id: product.id }, data: { stock: total } });
+      imported.push({ id: product.id, name: nameTr });
+      consecutiveErrors = 0;
+    } catch (err) {
+      imported.push({ error: err.message, url });
+      // The same failure on every product (an API change, a block) would
+      // otherwise burn the whole lookup budget one error at a time.
+      if (++consecutiveErrors >= 5) break;
+    }
+  }
+
+  return { imported, skipped: notDiscounted + (candidates.size - fresh.length) };
+}
+
+// Mango's stock check (called from siteSync.js#checkSiteStock instead of
+// its generic Defacto-page reader): re-reads each imported product's
+// prices and stock. A product whose discount ended (or no longer clears the
+// markup) is taken off the site — Mango's price went back up, so selling
+// it at the old discounted price would be selling below cost. Otherwise
+// re-prices it and refreshes its per color x size stock.
+async function checkMangoStock(site, products) {
+  const { syncSubcategoryActiveState } = require('./subcategorySync');
+  const results = [];
+  for (const p of products) {
+    try {
+      const productId = mangoLinkProductId(p.product_link);
+      if (!productId) { results.push({ id: p.id, name: p.name_tr, status: 'skipped (no Mango id in link)' }); continue; }
+      const [prices, stock] = await Promise.all([mangoPrices(productId), mangoStock(productId)]);
+      const pricing = mangoPricing(prices, site.markup_percent, mangoAvailableColors(stock));
+      if (!pricing) {
+        await prisma.products.update({
+          where: { id: p.id },
+          data: { is_active: false, is_live: false, is_dirty: false, updated_at: new Date() },
+        });
+        if (p.subcategory_id) await syncSubcategoryActiveState(p.subcategory_id);
+        results.push({ id: p.id, name: p.name_tr, status: 'deactivated (discount ended or sold out)' });
+        continue;
+      }
+      const detail = await mangoProduct(productId);
+      const { stock: totalStock, changed } = await writeMangoVariants(p.id, detail, stock, pricing.colorIds);
+
+      const keepAdminTag = ['bestseller', 'new'].includes(p.tag) ? p.tag : null;
+      const tag = totalStock === 0 ? 'sold_out' : (pricing.tag || keepAdminTag);
+      const update = {};
+      if (Number(p.price) !== pricing.price) update.price = pricing.price;
+      if ((p.discounted_price == null ? null : Number(p.discounted_price)) !== pricing.discounted_price) update.discounted_price = pricing.discounted_price;
+      if (Number(p.cost_price) !== pricing.cost_price) update.cost_price = pricing.cost_price;
+      if (p.stock !== totalStock) update.stock = totalStock;
+      if (p.tag !== tag) {
+        update.tag = tag;
+        update.sold_out_at = tag === 'sold_out' ? new Date() : null;
+      }
+      if (Object.keys(update).length || changed) {
+        await prisma.products.update({ where: { id: p.id }, data: { ...update, is_dirty: true, updated_at: new Date() } });
+      }
+      results.push({
+        id: p.id, name: p.name_tr,
+        status: tag === 'sold_out' ? 'sold_out' : `ok (stock=${totalStock})${Object.keys(update).length || changed ? ', updated' : ''}`,
+      });
+    } catch (err) {
+      results.push({ id: p.id, name: p.name_tr, status: `error: ${err.message}` });
+    }
+  }
+  return results;
+}
+
 module.exports = {
-  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Mavi, MClub, ArmaLife,
-  // exported for siteSync.js#checkSiteStock, which hands mClub's and
-  // ArmaLife's stock checks off to their own API-based readers.
-  checkMClubStock, checkArmaLifeStock,
+  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Mavi, MClub, ArmaLife, Mango,
+  // exported for siteSync.js#checkSiteStock, which hands mClub's, ArmaLife's
+  // and Mango's stock checks off to their own API-based readers.
+  checkMClubStock, checkArmaLifeStock, checkMangoStock,
   // exported for backend/scripts/mergeArmaLifeColors.js.
   mergeArmaLifeColors,
   // exported for backend/scripts/backfillMissingColors.js — reusing the
