@@ -3901,6 +3901,248 @@ async function checkBarrelsAndOilStock(site, products) {
   return results;
 }
 
+// ── Flormar ──
+// flormar.com.tr (Akinon platform): any listing answers JSON with
+// ?format=json, and /list/ is the whole catalog (2026-10-06: 1,278 shades
+// of 351 products, 20 per page, ~1 min to read). User's choice
+// (2026-10-06): ONLY discounted products. Each shade is its own entry;
+// shades of one product share `base_code` and become ONE product with a
+// color per shade (same as Kiko/mClub; no sizes). Flormar states its own
+// discount_ratio, so case (a) applies: a shade counts when it's in stock
+// and that ratio beats the markup; a product holds only those shades.
+// Note: its sets ("2'li ... Seti") list the sum of their items as the old
+// price, so their "50%" is really "two for the price of one".
+const FLORMAR_BASE = 'https://www.flormar.com.tr';
+const FLORMAR_STOCK_PER_SHADE = 10;
+
+async function fetchFlormarCatalog() {
+  const get = async (page) => {
+    const res = await fetch(`${FLORMAR_BASE}/list/?format=json&page=${page}`, {
+      headers: { 'User-Agent': COLINS_UA, Accept: 'application/json' },
+    });
+    if (!res.ok) throw new Error(`Flormar API ${res.status} (page ${page})`);
+    return res.json();
+  };
+  const first = await get(1);
+  const pages = Number(first.pagination?.num_pages) || 1;
+  const all = [...(first.products || [])];
+  for (let page = 2; page <= pages; page++) all.push(...((await get(page)).products || []));
+  if (!all.length) throw new Error('Flormar: catalog returned no products');
+  // Shade names ("003 DEEP COFFEE") live in each entry's variants list.
+  const shadeName = new Map();
+  for (const p of all) for (const v of p.extra_data?.variants || []) for (const o of v.options || []) {
+    if (o.product?.sku && o.label) shadeName.set(String(o.product.sku), String(o.label).trim());
+  }
+  const bySku = new Map();
+  for (const p of all) {
+    if (bySku.has(String(p.sku))) continue;
+    bySku.set(String(p.sku), {
+      sku: String(p.sku),
+      model: String(p.base_code || p.sku),
+      name: String(p.name || '').replace(/\s+/g, ' ').trim(),
+      shade: shadeName.get(String(p.sku)) || null,
+      url: FLORMAR_BASE + p.absolute_url,
+      price: Number(p.price) || 0,
+      retail: Number(p.retail_price) || 0,
+      ratio: Number(p.discount_ratio) || 0,
+      stock: p.in_stock ? Math.max(Number(p.stock) || 0, 0) : 0,
+      images: (p.productimage_set || []).filter((im) => im.status === 'active').sort((a, b) => a.order - b.order).map((im) => im.image),
+      type: p.attributes?.ent_alt_kategori || p.attributes_kwargs?.ent_type_code?.label || '',
+    });
+  }
+  // One product per model. Flormar sometimes relaunches a product under a
+  // new base_code with the very same name, price and (some of the same)
+  // shades (2026-10-06: 12 names, e.g. "Metaglam ... Kompakt Allık"
+  // 31000254 and 31000275) — those are merged by name too, so every color
+  // of one product ends up in one Shilista product.
+  const groupKey = new Map(); // base_code or name -> shared group array
+  const groups = [];
+  const nameKey = (n) => 'name:' + n.toLocaleLowerCase('tr');
+  for (const shade of bySku.values()) {
+    const g = groupKey.get(shade.model) || groupKey.get(nameKey(shade.name));
+    if (g) g.push(shade);
+    else groups.push([shade]);
+    const target = g || groups[groups.length - 1];
+    groupKey.set(shade.model, target);
+    groupKey.set(nameKey(shade.name), target);
+  }
+  return groups;
+}
+
+// The in-stock shades whose own discount ratio beats the markup; the most
+// expensive sets the price. Null when none qualifies.
+function flormarPricing(shades, markupPercent) {
+  const qualifying = shades.filter((sh) => sh.stock > 0 && sh.price > 0 && sh.retail > sh.price
+    && resolveDiscountTag({
+      discountPercentText: String(sh.ratio), markupPercent,
+      finalDiscountedPrice: sh.price * (1 + markupPercent / 100), priceOriginal: sh.retail,
+    }) === 'discount');
+  if (!qualifying.length) return null;
+  const top = qualifying.reduce((a, b) => (b.price > a.price ? b : a));
+  return {
+    skus: qualifying.map((sh) => sh.sku),
+    price: top.retail,
+    discounted_price: Math.round(top.price * (1 + markupPercent / 100) * 100) / 100,
+    cost_price: top.price,
+    tag: 'discount',
+  };
+}
+
+const flormarLinkSku = (link) => String(link || '').match(/-(\d{6,})\/?$/)?.[1] || null;
+
+// Rebuilds a Flormar product's shades (one color each, no sizes) when
+// something changed; a product with a single shade gets no color rows
+// (same as mClub). Returns { stock, changed }.
+async function writeFlormarShades(productId, shades) {
+  const entries = [];
+  if (shades.length > 1) {
+    const seen = new Map();
+    for (const sh of shades) {
+      const colorId = sh.shade ? await getOrCreateMClubShadeColorId(sh.shade) : null;
+      if (!colorId) continue;
+      const qty = Math.min(sh.stock, FLORMAR_STOCK_PER_SHADE);
+      if (seen.has(colorId)) { seen.get(colorId).quantity = Math.max(seen.get(colorId).quantity, qty); continue; }
+      const entry = { product_id: productId, color_id: colorId, size_label: null, quantity: qty };
+      seen.set(colorId, entry);
+      entries.push(entry);
+    }
+  }
+  const stock = entries.length ? entries.reduce((sum, e) => sum + e.quantity, 0)
+    : Math.min(Math.max(...shades.map((sh) => sh.stock), 0), FLORMAR_STOCK_PER_SHADE);
+  const sig = (rows) => rows.map((r) => `${r.color_id}|${r.quantity}`).sort().join(',');
+  const current = await prisma.product_inventory.findMany({ where: { product_id: productId } });
+  if (sig(current) === sig(entries)) return { stock, changed: false };
+  await prisma.$transaction([
+    prisma.product_inventory.deleteMany({ where: { product_id: productId } }),
+    prisma.product_colors.deleteMany({ where: { product_id: productId } }),
+    prisma.product_colors.createMany({ data: entries.map((e) => ({ product_id: productId, color_id: e.color_id, is_available: e.quantity > 0 })) }),
+    prisma.product_inventory.createMany({ data: entries }),
+  ]);
+  return { stock, changed: true };
+}
+
+async function Flormar(_pm, site, opts = {}) {
+  const limit = opts.limit || 30;
+  const groups = await fetchFlormarCatalog();
+
+  const existing = await prisma.products.findMany({
+    where: { supplier_shop_name: site.name },
+    select: { product_link: true, supplier_code: true },
+  });
+  const existingSkus = new Set(existing.map((e) => flormarLinkSku(e.product_link)).filter(Boolean));
+  const existingModels = new Set(existing.map((e) => e.supplier_code).filter(Boolean));
+  const fresh = groups.filter((g) => !g.some((sh) => existingModels.has(sh.model) || existingSkus.has(sh.sku)));
+  const candidates = fresh.map((g) => ({ shades: g, pricing: flormarPricing(g, site.markup_percent) })).filter((c) => c.pricing);
+
+  const imported = [];
+  let stopped = false;
+  await runQueue(candidates, IMPORT_WORKER_SLOTS, async (_w, { shades: all, pricing }) => {
+    if (stopped) return;
+    if (imported.filter((p) => !p.error).length >= limit) return void (stopped = true);
+    const shades = all.filter((sh) => pricing.skus.includes(sh.sku));
+    const rep = shades[0];
+    try {
+      const nameTr = rep.name.slice(0, 120);
+      const translateOrWarn = (text, target) => translateText(text, 'tr', target)
+        .catch((err) => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
+      const [name_fa, name_en] = await Promise.all([translateOrWarn(rep.name, 'fa'), translateOrWarn(rep.name, 'en')]);
+
+      // The first shade's photos, then the first two of every other shade.
+      const photos = [...rep.images.slice(0, 8)];
+      for (const sh of shades.slice(1)) photos.push(...sh.images.slice(0, 2));
+      const mediaUrls = [];
+      for (const imgUrl of [...new Set(photos)].slice(0, 14)) {
+        try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
+      }
+
+      const created = await prisma.products.create({
+        data: {
+          code: await generateProductCode(),
+          category_id: 10,
+          subcategory_id: guessSubcategoryId(`${rep.name} ${rep.type}`, 10),
+          gender: 'unisex',
+          name_fa: (name_fa || nameTr).slice(0, 120), name_en: (name_en || nameTr).slice(0, 120), name_tr: nameTr,
+          price: pricing.price,
+          discounted_price: pricing.discounted_price,
+          cost_price: pricing.cost_price,
+          tag: pricing.tag,
+          stock: 0,
+          brand: site.name,
+          supplier_shop_name: site.name,
+          supplier_code: rep.model,
+          product_link: rep.url,
+          product_media: mediaUrls.length ? { create: mediaUrls.map((u, i) => ({ type: 'image', url: u, sort_order: i })) } : undefined,
+        },
+      });
+      try {
+        const { stock } = await writeFlormarShades(created.id, shades);
+        await prisma.products.update({ where: { id: created.id }, data: { stock } });
+      } catch (err) {
+        await prisma.products.delete({ where: { id: created.id } }).catch(() => {});
+        throw err;
+      }
+      imported.push({ id: created.id, name: nameTr });
+    } catch (err) {
+      imported.push({ error: err.message, url: rep.url });
+    }
+  });
+
+  return { imported, skipped: (groups.length - fresh.length) + (fresh.length - candidates.length) };
+}
+
+// Flormar's stock check: re-reads the catalog. Taken off the site when no
+// in-stock shade still beats the markup (same rule as Mango/Lefties);
+// otherwise re-priced and its shades rewritten.
+async function checkFlormarStock(site, products) {
+  const { syncSubcategoryActiveState } = require('./subcategorySync');
+  const byModel = new Map();
+  const bySku = new Map();
+  for (const g of await fetchFlormarCatalog()) {
+    for (const sh of g) {
+      byModel.set(sh.model, g);
+      bySku.set(sh.sku, g);
+    }
+  }
+  const results = [];
+  for (const p of products) {
+    try {
+      const group = byModel.get(p.supplier_code) || bySku.get(flormarLinkSku(p.product_link));
+      const pricing = group ? flormarPricing(group, site.markup_percent) : null;
+      if (!pricing) {
+        await prisma.products.update({
+          where: { id: p.id },
+          data: { is_active: false, is_live: false, is_dirty: false, updated_at: new Date() },
+        });
+        if (p.subcategory_id) await syncSubcategoryActiveState(p.subcategory_id);
+        results.push({ id: p.id, name: p.name_tr, status: 'deactivated (discount ended, sold out or gone)' });
+        continue;
+      }
+      const { stock, changed } = await writeFlormarShades(p.id, group.filter((sh) => pricing.skus.includes(sh.sku)));
+      const keepAdminTag = ['bestseller', 'new'].includes(p.tag) ? p.tag : null;
+      const tag = stock === 0 ? 'sold_out' : (pricing.tag || keepAdminTag);
+      const update = {};
+      if (Number(p.price) !== pricing.price) update.price = pricing.price;
+      if ((p.discounted_price == null ? null : Number(p.discounted_price)) !== pricing.discounted_price) update.discounted_price = pricing.discounted_price;
+      if (Number(p.cost_price) !== pricing.cost_price) update.cost_price = pricing.cost_price;
+      if (p.stock !== stock) update.stock = stock;
+      if (p.tag !== tag) {
+        update.tag = tag;
+        update.sold_out_at = tag === 'sold_out' ? new Date() : null;
+      }
+      if (Object.keys(update).length || changed) {
+        await prisma.products.update({ where: { id: p.id }, data: { ...update, is_dirty: true, updated_at: new Date() } });
+      }
+      results.push({
+        id: p.id, name: p.name_tr,
+        status: tag === 'sold_out' ? 'sold_out' : `ok (stock=${stock})${Object.keys(update).length || changed ? ', updated' : ''}`,
+      });
+    } catch (err) {
+      results.push({ id: p.id, name: p.name_tr, status: `error: ${err.message}` });
+    }
+  }
+  return results;
+}
+
 // Mavi is an SAP Commerce (Spartacus/Angular) storefront behind a strict
 // Cloudflare WAF — confirmed live that a handful of consecutive headless
 // page navigations (listing -> listing -> listing) got this machine's IP
@@ -5298,10 +5540,10 @@ async function checkMangoStock(site, products) {
 }
 
 module.exports = {
-  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Oysho, Bershka, PullAndBear, Stradivarius, Colins, PaulMark, BarrelsAndOil, Mavi, MClub, ArmaLife, Mango,
+  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Oysho, Bershka, PullAndBear, Stradivarius, Colins, PaulMark, BarrelsAndOil, Flormar, Mavi, MClub, ArmaLife, Mango,
   // exported for siteSync.js#checkSiteStock, which hands mClub's, ArmaLife's,
   // Mango's and Lefties' stock checks off to their own API-based readers.
-  checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock, checkOyshoStock, checkBershkaStock, checkPullAndBearStock, checkStradivariusStock, checkColinsStock, checkPaulMarkStock, checkBarrelsAndOilStock,
+  checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock, checkOyshoStock, checkBershkaStock, checkPullAndBearStock, checkStradivariusStock, checkColinsStock, checkPaulMarkStock, checkBarrelsAndOilStock, checkFlormarStock,
   // exported for backend/scripts/mergeArmaLifeColors.js.
   mergeArmaLifeColors,
   // exported for siteSync.js#importSite and backend/scripts/addMenuSubcategories.js.

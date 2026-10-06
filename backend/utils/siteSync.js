@@ -145,6 +145,8 @@ async function checkSiteStock(site) {
   if (site.name === 'PaulMark') return importers.checkPaulMarkStock(site, products);
   // And Barrels and Oil — its listings and product pages, over plain HTTP.
   if (site.name === 'BarrelsAndOil') return importers.checkBarrelsAndOilStock(site, products);
+  // And Flormar — its whole catalog comes as JSON.
+  if (site.name === 'Flormar') return importers.checkFlormarStock(site, products);
   // Lefties' API only answers from inside one of its pages, hence the browser.
   if (site.name === 'Lefties') return withBrowser((pm) => importers.checkLeftiesStock(site, products, pm));
   if (site.name === 'Oysho') return withBrowser((pm) => importers.checkOyshoStock(site, products, pm));
