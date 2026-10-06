@@ -1341,11 +1341,16 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .size-chip {
   display: inline-block;
+  /* Same width for every size up to "2XL"/"XXL" (only longer labels like
+     "28/32" grow), so the row doesn't look uneven. */
+  min-width: 36px;
+  box-sizing: border-box;
+  text-align: center;
   border: 1.5px solid var(--border);
   color: var(--text);
   font-size: 11px;
   font-weight: 600;
-  padding: 2px 8px;
+  padding: 2px 6px;
   border-radius: 6px;
   background: var(--bg);
   transition: border-color .15s, color .15s;
@@ -2267,7 +2272,10 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
   gap: 8px;
 }
 .modal-size-chip {
-  padding: 7px 15px;
+  min-width: 58px; /* same width up to "2XL", see .size-chip */
+  box-sizing: border-box;
+  text-align: center;
+  padding: 7px 10px;
   border: 2px solid var(--border);
   border-radius: 8px;
   font-size: 14px;
