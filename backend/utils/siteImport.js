@@ -90,7 +90,7 @@ const TR_KEYWORD_TO_SUBCATEGORY = [
   [/elbise|tulum|abiye|salopet/i, 'dresses'],
   [/etek/i, 'skirts'],
   [/takım|\bset\b|seti\b/i, 'sets'],
-  [/tişört|\btshirt|t-shirt|polo/i, 1],
+  [/tişört|\btshirt|t-shirt|polo(?! yaka)/i, 1], // "polo yaka kazak" is a sweater
   [/şort|bermuda/i, 2],
   [/pantolon|eşofman altı|jogger|\bjean/i, 3],
   [/tayt/i, 4],
@@ -124,7 +124,7 @@ const TR_KEYWORD_TO_ACCESSORY_SUBCATEGORY = [
 // Same idea, within category_id 7 (Sports) — the "Fit" listing's own
 // subcategory taxonomy differs from regular clothing's.
 const TR_KEYWORD_TO_SPORT_SUBCATEGORY = [
-  [/tişört|\btshirt|t-shirt|polo/i, 26],
+  [/tişört|\btshirt|t-shirt|polo(?! yaka)/i, 26],
   [/şort/i, 27],
   [/\bset\b|takım/i, 28],
   [/tayt|leg\b|pantolon/i, 29],
@@ -2640,10 +2640,11 @@ async function createInditexProduct(site, { product, listing, pricing, url }) {
   // under character collections like "Hello Kitty", not "footwear" — so
   // the site's own product family (e.g. "FLATSHOES") wins when it says
   // shoes or bags (e.g. "TRAINERS", "FLATSHOES"; it's sometimes blank,
-  // so the Turkish name is checked too).
+  // so the Turkish name is checked too — and Bershka's families are
+  // Turkish themselves, e.g. "Ayakkabılar").
   const isShoe = /SHOE|TRAINER|SNEAKER|SANDAL|BOOT|FOOTWEAR|SLIPPER|BALLERINA|ESPADRILLE|CLOG|MOCCASIN|LOAFER|FLIP/i.test(product.family)
-    || /ayakkabı|sneaker|\bbot\b|çizme|sandalet|terlik|babet|patik/i.test(product.name);
-  const isBag = /BAG|BACKPACK|WALLET|PURSE/i.test(product.family) || /çanta|cüzdan/i.test(product.name);
+    || /ayakkabı|sneaker|\bbot\b|çizme|sandalet|terlik|babet|patik/i.test(`${product.name} ${product.family}`);
+  const isBag = /BAG|BACKPACK|WALLET|PURSE/i.test(product.family) || /çanta|cüzdan/i.test(`${product.name} ${product.family}`);
   const category_id = isShoe ? 2 : isBag ? 3 : listing.categoryId;
   const subcategory_id = category_id === 1 || category_id === 7 ? guessSubcategoryId(product.name, category_id)
     : category_id === 3 ? guessLeftiesAccessorySubcategoryId(product.name)
@@ -2685,8 +2686,15 @@ async function createInditexProduct(site, { product, listing, pricing, url }) {
     },
   });
 
-  const { stock } = await writeLeftiesVariants(created.id, colors);
-  await prisma.products.update({ where: { id: created.id }, data: { stock } });
+  // A product whose colors/sizes couldn't be written would sit on the site
+  // with no sizes and zero stock — remove it and report the error instead.
+  try {
+    const { stock } = await writeLeftiesVariants(created.id, colors);
+    await prisma.products.update({ where: { id: created.id }, data: { stock } });
+  } catch (err) {
+    await prisma.products.delete({ where: { id: created.id } }).catch(() => {});
+    throw err;
+  }
   return created;
 }
 
@@ -2862,25 +2870,17 @@ async function checkInditexStock(site, products, page, apiArgs) {
 // "not found" for those and they're dropped.
 // Unlike Lefties, Akamai shows headless Chrome "Access Denied" unless the
 // page looks like a normal browser before the first request.
-const OYSHO_HOME = 'https://www.oysho.com/tr/';
-const OYSHO_STORE = '64009621/60361115';
-const oyshoApiArgs = () => ({
-  api: `/itxrest/3/catalog/store/${OYSHO_STORE}`, stockApi: `/itxrest/2/catalog/store/${OYSHO_STORE}`,
-  lang: -43, batch: LEFTIES_BATCH, label: 'Oysho', imageBase: 'https://static.oysho.net/',
+// Every Inditex store below (Oysho, Bershka) shares this setup: one page
+// on the store's homepage, every read an in-page fetch, products gated by
+// leftiesPricing and created by createInditexProduct.
+const inditexApiArgs = (store, label, imageBase) => ({
+  api: `/itxrest/3/catalog/store/${store}`, stockApi: `/itxrest/2/catalog/store/${store}`,
+  lang: -43, batch: LEFTIES_BATCH, label, imageBase,
 });
-const OYSHO_SKIP_KEYS = /^(BUSCADOR|BLOQUES_CONTENIDO|CONTENIDO_CMS|OYSHO_COMMUNITY|OYSHO_STORIES)/;
-const OYSHO_SPORT_KEYS = /^(PR_LEGGINGS|PR_SUJETADORES_DEPORTIVOS|PR_CHANDALS|CAL_(COMPRESSIVE|COMFORTLUX|PERFECT_ADAPT|RAPID_DRY|EVERMOVE|LIGHTOUCH)|ACT_(?!LOUNGEWEAR|VIAJAR))/;
 
-function routeOyshoCategory(keys) {
-  if (keys.some(k => /^(PR_CALZADO|SPORTT_DEPORTIVAS)/.test(k))) return 2;
-  if (keys.some(k => /^(PR_BOLSOS|PR_ACCESORIOS|SPORTT_ACCESORIOS)/.test(k))) return 3;
-  if (keys.some(k => OYSHO_SPORT_KEYS.test(k))) return 7;
-  return 1;
-}
-
-async function ensureOyshoPageSetup(page) {
-  if (page.__oyshoSetup) return;
-  page.__oyshoSetup = true;
+async function ensureInditexPageSetup(page) {
+  if (page.__inditexSetup) return;
+  page.__inditexSetup = true;
   const ua = await page.browser().userAgent();
   await page.setUserAgent(ua.replace('HeadlessChrome', 'Chrome'));
   await page.setExtraHTTPHeaders({ 'accept-language': 'tr-TR,tr;q=0.9,en;q=0.8' });
@@ -2892,48 +2892,43 @@ async function ensureOyshoPageSetup(page) {
   });
 }
 
-// Opens the homepage (Akamai cookies) and returns it with the listings.
-async function openOysho(pm) {
+// Opens the store's homepage (Akamai cookies) and reads its category tree
+// (the menu). `toListings(tree)` turns that into the store's listings:
+// [{ id, name, isMenu, gender, categoryId }], in the order they're read.
+async function openInditexStore(pm, { home, store, label, toListings }) {
   const page = await pm.goto('about:blank');
-  await ensureOyshoPageSetup(page);
-  await page.goto(OYSHO_HOME, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  const title = await page.title();
-  if (/access denied/i.test(title)) throw new Error('Oysho blocked the browser (Access Denied)');
-  const tree = await page.evaluate(async (store) => {
+  await ensureInditexPageSetup(page);
+  await page.goto(home, { waitUntil: 'domcontentloaded', timeout: 45000 });
+  if (/access denied/i.test(await page.title())) throw new Error(`${label} blocked the browser (Access Denied)`);
+  const tree = await page.evaluate(async ({ store, label }) => {
     const res = await fetch(`/itxrest/2/catalog/store/${store}/category?languageId=-43&typeCatalog=1&appId=1`);
-    if (!res.ok) throw new Error(`Oysho API ${res.status} (category tree)`);
+    if (!res.ok) throw new Error(`${label} API ${res.status} (category tree)`);
     return res.json();
-  }, OYSHO_STORE);
-
-  const listings = [];
-  const walk = (cats, keys, depth) => {
-    for (const c of cats || []) {
-      const key = String(c.key || '').split('#')[0];
-      const path = [...keys, key];
-      if (!OYSHO_SKIP_KEYS.test(key)) {
-        const rank = path.some(k => k.startsWith('PR_')) ? 0 : path.some(k => /^(ACT|CAL)_/.test(k)) ? 1 : 2;
-        listings.push({ id: String(c.id), name: c.name, rank, depth, isMenu: !!c.subcategories?.length, gender: 'female', categoryId: routeOyshoCategory(path) });
-      }
-      walk(c.subcategories, path, depth + 1);
-    }
-  };
-  walk(tree.categories, [], 0);
-  listings.sort((a, b) => a.rank - b.rank || b.depth - a.depth);
-  return { page, listings };
+  }, { store, label });
+  return { page, listings: toListings(tree) };
 }
 
-async function Oysho(pm, site, opts = {}) {
+// Walks a category tree, calling visit(category, ancestorKeys, ancestorNames, depth).
+function walkInditexTree(categories, visit, keys = [], names = [], depth = 0) {
+  for (const c of categories || []) {
+    const key = String(c.key || '').split('#')[0];
+    visit(c, keys, names, depth, key);
+    walkInditexTree(c.subcategories, visit, [...keys, key], [...names, c.name], depth + 1);
+  }
+}
+
+// The whole discount-only import for one Inditex store.
+async function importInditexStore(pm, site, opts, { open, apiArgs, home, label }) {
   const limit = opts.limit || 30;
   let opened;
   try {
-    opened = await openOysho(pm);
+    opened = await open(pm);
   } catch (err) {
-    console.warn(`[siteImport] Oysho homepage failed, retrying once: ${err.message}`);
+    console.warn(`[siteImport] ${label} homepage failed, retrying once: ${err.message}`);
     await new Promise((r) => setTimeout(r, 3000));
-    opened = await openOysho(pm);
+    opened = await open(pm);
   }
   const { page, listings } = opened;
-  const apiArgs = oyshoApiArgs();
 
   const existingLinks = await prisma.products.findMany({
     where: { supplier_shop_name: site.name, product_link: { not: null } },
@@ -2943,6 +2938,7 @@ async function Oysho(pm, site, opts = {}) {
   await page.evaluate((ids) => { window.__leftiesSkip = new Set(ids); }, [...existingIds]);
 
   const products = new Map(); // id -> { product, listing, categoryId }
+  let noList = 0;
   for (const listing of listings) {
     try {
       for (const product of await readLeftiesCategory(page, listing.id, apiArgs)) {
@@ -2950,12 +2946,13 @@ async function Oysho(pm, site, opts = {}) {
         if (!products.has(product.id)) products.set(product.id, { product, listing, categoryId: listing.id });
       }
     } catch (err) {
-      // Menu headings (e.g. "Ürüne göre bak") have no product list of their
-      // own; their children are read separately.
-      if (listing.isMenu && /API 404/.test(err.message)) continue;
-      console.warn(`[siteImport] Oysho category failed, skipping: ${listing.id} ${listing.name} — ${err.message}`);
+      // Menu headings and redirect entries have no product list of their
+      // own (404); their products are read through other categories.
+      if (/API 404/.test(err.message)) { noList++; continue; }
+      console.warn(`[siteImport] ${label} category failed, skipping: ${listing.id} ${listing.name} — ${err.message}`);
     }
   }
+  if (noList) console.log(`[siteImport] ${label}: ${noList} of ${listings.length} categories have no product list of their own (menu headings/redirects)`);
 
   const fresh = [...products.values()].filter(({ product }) => !existingIds.has(product.id) && !existingIds.has(product.topId));
   const candidates = fresh
@@ -2967,7 +2964,7 @@ async function Oysho(pm, site, opts = {}) {
   await runQueue(candidates, IMPORT_WORKER_SLOTS, async (_worker, { product, listing, categoryId, pricing }) => {
     if (stopped) return;
     if (imported.filter((p) => !p.error).length >= limit) return void (stopped = true);
-    const url = `${OYSHO_HOME}${product.slug}-c${categoryId}p${product.id}.html`;
+    const url = `${home}${product.slug}-c${categoryId}p${product.id}.html`;
     try {
       const created = await createInditexProduct(site, { product, listing, pricing, url });
       imported.push({ id: created.id, name: product.name });
@@ -2979,10 +2976,91 @@ async function Oysho(pm, site, opts = {}) {
   return { imported, skipped: (products.size - fresh.length) + (fresh.length - candidates.length) };
 }
 
+// ── Oysho ──
+const OYSHO_HOME = 'https://www.oysho.com/tr/';
+const OYSHO_STORE = '64009621/60361115';
+const oyshoApiArgs = () => inditexApiArgs(OYSHO_STORE, 'Oysho', 'https://static.oysho.net/');
+const OYSHO_SKIP_KEYS = /^(BUSCADOR|BLOQUES_CONTENIDO|CONTENIDO_CMS|OYSHO_COMMUNITY|OYSHO_STORIES)/;
+const OYSHO_SPORT_KEYS = /^(PR_LEGGINGS|PR_SUJETADORES_DEPORTIVOS|PR_CHANDALS|CAL_(COMPRESSIVE|COMFORTLUX|PERFECT_ADAPT|RAPID_DRY|EVERMOVE|LIGHTOUCH)|ACT_(?!LOUNGEWEAR|VIAJAR))/;
+
+function routeOyshoCategory(keys) {
+  if (keys.some(k => /^(PR_CALZADO|SPORTT_DEPORTIVAS)/.test(k))) return 2;
+  if (keys.some(k => /^(PR_BOLSOS|PR_ACCESORIOS|SPORTT_ACCESORIOS)/.test(k))) return 3;
+  if (keys.some(k => OYSHO_SPORT_KEYS.test(k))) return 7;
+  return 1;
+}
+
+function oyshoListings(tree) {
+  const listings = [];
+  walkInditexTree(tree.categories, (c, keys, _names, depth, key) => {
+    if (OYSHO_SKIP_KEYS.test(key)) return;
+    const path = [...keys, key];
+    const rank = path.some(k => k.startsWith('PR_')) ? 0 : path.some(k => /^(ACT|CAL)_/.test(k)) ? 1 : 2;
+    listings.push({ id: String(c.id), name: c.name, rank, depth, gender: 'female', categoryId: routeOyshoCategory(path) });
+  });
+  return listings.sort((a, b) => a.rank - b.rank || b.depth - a.depth);
+}
+
+const openOysho = (pm) => openInditexStore(pm, { home: OYSHO_HOME, store: OYSHO_STORE, label: 'Oysho', toListings: oyshoListings });
+
+async function Oysho(pm, site, opts = {}) {
+  return importInditexStore(pm, site, opts, { open: openOysho, apiArgs: oyshoApiArgs(), home: OYSHO_HOME, label: 'Oysho' });
+}
+
 // Same rules as Lefties' stock check (see checkLeftiesStock).
 async function checkOyshoStock(site, products, pm) {
   const { page } = await openOysho(pm);
   return checkInditexStock(site, products, page, oyshoApiArgs());
+}
+
+// ── Bershka ──
+// Inditex again (user's choice 2026-10-06: ONLY discounted products). On
+// 2026-10-06 it had ~1,934 products (each color is listed under its own id,
+// ~5,800 ids) and 111 discounted ones, all 26-60% off, sitting in its
+// regular categories — its "SALE" menu was empty — so, like Oysho, every
+// category is read. Women's (KADIN) and men's (ERKEK) menus set the
+// gender. The product-type branches (Giyim / SHOES / Accessories) are read
+// first, deepest first; collections and catch-alls ("Yeni", "Hepsi",
+// "Barrel fit", "Çok satanlar", ...) last, so a product is filed by type.
+const BERSHKA_HOME = 'https://www.bershka.com/tr/';
+const BERSHKA_STORE = '44109521/40259537';
+const bershkaApiArgs = () => inditexApiArgs(BERSHKA_STORE, 'Bershka', 'https://static.bershka.net/');
+const BERSHKA_TYPE_BRANCHES = /^(1_T_ROPA_FOLD|1_T_ACCESORIOS_FOLD|1_T_SHOES_FOLD|2_T_+ROPA_+|2_T_SHOES_FOLD|2_T_ACCESORIOS)$/;
+const BERSHKA_CATCH_ALL = /^(yeni|hepsi|hepsini keşfet|barrel fit|total look|çok satanlar|new)$/i;
+
+function routeBershkaCategory(text) {
+  if (/ayakkab|SHOES|ZAPATOS|CALZADO/i.test(text)) return 2;
+  if (/çanta|aksesuar|accessor|BOLSOS|BUFANDAS|COMPLEMENTOS|atkı|bere/i.test(text)) return 3;
+  return 1;
+}
+
+function bershkaListings(tree) {
+  const listings = [];
+  walkInditexTree(tree.categories, (c, keys, names, depth, key) => {
+    const top = keys[0] || key;
+    if (top === 'BERSHKA_FOOTER') return;
+    // By-influencer looks: 1_... women's, 2_... men's.
+    const gender = top === 'BERSHKA_MAN' || (top === 'BERSHKA_GTL' && key.startsWith('2_')) ? 'male' : 'female';
+    const inTypeBranch = keys.some(k => BERSHKA_TYPE_BRANCHES.test(k));
+    const catchAll = [...names, c.name].some(n => BERSHKA_CATCH_ALL.test(String(n).trim()));
+    listings.push({
+      id: String(c.id), name: [...names, c.name].join(' > '), depth, gender,
+      rank: inTypeBranch && !catchAll ? 0 : 1,
+      categoryId: routeBershkaCategory([...names, c.name, ...keys, key].join(' ')),
+    });
+  });
+  return listings.sort((a, b) => a.rank - b.rank || b.depth - a.depth);
+}
+
+const openBershka = (pm) => openInditexStore(pm, { home: BERSHKA_HOME, store: BERSHKA_STORE, label: 'Bershka', toListings: bershkaListings });
+
+async function Bershka(pm, site, opts = {}) {
+  return importInditexStore(pm, site, opts, { open: openBershka, apiArgs: bershkaApiArgs(), home: BERSHKA_HOME, label: 'Bershka' });
+}
+
+async function checkBershkaStock(site, products, pm) {
+  const { page } = await openBershka(pm);
+  return checkInditexStock(site, products, page, bershkaApiArgs());
 }
 
 // Mavi is an SAP Commerce (Spartacus/Angular) storefront behind a strict
@@ -4380,10 +4458,10 @@ async function checkMangoStock(site, products) {
 }
 
 module.exports = {
-  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Oysho, Mavi, MClub, ArmaLife, Mango,
+  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Oysho, Bershka, Mavi, MClub, ArmaLife, Mango,
   // exported for siteSync.js#checkSiteStock, which hands mClub's, ArmaLife's,
   // Mango's and Lefties' stock checks off to their own API-based readers.
-  checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock, checkOyshoStock,
+  checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock, checkOyshoStock, checkBershkaStock,
   // exported for backend/scripts/mergeArmaLifeColors.js.
   mergeArmaLifeColors,
   // exported for siteSync.js#importSite and backend/scripts/addMenuSubcategories.js.

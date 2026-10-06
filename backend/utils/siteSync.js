@@ -142,6 +142,7 @@ async function checkSiteStock(site) {
   // Lefties' API only answers from inside one of its pages, hence the browser.
   if (site.name === 'Lefties') return withBrowser((pm) => importers.checkLeftiesStock(site, products, pm));
   if (site.name === 'Oysho') return withBrowser((pm) => importers.checkOyshoStock(site, products, pm));
+  if (site.name === 'Bershka') return withBrowser((pm) => importers.checkBershkaStock(site, products, pm));
 
   await withBrowser(async (pm) => {
     for (const p of products) {
