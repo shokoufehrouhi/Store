@@ -3063,6 +3063,55 @@ async function checkBershkaStock(site, products, pm) {
   return checkInditexStock(site, products, page, bershkaApiArgs());
 }
 
+// ── Pull&Bear ──
+// Inditex again (user's choice 2026-10-06: ONLY discounted products). On
+// 2026-10-06: ~2,116 products (~6,300 ids, one per color) and 41
+// discounted, mostly in "%40 İndirim" (*_PROMOCIONES) and the regular
+// categories; its "İndirim" landing is a page, not a product list. Women's
+// (MUJER) and men's (HOMBRE) menus set the gender. The product-type
+// branches (Koleksiyon, shoes, bags, accessories, perfume) are read first,
+// deepest first, everything else after; landing pages and gift cards are
+// skipped.
+const PULLANDBEAR_HOME = 'https://www.pullandbear.com/tr/';
+const PULLANDBEAR_STORE = '25009521/20309459';
+const pullAndBearApiArgs = () => inditexApiArgs(PULLANDBEAR_STORE, 'PullAndBear', 'https://static.pullandbear.net/');
+const PULLANDBEAR_TYPE_BRANCHES = /^PULL_(MUJER|HOMBRE)_(ROPA|CALZADO|BOLSOS|ACCESORIOS|PERFUMES)_NC$/;
+
+function routePullAndBearCategory(keys) {
+  const text = keys.join(' ');
+  if (/PERFUMES/.test(text)) return 10;
+  if (/CALZADO/.test(text)) return 2;
+  if (/ROPAINTERIOR/.test(text)) return 1;
+  if (/BOLSOS|ACCESORIOS/.test(text)) return 3;
+  return 1;
+}
+
+function pullAndBearListings(tree) {
+  const listings = [];
+  walkInditexTree(tree.categories, (c, keys, names, depth, key) => {
+    const path = [...keys, key];
+    if (path[0] === 'PULL_LANDING' || path.some(k => /_FOOTER$|_GIFTCARD$/.test(k))) return;
+    listings.push({
+      id: String(c.id), name: [...names, c.name].join(' > '), depth,
+      gender: /HOMBRE/.test(path[0]) ? 'male' : 'female',
+      rank: path.some(k => PULLANDBEAR_TYPE_BRANCHES.test(k)) ? 0 : 1,
+      categoryId: routePullAndBearCategory(path),
+    });
+  });
+  return listings.sort((a, b) => a.rank - b.rank || b.depth - a.depth);
+}
+
+const openPullAndBear = (pm) => openInditexStore(pm, { home: PULLANDBEAR_HOME, store: PULLANDBEAR_STORE, label: 'PullAndBear', toListings: pullAndBearListings });
+
+async function PullAndBear(pm, site, opts = {}) {
+  return importInditexStore(pm, site, opts, { open: openPullAndBear, apiArgs: pullAndBearApiArgs(), home: PULLANDBEAR_HOME, label: 'PullAndBear' });
+}
+
+async function checkPullAndBearStock(site, products, pm) {
+  const { page } = await openPullAndBear(pm);
+  return checkInditexStock(site, products, page, pullAndBearApiArgs());
+}
+
 // Mavi is an SAP Commerce (Spartacus/Angular) storefront behind a strict
 // Cloudflare WAF — confirmed live that a handful of consecutive headless
 // page navigations (listing -> listing -> listing) got this machine's IP
@@ -4458,10 +4507,10 @@ async function checkMangoStock(site, products) {
 }
 
 module.exports = {
-  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Oysho, Bershka, Mavi, MClub, ArmaLife, Mango,
+  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Oysho, Bershka, PullAndBear, Mavi, MClub, ArmaLife, Mango,
   // exported for siteSync.js#checkSiteStock, which hands mClub's, ArmaLife's,
   // Mango's and Lefties' stock checks off to their own API-based readers.
-  checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock, checkOyshoStock, checkBershkaStock,
+  checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock, checkOyshoStock, checkBershkaStock, checkPullAndBearStock,
   // exported for backend/scripts/mergeArmaLifeColors.js.
   mergeArmaLifeColors,
   // exported for siteSync.js#importSite and backend/scripts/addMenuSubcategories.js.
