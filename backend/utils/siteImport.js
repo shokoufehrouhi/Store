@@ -386,6 +386,46 @@ async function collectListingLinks(pm, site, listingPath) {
 }
 
 // Site scraper entry point. Returns { imported: [...], skipped: [...] }.
+// The importers that recognise an already-imported product by its link
+// (Defacto, MadameCoco, Zara, LC Waikiki, Koton, Kiko) used to compare the
+// exact URL. The same product can come back under another URL — Koton
+// renamed products ("Koton X Şahika Ercümen ..." -> "Koton X Selected by
+// Şahika Ercümen ...", same trailing id) and 5 were imported twice
+// (2026-10-06) — so links are compared by this key instead: the site's own
+// product id where its URLs carry one, otherwise the URL without protocol,
+// www, query, fragment or trailing slash.
+function productLinkKey(url) {
+  const u = String(url || '').trim().toLowerCase()
+    .replace(/^https?:\/\/(www\.)?/, '').split('#')[0].split('?')[0].replace(/\/+$/, '');
+  const host = u.split('/')[0];
+  const id = /defacto\.com\.tr|lcw\.com|koton\.com/.test(host) ? u.match(/-(\d{5,})$/)?.[1]
+    : /zara\.com/.test(host) ? u.match(/-p(\d+)\.html$/)?.[1]
+    : null;
+  return id ? `${host}#${id}` : u;
+}
+
+// Keys of every product already imported from this site (any status —
+// a product taken off the site must not come back as a second copy).
+async function existingLinkKeys(site, host) {
+  const rows = await prisma.products.findMany({
+    where: { product_link: { not: null }, OR: [{ supplier_shop_name: site.name }, { product_link: { contains: host } }] },
+    select: { product_link: true },
+  });
+  return new Set(rows.map((r) => productLinkKey(r.product_link)));
+}
+
+// `urls` minus already-imported products, and minus a second URL of the
+// same product within this run.
+function freshByLinkKey(urls, existingKeys) {
+  const seen = new Set(existingKeys);
+  return urls.filter((u) => {
+    const key = productLinkKey(u);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 async function Defacto(pm, site, opts = {}) {
   const limit = opts.limit || 30;
 
@@ -412,12 +452,8 @@ async function Defacto(pm, site, opts = {}) {
   for (let i = 0; i < Math.max(...perListing.map(l => l.length), 0); i++) {
     for (const urls of perListing) if (urls[i]) candidateUrls.push(urls[i]);
   }
-  const existing = await prisma.products.findMany({
-    where: { product_link: { in: candidateUrls } },
-    select: { product_link: true },
-  });
-  const existingSet = new Set(existing.map(e => e.product_link));
-  const newUrls = candidateUrls.filter(u => !existingSet.has(u)).slice(0, limit);
+  const existingKeys = await existingLinkKeys(site, 'defacto.com.tr');
+  const newUrls = freshByLinkKey(candidateUrls, existingKeys).slice(0, limit);
 
   const imported = [];
   let skipped = candidateUrls.length - newUrls.length;
@@ -690,12 +726,8 @@ async function MadameCoco(pm, site, opts = {}) {
   await seedLifestyleSubcategories();
   const candidateUrls = await collectMadameCocoListingLinks(pm, site, Math.max(limit * 15, 200));
 
-  const existing = await prisma.products.findMany({
-    where: { product_link: { in: candidateUrls } },
-    select: { product_link: true },
-  });
-  const existingSet = new Set(existing.map(e => e.product_link));
-  const newUrls = candidateUrls.filter(u => !existingSet.has(u));
+  const existingKeys = await existingLinkKeys(site, 'madamecoco.com');
+  const newUrls = freshByLinkKey(candidateUrls, existingKeys);
 
   const imported = [];
   let notDiscounted = 0;
@@ -989,12 +1021,8 @@ async function Zara(pm, site, opts = {}) {
     for (const urls of perListing) if (urls[i]) candidateUrls.push(urls[i]);
   }
 
-  const existing = await prisma.products.findMany({
-    where: { product_link: { in: candidateUrls } },
-    select: { product_link: true },
-  });
-  const existingSet = new Set(existing.map(e => e.product_link));
-  const newUrls = candidateUrls.filter(u => !existingSet.has(u));
+  const existingKeys = await existingLinkKeys(site, 'zara.com');
+  const newUrls = freshByLinkKey(candidateUrls, existingKeys);
 
   const imported = [];
   let notDiscounted = 0;
@@ -1368,12 +1396,8 @@ async function LCWaikiki(pm, site, opts = {}) {
     for (const urls of perListing) if (urls[i]) candidateUrls.push(urls[i]);
   }
 
-  const existing = await prisma.products.findMany({
-    where: { product_link: { in: candidateUrls } },
-    select: { product_link: true },
-  });
-  const existingSet = new Set(existing.map(e => e.product_link));
-  const newUrls = candidateUrls.filter(u => !existingSet.has(u));
+  const existingKeys = await existingLinkKeys(site, 'lcw.com');
+  const newUrls = freshByLinkKey(candidateUrls, existingKeys);
 
   const imported = [];
   let notDiscounted = 0;
@@ -1750,11 +1774,8 @@ function guessKotonGender(breadcrumbNames, defaultGender) {
 async function Koton(pm, site, opts = {}) {
   const limit = opts.limit || 30;
 
-  const existing = await prisma.products.findMany({
-    where: { supplier_shop_name: site.name, product_link: { not: null } },
-    select: { product_link: true },
-  });
-  const existingSet = new Set(existing.map(e => e.product_link));
+  const existingKeys = await existingLinkKeys(site, 'koton.com');
+  const seenKeys = new Set(existingKeys);
 
   // A card is worth opening only if it's new and Koton's own stated rate
   // (or, without a badge, its two prices) clears the markup — the same
@@ -1781,7 +1802,7 @@ async function Koton(pm, site, opts = {}) {
     let cards = [];
     try {
       cards = await collectKotonListingCards(pm, listing.url, {
-        isWanted: (c) => !existingSet.has(new URL(c.href, site.url).href) && cardIsWanted(c),
+        isWanted: (c) => !seenKeys.has(productLinkKey(new URL(c.href, site.url).href)) && cardIsWanted(c),
         enough: enoughPerListing,
       });
     } catch (err) {
@@ -1790,8 +1811,9 @@ async function Koton(pm, site, opts = {}) {
     const urls = [];
     for (const c of cards) {
       const url = new URL(c.href, site.url).href;
-      if (metaByUrl.has(url) || existingSet.has(url)) continue;
+      if (metaByUrl.has(url) || seenKeys.has(productLinkKey(url))) continue;
       metaByUrl.set(url, listing);
+      seenKeys.add(productLinkKey(url));
       if (!cardIsWanted(c)) { notDiscounted++; continue; }
       urls.push(url);
     }
@@ -2157,12 +2179,8 @@ async function KikoMilano(pm, site, opts = {}) {
 
   const candidateUrls = await collectKikoDiscountedCandidates(pm);
 
-  const existing = await prisma.products.findMany({
-    where: { product_link: { in: candidateUrls } },
-    select: { product_link: true },
-  });
-  const existingSet = new Set(existing.map(e => e.product_link));
-  const newUrls = candidateUrls.filter(u => !existingSet.has(u));
+  const existingKeys = await existingLinkKeys(site, 'kikomilano.com.tr');
+  const newUrls = freshByLinkKey(candidateUrls, existingKeys);
 
   const imported = [];
   let notDiscounted = 0;
@@ -5552,6 +5570,8 @@ module.exports = {
   // same lookup/create logic the live importers use, rather than
   // duplicating it in the backfill script.
   extractLeadingColorWord, getOrCreateColorId,
+  // exported for backend/scripts/deactivateDuplicateProducts.js.
+  productLinkKey,
   // exported for backend/scripts/backfillMissingProductImages.js — same
   // download+compress+save logic the live importers use.
   saveImageFromUrl,

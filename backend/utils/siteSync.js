@@ -252,4 +252,21 @@ function hasImporter(name) {
   return /^[A-Z]/.test(name || '') && typeof importers[name] === 'function';
 }
 
-module.exports = { checkSiteStock, importSite, withBrowser, cleanupStaleChromeProfiles, importStatusText, hasImporter };
+// Staging and production run their own schedulers against the SAME
+// database, at the same schedule time — before this, both imported every
+// site at once, and products found by both were created twice (2026-10-06:
+// 110 duplicate products across Zara, MadameCoco, LC Waikiki, Defacto and
+// Koton, with back-to-back codes). A run now claims the site first with an
+// atomic update; whoever loses the race skips it. `flag` is
+// 'import_in_progress' or 'stock_check_in_progress'. A claim older than
+// SITE_RUN_STALE_MS (its process died mid-run) can be taken over.
+const SITE_RUN_STALE_MS = 6 * 60 * 60 * 1000;
+async function claimSiteRun(siteId, flag) {
+  const { count } = await prisma.sites.updateMany({
+    where: { id: siteId, OR: [{ [flag]: false }, { updated_at: { lt: new Date(Date.now() - SITE_RUN_STALE_MS) } }] },
+    data: { [flag]: true, updated_at: new Date() },
+  });
+  return count === 1;
+}
+
+module.exports = { checkSiteStock, importSite, withBrowser, cleanupStaleChromeProfiles, importStatusText, hasImporter, claimSiteRun, SITE_RUN_STALE_MS };

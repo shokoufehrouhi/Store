@@ -1,5 +1,5 @@
 const prisma = require('../prisma/client');
-const { checkSiteStock, importSite, importStatusText, hasImporter } = require('../utils/siteSync');
+const { checkSiteStock, importSite, importStatusText, hasImporter, claimSiteRun } = require('../utils/siteSync');
 
 const withImporterFlag = (row) => ({ ...row, has_importer: hasImporter(row.name) });
 const { queueNewProductsForInstagram } = require('../utils/instagramProductQueue');
@@ -126,9 +126,8 @@ async function syncImport(req, res, next) {
     const id = Number(req.params.id);
     const site = await prisma.sites.findUnique({ where: { id } });
     if (!site) return res.status(404).json({ success: false, message: 'not_found' });
-    if (site.import_in_progress) return res.status(409).json({ success: false, message: 'already_in_progress' });
-
-    await prisma.sites.update({ where: { id }, data: { import_in_progress: true } });
+    // Atomic, so a double click or the other server's scheduler can't start a second run.
+    if (!(await claimSiteRun(id, 'import_in_progress'))) return res.status(409).json({ success: false, message: 'already_in_progress' });
     res.json({ success: true, data: { started: true } });
 
     importSite(site, { limit: 30 })
@@ -157,9 +156,7 @@ async function syncStock(req, res, next) {
     const id = Number(req.params.id);
     const site = await prisma.sites.findUnique({ where: { id } });
     if (!site) return res.status(404).json({ success: false, message: 'not_found' });
-    if (site.stock_check_in_progress) return res.status(409).json({ success: false, message: 'already_in_progress' });
-
-    await prisma.sites.update({ where: { id }, data: { stock_check_in_progress: true } });
+    if (!(await claimSiteRun(id, 'stock_check_in_progress'))) return res.status(409).json({ success: false, message: 'already_in_progress' });
     res.json({ success: true, data: { started: true } });
 
     checkSiteStock(site)

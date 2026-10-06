@@ -18,7 +18,7 @@
 // existed to prevent. Back to one shared time + a single sequential
 // for-loop, which can't overlap no matter how long any one site takes.
 const prisma = require('./prisma/client');
-const { checkSiteStock, importSite, cleanupStaleChromeProfiles, importStatusText } = require('./utils/siteSync');
+const { checkSiteStock, importSite, cleanupStaleChromeProfiles, importStatusText, claimSiteRun, SITE_RUN_STALE_MS } = require('./utils/siteSync');
 const { syncSubcategoryActiveState } = require('./utils/subcategorySync');
 const { buildSingleProductStory, buildCollageStory } = require('./utils/storyBuilder');
 const { deployStoryById } = require('./controllers/instagramContentController');
@@ -414,8 +414,9 @@ async function maybeRetryRateLimitedStories() {
 }
 
 async function runImport(site) {
+  // Skipped when another process (staging/production) is already on it.
+  if (!(await claimSiteRun(site.id, 'import_in_progress').catch(() => false))) return;
   try {
-    await prisma.sites.update({ where: { id: site.id }, data: { import_in_progress: true } });
     const result = await importSite(site, { limit: 30 });
 
     // Queue up to this site's configured daily cap of today's new products
@@ -630,8 +631,8 @@ async function maybePostQueuedProduct() {
 }
 
 async function runStockCheck(site) {
+  if (!(await claimSiteRun(site.id, 'stock_check_in_progress').catch(() => false))) return;
   try {
-    await prisma.sites.update({ where: { id: site.id }, data: { stock_check_in_progress: true } });
     const results = await checkSiteStock(site);
     const soldOut = results.filter(r => r.status === 'sold_out').length;
     await prisma.sites.update({
@@ -767,8 +768,11 @@ function start() {
   // would otherwise stay stuck true forever, permanently disabling that
   // site's Sync Now buttons. Nothing can genuinely be in progress right
   // after boot, so clear both flags for every site once at startup.
+  // Only claims older than SITE_RUN_STALE_MS, though: staging and
+  // production share the database, and staging restarts on every push —
+  // clearing every flag here used to wipe the other process's live claim.
   prisma.sites.updateMany({
-    where: { OR: [{ import_in_progress: true }, { stock_check_in_progress: true }] },
+    where: { OR: [{ import_in_progress: true }, { stock_check_in_progress: true }], updated_at: { lt: new Date(Date.now() - SITE_RUN_STALE_MS) } },
     data: { import_in_progress: false, stock_check_in_progress: false },
   }).catch(err => console.error('[scheduler] failed to clear stale in-progress flags:', err));
 
