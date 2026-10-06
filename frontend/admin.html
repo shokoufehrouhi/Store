@@ -1413,6 +1413,7 @@
       <div class="page-body">
         <div style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:18px">
           <button class="rpt-subtab active" id="ig-subnav-stories" onclick="showIgSubTab('stories')">📖 <span data-i18n="igSubStories">استوری‌ها</span></button>
+          <button class="rpt-subtab" id="ig-subnav-reels" onclick="showIgSubTab('reels')">🎬 <span data-i18n="igSubReels">ریلز</span></button>
           <button class="rpt-subtab" id="ig-subnav-posts" onclick="showIgSubTab('posts')">🖼️ <span data-i18n="igSubPosts">پست‌ها</span></button>
         </div>
 
@@ -1423,11 +1424,19 @@
             <button class="btn btn-secondary btn-sm" onclick="rebuildIgStory('11:30')">11:30</button>
             <button class="btn btn-secondary btn-sm" onclick="rebuildIgStory('19:00')">19:00</button>
             <button class="btn btn-secondary btn-sm" onclick="rebuildIgStory('19:30')">19:30</button>
-            <button class="btn btn-secondary btn-sm" onclick="rebuildIgStory('reel-12:00')">🎬 Reels 12:00</button>
-            <button class="btn btn-secondary btn-sm" onclick="rebuildIgStory('reel-20:00')">🎬 Reels 20:00</button>
           </div>
           <div id="ig-content-empty" class="hidden" style="text-align:center;padding:40px;color:#999" data-i18n="igContentEmpty">هنوز محتوایی ساخته نشده</div>
           <div id="ig-content-grid"></div>
+        </div>
+
+        <div id="ig-subtab-reels" class="hidden">
+          <div class="card" style="padding:12px 16px;margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:600" data-i18n="igRebuildReelFor">ساخت دوباره‌ی ریلز امروز:</span>
+            <button class="btn btn-secondary btn-sm" onclick="rebuildIgStory('reel-12:00')">12:00</button>
+            <button class="btn btn-secondary btn-sm" onclick="rebuildIgStory('reel-20:00')">20:00</button>
+          </div>
+          <div id="ig-reels-empty" class="hidden" style="text-align:center;padding:40px;color:#999" data-i18n="igReelsEmpty">هنوز ریلزی ساخته نشده</div>
+          <div id="ig-reels-grid"></div>
         </div>
 
         <div id="ig-subtab-posts" class="hidden">
@@ -2143,7 +2152,7 @@ const LANGS = {
     deleteItem:'حذف آیتم', confirmYes:'بله، حذف کن', confirmYesDeploy:'بله، استقرار کن', confirmYesPublish:'بله، منتشر کن', confirmNo:'انصراف',
     publishChanges:'انتشار تغییرات', confirmPublish:'آیا مطمئنید تغییرات روی سایت منتشر شوند؟', publishedOk:'تغییرات با موفقیت منتشر شد', pendingPublish:'منتشر نشده — منتظر انتشار',
     deployProduction:'تولید (زنده)', deployStaging:'پیش‌نمایش', deployOpenStaging:'🔗 باز کردن پیش‌نمایش ↗', deployUpToDate:'✓ تولید با آخرین تغییرات همگام است', deployPendingTitle:'تغییرات در انتظار استقرار:', deployBtn:'🚀 استقرار روی تولید', deployConfirm:'این تغییرات روی سایت اصلی (shilista.com) اعمال شوند؟', deployInProgress:'در حال استقرار…', deployDone:'با موفقیت روی تولید مستقر شد', deployError:'خطا در استقرار',
-    navInstagramContent:'محتوای اینستاگرام', igContentEmpty:'هنوز محتوایی ساخته نشده', igSingle:'استوری تک‌محصولی', igReel:'ریلز', igCollage:'استوری کلاژ', igDraft:'در انتظار تایید', igPosted:'منتشر شده', igFailed:'خطا در انتشار', igDeploy:'انتشار در اینستاگرام', igDeployConfirm:'این استوری واقعاً در اینستاگرام منتشر شود؟', igDeployDone:'با موفقیت در اینستاگرام منتشر شد', igDeployError:'خطا در انتشار', igConfirmDelete:'این محتوا حذف شود؟', igNoDate:'بدون تاریخ', igDeployInProgress:'در حال ارسال…', igDownload:'دانلود', igPosting:'در حال ارسال', igSubStories:'استوری‌ها', igSubPosts:'پست‌ها', igPostsEmpty:'هنوز پستی ساخته نشده', igQueued:'در صف انتظار', igSkipped:'رد شد', igRebuild:'ساخت دوباره', igRebuildFor:'ساخت دوباره‌ی استوری امروز:', igRebuildConfirm:'استوری این ساعت برای امروز دوباره ساخته شود؟ (نسخه‌ی قبلی منتشرنشده پاک می‌شود)', igRebuildDone:'استوری دوباره ساخته شد', igRebuildError:'ساخت استوری ناموفق بود',
+    navInstagramContent:'محتوای اینستاگرام', igContentEmpty:'هنوز محتوایی ساخته نشده', igSingle:'استوری تک‌محصولی', igReel:'ریلز', igSubReels:'ریلز', igReelsEmpty:'هنوز ریلزی ساخته نشده', igRebuildReelFor:'ساخت دوباره‌ی ریلز امروز:', igCollage:'استوری کلاژ', igDraft:'در انتظار تایید', igPosted:'منتشر شده', igFailed:'خطا در انتشار', igDeploy:'انتشار در اینستاگرام', igDeployConfirm:'این استوری واقعاً در اینستاگرام منتشر شود؟', igDeployDone:'با موفقیت در اینستاگرام منتشر شد', igDeployError:'خطا در انتشار', igConfirmDelete:'این محتوا حذف شود؟', igNoDate:'بدون تاریخ', igDeployInProgress:'در حال ارسال…', igDownload:'دانلود', igPosting:'در حال ارسال', igSubStories:'استوری‌ها', igSubPosts:'پست‌ها', igPostsEmpty:'هنوز پستی ساخته نشده', igQueued:'در صف انتظار', igSkipped:'رد شد', igRebuild:'ساخت دوباره', igRebuildFor:'ساخت دوباره‌ی استوری امروز:', igRebuildConfirm:'استوری این ساعت برای امروز دوباره ساخته شود؟ (نسخه‌ی قبلی منتشرنشده پاک می‌شود)', igRebuildDone:'استوری دوباره ساخته شد', igRebuildError:'ساخت استوری ناموفق بود',
     confirmDeleteProduct:'این محصول حذف شود؟', confirmDeleteSubcat:'این زیردسته حذف شود؟',
     confirmDeleteColor:'این رنگ حذف شود؟',
     bestseller:'پرفروش', newTag:'جدید',
@@ -2354,7 +2363,7 @@ const LANGS = {
     deleteItem:'Delete Item', confirmYes:'Yes, Delete', confirmYesDeploy:'Yes, Deploy', confirmYesPublish:'Yes, Publish', confirmNo:'Cancel',
     publishChanges:'Publish Changes', confirmPublish:'Are you sure you want to publish these changes to the live site?', publishedOk:'Changes published successfully', pendingPublish:'Not published yet — waiting for publish',
     deployProduction:'Production (live)', deployStaging:'Preview', deployOpenStaging:'🔗 Open preview ↗', deployUpToDate:'✓ Production is up to date', deployPendingTitle:'Changes pending deploy:', deployBtn:'🚀 Deploy to Production', deployConfirm:'Push these changes live to shilista.com?', deployInProgress:'Deploying…', deployDone:'Deployed to production successfully', deployError:'Deploy failed',
-    navInstagramContent:'Instagram Content', igContentEmpty:'No content generated yet', igSingle:'Single-product story', igReel:'Reel', igCollage:'Collage story', igDraft:'Pending review', igPosted:'Posted', igFailed:'Post failed', igDeploy:'Post to Instagram', igDeployConfirm:'Really post this story to the real Instagram account?', igDeployDone:'Posted to Instagram successfully', igDeployError:'Failed to post', igConfirmDelete:'Delete this content?', igNoDate:'No date', igDeployInProgress:'Posting…', igDownload:'Download', igPosting:'Posting', igSubStories:'Stories', igSubPosts:'Posts', igPostsEmpty:'No posts generated yet', igQueued:'Queued', igSkipped:'Skipped', igRebuild:'Rebuild', igRebuildFor:'Rebuild today\'s story:', igRebuildConfirm:'Rebuild today\'s story for this time? (the unposted current one is removed)', igRebuildDone:'Story rebuilt', igRebuildError:'Could not rebuild the story',
+    navInstagramContent:'Instagram Content', igContentEmpty:'No content generated yet', igSingle:'Single-product story', igReel:'Reel', igSubReels:'Reels', igReelsEmpty:'No reels generated yet', igRebuildReelFor:'Rebuild today\'s reel:', igCollage:'Collage story', igDraft:'Pending review', igPosted:'Posted', igFailed:'Post failed', igDeploy:'Post to Instagram', igDeployConfirm:'Really post this story to the real Instagram account?', igDeployDone:'Posted to Instagram successfully', igDeployError:'Failed to post', igConfirmDelete:'Delete this content?', igNoDate:'No date', igDeployInProgress:'Posting…', igDownload:'Download', igPosting:'Posting', igSubStories:'Stories', igSubPosts:'Posts', igPostsEmpty:'No posts generated yet', igQueued:'Queued', igSkipped:'Skipped', igRebuild:'Rebuild', igRebuildFor:'Rebuild today\'s story:', igRebuildConfirm:'Rebuild today\'s story for this time? (the unposted current one is removed)', igRebuildDone:'Story rebuilt', igRebuildError:'Could not rebuild the story',
     confirmDeleteProduct:'Delete this product?', confirmDeleteSubcat:'Delete this subcategory?',
     confirmDeleteColor:'Delete this color?',
     bestseller:'Bestseller', newTag:'New',
@@ -2565,7 +2574,7 @@ const LANGS = {
     deleteItem:'Öğeyi Sil', confirmYes:'Evet, Sil', confirmYesDeploy:'Evet, Dağıt', confirmYesPublish:'Evet, Yayınla', confirmNo:'İptal',
     publishChanges:'Değişiklikleri Yayınla', confirmPublish:'Bu değişiklikleri canlı siteye yayınlamak istediğinize emin misiniz?', publishedOk:'Değişiklikler başarıyla yayınlandı', pendingPublish:'Henüz yayınlanmadı — yayın bekleniyor',
     deployProduction:'Üretim (canlı)', deployStaging:'Ön izleme', deployOpenStaging:'🔗 Ön izlemeyi aç ↗', deployUpToDate:'✓ Üretim güncel', deployPendingTitle:'Dağıtım bekleyen değişiklikler:', deployBtn:'🚀 Üretime Dağıt', deployConfirm:'Bu değişiklikler canlı siteye (shilista.com) uygulansın mı?', deployInProgress:'Dağıtılıyor…', deployDone:'Üretime başarıyla dağıtıldı', deployError:'Dağıtım başarısız',
-    navInstagramContent:'Instagram İçeriği', igContentEmpty:'Henüz içerik oluşturulmadı', igSingle:'Tekli ürün hikayesi', igReel:'Reels', igCollage:'Kolaj hikayesi', igDraft:'Onay bekliyor', igPosted:'Yayınlandı', igFailed:'Yayın başarısız', igDeploy:'Instagram\'da Yayınla', igDeployConfirm:'Bu hikaye gerçekten Instagram hesabında yayınlansın mı?', igDeployDone:'Instagram\'da başarıyla yayınlandı', igDeployError:'Yayınlama başarısız', igConfirmDelete:'Bu içerik silinsin mi?', igNoDate:'Tarih yok', igDeployInProgress:'Gönderiliyor…', igDownload:'İndir', igPosting:'Gönderiliyor', igSubStories:'Hikayeler', igSubPosts:'Gönderiler', igPostsEmpty:'Henüz gönderi oluşturulmadı', igQueued:'Sırada', igSkipped:'Atlandı', igRebuild:'Yeniden oluştur', igRebuildFor:'Bugünün hikayesini yeniden oluştur:', igRebuildConfirm:'Bu saatin bugünkü hikayesi yeniden oluşturulsun mu? (yayınlanmamış mevcut olan silinir)', igRebuildDone:'Hikaye yeniden oluşturuldu', igRebuildError:'Hikaye oluşturulamadı',
+    navInstagramContent:'Instagram İçeriği', igContentEmpty:'Henüz içerik oluşturulmadı', igSingle:'Tekli ürün hikayesi', igReel:'Reels', igSubReels:'Reels', igReelsEmpty:'Henüz Reels oluşturulmadı', igRebuildReelFor:'Bugünün Reels\'ini yeniden oluştur:', igCollage:'Kolaj hikayesi', igDraft:'Onay bekliyor', igPosted:'Yayınlandı', igFailed:'Yayın başarısız', igDeploy:'Instagram\'da Yayınla', igDeployConfirm:'Bu hikaye gerçekten Instagram hesabında yayınlansın mı?', igDeployDone:'Instagram\'da başarıyla yayınlandı', igDeployError:'Yayınlama başarısız', igConfirmDelete:'Bu içerik silinsin mi?', igNoDate:'Tarih yok', igDeployInProgress:'Gönderiliyor…', igDownload:'İndir', igPosting:'Gönderiliyor', igSubStories:'Hikayeler', igSubPosts:'Gönderiler', igPostsEmpty:'Henüz gönderi oluşturulmadı', igQueued:'Sırada', igSkipped:'Atlandı', igRebuild:'Yeniden oluştur', igRebuildFor:'Bugünün hikayesini yeniden oluştur:', igRebuildConfirm:'Bu saatin bugünkü hikayesi yeniden oluşturulsun mu? (yayınlanmamış mevcut olan silinir)', igRebuildDone:'Hikaye yeniden oluşturuldu', igRebuildError:'Hikaye oluşturulamadı',
     confirmDeleteProduct:'Bu ürün silinsin mi?', confirmDeleteSubcat:'Bu alt kategori silinsin mi?',
     confirmDeleteColor:'Bu renk silinsin mi?',
     bestseller:'Çok Satan', newTag:'Yeni',
@@ -6190,7 +6199,9 @@ function showIgSubTab(tab) {
   _igActiveSubTab = tab;
   document.getElementById('ig-subtab-stories').classList.toggle('hidden', tab !== 'stories');
   document.getElementById('ig-subtab-posts').classList.toggle('hidden', tab !== 'posts');
+  document.getElementById('ig-subtab-reels').classList.toggle('hidden', tab !== 'reels');
   document.getElementById('ig-subnav-stories').classList.toggle('active', tab === 'stories');
+  document.getElementById('ig-subnav-reels').classList.toggle('active', tab === 'reels');
   document.getElementById('ig-subnav-posts').classList.toggle('active', tab === 'posts');
   loadIgActiveSubTab();
 }
@@ -6272,12 +6283,18 @@ function igStoryItem(row) {
     </div>`;
 }
 
+// Stories and reels share one list (instagram_content); each sub-tab shows its own kind.
 function renderInstagramContent() {
-  const grid  = document.getElementById('ig-content-grid');
-  const empty = document.getElementById('ig-content-empty');
+  renderIgContentGrid('ig-content-grid', 'ig-content-empty', _igContent.filter(r => r.kind !== 'reel'));
+  renderIgContentGrid('ig-reels-grid', 'ig-reels-empty', _igContent.filter(r => r.kind === 'reel'));
+}
+
+function renderIgContentGrid(gridId, emptyId, items) {
+  const grid  = document.getElementById(gridId);
+  const empty = document.getElementById(emptyId);
   if (!grid) return;
-  empty.classList.toggle('hidden', _igContent.length > 0);
-  const groups = groupIgContentByDate(_igContent);
+  empty.classList.toggle('hidden', items.length > 0);
+  const groups = groupIgContentByDate(items);
   grid.innerHTML = groups.map(([date, rows]) => `
     <div class="card" style="margin-bottom:16px">
       <div style="font-weight:700;font-size:14px;margin-bottom:12px">
