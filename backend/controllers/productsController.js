@@ -14,8 +14,16 @@ const PREVIEW_MODE = process.env.PREVIEW_UNPUBLISHED === 'true';
 // decrement it directly, see ordersController.js) and the shared colors /
 // size_charts tables (never themselves publish-gated, so color hex/name and
 // size-chart image/name edits apply instantly to every product using them).
+// Where a product is bought from is admin-only: these used to go out to
+// anyone reading the public product API (supplier name, its own product
+// link and code, the admin's note) — 2026-10-06. Removed here as well as
+// from new snapshots (publishSnapshot.js), since snapshots published
+// before that still contain them.
+const PRIVATE_PRODUCT_FIELDS = ['supplier_shop_name', 'product_link', 'supplier_code', 'supplier_note'];
+
 function mergeLiveRefs(snapshot, colorsById, sizeChartsById) {
   const data = { ...snapshot };
+  for (const field of PRIVATE_PRODUCT_FIELDS) delete data[field];
   if (Array.isArray(data.product_colors)) {
     data.product_colors = data.product_colors.map(pc => ({ ...pc, colors: colorsById.get(pc.color_id) || null }));
   }

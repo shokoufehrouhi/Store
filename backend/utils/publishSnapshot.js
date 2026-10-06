@@ -23,8 +23,8 @@ function buildProductSnapshot(p) {
     delivery_days: p.delivery_days,
     min_order_qty: p.min_order_qty != null ? Number(p.min_order_qty) : 1,
     code: p.code, brand: p.brand,
-    supplier_shop_name: p.supplier_shop_name, product_link: p.product_link,
-    supplier_code: p.supplier_code, supplier_note: p.supplier_note,
+    // No supplier fields: the snapshot is what the public API serves, and
+    // where a product is bought from is admin-only (2026-10-06).
     size_chart_id: p.size_chart_id,
     categories: p.categories || null,
     subcategories: p.subcategories || null,
