@@ -142,12 +142,29 @@ async function publishContainer(creationId) {
     throw Object.assign(err, { stage: 'status_check', creationId });
   }
   const params = { creation_id: creationId, access_token: accessToken };
-  try {
-    const data = await graphFetch(`${GRAPH_BASE}/${igUserId}/media_publish?${new URLSearchParams(params)}`, { method: 'POST' });
-    return data.id;
-  } catch (err) {
-    throw Object.assign(err, { stage: 'media_publish', creationId });
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const data = await graphFetch(`${GRAPH_BASE}/${igUserId}/media_publish?${new URLSearchParams(params)}`, { method: 'POST' });
+      return data.id;
+    } catch (err) {
+      if (isMediaNotReadyError(err) && attempt < MEDIA_NOT_READY_RETRY_DELAYS_MS.length) {
+        await new Promise(r => setTimeout(r, MEDIA_NOT_READY_RETRY_DELAYS_MS[attempt]));
+        continue;
+      }
+      throw Object.assign(err, { stage: 'media_publish', creationId });
+    }
   }
+}
+
+// Code 9007 / subcode 2207027 ("Media ID is not available" -- "Medya
+// yayınlanmaya hazır değil. Lütfen biraz bekle") from media_publish even
+// AFTER status_code said FINISHED -- seen on product posts 2026-10-06
+// (Meta marks it is_transient:false, but it only means "not yet"). Nothing
+// was published, so publishing the same container again a bit later is
+// safe; before this the post went straight to 'failed'.
+const MEDIA_NOT_READY_RETRY_DELAYS_MS = [15000, 30000, 45000];
+function isMediaNotReadyError(err) {
+  return err?.igError?.code === 9007 && err?.igError?.error_subcode === 2207027;
 }
 
 // Code 24 / subcode 2207006 ("The requested resource does not exist" --
