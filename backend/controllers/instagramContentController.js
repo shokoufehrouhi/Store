@@ -39,7 +39,20 @@ async function listStories(req, res, next) {
       orderBy: { created_at: 'desc' },
       take: 60,
     });
-    res.json({ success: true, data: stories });
+    // Reels are posted by hand from the app (to add music), so each gets
+    // the suggested caption to copy — the same text 🚀 would post.
+    const reelProductIds = [...new Set(stories.filter(s => s.kind === 'reel').flatMap(s => (Array.isArray(s.product_ids) ? s.product_ids : [])))];
+    const prices = new Map((reelProductIds.length ? await prisma.products.findMany({
+      where: { id: { in: reelProductIds } },
+      select: { id: true, price: true, discounted_price: true },
+    }) : []).map(p => [p.id, p]));
+    const data = stories.map((s) => {
+      if (s.kind !== 'reel') return s;
+      const group = reelGroupFor(s.slot, s.scheduled_date.toISOString().slice(0, 10));
+      const products = (Array.isArray(s.product_ids) ? s.product_ids : []).map(id => prices.get(id)).filter(Boolean);
+      return { ...s, caption: group ? reelCaption(group, products) : '🛍 shilista.com' };
+    });
+    res.json({ success: true, data });
   } catch (err) { next(err); }
 }
 
