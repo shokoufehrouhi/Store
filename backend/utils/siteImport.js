@@ -8,6 +8,7 @@
 const fs   = require('fs');
 const path = require('path');
 const prisma = require('../prisma/client');
+const { PLACEHOLDER_HEX, normalizeColorName, guessColorHex } = require('./colorHex');
 const { compressImageFile } = require('./compressImage');
 const { translateText } = require('./translate');
 
@@ -192,7 +193,8 @@ function guessColorIdFromWord(text) {
 // Turkish word/phrase -> ASCII-safe slug for colors.key (VarChar(20), unique).
 function slugifyColorKey(word) {
   const trMap = { 'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u' };
-  const slug = word.trim().toLocaleLowerCase('tr')
+  // Combining dots too ("Si̇yah" became the key "si-yah", a second black).
+  const slug = word.trim().toLocaleLowerCase('tr').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
     .split('').map(ch => trMap[ch] || ch).join('')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
@@ -204,6 +206,38 @@ function slugifyColorKey(word) {
 // same unrecognized color word reuses the same newly-created row instead of
 // re-querying/re-creating it each time.
 const colorCreateCache = new Map();
+
+// Every color by its normalized Turkish name, English name and key, so a
+// name that already exists in another spelling ("SİYAH" vs "Siyah",
+// "Krem Rengi" vs "Krem") reuses that color instead of creating a second
+// one (2026-10-06: 24 such duplicates). Reloaded every 10 minutes.
+let colorNameIndex = null;
+let colorNameIndexAt = 0;
+async function findColorByName(...names) {
+  if (!colorNameIndex || Date.now() - colorNameIndexAt > 10 * 60 * 1000) {
+    const rows = await prisma.colors.findMany({ select: { id: true, key: true, name_tr: true, name_en: true }, orderBy: { id: 'asc' } });
+    colorNameIndex = new Map();
+    for (const r of rows) {
+      for (const n of [r.name_tr, r.name_en, String(r.key || '').replace(/-/g, ' ')]) {
+        const k = normalizeColorName(n);
+        if (k && !colorNameIndex.has(k)) colorNameIndex.set(k, r.id);
+      }
+    }
+    colorNameIndexAt = Date.now();
+  }
+  for (const n of names) {
+    const id = colorNameIndex.get(normalizeColorName(n));
+    if (id) return id;
+  }
+  return null;
+}
+function rememberColorName(color) {
+  if (!colorNameIndex) return;
+  for (const n of [color.name_tr, color.name_en]) {
+    const k = normalizeColorName(n);
+    if (k && !colorNameIndex.has(k)) colorNameIndex.set(k, color.id);
+  }
+}
 
 // Every site scraper only ever has a bare Turkish color WORD to work with
 // (a title prefix for Defacto, a "Renk"/color-code field for Zara and
@@ -225,6 +259,8 @@ async function getOrCreateColorId(word) {
   for (const w of norm.split(/\s+/)) if (TR_COLOR_TO_ID[w]) return TR_COLOR_TO_ID[w];
 
   if (colorCreateCache.has(norm)) return colorCreateCache.get(norm);
+  const sameName = await findColorByName(word);
+  if (sameName) { colorCreateCache.set(norm, sameName); return sameName; }
   const key = slugifyColorKey(word);
   if (!key) return null;
 
@@ -238,7 +274,7 @@ async function getOrCreateColorId(word) {
       color = await prisma.colors.create({
         data: {
           key,
-          hex: '#CCCCCC',
+          hex: guessColorHex(word, name_en) || PLACEHOLDER_HEX,
           name_fa: name_fa.slice(0, 30),
           name_en: name_en.slice(0, 30),
           name_tr: word.trim().slice(0, 30),
@@ -252,6 +288,7 @@ async function getOrCreateColorId(word) {
       else throw err;
     }
   }
+  rememberColorName(color);
   colorCreateCache.set(norm, color.id);
   return color.id;
 }
@@ -2004,6 +2041,8 @@ async function getOrCreateKikoColorId(rawLabel) {
   if (!word) return null;
   const cacheKey = 'kiko:' + word.toLowerCase();
   if (colorCreateCache.has(cacheKey)) return colorCreateCache.get(cacheKey);
+  const sameName = await findColorByName(word);
+  if (sameName) { colorCreateCache.set(cacheKey, sameName); return sameName; }
   const key = slugifyColorKey(word);
   if (!key) return null;
 
@@ -2015,7 +2054,7 @@ async function getOrCreateKikoColorId(rawLabel) {
     ]);
     try {
       color = await prisma.colors.create({
-        data: { key, hex: '#CCCCCC', name_fa: name_fa.slice(0, 30), name_en: word.slice(0, 30), name_tr: name_tr.slice(0, 30) },
+        data: { key, hex: guessColorHex(word, name_tr) || PLACEHOLDER_HEX, name_fa: name_fa.slice(0, 30), name_en: word.slice(0, 30), name_tr: name_tr.slice(0, 30) },
       });
     } catch (err) {
       // Same race as getOrCreateColorId above — another product earlier in
@@ -2024,6 +2063,7 @@ async function getOrCreateKikoColorId(rawLabel) {
       else throw err;
     }
   }
+  rememberColorName(color);
   colorCreateCache.set(cacheKey, color.id);
   return color.id;
 }
@@ -4014,7 +4054,7 @@ const flormarLinkSku = (link) => String(link || '').match(/-(\d{6,})\/?$/)?.[1] 
 // doesn't say what the color looks like), so every Flormar swatch showed
 // grey (2026-10-06, e.g. SHIL00003743). Flormar gives each shade's real
 // color, which replaces the placeholder — never a hex someone already set.
-const PLACEHOLDER_COLOR_HEX = '#CCCCCC';
+const PLACEHOLDER_COLOR_HEX = PLACEHOLDER_HEX;
 const colorHexFilled = new Set();
 async function fillPlaceholderColorHex(colorId, hex) {
   if (colorHexFilled.has(colorId)) return;
