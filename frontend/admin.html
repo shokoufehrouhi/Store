@@ -1052,10 +1052,11 @@
               <th data-i18n="colStock">موجودی</th>
               <th data-i18n="colBrand">برند</th>
               <th data-i18n="colStatus">وضعیت</th>
+              <th data-i18n="colSoldOutAt">تاریخ ناموجود شدن</th>
               <th data-i18n="colActions">عملیات</th>
             </tr></thead>
             <tbody id="products-tbody">
-              <tr><td colspan="9" style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</td></tr>
+              <tr><td colspan="10" style="text-align:center;padding:40px;color:#999" data-i18n="loading">در حال بارگذاری...</td></tr>
             </tbody>
           </table>
         </div>
@@ -2035,7 +2036,7 @@ const LANGS = {
     rptStatusBreakdown:'وضعیت سفارشات', rptTopProducts:'پرفروش‌ترین محصولات', rptQtySold:'فروش رفته',
     addProduct:'+ افزودن محصول',
     colId:'#', colMedia:'رسانه', colName:'نام محصول', colCategory:'دسته‌بندی', colPrice:'قیمت',
-    colStock:'موجودی', colBrand:'برند', colStatus:'وضعیت', colActions:'عملیات', colMarkup:'درصد افزایش قیمت', colIgPostLimit:'سقف پست اینستاگرام روزانه',
+    colStock:'موجودی', colBrand:'برند', colStatus:'وضعیت', colSoldOutAt:'تاریخ ناموجود شدن', colActions:'عملیات', colMarkup:'درصد افزایش قیمت', colIgPostLimit:'سقف پست اینستاگرام روزانه',
     active:'فعال', inactive:'غیرفعال', edit:'✏️ ویرایش', del:'🗑️',
     loading:'در حال بارگذاری...', noProducts:'هنوز محصولی ثبت نشده', noPhotos:'هنوز عکسی آپلود نشده',
     addProductTitle:'افزودن محصول جدید', editProductTitle:'ویرایش محصول',
@@ -2246,7 +2247,7 @@ const LANGS = {
     rptStatusBreakdown:'Order Status Breakdown', rptTopProducts:'Top Selling Products', rptQtySold:'Sold',
     addProduct:'+ Add Product',
     colId:'#', colMedia:'Media', colName:'Product Name', colCategory:'Category', colPrice:'Price',
-    colStock:'Stock', colBrand:'Brand', colStatus:'Status', colActions:'Actions', colMarkup:'Markup %', colIgPostLimit:'Daily IG post cap',
+    colStock:'Stock', colBrand:'Brand', colStatus:'Status', colSoldOutAt:'Sold Out Date', colActions:'Actions', colMarkup:'Markup %', colIgPostLimit:'Daily IG post cap',
     active:'Active', inactive:'Inactive', edit:'✏️ Edit', del:'🗑️',
     loading:'Loading...', noProducts:'No products yet', noPhotos:'No photos uploaded yet',
     addProductTitle:'Add New Product', editProductTitle:'Edit Product',
@@ -2457,7 +2458,7 @@ const LANGS = {
     rptStatusBreakdown:'Sipariş Durumu', rptTopProducts:'En Çok Satan Ürünler', rptQtySold:'Satış',
     addProduct:'+ Ürün Ekle',
     colId:'#', colMedia:'Medya', colName:'Ürün Adı', colCategory:'Kategori', colPrice:'Fiyat',
-    colStock:'Stok', colBrand:'Marka', colStatus:'Durum', colActions:'İşlemler', colMarkup:'Kâr Marjı %', colIgPostLimit:'Günlük IG Gönderi Sınırı',
+    colStock:'Stok', colBrand:'Marka', colStatus:'Durum', colSoldOutAt:'Tükenme Tarihi', colActions:'İşlemler', colMarkup:'Kâr Marjı %', colIgPostLimit:'Günlük IG Gönderi Sınırı',
     active:'Aktif', inactive:'Pasif', edit:'✏️ Düzenle', del:'🗑️',
     loading:'Yükleniyor...', noProducts:'Henüz ürün yok', noPhotos:'Henüz fotoğraf yüklenmedi',
     addProductTitle:'Yeni Ürün Ekle', editProductTitle:'Ürünü Düzenle',
@@ -3493,7 +3494,7 @@ function renderProductsTable(products) {
   _productsListShown = products;
   const tbody = document.getElementById('products-tbody');
   if (!products.length) {
-    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon">📦</div><p>${t('noProducts')}</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="icon">📦</div><p>${t('noProducts')}</p></div></td></tr>`;
     renderProductsPagination(0);
     return;
   }
@@ -3550,6 +3551,9 @@ function renderProductsTable(products) {
       <td>${p.stock}</td>
       <td>${p.brand || '—'}</td>
       <td>${statusBadge}</td>
+      <td style="font-size:12px;color:#6b7280;white-space:nowrap">${p.sold_out_at
+        ? new Date(p.sold_out_at).toLocaleDateString('en-GB') + '<br><span style="font-size:11px;color:#999">' + new Date(p.sold_out_at).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}) + '</span>'
+        : '—'}</td>
       <td><div class="actions">
         <button class="btn btn-secondary btn-sm" onclick="openProductModal(${p.id})">${t('edit')}</button>
         <button class="btn btn-danger btn-sm" onclick="confirmDeleteProduct(${p.id},'${p.name_fa.replace(/'/g,"\\'")}')">${t('del')}</button>
