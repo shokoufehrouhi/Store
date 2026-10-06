@@ -143,6 +143,8 @@ async function checkSiteStock(site) {
   if (site.name === 'Colins') return importers.checkColinsStock(site, products);
   // And PaulMark — same Farktor catalog API as ArmaLife.
   if (site.name === 'PaulMark') return importers.checkPaulMarkStock(site, products);
+  // And Barrels and Oil — its listings and product pages, over plain HTTP.
+  if (site.name === 'BarrelsAndOil') return importers.checkBarrelsAndOilStock(site, products);
   // Lefties' API only answers from inside one of its pages, hence the browser.
   if (site.name === 'Lefties') return withBrowser((pm) => importers.checkLeftiesStock(site, products, pm));
   if (site.name === 'Oysho') return withBrowser((pm) => importers.checkOyshoStock(site, products, pm));

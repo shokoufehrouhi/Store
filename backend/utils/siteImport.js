@@ -3595,6 +3595,312 @@ async function checkPaulMarkStock(site, products) {
   return results;
 }
 
+// ── Barrels and Oil ──
+// barrelsandoil.com (Ticimax platform, plain HTTP works). User's choice
+// (2026-10-06): ONLY discounted products, colors grouped. Its listings only
+// show in-stock items (2026-10-06: 498 of the ~5,800 in its sitemap, the
+// rest sold out) and EVERY one of them carried a struck-through price, so
+// the women's/men's/outlet/"İndirim" listings together are the candidate
+// list. It shows no discount percent of its own, so case (b) of
+// resolveDiscountTag applies (raw prices). Each color is its own product
+// page; its `productDetailModel` JSON gives the color, per-size stock,
+// photos, category path ("BAYAN|ÜST GİYİM|SWEATSHIRT") and stock code —
+// colors of one model share the stock code up to its last "." (e.g.
+// 773-25M85003.13 / .91), stored in supplier_code. Colors of a model also
+// share their name up to " - <color>", which is how siblings are found
+// without opening every page.
+const BARRELS_BASE = 'https://www.barrelsandoil.com';
+const BARRELS_LISTINGS = ['/kadin-giyim', '/erkek-giyim', '/outlet', '/secili-urunler'];
+const BARRELS_MAX_PAGES = 100;
+
+async function barrelsGet(pathOrUrl) {
+  const url = pathOrUrl.startsWith('http') ? pathOrUrl : BARRELS_BASE + pathOrUrl;
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(url, { headers: { 'User-Agent': COLINS_UA, 'Accept-Language': 'tr-TR,tr;q=0.9' } });
+      if (!res.ok) throw new Error(`BarrelsAndOil ${res.status} (${url})`);
+      return await res.text();
+    } catch (err) {
+      lastErr = err;
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+  throw lastErr;
+}
+
+const barrelsPrice = (text) => {
+  const n = Number(String(text || '').replace(/[^\d,]/g, '').replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+const decodeHtml = (t) => String(t || '').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n))
+  .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').trim();
+// "Kadın Göğüs Pedli Askılı Atlet - Siyah" -> "Kadın Göğüs Pedli Askılı Atlet"
+const barrelsBaseName = (name) => String(name || '').replace(/\s+-\s+[^-]*$/, '').replace(/\s+/g, ' ').trim();
+
+// Every in-stock card of the listings: { id, url, name, sale, regular }.
+async function readBarrelsListings() {
+  const cards = new Map();
+  for (const path of BARRELS_LISTINGS) {
+    for (let page = 1; page <= BARRELS_MAX_PAGES; page++) {
+      const html = await barrelsGet(`${path}?sayfa=${page}`);
+      let added = 0;
+      for (const m of html.matchAll(/class="productDetail[^"]*" data-id="(\d+)" data-variant-id="\d+">([\s\S]*?)class="productIcon"/g)) {
+        const body = m[2];
+        const link = body.match(/class="productName[^"]*"[^>]*><a title="([^"]*)" href='([^']*)'/);
+        if (!link || cards.has(m[1])) continue;
+        cards.set(m[1], {
+          id: m[1],
+          url: link[2],
+          name: decodeHtml(link[1]).replace(/\s+/g, ' '),
+          sale: barrelsPrice(body.match(/discountPriceSpan">([^<]+)</)?.[1]),
+          regular: barrelsPrice(body.match(/regularPriceSpan">([^<]+)</)?.[1]),
+        });
+        added++;
+      }
+      if (!added) break;
+    }
+  }
+  return [...cards.values()];
+}
+
+// The product page's `var productDetailModel = {...}` (balanced-brace scan,
+// since it's followed by more script on the same line).
+function barrelsDetailModel(html) {
+  const start = html.indexOf('var productDetailModel = ');
+  if (start < 0) return null;
+  let i = start + 'var productDetailModel = '.length;
+  const from = i;
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  for (; i < html.length; i++) {
+    const c = html[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === '{') depth++;
+    else if (c === '}' && --depth === 0) return JSON.parse(html.slice(from, i + 1));
+  }
+  return null;
+}
+
+// One color, read from its own page.
+async function readBarrelsColor(card) {
+  const m = barrelsDetailModel(await barrelsGet(card.url));
+  if (!m) throw new Error(`BarrelsAndOil: no product data on ${card.url}`);
+  const variants = m.productVariantData || [];
+  const stockCode = String(m.stockCode || '');
+  return {
+    ...card,
+    model: stockCode.includes('.') ? stockCode.slice(0, stockCode.lastIndexOf('.')) : stockCode || null,
+    colorName: variants.find((v) => v.tipID === 1)?.tanim?.trim() || null,
+    sizes: variants.filter((v) => v.tipID === 2 && v.aktif)
+      .map((v) => ({ name: String(v.tanim || '').trim().slice(0, 10), inStock: Number(v.stokAdedi) > 0 }))
+      .filter((sz) => sz.name),
+    images: [...new Set((m.productImages || []).sort((a, b) => a.imageOrder - b.imageOrder).map((im) => im.bigImagePath).filter(Boolean))],
+    path: String(m.breadCrumb?.[0]?.kod || ''),
+  };
+}
+
+// The colors that are in stock and whose own sale price, plus markup,
+// still stays at or under Barrels' regular price (case (b)); the most
+// expensive sets the price. Null when none qualifies.
+function barrelsPricing(colors, markupPercent) {
+  const qualifying = colors
+    .filter((c) => c.sale && c.regular && c.sizes.some((sz) => sz.inStock))
+    .map((c) => ({ c, final: Math.round(c.sale * (1 + markupPercent / 100) * 100) / 100 }))
+    .map((q) => ({ ...q, tag: resolveDiscountTag({ markupPercent, finalDiscountedPrice: q.final, priceOriginal: q.c.regular }) }))
+    .filter((q) => q.tag);
+  if (!qualifying.length) return null;
+  const top = qualifying.reduce((a, b) => (b.c.sale > a.c.sale ? b : a));
+  return {
+    colorIds: qualifying.map((q) => q.c.id),
+    price: top.c.regular, discounted_price: top.final, cost_price: top.c.sale, tag: top.tag,
+  };
+}
+
+function routeBarrelsCategory(path, name) {
+  const text = `${path} ${name}`;
+  if (/PARFÜM|parfüm/i.test(text)) return 10;
+  if (/AYAKKABI|ÇİZME|BOT\b|TERLİK|ayakkabı|çizme|terlik/i.test(text)) return 2;
+  if (/ÇORAP|çorap|İÇ GİYİM|BOXER|KÜLOT/i.test(text)) return 1;
+  if (/AKSESUAR|ÇANTA|CÜZDAN|ŞAPKA|çanta|cüzdan|şapka|bere\b|kemer/i.test(text)) return 3;
+  return 1;
+}
+
+const barrelsGender = (path, name) => (/^(BAYAN|KADIN)/i.test(path) || /\bkadın\b/i.test(name) ? 'female'
+  : /^ERKEK/i.test(path) || /\berkek\b/i.test(name) ? 'male' : 'unisex');
+
+const barrelsLinkId = (link) => String(link || '').match(/-(\d+)(?:[?#].*)?$/)?.[1] || null;
+
+// Reads the pages of a set of list cards and splits them by model.
+async function barrelsModels(cards) {
+  const colors = [];
+  for (const card of cards) colors.push(await readBarrelsColor(card));
+  const byModel = new Map();
+  for (const c of colors) {
+    const key = c.model || c.id;
+    if (!byModel.has(key)) byModel.set(key, []);
+    byModel.get(key).push(c);
+  }
+  return byModel;
+}
+
+async function BarrelsAndOil(_pm, site, opts = {}) {
+  const limit = opts.limit || 30;
+  const cards = await readBarrelsListings();
+
+  const existing = await prisma.products.findMany({
+    where: { supplier_shop_name: site.name },
+    select: { product_link: true, supplier_code: true },
+  });
+  const existingIds = new Set(existing.map((e) => barrelsLinkId(e.product_link)).filter(Boolean));
+  const existingModels = new Set(existing.map((e) => e.supplier_code).filter(Boolean));
+
+  // Cheap list-price pre-check before any product page is opened.
+  const priced = cards.filter((c) => !existingIds.has(c.id) && c.sale && c.regular
+    && resolveDiscountTag({ markupPercent: site.markup_percent, finalDiscountedPrice: c.sale * (1 + site.markup_percent / 100), priceOriginal: c.regular }));
+  const byName = new Map();
+  for (const c of priced) {
+    const key = barrelsBaseName(c.name);
+    if (!byName.has(key)) byName.set(key, []);
+    byName.get(key).push(c);
+  }
+
+  const imported = [];
+  let alreadyThere = 0;
+  let notSellable = 0;
+  let stopped = false;
+  await runQueue([...byName.values()], IMPORT_WORKER_SLOTS, async (_w, group) => {
+    if (stopped) return;
+    let models;
+    try {
+      models = await barrelsModels(group);
+    } catch (err) {
+      imported.push({ error: err.message, url: BARRELS_BASE + group[0].url });
+      return;
+    }
+    for (const [model, colorsAll] of models) {
+      if (stopped || imported.filter((p) => !p.error).length >= limit) { stopped = true; return; }
+      if (existingModels.has(model)) { alreadyThere++; continue; }
+      const pricing = barrelsPricing(colorsAll, site.markup_percent);
+      if (!pricing) { notSellable++; continue; }
+      existingModels.add(model);
+      const colors = colorsAll.filter((c) => pricing.colorIds.includes(c.id));
+      const url = BARRELS_BASE + colors[0].url;
+      try {
+        const name = barrelsBaseName(colors[0].name);
+        const nameTr = name.slice(0, 120);
+        const category_id = routeBarrelsCategory(colors[0].path, name);
+        const subcategory_id = guessSubcategoryId(`${name} ${colors[0].path.split('|').pop() || ''}`, category_id);
+        const translateOrWarn = (text, target) => translateText(text, 'tr', target)
+          .catch((err) => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
+        const [name_fa, name_en] = await Promise.all([translateOrWarn(name, 'fa'), translateOrWarn(name, 'en')]);
+
+        const rows = colors.map((c) => ({ id: c.id, name: c.colorName, sizes: c.sizes, images: c.images }));
+        const mediaUrls = [];
+        for (const imgUrl of leftiesGalleryPhotos(rows)) {
+          try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
+        }
+        const created = await prisma.products.create({
+          data: {
+            code: await generateProductCode(),
+            category_id, subcategory_id,
+            gender: barrelsGender(colors[0].path, name),
+            name_fa: (name_fa || nameTr).slice(0, 120), name_en: (name_en || nameTr).slice(0, 120), name_tr: nameTr,
+            price: pricing.price,
+            discounted_price: pricing.discounted_price,
+            cost_price: pricing.cost_price,
+            tag: pricing.tag,
+            stock: 0,
+            brand: site.name,
+            supplier_shop_name: site.name,
+            supplier_code: model,
+            product_link: url,
+            product_media: mediaUrls.length ? { create: mediaUrls.map((u, i) => ({ type: 'image', url: u, sort_order: i })) } : undefined,
+          },
+        });
+        try {
+          const { stock } = await writeLeftiesVariants(created.id, rows);
+          await prisma.products.update({ where: { id: created.id }, data: { stock } });
+        } catch (err) {
+          await prisma.products.delete({ where: { id: created.id } }).catch(() => {});
+          throw err;
+        }
+        imported.push({ id: created.id, name: nameTr });
+      } catch (err) {
+        imported.push({ error: err.message, url });
+      }
+    }
+  });
+
+  return { imported, skipped: (cards.length - priced.length) + alreadyThere + notSellable };
+}
+
+// Barrels and Oil's stock check: re-reads the listings, then each product's
+// colors (the listed cards sharing its name, kept when their stock code
+// matches its model). Taken off the site when no in-stock color still
+// qualifies (sold out, discount gone, or no longer listed); otherwise
+// re-priced and its colors/sizes rewritten.
+async function checkBarrelsAndOilStock(site, products) {
+  const { syncSubcategoryActiveState } = require('./subcategorySync');
+  const cards = await readBarrelsListings();
+  const byName = new Map();
+  for (const c of cards) {
+    const key = barrelsBaseName(c.name);
+    if (!byName.has(key)) byName.set(key, []);
+    byName.get(key).push(c);
+  }
+
+  const results = [];
+  for (const p of products) {
+    try {
+      const candidates = byName.get(barrelsBaseName(p.name_tr)) || [];
+      const models = candidates.length ? await barrelsModels(candidates) : new Map();
+      const colors = models.get(p.supplier_code) || (p.supplier_code ? [] : [...models.values()].flat());
+      const pricing = colors.length ? barrelsPricing(colors, site.markup_percent) : null;
+      if (!pricing) {
+        await prisma.products.update({
+          where: { id: p.id },
+          data: { is_active: false, is_live: false, is_dirty: false, updated_at: new Date() },
+        });
+        if (p.subcategory_id) await syncSubcategoryActiveState(p.subcategory_id);
+        results.push({ id: p.id, name: p.name_tr, status: 'deactivated (discount ended, sold out or gone)' });
+        continue;
+      }
+      const rows = colors.filter((c) => pricing.colorIds.includes(c.id))
+        .map((c) => ({ id: c.id, name: c.colorName, sizes: c.sizes, images: c.images }));
+      const { stock, changed } = await writeLeftiesVariants(p.id, rows);
+      const keepAdminTag = ['bestseller', 'new'].includes(p.tag) ? p.tag : null;
+      const tag = stock === 0 ? 'sold_out' : (pricing.tag || keepAdminTag);
+      const update = {};
+      if (Number(p.price) !== pricing.price) update.price = pricing.price;
+      if ((p.discounted_price == null ? null : Number(p.discounted_price)) !== pricing.discounted_price) update.discounted_price = pricing.discounted_price;
+      if (Number(p.cost_price) !== pricing.cost_price) update.cost_price = pricing.cost_price;
+      if (p.stock !== stock) update.stock = stock;
+      if (p.tag !== tag) {
+        update.tag = tag;
+        update.sold_out_at = tag === 'sold_out' ? new Date() : null;
+      }
+      if (Object.keys(update).length || changed) {
+        await prisma.products.update({ where: { id: p.id }, data: { ...update, is_dirty: true, updated_at: new Date() } });
+      }
+      results.push({
+        id: p.id, name: p.name_tr,
+        status: tag === 'sold_out' ? 'sold_out' : `ok (stock=${stock})${Object.keys(update).length || changed ? ', updated' : ''}`,
+      });
+    } catch (err) {
+      results.push({ id: p.id, name: p.name_tr, status: `error: ${err.message}` });
+    }
+  }
+  return results;
+}
+
 // Mavi is an SAP Commerce (Spartacus/Angular) storefront behind a strict
 // Cloudflare WAF — confirmed live that a handful of consecutive headless
 // page navigations (listing -> listing -> listing) got this machine's IP
@@ -4992,10 +5298,10 @@ async function checkMangoStock(site, products) {
 }
 
 module.exports = {
-  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Oysho, Bershka, PullAndBear, Stradivarius, Colins, PaulMark, Mavi, MClub, ArmaLife, Mango,
+  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Oysho, Bershka, PullAndBear, Stradivarius, Colins, PaulMark, BarrelsAndOil, Mavi, MClub, ArmaLife, Mango,
   // exported for siteSync.js#checkSiteStock, which hands mClub's, ArmaLife's,
   // Mango's and Lefties' stock checks off to their own API-based readers.
-  checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock, checkOyshoStock, checkBershkaStock, checkPullAndBearStock, checkStradivariusStock, checkColinsStock, checkPaulMarkStock,
+  checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock, checkOyshoStock, checkBershkaStock, checkPullAndBearStock, checkStradivariusStock, checkColinsStock, checkPaulMarkStock, checkBarrelsAndOilStock,
   // exported for backend/scripts/mergeArmaLifeColors.js.
   mergeArmaLifeColors,
   // exported for siteSync.js#importSite and backend/scripts/addMenuSubcategories.js.
