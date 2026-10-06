@@ -233,4 +233,11 @@ function importStatusText(result) {
   return text;
 }
 
-module.exports = { checkSiteStock, importSite, withBrowser, cleanupStaleChromeProfiles, importStatusText };
+// Whether a site's name matches an importer in siteImport.js (shown on the
+// admin Sites page). Importers are the capitalized exports (Defacto, Oysho,
+// ...); the lowercase ones are helpers.
+function hasImporter(name) {
+  return /^[A-Z]/.test(name || '') && typeof importers[name] === 'function';
+}
+
+module.exports = { checkSiteStock, importSite, withBrowser, cleanupStaleChromeProfiles, importStatusText, hasImporter };

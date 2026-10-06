@@ -1,11 +1,13 @@
 const prisma = require('../prisma/client');
-const { checkSiteStock, importSite, importStatusText } = require('../utils/siteSync');
+const { checkSiteStock, importSite, importStatusText, hasImporter } = require('../utils/siteSync');
+
+const withImporterFlag = (row) => ({ ...row, has_importer: hasImporter(row.name) });
 const { queueNewProductsForInstagram } = require('../utils/instagramProductQueue');
 
 async function listSites(req, res, next) {
   try {
     const rows = await prisma.sites.findMany({ orderBy: { name: 'asc' } });
-    res.json({ success: true, data: rows });
+    res.json({ success: true, data: rows.map(withImporterFlag) });
   } catch (err) { next(err); }
 }
 
@@ -25,7 +27,7 @@ async function createSite(req, res, next) {
         daily_ig_post_limit:         daily_ig_post_limit != null && daily_ig_post_limit !== '' ? Number(daily_ig_post_limit) : 5,
       },
     });
-    res.status(201).json({ success: true, data: row });
+    res.status(201).json({ success: true, data: withImporterFlag(row) });
   } catch (err) { next(err); }
 }
 
@@ -73,7 +75,7 @@ async function updateSite(req, res, next) {
       })));
     }
 
-    res.json({ success: true, data: row });
+    res.json({ success: true, data: withImporterFlag(row) });
   } catch (err) { next(err); }
 }
 
