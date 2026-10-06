@@ -3423,6 +3423,178 @@ async function checkColinsStock(site, products) {
   return results;
 }
 
+// ── PaulMark ──
+// paulmark.com.tr runs on Farktor like ArmaLife (company Fr-5500186), so
+// it reuses ArmaLife's catalog reader, grouping (one product per model,
+// every color in it), photos and variants. User's choice (2026-10-06): ONLY
+// discounted products — a color counts when it's in stock and PaulMark's
+// own cut (priceMarket -> priceSale) is bigger than the markup (case (a),
+// armalifePricing); a product holds only those colors. 2026-10-06: 1,790
+// models, ~864 with such a color. Unlike ArmaLife it sells men's and
+// kids' too: gender and type come from its own classes (03 "Cinsiyet",
+// 02 "Ürün Cinsi"); description = fabric (09) and fit (11).
+const PAULMARK_COMPANY = 'Fr-5500186';
+const PAULMARK_HOME = 'https://www.paulmark.com.tr/';
+const PAULMARK_PRODUCT_BASE = 'https://www.paulmark.com.tr/tr/';
+const PAULMARK_IMAGE_BASE = 'https://farktorcdn.com/Library/Upl/5500186/Product/';
+const fetchPaulMarkCatalog = () => fetchArmaLifeCatalog({ company: PAULMARK_COMPANY, referer: PAULMARK_HOME, label: 'PaulMark' });
+
+function paulMarkGender(card) {
+  const g = armalifeClass(card, '03').toLocaleLowerCase('tr');
+  if (/çocuk|bebek/.test(g)) return 'kids';
+  if (/kadın|bayan/.test(g)) return 'female';
+  if (/erkek/.test(g)) return 'male';
+  return 'unisex';
+}
+
+function routePaulMarkCategory(card, name) {
+  const text = `${armalifeClass(card, '02')} ${name}`;
+  if (/parfüm|parfum/i.test(text)) return { category_id: 10, subcategory_id: guessSubcategoryId(name, 10) };
+  if (/ayakkabı|terlik|\bbot\b|çizme|sandalet|babet|sneaker/i.test(text)) return { category_id: 2, subcategory_id: guessSubcategoryId(name, 2) };
+  if (/çanta|cüzdan|kartlık|kemer|şapka|bere\b|atkı|eldiven|kravat|mendil|fular|şal\b|aksesuar/i.test(text)) {
+    return { category_id: 3, subcategory_id: guessSubcategoryId(name, 3) };
+  }
+  return { category_id: 1, subcategory_id: guessSubcategoryId(text, 1) };
+}
+
+function paulMarkDescription(card) {
+  return ['09', '11'].map(cl => (card.classes || []).find(c => c.cl === cl))
+    .filter(c => c && c.value && !/mevcut değil/i.test(c.value))
+    .map(c => `${c.clValue.trim()}: ${c.value.trim()}`)
+    .join('\n');
+}
+
+// The model narrowed to its in-stock colors that clear the markup, priced
+// off the most expensive of them; null when none does.
+function paulMarkDiscountGroup(group, markupPercent) {
+  const members = group.members.filter(c => armalifeSizes(c).some(s => s.qty > 0)
+    && armalifePricing(c, markupPercent).tag === 'discount');
+  if (!members.length) return null;
+  const pricing = members.map(c => armalifePricing(c, markupPercent)).reduce((a, b) => (b.cost_price > a.cost_price ? b : a));
+  return { group: { ...group, members, rep: members[0] }, pricing };
+}
+
+async function PaulMark(_pm, site, opts = {}) {
+  const limit = opts.limit || 30;
+  const groups = groupArmaLifeCatalog(await fetchPaulMarkCatalog());
+
+  const existing = await prisma.products.findMany({
+    where: { supplier_shop_name: site.name, product_link: { not: null } },
+    select: { product_link: true },
+  });
+  const existingIds = new Set(existing.map(e => armalifeLinkId(e.product_link)).filter(Boolean));
+  const fresh = groups.filter(g => ![...g.ids].some(id => existingIds.has(id)));
+  const candidates = fresh.map(g => paulMarkDiscountGroup(g, site.markup_percent)).filter(Boolean);
+
+  const imported = [];
+  let stopped = false;
+  await runQueue(candidates, IMPORT_WORKER_SLOTS, async (_worker, { group, pricing }) => {
+    if (stopped) return;
+    if (imported.filter(p => !p.error).length >= limit) return void (stopped = true);
+    const url = armalifeUrl(group.rep, PAULMARK_PRODUCT_BASE);
+    try {
+      const { category_id, subcategory_id } = routePaulMarkCategory(group.rep, group.name);
+      const description = paulMarkDescription(group.rep);
+      const translateOrWarn = (text, target) => translateText(text, 'tr', target)
+        .catch(err => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
+      const [name_fa, name_en, desc_fa, desc_en] = await Promise.all([
+        translateOrWarn(group.name, 'fa'),
+        translateOrWarn(group.name, 'en'),
+        description ? translateOrWarn(description, 'fa') : '',
+        description ? translateOrWarn(description, 'en') : '',
+      ]);
+      const nameTr = group.name.slice(0, 120);
+
+      const mediaUrls = [];
+      for (const photo of armalifeGroupPhotos(group)) {
+        try { mediaUrls.push(await saveImageFromUrl(PAULMARK_IMAGE_BASE + photo)); } catch (e) { /* skip broken image */ }
+      }
+
+      const product = await prisma.products.create({
+        data: {
+          code: await generateProductCode(),
+          category_id, subcategory_id,
+          gender: paulMarkGender(group.rep),
+          name_fa: (name_fa || nameTr).slice(0, 120), name_en: (name_en || nameTr).slice(0, 120), name_tr: nameTr,
+          desc_fa, desc_en, desc_tr: description || null,
+          price: pricing.price,
+          discounted_price: pricing.discounted_price,
+          cost_price: pricing.cost_price,
+          tag: pricing.tag,
+          stock: 0,
+          brand: site.name,
+          supplier_shop_name: site.name,
+          supplier_code: group.key,
+          product_link: url,
+          product_media: mediaUrls.length ? { create: mediaUrls.map((u, i) => ({ type: 'image', url: u, sort_order: i })) } : undefined,
+        },
+      });
+      try {
+        const { stock } = await writeArmaLifeVariants(product.id, group);
+        await prisma.products.update({ where: { id: product.id }, data: { stock } });
+      } catch (err) {
+        await prisma.products.delete({ where: { id: product.id } }).catch(() => {});
+        throw err;
+      }
+      imported.push({ id: product.id, name: nameTr });
+    } catch (err) {
+      imported.push({ error: err.message, url });
+    }
+  });
+
+  return { imported, skipped: (groups.length - fresh.length) + (fresh.length - candidates.length) };
+}
+
+// PaulMark's stock check: re-reads the catalog API. A product whose model
+// has no in-stock color left that clears the markup is taken off the site
+// (same rule as Mango/Lefties/Colin's); otherwise it's re-priced and its
+// colors/sizes/stock rewritten from those colors.
+async function checkPaulMarkStock(site, products) {
+  const { syncSubcategoryActiveState } = require('./subcategorySync');
+  const groupById = new Map();
+  for (const g of groupArmaLifeCatalog(await fetchPaulMarkCatalog())) for (const id of g.ids) groupById.set(id, g);
+
+  const results = [];
+  for (const p of products) {
+    try {
+      const group = groupById.get(armalifeLinkId(p.product_link));
+      const narrowed = group ? paulMarkDiscountGroup(group, site.markup_percent) : null;
+      if (!narrowed) {
+        await prisma.products.update({
+          where: { id: p.id },
+          data: { is_active: false, is_live: false, is_dirty: false, updated_at: new Date() },
+        });
+        if (p.subcategory_id) await syncSubcategoryActiveState(p.subcategory_id);
+        results.push({ id: p.id, name: p.name_tr, status: 'deactivated (discount ended, sold out or gone)' });
+        continue;
+      }
+      const { pricing } = narrowed;
+      const { stock, changed } = await writeArmaLifeVariants(p.id, narrowed.group);
+      const keepAdminTag = ['bestseller', 'new'].includes(p.tag) ? p.tag : null;
+      const tag = stock === 0 ? 'sold_out' : (pricing.tag || keepAdminTag);
+      const update = {};
+      if (Number(p.price) !== pricing.price) update.price = pricing.price;
+      if ((p.discounted_price == null ? null : Number(p.discounted_price)) !== pricing.discounted_price) update.discounted_price = pricing.discounted_price;
+      if (Number(p.cost_price) !== pricing.cost_price) update.cost_price = pricing.cost_price;
+      if (p.stock !== stock) update.stock = stock;
+      if (p.tag !== tag) {
+        update.tag = tag;
+        update.sold_out_at = tag === 'sold_out' ? new Date() : null;
+      }
+      if (Object.keys(update).length || changed) {
+        await prisma.products.update({ where: { id: p.id }, data: { ...update, is_dirty: true, updated_at: new Date() } });
+      }
+      results.push({
+        id: p.id, name: p.name_tr,
+        status: tag === 'sold_out' ? 'sold_out' : `ok (stock=${stock})${Object.keys(update).length || changed ? ', updated' : ''}`,
+      });
+    } catch (err) {
+      results.push({ id: p.id, name: p.name_tr, status: `error: ${err.message}` });
+    }
+  }
+  return results;
+}
+
 // Mavi is an SAP Commerce (Spartacus/Angular) storefront behind a strict
 // Cloudflare WAF — confirmed live that a handful of consecutive headless
 // page navigations (listing -> listing -> listing) got this machine's IP
@@ -4118,18 +4290,19 @@ function armalifeSizes(card) {
     .map(s => ({ ...s, label: s.name.trim().slice(0, 10), qty: Math.max(Number(s.qty) || 0, 0) }));
 }
 
-// Pages through the whole catalog. The API repeats a few cards across
-// pages, so it's deduped by modelCode (one per product color).
-async function fetchArmaLifeCatalog() {
+// Pages through a Farktor store's whole catalog (ArmaLife, PaulMark). The
+// API repeats a few cards across pages, so it's deduped by modelCode (one
+// per product color).
+async function fetchArmaLifeCatalog({ company = ARMALIFE_COMPANY, referer = 'https://www.armalife.com.tr/', label = 'ArmaLife' } = {}) {
   const cards = new Map();
   let total = null;
   let seen = 0;
   for (let page = 1; page <= ARMALIFE_MAX_PAGES; page++) {
-    const url = `${ARMALIFE_API}?company=${ARMALIFE_COMPANY}&page=${page}&pageSize=${ARMALIFE_PAGE_SIZE}`;
+    const url = `${ARMALIFE_API}?company=${company}&page=${page}&pageSize=${ARMALIFE_PAGE_SIZE}`;
     const res = await fetch(url, {
-      headers: { 'User-Agent': MCLUB_USER_AGENT, Accept: 'application/json', Referer: 'https://www.armalife.com.tr/' },
+      headers: { 'User-Agent': MCLUB_USER_AGENT, Accept: 'application/json', Referer: referer },
     });
-    if (!res.ok) throw new Error(`ArmaLife API ${res.status} for page ${page}`);
+    if (!res.ok) throw new Error(`${label} API ${res.status} for page ${page}`);
     const d = await res.json();
     total = d.size;
     const products = d.products || [];
@@ -4138,7 +4311,7 @@ async function fetchArmaLifeCatalog() {
     if (!products.length || seen >= total) break;
     await new Promise(r => setTimeout(r, 300));
   }
-  if (!cards.size) throw new Error('ArmaLife: catalog API returned no products');
+  if (!cards.size) throw new Error(`${label}: catalog API returned no products`);
   return [...cards.values()];
 }
 
@@ -4157,9 +4330,9 @@ function armalifeLinkId(link) {
   return String(link || '').match(/_(\d+)$/)?.[1] || null;
 }
 
-function armalifeUrl(card) {
+function armalifeUrl(card, base = 'https://www.armalife.com.tr/tr/') {
   const own = (card.colors || []).find(c => c.modelCodes === card.modelCode);
-  return `https://www.armalife.com.tr/tr/${card.seoUrl}_${own ? own.productId : card.productId}`;
+  return `${base}${card.seoUrl}_${own ? own.productId : card.productId}`;
 }
 
 function armalifeColorName(card) {
@@ -4222,6 +4395,7 @@ function armalifeGroupPricing(group, markupPercent) {
 // and back) of every other color, so each color can be seen in the gallery
 // — product_media has no color link to swap photos per selected color.
 function armalifeGroupPhotos(group) {
+  // `photoAll` sometimes lists one photo twice; the Set below drops those.
   const photosOf = c => String(c.photoAll || c.photo || '').split('||').map(p => p.trim()).filter(Boolean);
   const list = [...photosOf(group.rep)];
   for (const c of group.members.slice(1)) {
@@ -4238,7 +4412,7 @@ function armalifeGroupPhotos(group) {
 // Two ArmaLife colors can land on one of our colors ("Siyah", "Siyah
 // Puantiye" -> siyah): their stock is merged. Rows are only rewritten
 // when something actually changed. Returns { stock, changed }.
-async function writeArmaLifeVariants(productId, group) {
+async function writeArmaLifeVariants(productId, group, maxPerSize = ARMALIFE_MAX_STOCK_PER_SIZE) {
   const byColor = new Map(); // colorId -> Map(label -> qty)
   const sizeOrder = [];
   for (const card of group.members) {
@@ -4247,7 +4421,7 @@ async function writeArmaLifeVariants(productId, group) {
     const qtys = byColor.get(colorId);
     for (const s of armalifeSizes(card)) {
       if (!sizeOrder.includes(s.label)) sizeOrder.push(s.label);
-      qtys.set(s.label, Math.max(qtys.get(s.label) || 0, Math.min(s.qty, ARMALIFE_MAX_STOCK_PER_SIZE)));
+      qtys.set(s.label, Math.max(qtys.get(s.label) || 0, Math.min(s.qty, maxPerSize)));
     }
   }
   const inventory = [];
@@ -4818,10 +4992,10 @@ async function checkMangoStock(site, products) {
 }
 
 module.exports = {
-  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Oysho, Bershka, PullAndBear, Stradivarius, Colins, Mavi, MClub, ArmaLife, Mango,
+  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Oysho, Bershka, PullAndBear, Stradivarius, Colins, PaulMark, Mavi, MClub, ArmaLife, Mango,
   // exported for siteSync.js#checkSiteStock, which hands mClub's, ArmaLife's,
   // Mango's and Lefties' stock checks off to their own API-based readers.
-  checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock, checkOyshoStock, checkBershkaStock, checkPullAndBearStock, checkStradivariusStock, checkColinsStock,
+  checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock, checkOyshoStock, checkBershkaStock, checkPullAndBearStock, checkStradivariusStock, checkColinsStock, checkPaulMarkStock,
   // exported for backend/scripts/mergeArmaLifeColors.js.
   mergeArmaLifeColors,
   // exported for siteSync.js#importSite and backend/scripts/addMenuSubcategories.js.

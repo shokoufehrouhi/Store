@@ -141,6 +141,8 @@ async function checkSiteStock(site) {
   if (site.name === 'Mango') return importers.checkMangoStock(site, products);
   // And Colin's — its sale list carries prices and in-stock sizes.
   if (site.name === 'Colins') return importers.checkColinsStock(site, products);
+  // And PaulMark — same Farktor catalog API as ArmaLife.
+  if (site.name === 'PaulMark') return importers.checkPaulMarkStock(site, products);
   // Lefties' API only answers from inside one of its pages, hence the browser.
   if (site.name === 'Lefties') return withBrowser((pm) => importers.checkLeftiesStock(site, products, pm));
   if (site.name === 'Oysho') return withBrowser((pm) => importers.checkOyshoStock(site, products, pm));
