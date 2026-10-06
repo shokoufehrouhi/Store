@@ -33,9 +33,13 @@ function escapeXml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-async function renderText({ text, fontFile, fontFamily, width, height, color, align = 'center' }) {
+// With `size` the text keeps that font size and only wraps within `width`;
+// without it, it's stretched to fill width x height — which made short
+// product names huge and long ones small, so slides use fixed sizes.
+async function renderText({ text, fontFile, fontFamily, width, height, size, color, align = 'center' }) {
+  const box = size ? { font: `${fontFamily} ${size}`, width } : { font: fontFamily, width, height };
   return sharp({
-    text: { text: `<span foreground="${color}">${escapeXml(text)}</span>`, font: fontFamily, fontfile: fontFile, width, height, align, rgba: true },
+    text: { text: `<span foreground="${color}">${escapeXml(text)}</span>`, fontfile: fontFile, align, rgba: true, ...box },
   }).png().toBuffer();
 }
 
@@ -66,31 +70,36 @@ async function buildProductSlide(product) {
   layers.push(await centered(logo, 60));
 
   const imgPath = productImagePath(product);
-  if (imgPath) layers.push(await centered(await roundedPhoto(imgPath, 940, 1200), 190));
+  if (imgPath) layers.push(await centered(await roundedPhoto(imgPath, 940, 1140), 180));
 
-  layers.push(await centered(await renderText({
+  // The prices go right under the name, which can wrap to two lines.
+  const nameBuf = await renderText({
     text: String(product.name_fa || '').slice(0, 70), fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold',
-    width: 960, height: 130, color: '#ffffff',
-  }), 1420));
+    width: 960, size: 76, color: '#ffffff',
+  });
+  const nameTop = 1350;
+  layers.push(await centered(nameBuf, nameTop));
+  let y = nameTop + (await sharp(nameBuf).metadata()).height + 25;
 
   const price = Number(product.price);
   const sale = product.discounted_price != null ? Number(product.discounted_price) : null;
   if (sale != null && sale < price) {
     const pct = Math.round((price - sale) / price * 100);
-    const oldBuf = await renderText({ text: formatTL(price), fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium', width: 420, height: 70, color: '#9a9a9a' });
+    const oldBuf = await renderText({ text: formatTL(price), fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium', width: 600, size: 64, color: '#9a9a9a' });
     const oldMeta = await sharp(oldBuf).metadata();
     const strike = Buffer.from(`<svg width="${oldMeta.width}" height="${oldMeta.height}"><line x1="0" y1="${oldMeta.height / 2}" x2="${oldMeta.width}" y2="${oldMeta.height / 2}" stroke="#9a9a9a" stroke-width="5"/></svg>`);
-    layers.push(await centered(await sharp(oldBuf).composite([{ input: strike }]).png().toBuffer(), 1580));
-    layers.push(await centered(await renderText({ text: formatTL(sale), fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 700, height: 110, color: ORANGE }), 1650));
+    layers.push(await centered(await sharp(oldBuf).composite([{ input: strike }]).png().toBuffer(), y));
+    y += oldMeta.height + 5;
+    layers.push(await centered(await renderText({ text: formatTL(sale), fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 900, size: 124, color: ORANGE }), y));
 
-    const badgeText = await renderText({ text: `${toFaDigits(pct)}٪ تخفیف`, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 360, height: 70, color: '#ffffff' });
+    const badgeText = await renderText({ text: `${toFaDigits(pct)}٪ تخفیف`, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 420, size: 60, color: '#ffffff' });
     const bm = await sharp(badgeText).metadata();
     const bw = bm.width + 60, bh = bm.height + 30;
     const badgeBg = Buffer.from(`<svg width="${bw}" height="${bh}"><rect width="${bw}" height="${bh}" rx="${bh / 2}" ry="${bh / 2}" fill="${ORANGE}"/></svg>`);
     const badge = await sharp(badgeBg).composite([{ input: badgeText, left: 30, top: 15 }]).png().toBuffer();
-    layers.push({ input: badge, left: W - bw - 90, top: 230 });
+    layers.push({ input: badge, left: W - bw - 90, top: 215 });
   } else {
-    layers.push(await centered(await renderText({ text: formatTL(sale ?? price), fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 700, height: 110, color: ORANGE }), 1600));
+    layers.push(await centered(await renderText({ text: formatTL(sale ?? price), fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 900, size: 124, color: ORANGE }), y));
   }
 
   return sharp({ create: { width: W, height: H, channels: 4, background: BG_DARK } }).composite(layers).jpeg({ quality: 92 }).toBuffer();

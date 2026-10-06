@@ -207,9 +207,11 @@ async function recentlyUsedProductIds(days = 7) {
 // request 2026-10-05, cheap items aren't worth a story slot.
 const STORY_MIN_PRICE_TL = 300;
 
-// Reels pass `where` (their product group plus "discounted") and their own
-// lower `minPrice` (cosmetics are often under the stories' 300 TL).
-async function eligibleStoryProducts(limit, excludeIds = [], { where = null, minPrice = STORY_MIN_PRICE_TL } = {}) {
+// Reels pass `where` (their product group plus "discounted"), their own
+// lower `minPrice` (cosmetics are often under the stories' 300 TL) and a
+// `keep` test the database can't do itself (the size of the discount), with
+// a deeper `poolSize` to leave enough after it.
+async function eligibleStoryProducts(limit, excludeIds = [], { where = null, minPrice = STORY_MIN_PRICE_TL, keep = null, poolSize = null } = {}) {
   const recent = await recentlyUsedProductIds();
   const baseWhere = {
     is_active: true,
@@ -230,7 +232,7 @@ async function eligibleStoryProducts(limit, excludeIds = [], { where = null, min
       where: { ...baseWhere, id: { notIn: exclude } },
       include: { product_media: { take: 1 } },
       orderBy: { updated_at: 'desc' },
-      take: Math.max(limit * 10, 30),
+      take: poolSize || Math.max(limit * 10, 30),
     });
     // A product_media row pointing at a file that's actually missing on disk
     // (seen in production data) would otherwise crash sharp mid-render —
@@ -238,7 +240,7 @@ async function eligibleStoryProducts(limit, excludeIds = [], { where = null, min
     // fail silently for the whole day.
     return pool.filter(p => {
       const media = p.product_media[0];
-      return media && fs.existsSync(path.join(UPLOADS_DIR, path.basename(media.url)));
+      return media && fs.existsSync(path.join(UPLOADS_DIR, path.basename(media.url))) && (!keep || keep(p));
     });
   }
 
@@ -345,12 +347,21 @@ async function generateEveningCollageStory() {
 const REEL_PRODUCTS = 5;
 const REEL_MIN_PRODUCTS = 3;
 const REEL_MIN_PRICE_TL = 100;
+// User's choice (2026-10-06): only real-looking deals in a reel — at least
+// this much off on OUR site, i.e. our selling price (the source's sale
+// price plus markup) against the original price, the same percent the
+// slide and the product page show.
+const REEL_MIN_DISCOUNT = 0.20;
+const reelDiscountOk = (minDiscount) => (p) => Number(p.price) > 0
+  && (Number(p.price) - Number(p.discounted_price)) / Number(p.price) >= minDiscount;
 async function generateReel(slot) {
   const group = reelGroupFor(slot, currentDateStr());
   if (!group) return false;
   const products = await eligibleStoryProducts(REEL_PRODUCTS, [], {
     where: { AND: [group.where, { tag: 'discount' }, { discounted_price: { not: null } }] },
     minPrice: REEL_MIN_PRICE_TL,
+    keep: reelDiscountOk(group.minDiscount ?? REEL_MIN_DISCOUNT),
+    poolSize: 400,
   });
   if (products.length < REEL_MIN_PRODUCTS) {
     console.warn(`[scheduler] reel ${slot} (${group.key}): only ${products.length} eligible product(s), skipped`);
