@@ -48,6 +48,15 @@ async function centered(buf, top) {
   return { input: buf, left: Math.round((W - meta.width) / 2), top: Math.round(top) };
 }
 
+// At most two lines at the slide's name size: cut at a word, with "…".
+const REEL_NAME_MAX = 46;
+function shortName(name) {
+  const n = String(name || '').replace(/\s+/g, ' ').replace(/\(\s*\)/g, '').trim();
+  if (n.length <= REEL_NAME_MAX) return n;
+  const cut = n.slice(0, REEL_NAME_MAX);
+  return `${cut.slice(0, cut.lastIndexOf(' ') > 20 ? cut.lastIndexOf(' ') : REEL_NAME_MAX).trim()}…`;
+}
+
 const toFaDigits = (s) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 const formatTL = (n) => `${Number(n).toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ₺`;
 
@@ -74,7 +83,7 @@ async function buildProductSlide(product) {
 
   // The prices go right under the name, which can wrap to two lines.
   const nameBuf = await renderText({
-    text: String(product.name_fa || '').slice(0, 70), fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold',
+    text: shortName(product.name_fa), fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold',
     width: 960, size: 76, color: '#ffffff',
   });
   const nameTop = 1350;
