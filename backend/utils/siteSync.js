@@ -144,6 +144,7 @@ async function checkSiteStock(site) {
   if (site.name === 'Oysho') return withBrowser((pm) => importers.checkOyshoStock(site, products, pm));
   if (site.name === 'Bershka') return withBrowser((pm) => importers.checkBershkaStock(site, products, pm));
   if (site.name === 'PullAndBear') return withBrowser((pm) => importers.checkPullAndBearStock(site, products, pm));
+  if (site.name === 'Stradivarius') return withBrowser((pm) => importers.checkStradivariusStock(site, products, pm));
 
   await withBrowser(async (pm) => {
     for (const p of products) {

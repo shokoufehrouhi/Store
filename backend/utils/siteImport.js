@@ -3112,6 +3112,51 @@ async function checkPullAndBearStock(site, products, pm) {
   return checkInditexStock(site, products, page, pullAndBearApiArgs());
 }
 
+// ── Stradivarius ──
+// Inditex again (user's choice 2026-10-06: ONLY discounted products).
+// Women's only. On 2026-10-06: ~1,519 products (~4,200 ids, one per color)
+// and 61 discounted (26-40% off), mostly in the regular categories plus
+// "Özel fiyatlar". The product-type branches (Giyim, Ayakkabı, Aksesuar,
+// Çanta, Parfüm) are read first, deepest first, everything else after;
+// gift cards are skipped.
+const STRADIVARIUS_HOME = 'https://www.stradivarius.com/tr/';
+const STRADIVARIUS_STORE = '54009571/50331068';
+const stradivariusApiArgs = () => inditexApiArgs(STRADIVARIUS_STORE, 'Stradivarius', 'https://static.e-stradivarius.net/');
+const STRADIVARIUS_TYPE_BRANCHES = /^STR_MUNDO_INV_(ROPA_NO_INSPIRATE|ZAPATOS_|ACCESORIOS|BOLSOS_DIRECT|PERFUMES_DIRECT)$/;
+
+function routeStradivariusCategory(keys) {
+  const text = keys.join(' ');
+  if (/PERFUMES/.test(text)) return 10;
+  if (/ZAPATOS|CALZADO/.test(text)) return 2;
+  if (/BOLSOS|ACCESORIOS/.test(text)) return 3;
+  return 1;
+}
+
+function stradivariusListings(tree) {
+  const listings = [];
+  walkInditexTree(tree.categories, (c, keys, names, depth, key) => {
+    const path = [...keys, key];
+    if (path.some(k => /TARJETA_REGALO/.test(k))) return;
+    listings.push({
+      id: String(c.id), name: [...names, c.name].join(' > '), depth, gender: 'female',
+      rank: path.some(k => STRADIVARIUS_TYPE_BRANCHES.test(k)) ? 0 : 1,
+      categoryId: routeStradivariusCategory(path),
+    });
+  });
+  return listings.sort((a, b) => a.rank - b.rank || b.depth - a.depth);
+}
+
+const openStradivarius = (pm) => openInditexStore(pm, { home: STRADIVARIUS_HOME, store: STRADIVARIUS_STORE, label: 'Stradivarius', toListings: stradivariusListings });
+
+async function Stradivarius(pm, site, opts = {}) {
+  return importInditexStore(pm, site, opts, { open: openStradivarius, apiArgs: stradivariusApiArgs(), home: STRADIVARIUS_HOME, label: 'Stradivarius' });
+}
+
+async function checkStradivariusStock(site, products, pm) {
+  const { page } = await openStradivarius(pm);
+  return checkInditexStock(site, products, page, stradivariusApiArgs());
+}
+
 // Mavi is an SAP Commerce (Spartacus/Angular) storefront behind a strict
 // Cloudflare WAF — confirmed live that a handful of consecutive headless
 // page navigations (listing -> listing -> listing) got this machine's IP
@@ -4507,10 +4552,10 @@ async function checkMangoStock(site, products) {
 }
 
 module.exports = {
-  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Oysho, Bershka, PullAndBear, Mavi, MClub, ArmaLife, Mango,
+  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Oysho, Bershka, PullAndBear, Stradivarius, Mavi, MClub, ArmaLife, Mango,
   // exported for siteSync.js#checkSiteStock, which hands mClub's, ArmaLife's,
   // Mango's and Lefties' stock checks off to their own API-based readers.
-  checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock, checkOyshoStock, checkBershkaStock, checkPullAndBearStock,
+  checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock, checkOyshoStock, checkBershkaStock, checkPullAndBearStock, checkStradivariusStock,
   // exported for backend/scripts/mergeArmaLifeColors.js.
   mergeArmaLifeColors,
   // exported for siteSync.js#importSite and backend/scripts/addMenuSubcategories.js.
