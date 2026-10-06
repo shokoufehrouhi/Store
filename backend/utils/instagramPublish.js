@@ -85,6 +85,18 @@ async function createFeedContainer(imageUrl, caption) {
   return data.id;
 }
 
+// A Reel: Instagram fetches the MP4 itself (see utils/reelBuilder.js), and
+// share_to_feed also shows it on the profile grid. Video takes far longer
+// to process than an image, hence REEL_READY_TIMEOUT_MS for its wait.
+const REEL_READY_TIMEOUT_MS = 10 * 60 * 1000;
+async function createReelContainer(videoUrl, caption) {
+  const igUserId = requireEnv('INSTAGRAM_USER_ID');
+  const accessToken = requireEnv('INSTAGRAM_ACCESS_TOKEN');
+  const params = { media_type: 'REELS', video_url: videoUrl, caption, share_to_feed: 'true', access_token: accessToken };
+  const data = await graphFetch(`${GRAPH_BASE}/${igUserId}/media?${new URLSearchParams(params)}`, { method: 'POST' });
+  return data.id;
+}
+
 // One image of a carousel (2-10 required by the API) -- no caption on the
 // child, that goes on the parent CAROUSEL container below. Each child must
 // finish processing (waitUntilContainerReady) before the parent can
@@ -133,11 +145,11 @@ async function waitUntilContainerReady(creationId, { timeoutMs = 90000, interval
 // err.stage says which of the two calls failed ('status_check' or
 // 'media_publish') -- the error text alone doesn't, and on 2026-10-03 a
 // story's "media not found" (code 24) left no way to tell which it was.
-async function publishContainer(creationId) {
+async function publishContainer(creationId, { readyTimeoutMs } = {}) {
   const igUserId = requireEnv('INSTAGRAM_USER_ID');
   const accessToken = requireEnv('INSTAGRAM_ACCESS_TOKEN');
   try {
-    await waitUntilContainerReady(creationId);
+    await waitUntilContainerReady(creationId, readyTimeoutMs ? { timeoutMs: readyTimeoutMs } : undefined);
   } catch (err) {
     throw Object.assign(err, { stage: 'status_check', creationId });
   }
@@ -207,6 +219,6 @@ async function postStory(imageBuffer, { name }) {
 
 module.exports = {
   postStory, createStoryContainer, publishContainer, waitUntilContainerReady,
-  createFeedContainer, createCarouselChildContainer, createCarouselContainer,
+  createFeedContainer, createCarouselChildContainer, createCarouselContainer, createReelContainer, REEL_READY_TIMEOUT_MS,
   isRateLimitError, isRateLimitMessage, isAccountBlockedError, isMissingContainerError, getPublishingQuota,
 };

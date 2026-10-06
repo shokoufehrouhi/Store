@@ -21,6 +21,8 @@ const prisma = require('./prisma/client');
 const { checkSiteStock, importSite, cleanupStaleChromeProfiles, importStatusText, claimSiteRun, SITE_RUN_STALE_MS } = require('./utils/siteSync');
 const { syncSubcategoryActiveState } = require('./utils/subcategorySync');
 const { buildSingleProductStory, buildCollageStory } = require('./utils/storyBuilder');
+const { buildReel } = require('./utils/reelBuilder');
+const { REEL_SLOTS, reelGroupFor } = require('./utils/reelPlan');
 const { deployStoryById } = require('./controllers/instagramContentController');
 const { publishAllChanges } = require('./controllers/adminController');
 const { queueNewProductsForInstagram } = require('./utils/instagramProductQueue');
@@ -44,6 +46,8 @@ let ranEveningSingleDeployOn = null; // 'YYYY-MM-DD'
 let ranEveningCollageDeployOn = null; // 'YYYY-MM-DD'
 let lastMorningSingleProductId = null; // excluded from the 11:30 collage so the two don't repeat a product
 let lastEveningSingleProductId = null; // excluded from the 19:30 collage, same reason
+const ranReelGenOn = {};    // slot -> 'YYYY-MM-DD' of its last draft generation
+const ranReelDeployOn = {}; // slot -> 'YYYY-MM-DD' of its last auto-deploy
 
 // Generated as drafts a bit ahead of their actual post time (10:00 for the
 // 11:00/11:30 pair, 18:00 for the 19:00/19:30 pair) so there's a review
@@ -203,16 +207,21 @@ async function recentlyUsedProductIds(days = 7) {
 // request 2026-10-05, cheap items aren't worth a story slot.
 const STORY_MIN_PRICE_TL = 300;
 
-async function eligibleStoryProducts(limit, excludeIds = []) {
+// Reels pass `where` (their product group plus "discounted") and their own
+// lower `minPrice` (cosmetics are often under the stories' 300 TL).
+async function eligibleStoryProducts(limit, excludeIds = [], { where = null, minPrice = STORY_MIN_PRICE_TL } = {}) {
   const recent = await recentlyUsedProductIds();
   const baseWhere = {
     is_active: true,
     is_live: true,
     tag: { not: 'sold_out' },
     product_media: { some: {} },
-    OR: [
-      { discounted_price: { gte: STORY_MIN_PRICE_TL } },
-      { discounted_price: null, price: { gte: STORY_MIN_PRICE_TL } },
+    AND: [
+      { OR: [
+        { discounted_price: { gte: minPrice } },
+        { discounted_price: null, price: { gte: minPrice } },
+      ] },
+      ...(where ? [where] : []),
     ],
   };
 
@@ -328,6 +337,39 @@ async function generateEveningCollageStory() {
   await generateCollageStory(EVENING_COLLAGE_TIME, 'انتخاب‌های امشب', 'evening-collage', excludeIds);
 }
 
+// A reel for one slot (see utils/reelPlan.js): up to REEL_PRODUCTS
+// discounted products of that day's group, never fewer than
+// REEL_MIN_PRODUCTS (no reel that slot otherwise). Saved as a draft row
+// like a story (kind 'reel', image_url = the MP4) for review, then posted
+// at the slot's time by autoDeploySlot.
+const REEL_PRODUCTS = 5;
+const REEL_MIN_PRODUCTS = 3;
+const REEL_MIN_PRICE_TL = 100;
+async function generateReel(slot) {
+  const group = reelGroupFor(slot, currentDateStr());
+  if (!group) return false;
+  const products = await eligibleStoryProducts(REEL_PRODUCTS, [], {
+    where: { AND: [group.where, { tag: 'discount' }, { discounted_price: { not: null } }] },
+    minPrice: REEL_MIN_PRICE_TL,
+  });
+  if (products.length < REEL_MIN_PRODUCTS) {
+    console.warn(`[scheduler] reel ${slot} (${group.key}): only ${products.length} eligible product(s), skipped`);
+    return false;
+  }
+  const videoUrl = await buildReel(products, { headline: group.headline, prefix: `${slot.replace(':', '')}-${group.key}` });
+  await prisma.instagram_content.create({
+    data: {
+      kind: 'reel',
+      slot,
+      scheduled_date: new Date(currentDateStr()),
+      image_url: videoUrl,
+      product_ids: products.map(p => p.id),
+      link: `${process.env.FRONTEND_URL}/index.html`,
+    },
+  });
+  return true;
+}
+
 // Manual "rebuild" from admin.html's Instagram Content tab: replaces today's
 // story for one slot with a freshly generated one (new products, current
 // layout) -- e.g. after a layout change, or to swap out a draft the admin
@@ -344,7 +386,7 @@ const STORY_SLOTS = {
 };
 
 async function rebuildStoryForSlot(slot) {
-  const def = STORY_SLOTS[slot];
+  const def = STORY_SLOTS[slot] || (REEL_SLOTS[slot] && { kind: 'reel' });
   if (!def) throw Object.assign(new Error('unknown_slot'), { status: 400 });
   const today = new Date(currentDateStr());
   const existing = await prisma.instagram_content.findMany({ where: { slot, scheduled_date: today } });
@@ -364,9 +406,10 @@ async function rebuildStoryForSlot(slot) {
     });
     excludeIds = Array.isArray(single?.product_ids) ? single.product_ids : [];
   }
-  const ok = def.kind === 'single'
-    ? await generateSingleStory(slot, def.headline, def.prefix, excludeIds)
-    : await generateCollageStory(slot, def.headline, def.prefix, excludeIds);
+  const ok = def.kind === 'reel' ? await generateReel(slot)
+    : def.kind === 'single'
+      ? await generateSingleStory(slot, def.headline, def.prefix, excludeIds)
+      : await generateCollageStory(slot, def.headline, def.prefix, excludeIds);
   if (!ok) throw Object.assign(new Error('not_enough_products'), { status: 422 });
 }
 
@@ -403,9 +446,10 @@ async function maybeRetryRateLimitedStories() {
   });
   const nowMin = hhmmToMinutes(currentHHMM());
   for (const row of rows) {
-    if (!/^\d{2}:\d{2}$/.test(row.slot)) continue; // legacy 'morning'/'evening' rows
+    const slotTime = String(row.slot).replace(/^reel-/, ''); // reels: "reel-12:00"
+    if (!/^\d{2}:\d{2}$/.test(slotTime)) continue; // legacy 'morning'/'evening' rows
     if (!isRateLimitMessage(row.error_message)) continue; // a real failure -- left for manual review
-    if (nowMin > hhmmToMinutes(row.slot) + STORY_RETRY_WINDOW_MIN) continue;
+    if (nowMin > hhmmToMinutes(slotTime) + STORY_RETRY_WINDOW_MIN) continue;
     const last = storyLastAttemptAt.get(row.id);
     if (last === undefined) { storyLastAttemptAt.set(row.id, Date.now()); continue; }
     if (Date.now() - last < STORY_RETRY_INTERVAL_MS) continue;
@@ -543,9 +587,10 @@ async function productPostsMadeToday() {
 // previous 24h, then "User is performing too many actions" (code 9 /
 // 2207042). totalDailyPostCap() is per *calendar* day, so a busy afternoon
 // plus the next morning could still hit it. Counted from our own DB (no API
-// call), leaving IG_ROLLING_RESERVE slots for the day's 4 stories.
+// call), leaving IG_ROLLING_RESERVE slots for the day's 4 stories and 2
+// reels (reels live in instagram_content too, so they're counted below).
 const IG_ROLLING_LIMIT = 50;
-const IG_ROLLING_RESERVE = 5;
+const IG_ROLLING_RESERVE = 7;
 async function igPostsInLast24h() {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const [products, stories] = await Promise.all([
@@ -686,6 +731,18 @@ async function tick() {
     ranEveningGenOn = today;
     await generateEveningSingleStory().catch(err => console.error('[scheduler] evening single story generation failed:', err));
     await generateEveningCollageStory().catch(err => console.error('[scheduler] evening collage story generation failed:', err));
+  }
+
+  // Reels: drafted at their genTime, posted at their time (utils/reelPlan.js).
+  for (const [slot, def] of Object.entries(REEL_SLOTS)) {
+    if (INSTAGRAM_ENABLED && nowHHMM === def.genTime && ranReelGenOn[slot] !== today) {
+      ranReelGenOn[slot] = today;
+      await generateReel(slot).catch(err => console.error(`[scheduler] reel ${slot} generation failed:`, err));
+    }
+    if (INSTAGRAM_ENABLED && nowHHMM === def.time && ranReelDeployOn[slot] !== today) {
+      ranReelDeployOn[slot] = today;
+      await autoDeploySlot(slot).catch(err => console.error(`[scheduler] reel ${slot} auto-deploy failed:`, err));
+    }
   }
 
   // Auto-post each slot's draft at its scheduled time (no-op if it was

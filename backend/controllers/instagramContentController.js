@@ -3,7 +3,9 @@ const fs     = require('fs');
 const path   = require('path');
 const {
   createStoryContainer, publishContainer, isRateLimitError, isAccountBlockedError, isMissingContainerError,
+  createReelContainer, REEL_READY_TIMEOUT_MS,
 } = require('../utils/instagramPublish');
+const { reelGroupFor, reelCaption } = require('../utils/reelPlan');
 
 // See isMissingContainerError -- a brand-new container is the fix, so one
 // automatic retry instead of leaving the story 'failed' until someone
@@ -14,6 +16,20 @@ async function createAndPublishStory(publicUrl) {
   const creationId = await createStoryContainer(publicUrl)
     .catch(err => { throw Object.assign(err, { stage: 'create_container' }); });
   return publishContainer(creationId);
+}
+
+// A reel row's image_url is its MP4; the caption is built from its group
+// (by slot and date) and its products' current prices.
+async function createAndPublishReel(story, publicUrl) {
+  const group = reelGroupFor(story.slot, story.scheduled_date.toISOString().slice(0, 10));
+  const products = await prisma.products.findMany({
+    where: { id: { in: Array.isArray(story.product_ids) ? story.product_ids : [] } },
+    select: { price: true, discounted_price: true },
+  });
+  const caption = group ? reelCaption(group, products) : '🛍 shilista.com';
+  const creationId = await createReelContainer(publicUrl, caption)
+    .catch(err => { throw Object.assign(err, { stage: 'create_container' }); });
+  return publishContainer(creationId, { readyTimeoutMs: REEL_READY_TIMEOUT_MS });
 }
 
 // GET /api/admin/instagram-content
@@ -55,15 +71,16 @@ async function deployStoryById(id) {
   if (claimed.count === 0) return; // another caller already claimed this row
 
   const publicUrl = `${process.env.FRONTEND_URL}${story.image_url}`;
+  const publish = () => (story.kind === 'reel' ? createAndPublishReel(story, publicUrl) : createAndPublishStory(publicUrl));
   try {
     let mediaId;
     try {
-      mediaId = await createAndPublishStory(publicUrl);
+      mediaId = await publish();
     } catch (err) {
       if (!isMissingContainerError(err)) throw err;
       console.warn(`[instagram] story ${id}: container ${err.creationId} not found at ${err.stage}, retrying with a new container in ${MISSING_CONTAINER_RETRY_DELAY_MS / 1000}s`);
       await new Promise(r => setTimeout(r, MISSING_CONTAINER_RETRY_DELAY_MS));
-      mediaId = await createAndPublishStory(publicUrl);
+      mediaId = await publish();
     }
     await prisma.instagram_content.update({
       where: { id },
