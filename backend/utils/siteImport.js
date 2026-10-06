@@ -3959,6 +3959,8 @@ async function fetchFlormarCatalog() {
       model: String(p.base_code || p.sku),
       name: String(p.name || '').replace(/\s+/g, ' ').trim(),
       shade: shadeName.get(String(p.sku)) || null,
+      // The shade's real color ("a97b63"); a few are missing or malformed.
+      hex: /^#?[0-9a-f]{6}$/i.test(String(p.attributes?.ent_hex_code || '')) ? '#' + String(p.attributes.ent_hex_code).replace('#', '').toLowerCase() : null,
       url: FLORMAR_BASE + p.absolute_url,
       price: Number(p.price) || 0,
       retail: Number(p.retail_price) || 0,
@@ -4008,6 +4010,18 @@ function flormarPricing(shades, markupPercent) {
 
 const flormarLinkSku = (link) => String(link || '').match(/-(\d{6,})\/?$/)?.[1] || null;
 
+// New colors are created with the placeholder hex #CCCCCC (a name alone
+// doesn't say what the color looks like), so every Flormar swatch showed
+// grey (2026-10-06, e.g. SHIL00003743). Flormar gives each shade's real
+// color, which replaces the placeholder — never a hex someone already set.
+const PLACEHOLDER_COLOR_HEX = '#CCCCCC';
+const colorHexFilled = new Set();
+async function fillPlaceholderColorHex(colorId, hex) {
+  if (colorHexFilled.has(colorId)) return;
+  colorHexFilled.add(colorId);
+  await prisma.colors.updateMany({ where: { id: colorId, hex: PLACEHOLDER_COLOR_HEX }, data: { hex } });
+}
+
 // Rebuilds a Flormar product's shades (one color each, no sizes) when
 // something changed; a product with a single shade gets no color rows
 // (same as mClub). Returns { stock, changed }.
@@ -4018,6 +4032,7 @@ async function writeFlormarShades(productId, shades) {
     for (const sh of shades) {
       const colorId = sh.shade ? await getOrCreateMClubShadeColorId(sh.shade) : null;
       if (!colorId) continue;
+      if (sh.hex) await fillPlaceholderColorHex(colorId, sh.hex);
       const qty = Math.min(sh.stock, FLORMAR_STOCK_PER_SHADE);
       if (seen.has(colorId)) { seen.get(colorId).quantity = Math.max(seen.get(colorId).quantity, qty); continue; }
       const entry = { product_id: productId, color_id: colorId, size_label: null, quantity: qty };
