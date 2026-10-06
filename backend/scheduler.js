@@ -344,6 +344,10 @@ async function generateEveningCollageStory() {
 // REEL_MIN_PRODUCTS (no reel that slot otherwise). Saved as a draft row
 // like a story (kind 'reel', image_url = the MP4) for review, then posted
 // at the slot's time by autoDeploySlot.
+// User's choice (2026-10-06): reels stay drafts — Instagram's API can't
+// add its own music library, so they're posted by hand from the app with a
+// trending track. The 🚀 button in the admin still posts one as it is.
+const REEL_AUTO_POST = false;
 const REEL_PRODUCTS = 5;
 const REEL_MIN_PRODUCTS = 3;
 const REEL_MIN_PRICE_TL = 100;
@@ -744,13 +748,15 @@ async function tick() {
     await generateEveningCollageStory().catch(err => console.error('[scheduler] evening collage story generation failed:', err));
   }
 
-  // Reels: drafted at their genTime, posted at their time (utils/reelPlan.js).
+  // Reels: drafted at their genTime (utils/reelPlan.js). Not posted
+  // automatically (REEL_AUTO_POST): the API can't add Instagram's own
+  // (trending) music, so the user posts them from the app with music.
   for (const [slot, def] of Object.entries(REEL_SLOTS)) {
     if (INSTAGRAM_ENABLED && nowHHMM === def.genTime && ranReelGenOn[slot] !== today) {
       ranReelGenOn[slot] = today;
       await generateReel(slot).catch(err => console.error(`[scheduler] reel ${slot} generation failed:`, err));
     }
-    if (INSTAGRAM_ENABLED && nowHHMM === def.time && ranReelDeployOn[slot] !== today) {
+    if (REEL_AUTO_POST && INSTAGRAM_ENABLED && nowHHMM === def.time && ranReelDeployOn[slot] !== today) {
       ranReelDeployOn[slot] = today;
       await autoDeploySlot(slot).catch(err => console.error(`[scheduler] reel ${slot} auto-deploy failed:`, err));
     }
