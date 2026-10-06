@@ -139,6 +139,8 @@ async function checkSiteStock(site) {
   if (site.name === 'ArmaLife') return importers.checkArmaLifeStock(site, products);
   // And Mango — see checkMangoStock in siteImport.js.
   if (site.name === 'Mango') return importers.checkMangoStock(site, products);
+  // And Colin's — its sale list carries prices and in-stock sizes.
+  if (site.name === 'Colins') return importers.checkColinsStock(site, products);
   // Lefties' API only answers from inside one of its pages, hence the browser.
   if (site.name === 'Lefties') return withBrowser((pm) => importers.checkLeftiesStock(site, products, pm));
   if (site.name === 'Oysho') return withBrowser((pm) => importers.checkOyshoStock(site, products, pm));
@@ -201,7 +203,8 @@ async function checkSiteStock(site) {
 // with a big backlog worth catching up on faster. ArmaLife imports its
 // whole catalog (~500 models on 2026-10-05) and Lefties now scans every
 // category; at 30 a run, ArmaLife alone would take over two weeks.
-const SITE_IMPORT_LIMITS = { ArmaLife: 100, Lefties: 50 };
+// Colin's had ~3,200 importable discounted models on 2026-10-06.
+const SITE_IMPORT_LIMITS = { ArmaLife: 100, Lefties: 50, Colins: 100 };
 
 async function importSite(site, opts = {}) {
   const importer = importers[site.name];

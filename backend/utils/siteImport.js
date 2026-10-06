@@ -3157,6 +3157,272 @@ async function checkStradivariusStock(site, products, pm) {
   return checkInditexStock(site, products, page, stradivariusApiArgs());
 }
 
+// ── Colin's ──
+// Turkish denim/casual brand (colins.com.tr, an Inveon/nopCommerce site —
+// plain HTTP works, no bot wall, so no browser is used). User's choice
+// (2026-10-06): ONLY discounted products, colors grouped into one product.
+// Its "İndirimdekiler" list (/c/indirimdekiler-1284) holds every discounted
+// item, outlet included (2026-10-06: 4,800 of ~5,770 products, 101 pages
+// of 48). Each listing card carries a data-variants JSON with every color
+// of that model (id, url, price, oldPrice, Colin's own discountRate, the
+// sizes still in stock — out-of-stock sizes aren't listed — and photos),
+// and a data-ga JSON whose `variant` is the card's own color name. So the
+// list alone gives grouping, pricing and stock; a product page is only
+// read once per imported product, for its category (breadcrumb), model
+// code (stored in supplier_code — every color of a model shares it) and
+// description. Colin's states its own discount rate, so case (a) of
+// resolveDiscountTag applies.
+const COLINS_BASE = 'https://www.colins.com.tr';
+const COLINS_SALE_LIST = '/c/indirimdekiler-1284';
+const COLINS_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36';
+
+async function colinsGet(pathOrUrl) {
+  const url = pathOrUrl.startsWith('http') ? pathOrUrl : COLINS_BASE + pathOrUrl;
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(url, { headers: { 'User-Agent': COLINS_UA, 'Accept-Language': 'tr-TR,tr;q=0.9' } });
+      if (!res.ok) throw new Error(`Colins ${res.status} (${url})`);
+      return await res.text();
+    } catch (err) {
+      lastErr = err;
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+  throw lastErr;
+}
+
+const colinsPrice = (text) => {
+  const n = Number(String(text || '').replace(/[^\d,]/g, '').replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+// Card JSON sits in single-quoted HTML attributes, entity-encoded.
+const decodeAttrJson = (text) => JSON.parse(text
+  .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n)).replace(/&amp;/g, '&'));
+
+// "28-32" (waist-length) -> "28/32", like Koton's jeans; "XS-S" stays.
+const colinsSizeLabel = (name) => String(name || '').trim().replace(/^(\d{2})-(\d{2})$/, '$1/$2');
+
+// Reads the whole sale list. Returns { variants: Map(id -> variant),
+// groups: [[id, ...], ...] } — one group per model (its colors).
+async function readColinsSaleList() {
+  const first = await colinsGet(COLINS_SALE_LIST);
+  const totalPages = Number(first.match(/id="totalpagesNumber">(\d+)/)?.[1] || 1);
+  const pages = [first];
+  await runQueue(Array.from({ length: totalPages - 1 }, (_, i) => i + 2), IMPORT_WORKER_SLOTS, async (_w, n) => {
+    pages[n - 1] = await colinsGet(`${COLINS_SALE_LIST}?pagenumber=${n}`);
+  });
+
+  const variants = new Map();
+  const colorNames = new Map();
+  const groupOf = new Map(); // id -> Set shared by its whole model
+  for (const html of pages) {
+    for (const m of (html || '').matchAll(/data-ga='([^']*)'[^>]*?data-variants='([^']*)'/g)) {
+      let ga, list;
+      try { ga = decodeAttrJson(m[1]); list = decodeAttrJson(m[2]); } catch (e) { continue; }
+      if (ga?.id && ga.variant) colorNames.set(String(ga.id), String(ga.variant).trim());
+      const ids = list.map((v) => String(v.id));
+      const merged = new Set(ids);
+      for (const id of ids) for (const other of groupOf.get(id) || []) merged.add(other);
+      for (const id of merged) groupOf.set(id, merged);
+      for (const v of list) {
+        variants.set(String(v.id), {
+          id: String(v.id),
+          url: v.url,
+          name: String(v.name || '').replace(/\s+/g, ' ').trim(), // Colin's pads names ("Loose Fit   Kadın ...")
+          price: colinsPrice(v.price),
+          oldPrice: colinsPrice(v.oldPrice),
+          discountRate: Number(v.discountRate) || 0,
+          sizes: (v.sizes || []).map((sz) => ({ name: colinsSizeLabel(sz.name), inStock: true })).filter((sz) => sz.name),
+          images: [...new Set((v.imageUrls || []).map((u) => u.replace(/mnresize\/\d+\/-\//, '').split('?')[0]))],
+        });
+      }
+    }
+  }
+  for (const [id, v] of variants) v.colorName = colorNames.get(id) || null;
+  const groups = [...new Set(groupOf.values())].map((set) => [...set].filter((id) => variants.has(id)).sort((a, b) => a - b));
+  return { variants, groups: groups.filter((g) => g.length) };
+}
+
+// The colors of a model that clear the markup with Colin's own rate and
+// still have a size in stock; the most expensive sets the price (same as
+// leftiesPricing). Null when none qualifies.
+function colinsPricing(colors, markupPercent) {
+  const qualifying = colors.filter((c) => c.sizes.length && c.price && c.oldPrice > c.price
+    && resolveDiscountTag({
+      discountPercentText: String(c.discountRate), markupPercent,
+      finalDiscountedPrice: c.price * (1 + markupPercent / 100), priceOriginal: c.oldPrice,
+    }) === 'discount');
+  if (!qualifying.length) return null;
+  const top = qualifying.reduce((a, b) => (b.price > a.price ? b : a));
+  return {
+    colorIds: qualifying.map((c) => c.id),
+    price: top.oldPrice,
+    discounted_price: Math.round(top.price * (1 + markupPercent / 100) * 100) / 100,
+    cost_price: top.price,
+    tag: 'discount',
+  };
+}
+
+const colinsLinkId = (link) => String(link || '').match(/-(\d+)(?:[?#].*)?$/)?.[1] || null;
+
+// For writeLeftiesVariants / leftiesGalleryPhotos, which expect
+// { id, name, sizes: [{ name, inStock }], images }.
+const colinsColorRows = (colors) => colors.map((c) => ({ id: c.id, name: c.colorName, sizes: c.sizes, images: c.images }));
+
+function routeColinsCategory(text) {
+  if (/parfüm|parfum/i.test(text)) return 10;
+  if (/terlik|ayakkabı|sneaker|\bbot\b/i.test(text)) return 2;
+  if (/çanta|cüzdan|kemer|şapka|bere\b|atkı|eldiven|aksesuar|kartlık|boyunluk/i.test(text)) return 3;
+  return 1;
+}
+
+async function Colins(_pm, site, opts = {}) {
+  const limit = opts.limit || 30;
+  const { variants, groups } = await readColinsSaleList();
+
+  const existing = await prisma.products.findMany({
+    where: { supplier_shop_name: site.name },
+    select: { product_link: true, supplier_code: true },
+  });
+  const existingIds = new Set(existing.map((e) => colinsLinkId(e.product_link)).filter(Boolean));
+  const existingModels = new Set(existing.map((e) => e.supplier_code).filter(Boolean));
+
+  const fresh = groups.filter((g) => !g.some((id) => existingIds.has(id)));
+  const candidates = fresh
+    .map((ids) => {
+      const colors = ids.map((id) => variants.get(id));
+      return { colors, pricing: colinsPricing(colors, site.markup_percent) };
+    })
+    .filter((c) => c.pricing);
+
+  const imported = [];
+  let alreadyThere = 0;
+  let stopped = false;
+  await runQueue(candidates, IMPORT_WORKER_SLOTS, async (_w, { colors: allColors, pricing }) => {
+    if (stopped) return;
+    if (imported.filter((p) => !p.error).length >= limit) return void (stopped = true);
+    const colors = allColors.filter((c) => pricing.colorIds.includes(c.id));
+    const url = COLINS_BASE + colors[0].url;
+    try {
+      const page = await colinsGet(url);
+      const model = page.match(/"sku":"([^"_]+)/)?.[1] || null;
+      // Same model reached through a color id we hadn't stored (e.g. the
+      // stored color dropped out of the sale list).
+      if (model && existingModels.has(model)) { alreadyThere++; return; }
+      if (model) existingModels.add(model);
+      const crumbs = [...page.matchAll(/class="breadcrumb-a" href="\/c\/[^"]+">([^<]+)</g)].map((m) => m[1]);
+      const description = (page.match(/"description":"([^"]*)"/)?.[1] || '').trim();
+
+      const name = colors[0].name;
+      const nameTr = name.slice(0, 120);
+      const gender = /\bkadın\b/i.test(name) ? 'female' : /\berkek\b/i.test(name) ? 'male'
+        : crumbs.some((c) => /KADIN/i.test(c)) ? 'female' : crumbs.some((c) => /ERKEK/i.test(c)) ? 'male' : 'unisex';
+      const category_id = routeColinsCategory(`${name} ${crumbs.join(' ')}`);
+      const subcategory_id = guessSubcategoryId(name, category_id);
+
+      const translateOrWarn = (text, target) => translateText(text, 'tr', target)
+        .catch((err) => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
+      const [name_fa, name_en, desc_fa, desc_en] = await Promise.all([
+        translateOrWarn(name, 'fa'),
+        translateOrWarn(name, 'en'),
+        description ? translateOrWarn(description, 'fa') : '',
+        description ? translateOrWarn(description, 'en') : '',
+      ]);
+
+      const rows = colinsColorRows(colors);
+      const mediaUrls = [];
+      for (const imgUrl of leftiesGalleryPhotos(rows)) {
+        try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
+      }
+
+      const created = await prisma.products.create({
+        data: {
+          code: await generateProductCode(),
+          category_id, subcategory_id, gender,
+          name_fa: (name_fa || nameTr).slice(0, 120), name_en: (name_en || nameTr).slice(0, 120), name_tr: nameTr,
+          desc_fa, desc_en, desc_tr: description || null,
+          price: pricing.price,
+          discounted_price: pricing.discounted_price,
+          cost_price: pricing.cost_price,
+          tag: pricing.tag,
+          stock: 0,
+          brand: site.name,
+          supplier_shop_name: site.name,
+          supplier_code: model,
+          product_link: url,
+          product_media: mediaUrls.length ? { create: mediaUrls.map((u, i) => ({ type: 'image', url: u, sort_order: i })) } : undefined,
+        },
+      });
+      try {
+        const { stock } = await writeLeftiesVariants(created.id, rows);
+        await prisma.products.update({ where: { id: created.id }, data: { stock } });
+      } catch (err) {
+        await prisma.products.delete({ where: { id: created.id } }).catch(() => {});
+        throw err;
+      }
+      imported.push({ id: created.id, name });
+    } catch (err) {
+      imported.push({ error: err.message, url });
+    }
+  });
+
+  return { imported, skipped: (groups.length - fresh.length) + (fresh.length - candidates.length) + alreadyThere };
+}
+
+// Colin's stock check: re-reads the sale list (no product pages). A product
+// whose model is no longer discounted enough, gone from the list, or out of
+// stock in every qualifying color is taken off the site (same rule as
+// Mango/Lefties); otherwise it's re-priced and its colors/sizes rewritten.
+async function checkColinsStock(site, products) {
+  const { syncSubcategoryActiveState } = require('./subcategorySync');
+  const { variants, groups } = await readColinsSaleList();
+  const groupById = new Map();
+  for (const g of groups) for (const id of g) groupById.set(id, g);
+
+  const results = [];
+  for (const p of products) {
+    try {
+      const group = groupById.get(colinsLinkId(p.product_link));
+      const colors = group ? group.map((id) => variants.get(id)) : [];
+      const pricing = colors.length ? colinsPricing(colors, site.markup_percent) : null;
+      if (!pricing) {
+        await prisma.products.update({
+          where: { id: p.id },
+          data: { is_active: false, is_live: false, is_dirty: false, updated_at: new Date() },
+        });
+        if (p.subcategory_id) await syncSubcategoryActiveState(p.subcategory_id);
+        results.push({ id: p.id, name: p.name_tr, status: 'deactivated (discount ended, sold out or gone)' });
+        continue;
+      }
+      const rows = colinsColorRows(colors.filter((c) => pricing.colorIds.includes(c.id)));
+      const { stock, changed } = await writeLeftiesVariants(p.id, rows);
+      const keepAdminTag = ['bestseller', 'new'].includes(p.tag) ? p.tag : null;
+      const tag = stock === 0 ? 'sold_out' : (pricing.tag || keepAdminTag);
+      const update = {};
+      if (Number(p.price) !== pricing.price) update.price = pricing.price;
+      if ((p.discounted_price == null ? null : Number(p.discounted_price)) !== pricing.discounted_price) update.discounted_price = pricing.discounted_price;
+      if (Number(p.cost_price) !== pricing.cost_price) update.cost_price = pricing.cost_price;
+      if (p.stock !== stock) update.stock = stock;
+      if (p.tag !== tag) {
+        update.tag = tag;
+        update.sold_out_at = tag === 'sold_out' ? new Date() : null;
+      }
+      if (Object.keys(update).length || changed) {
+        await prisma.products.update({ where: { id: p.id }, data: { ...update, is_dirty: true, updated_at: new Date() } });
+      }
+      results.push({
+        id: p.id, name: p.name_tr,
+        status: tag === 'sold_out' ? 'sold_out' : `ok (stock=${stock})${Object.keys(update).length || changed ? ', updated' : ''}`,
+      });
+    } catch (err) {
+      results.push({ id: p.id, name: p.name_tr, status: `error: ${err.message}` });
+    }
+  }
+  return results;
+}
+
 // Mavi is an SAP Commerce (Spartacus/Angular) storefront behind a strict
 // Cloudflare WAF — confirmed live that a handful of consecutive headless
 // page navigations (listing -> listing -> listing) got this machine's IP
@@ -4552,10 +4818,10 @@ async function checkMangoStock(site, products) {
 }
 
 module.exports = {
-  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Oysho, Bershka, PullAndBear, Stradivarius, Mavi, MClub, ArmaLife, Mango,
+  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Oysho, Bershka, PullAndBear, Stradivarius, Colins, Mavi, MClub, ArmaLife, Mango,
   // exported for siteSync.js#checkSiteStock, which hands mClub's, ArmaLife's,
   // Mango's and Lefties' stock checks off to their own API-based readers.
-  checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock, checkOyshoStock, checkBershkaStock, checkPullAndBearStock, checkStradivariusStock,
+  checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock, checkOyshoStock, checkBershkaStock, checkPullAndBearStock, checkStradivariusStock, checkColinsStock,
   // exported for backend/scripts/mergeArmaLifeColors.js.
   mergeArmaLifeColors,
   // exported for siteSync.js#importSite and backend/scripts/addMenuSubcategories.js.
