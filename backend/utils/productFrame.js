@@ -81,10 +81,8 @@ async function frameProduct(input, width, height, { margin = 0.06 } = {}) {
   const ew = Math.min(bw, W), eh = Math.min(bh, H);
   const left = Math.min(Math.max(Math.round(cx - ew / 2), 0), W - ew);
   const top = Math.min(Math.max(Math.round(cy - eh / 2), 0), H - eh);
-  const img = await sharp(buf)
-    .extract({ left, top, width: ew, height: eh })
-    .extend({ left: padL, right: padR, top: padT, bottom: padB, extendWith: 'copy' })
-    .toBuffer();
+  const img = await extendFromInside(await sharp(buf).extract({ left, top, width: ew, height: eh }).toBuffer(),
+    { left: padL, right: padR, top: padT, bottom: padB });
   return sharp(img).resize(width, height, { fit: 'cover' });
 }
 
@@ -102,8 +100,30 @@ async function frameScene(buf, W, H, width, height) {
   if (!plainA && !plainB) return sharp(buf).resize(width, height, { fit: 'cover', position: sharp.strategy.attention });
   const extra = wide ? Math.round(H * ratio) - W : Math.round(W / ratio) - H;
   const first = plainA && plainB ? Math.floor(extra / 2) : plainA ? extra : 0;
-  const img = await sharp(buf).extend({ [a]: first, [b]: extra - first, extendWith: 'copy' }).toBuffer();
+  const img = await extendFromInside(buf, { [a]: first, [b]: extra - first });
   return sharp(img).resize(width, height, { fit: 'cover' });
+}
+
+// Grows an image by repeating its edge pixels — but from a few pixels in:
+// brand photos often have a thin lighter or darker line along their very
+// edge (Koton's is 240 against a 231 background), and repeating that line
+// drew a visible band down the side. Those pixels are dropped first and
+// added back to the padding, so the size comes out the same.
+async function extendFromInside(buf, pad) {
+  const { width: w, height: h } = await sharp(buf).metadata();
+  const inset = (n) => Math.max(2, Math.round(n * 0.012));
+  const cut = {
+    left: pad.left ? inset(w) : 0, right: pad.right ? inset(w) : 0,
+    top: pad.top ? inset(h) : 0, bottom: pad.bottom ? inset(h) : 0,
+  };
+  return sharp(buf)
+    .extract({ left: cut.left, top: cut.top, width: w - cut.left - cut.right, height: h - cut.top - cut.bottom })
+    .extend({
+      left: (pad.left || 0) + cut.left, right: (pad.right || 0) + cut.right,
+      top: (pad.top || 0) + cut.top, bottom: (pad.bottom || 0) + cut.bottom,
+      extendWith: 'copy',
+    })
+    .toBuffer();
 }
 
 // Whether a photo's edge (a thin strip along it) is plain background:

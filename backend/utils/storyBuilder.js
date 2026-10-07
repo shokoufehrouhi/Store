@@ -25,6 +25,10 @@ const INK     = '#1a1a1a';
 const MUTED   = '#6b6b6b';
 const ACCENT  = '#C2410C'; // discount text, as on the site
 const ACCENT_BG = '#fff1e8';
+// A fixed size for the headline: given only a box, Pango stretched it to
+// fill it, so short headlines came out huge (user: smaller, 2026-10-07).
+const HEADLINE_SIZE = 64;
+const NAME_SIZE = 50;
 const SITE_LINK_TEXT = 'shilista.com';
 // Every story (single-product or collage) ends with the same caption card,
 // CTA and link -- fixed by design, not passed in per-call.
@@ -104,8 +108,8 @@ async function buildSingleProductStory(product, { headline }) {
   layers.push({ input: logo, left: Math.round((W - logoMeta.width) / 2), top: 70 });
 
   const headlineBuf = await renderText({
-    text: headline, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black',
-    width: 960, height: 130, color: INK,
+    text: headline, fontFile: FONT_BLACK, fontFamily: `Vazirmatn Black ${HEADLINE_SIZE}`,
+    width: 960, color: INK,
   });
   const headlineMeta = await sharp(headlineBuf).metadata();
   layers.push({ input: headlineBuf, left: Math.round((W - headlineMeta.width) / 2), top: 190 });
@@ -118,8 +122,8 @@ async function buildSingleProductStory(product, { headline }) {
 
   const nameBuf = await renderText({
     text: shortenName(product.name_fa, 70),
-    fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold',
-    width: 920, height: 110, color: INK,
+    fontFile: FONT_BOLD, fontFamily: `Vazirmatn Bold ${NAME_SIZE}`,
+    width: 920, color: INK,
   });
   const nameMeta = await sharp(nameBuf).metadata();
   layers.push({ input: nameBuf, left: Math.round((W - nameMeta.width) / 2), top: 1345 });
@@ -262,8 +266,8 @@ async function buildCollageStory(products, { headline }) {
   layers.push({ input: logo, left: Math.round((W - logoMeta.width) / 2), top: 80 });
 
   const headlineBuf = await renderText({
-    text: headline, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black',
-    width: 960, height: 160, color: INK,
+    text: headline, fontFile: FONT_BLACK, fontFamily: `Vazirmatn Black ${HEADLINE_SIZE}`,
+    width: 960, color: INK,
   });
   const headlineMeta = await sharp(headlineBuf).metadata();
   layers.push({ input: headlineBuf, left: Math.round((W - headlineMeta.width) / 2), top: 250 });
