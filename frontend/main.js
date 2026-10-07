@@ -1184,9 +1184,11 @@ function renderExtraCategoryNav(categories) {
   };
   var isProfile = !!window.IS_PROFILE_PAGE;
   var navLinks = document.querySelector('.nav-links');
-  var contactLink = navLinks ? navLinks.querySelector(':scope > a[href="#contact"]') : null;
+  // href ends with #contact: "#contact" on the home page, "/#contact" on
+  // profile.html — matching only the first left Cosmetics off profile's menu.
+  var contactLink = navLinks ? navLinks.querySelector(':scope > a[href$="#contact"]') : null;
   var mobileMenu = document.getElementById('mobile-menu');
-  var mobileContactLink = mobileMenu ? mobileMenu.querySelector('a[href="#contact"]') : null;
+  var mobileContactLink = mobileMenu ? mobileMenu.querySelector('a[href$="#contact"]') : null;
   if (!navLinks || !contactLink) return;
   // Extra categories (e.g. Cosmetics) go right before Lifestyle, which the
   // menu order keeps last before Contact: ... Accessories, Cosmetics,
@@ -1209,7 +1211,7 @@ function renderExtraCategoryNav(categories) {
 
       var link = document.createElement('a');
       link.className = 'nav-link has-drop';
-      link.href = '#products';
+      link.href = isProfile ? '/?_cat=' + encodeURIComponent(cat.key) : '#products';
       link.setAttribute('data-filter', cat.key);
       link.setAttribute('data-gender', 'all');
       link.setAttribute('data-sub', '');
@@ -1253,7 +1255,7 @@ function renderExtraCategoryNav(categories) {
       if (mobileMenu && mobileAnchor) {
         var mobileLink = document.createElement('a');
         mobileLink.setAttribute('data-dyn-cat', cat.key);
-        mobileLink.href = '#products';
+        mobileLink.href = isProfile ? '/?_cat=' + encodeURIComponent(cat.key) : '#products';
         mobileLink.setAttribute('data-filter', cat.key);
         mobileLink.setAttribute('data-gender', 'all');
         mobileLink.setAttribute('data-sub', '');
