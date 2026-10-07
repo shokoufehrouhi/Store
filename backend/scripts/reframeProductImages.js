@@ -7,8 +7,12 @@
 //
 // Per product: read the brand's image list from its product page, replace
 // each stored photo in order with the fresh one (a new file and URL, so no
-// browser or CDN keeps showing the old one), and move the old file to
-// public/uploads/_reframe_backup/. Products whose page is gone or lists no
+// browser or CDN keeps showing the old one) in product_media AND in the
+// published_data snapshot — production's public API serves the snapshot,
+// so updating only product_media left it on the old URLs (2026-10-07). The
+// old file stays where it is (a copy goes to public/uploads/_reframe_backup/)
+// so nothing can point at a missing file; moving it away blanked those
+// products' photos on production. Products whose page is gone or lists no
 // images are skipped and left as they are; a product with more stored
 // photos than the page now lists keeps the extra ones untouched.
 //
@@ -95,7 +99,7 @@ async function saveFresh(imageUrl) {
     where: { brand, product_link: { not: null }, ...(ids ? { id: { in: ids } } : {}) },
     orderBy: { id: 'asc' },
     ...(limit ? { take: limit } : {}),
-    select: { id: true, product_link: true, product_media: { where: { type: 'image' }, orderBy: [{ sort_order: 'asc' }, { id: 'asc' }], select: { id: true, url: true } } },
+    select: { id: true, product_link: true, published_data: true, product_media: { where: { type: 'image' }, orderBy: [{ sort_order: 'asc' }, { id: 'asc' }], select: { id: true, url: true } } },
   });
   console.log(`${brand}: ${products.length} product(s)${apply ? '' : ' — DRY RUN, nothing changes (add --apply)'}`);
 
@@ -107,15 +111,22 @@ async function saveFresh(imageUrl) {
       const n = Math.min(fresh.length, p.product_media.length);
       if (!apply) { console.log(`  ${p.id}: would replace ${n} of ${p.product_media.length} photo(s) (page has ${fresh.length})`); totals.products++; continue; }
       let done = 0;
+      const swapped = new Map(); // old url -> new url
       for (let i = 0; i < n; i++) {
         const media = p.product_media[i];
         try {
           const url = await saveFresh(fresh[i]);
           await prisma.product_media.update({ where: { id: media.id }, data: { url } });
           const old = path.join(UPLOAD_DIR, path.basename(media.url));
-          if (fs.existsSync(old)) fs.renameSync(old, path.join(BACKUP_DIR, path.basename(media.url)));
+          if (fs.existsSync(old)) fs.copyFileSync(old, path.join(BACKUP_DIR, path.basename(media.url)));
+          swapped.set(media.url, url);
           done++;
         } catch (e) { totals.failed++; console.log(`  ${p.id}: photo ${i + 1} failed: ${e.message}`); }
+      }
+      const snap = p.published_data;
+      if (swapped.size && snap && Array.isArray(snap.product_media)) {
+        const media = snap.product_media.map(m => (swapped.has(m.url) ? { ...m, url: swapped.get(m.url) } : m));
+        await prisma.products.update({ where: { id: p.id }, data: { published_data: { ...snap, product_media: media } } });
       }
       totals.products++; totals.replaced += done;
       console.log(`  ${p.id}: replaced ${done}/${n}`);
