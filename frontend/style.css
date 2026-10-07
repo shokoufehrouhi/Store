@@ -4951,3 +4951,18 @@ html[dir="rtl"] .product-card .product-price { direction: rtl; }
 .fav-card-remove:hover { color: var(--ink); }
 .empty-banner--favs { background: var(--soft); color: var(--ink); }
 .empty-banner--favs .empty-banner-bg { display: none; }
+
+/* Toasts: one ink pill at the bottom, like the copy toast. The app toast
+   used to be a white card in the middle of a darkened screen with a big
+   green (or red) circle. Errors keep a small red mark so they read as errors. */
+#app-toast { background: none; inset: auto 0 36px 0; pointer-events: none; }
+.app-toast-card {
+  flex-direction: row; gap: 10px; padding: 12px 22px; min-width: 0;
+  background: var(--ink); border-radius: 999px; box-shadow: 0 8px 32px rgba(0,0,0,.25);
+  animation: app-toast-up .22s ease;
+}
+@keyframes app-toast-up { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+.app-toast-check { width: auto; height: auto; background: none; color: #fff; font-size: 15px; }
+.app-toast-check.error { background: none; color: #f87171; }
+#app-toast-msg { color: #fff; font-size: 14px; }
+#code-copy-toast { background: var(--ink); }

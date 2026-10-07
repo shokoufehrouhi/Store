@@ -194,7 +194,7 @@ function showCopyToast(code) {
   el.style.bottom = '48px';
   el.style.left = '50%';
   el.style.transform = 'translateX(-50%)';
-  el.style.background = '#1f2937';
+  el.style.background = '#1a1a1a';
   el.style.padding = '11px 24px';
   el.style.borderRadius = '100px';
   el.style.fontSize = '15px';
@@ -208,7 +208,7 @@ function showCopyToast(code) {
   el.style.gap = '8px';
   var icon = document.createElement('span');
   icon.textContent = '✓';
-  icon.style.color = '#4ade80';
+  icon.style.color = '#ffffff';
   icon.style.fontWeight = '700';
   var lbl = document.createElement('span');
   lbl.textContent = label;
