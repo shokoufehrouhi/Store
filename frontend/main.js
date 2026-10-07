@@ -1316,69 +1316,61 @@ function renderCardSizesColors(p) {
   return '<div class="card-meta-rows">' + sizesRow + colorsRow + '</div>';
 }
 
+// Minimal card (redesign, 2026-10-07): photo with the discount on it, then
+// brand, name and price; the whole card opens the product page (adding to
+// the cart needs a size/colour there anyway, so no separate cart button). Category/gender badges,
+// product code, description, sizes and colours moved off the card — they
+// are all on the product page/modal, and made the grid hard to scan.
 function renderProduct(p) {
   var t    = TRANSLATIONS[currentLang];
   var name = p.name[currentLang];
-  var desc = p.description[currentLang];
-  var cat  = t['cat_' + p.category] || p.category;
-  var tag  = p.tag ? '<div class="product-tag">' + (t['tag_' + p.tag] || p.tag) + '</div>' : '';
-
-  var genderBadge = '';
-  if (p.gender === 'female') {
-    genderBadge = '<span class="gender-badge gender-female">' + t.gender_female + '</span>';
-  } else if (p.gender === 'male') {
-    genderBadge = '<span class="gender-badge gender-male">' + t.gender_male + '</span>';
-  } else if (p.gender === 'kids') {
-    genderBadge = '<span class="gender-badge gender-kids">' + t.gender_kids + '</span>';
-  }
 
   var user  = getCurrentUser();
   var isFav = user && user.favorites && user.favorites.indexOf(p.id) !== -1;
 
   var firstImg = p.images && p.images.length ? p.images[0] : null;
   var imgInner = firstImg
-    ? '<img src="' + SERVER_BASE + firstImg.url + '" alt="' + name + '" class="product-real-img" onerror="this.style.display=\'none\'">'
+    ? '<img src="' + SERVER_BASE + firstImg.url + '" alt="' + name + '" class="product-real-img" loading="lazy" onerror="this.style.display=\'none\'">'
     : PLACEHOLDER_SVG;
   var imgStyle = firstImg ? '' : 'style="background:' + p.gradient + '"';
 
-  var cameraTag = p.has_customer_photos
-    ? '<span class="product-camera-badge" title="' + (t.cphoto_customer_photos || 'عکس‌های خریداران') + '">📷</span>'
-    : '';
-
-  var soldOutClass = p.tag === 'sold_out' ? ' product-sold-out' : '';
+  var soldOut = p.tag === 'sold_out';
+  var hasDiscount = p.price && p.discounted_price && p.discounted_price < p.price;
+  var badge = soldOut
+    ? '<span class="card-badge card-badge--soldout">' + t.tag_sold_out + '</span>'
+    : hasDiscount
+      ? '<span class="card-badge"><bdi dir="ltr">-' + localizeNumber(Math.round((p.price - p.discounted_price) / p.price * 100)) + '%</bdi></span>'
+      : '';
 
   return (
-    '<div class="product-card' + soldOutClass + '" data-category="' + p.category + '" onclick="openModal(' + p.id + ')">' +
+    '<div class="product-card' + (soldOut ? ' product-sold-out' : '') + '" data-category="' + p.category + '" onclick="openModal(' + p.id + ')">' +
     '  <div class="product-image" ' + imgStyle + '>' +
     imgInner +
-    '    <button class="fav-btn' + (isFav ? ' fav-active' : '') + '" onclick="toggleFavorite(event,' + p.id + ')" title="علاقه‌مندی">♥</button>' +
-    tag +
+    badge +
+    '    <button class="fav-btn' + (isFav ? ' fav-active' : '') + '" onclick="toggleFavorite(event,' + p.id + ')" aria-label="' + t.profile_tab_favs + '">♥</button>' +
     '  </div>' +
     '  <div class="product-body">' +
-    '    <div class="card-badges">' +
-    '      <div class="card-badges-tags">' +
-    '        <span class="category-badge" style="' + catBadgeStyle(p.category) + '">' + cat + '</span>' +
-    genderBadge +
-    cameraTag +
-    '      </div>' +
-    (p.brand ? '      <span class="product-brand-badge"><span class="brand-label">' + (t.brand_label || 'Brand') + ':</span><span class="brand-name">' + p.brand + '</span></span>' : '') +
-    '    </div>' +
+    (p.brand ? '    <div class="card-brand">' + p.brand + '</div>' : '') +
     '    <h3 class="product-name">' + name + '</h3>' +
-    (p.code ? '    <div class="product-code-badge"><span class="product-code-label">' + (t.product_code_label || 'کد محصول') + ':</span> ' + p.code + '</div>' : '') +
-    '    <p class="product-desc">' + desc + '</p>' +
-    renderCardSizesColors(p) +
     renderPriceHtml(p, 'product-price') +
-    '    <div class="product-delivery">⏱ ' + localizeNumber(p.delivery_days) + ' ' + t.delivery_unit + '</div>' +
-    '    <div class="product-actions">' +
-    (p.tag === 'sold_out'
-      ? '      <button class="buy-btn cart-add-btn" disabled>' + t.tag_sold_out + '</button>'
-      : '      <button class="buy-btn cart-add-btn" onclick="quickAdd(event,' + p.id + ')">' +
-        '        🛒 ' + t.add_to_cart +
-        '      </button>') +
-    '    </div>' +
     '  </div>' +
     '</div>'
   );
+}
+
+// Hero pictures: the two biggest current discounts, each opening its product.
+function fillHeroMedia() {
+  var box = document.getElementById('hero-media');
+  if (!box) return;
+  var picks = products
+    .filter(function(p) { return p.tag !== 'sold_out' && p.images && p.images.length && p.price && p.discounted_price && p.discounted_price < p.price; })
+    .sort(function(a, b) { return (b.price - b.discounted_price) / b.price - (a.price - a.discounted_price) / a.price; })
+    .slice(0, 2);
+  box.innerHTML = picks.map(function(p) {
+    return '<a href="javascript:void(0)" class="hero-media-item" onclick="openModal(' + p.id + ')">' +
+      '<img src="' + SERVER_BASE + p.images[0].url + '" alt="' + p.name[currentLang] + '"></a>';
+  }).join('');
+  box.style.display = picks.length ? '' : 'none';
 }
 
 function animateCards(grid) {
@@ -6025,6 +6017,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Products first so buildSidebar can filter by stock
     if (prodData && prodData.success) {
       products = prodData.data.map(mapApiProduct);
+      fillHeroMedia();
     }
 
     // Categories → sidebar + mega menu (filtered by stock)

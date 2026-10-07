@@ -4754,3 +4754,122 @@ html[dir="ltr"] body { direction: ltr; text-align: left;  }
 .lp-code      { font-size: 28px; font-weight: 900; letter-spacing: 4px; color: #FFD34E; }
 .lp-copy-hint { font-size: 11px; color: rgba(255,255,255,.32); margin-top: 6px; }
 .lp-discount-val { font-size: 13px; color: rgba(255,255,255,.48); margin-top: 10px; }
+
+/* ═══ Redesign A — minimal & clean (2026-10-07) ═══════════════════════════
+   One block on top of the old styles so it can be reverted in one go (the
+   previous design is git tag design-v1-before-redesign). Black for actions,
+   orange only for discounts; text orange is the darker --accent-text so it
+   stays readable on white. */
+:root {
+  --accent-text: #C2410C;
+  --ink: #1a1a1a;
+  --soft: #f4f4f4;
+}
+body { background: #fff; }
+
+/* Top bars: calm and dark instead of orange */
+.announcement-bar { background: var(--ink); height: 38px; }
+.ann-item { font-size: 13px; font-weight: 500; letter-spacing: 0; }
+.ann-sep { color: #8a8a8a; font-size: 12px; }
+#discount-banner { background: var(--soft) !important; color: var(--ink) !important; }
+#discount-banner-code { background: #fff !important; border-color: var(--ink) !important; color: var(--ink); }
+
+/* Header */
+.header { background: rgba(255,255,255,.97); border-bottom-color: #eee; }
+.nav-link { font-weight: 500; color: var(--ink); }
+.nav-link:hover, .nav-link.active { color: var(--ink); background: var(--soft); }
+.site-lang-globe { background: var(--ink); box-shadow: none; }
+.site-lang-btn:hover .site-lang-globe { box-shadow: none; }
+.order-btn { background: var(--ink); border-radius: 999px; }
+.order-btn:hover { background: #000; }
+
+/* Hero: light, text beside the two biggest deals */
+.hero { background: #fff; color: var(--ink); padding: 48px 0 32px; }
+.hero::before, .hero::after { display: none; }
+.hero-split { display: flex; flex-wrap: wrap; align-items: center; gap: 40px; text-align: start; }
+.hero-col { flex: 1 1 380px; align-items: flex-start; text-align: start; gap: 18px; padding: 0; }
+.hero-title { font-size: clamp(34px, 5vw, 56px); line-height: 1.15; font-weight: 800; color: var(--ink); margin: 0; }
+.hero-highlight { color: var(--ink); }
+.hero-subtitle, .hero-link-note { color: #555; font-size: 17px; line-height: 1.8; margin: 0; max-width: 460px; }
+.hero-col .hero-subtitle, .hero-col .hero-link-note { margin-inline: 0; }
+.hero-link-note { font-size: 15px; color: #6b6b6b; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; }
+.hero-col .hero-actions > a { margin-top: 0; }
+.btn-hero-primary, .btn-hero-secondary {
+  display: inline-flex; align-items: center; min-height: 48px; padding: 0 28px;
+  border-radius: 999px; font-size: 16px; font-weight: 700; text-decoration: none;
+  box-shadow: none; transform: none;
+}
+.btn-hero-primary { background: var(--ink); color: #fff; border: 1px solid var(--ink); }
+.btn-hero-primary:hover { background: #000; color: #fff; }
+.btn-hero-secondary { background: #fff; color: var(--ink); border: 1px solid var(--ink); }
+.btn-hero-secondary:hover { background: var(--soft); color: var(--ink); }
+.hero-divider { display: none; }
+.hero-media { flex: 1 1 440px; display: grid; align-items: start; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.hero-media-item { display: block; border-radius: 20px; overflow: hidden; background: var(--soft); }
+.hero-media-item:nth-child(2) { margin-top: 48px; }
+.hero-media-item img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; display: block; transition: transform .4s ease; }
+.hero-media-item:hover img { transform: scale(1.03); }
+
+/* Features: a quiet strip, no emoji */
+.features-bar { background: var(--soft); border: 0; }
+.feature-icon { display: none; }
+.feature-item { color: var(--ink); font-weight: 600; }
+
+/* Section heading + sidebar */
+.shop-section { background: #fff; }
+.section-header { text-align: start; }
+.section-title { font-size: 28px; font-weight: 800; color: var(--ink); }
+.section-title::after { display: none; }
+.section-subtitle { color: #6b6b6b; }
+.sidebar-nav { box-shadow: none; border: 1px solid #eee; }
+.sidebar-item:hover, .sidebar-sub-item:hover { color: var(--ink); background: var(--soft); }
+.sidebar-item.active, .sidebar-sub-item.active { color: var(--ink); background: var(--soft); font-weight: 800; }
+
+/* Product grid + card */
+.products-grid { gap: 32px 20px; }
+.product-card { background: transparent; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
+.product-card:hover { transform: none; box-shadow: none; }
+.product-card .product-image { aspect-ratio: 4 / 5; border-radius: 16px; background: var(--soft); }
+.product-card .product-real-img { object-fit: cover; transition: transform .4s ease; }
+.product-card:hover .product-real-img { transform: scale(1.04); }
+.product-card.product-sold-out { filter: none; opacity: 1; }
+.product-card.product-sold-out .product-real-img { filter: grayscale(1); opacity: .55; }
+.product-card .product-body { padding: 12px 2px 0; gap: 4px; }
+.card-brand { font-size: 13px; color: #767676; }
+.product-card .product-name { font-size: 15px; font-weight: 500; line-height: 1.6; color: var(--ink); margin: 0; }
+.product-card .product-price { display: flex; flex-direction: row-reverse; justify-content: flex-end; align-items: baseline; gap: 10px; margin: 2px 0 0; }
+.product-card .price-discounted { font-size: 18px; font-weight: 800; color: var(--ink); }
+.product-card .price-original { font-size: 14px; color: #8a8a8a; text-decoration: line-through; }
+.card-badge {
+  position: absolute; top: 12px; inset-inline-start: 12px; z-index: 2;
+  background: #fff; color: var(--accent-text); font-size: 13px; font-weight: 800;
+  padding: 4px 10px; border-radius: 999px;
+}
+.card-badge--soldout { color: var(--ink); }
+.product-card .fav-btn {
+  position: absolute; top: 10px; inset-inline-end: 10px; z-index: 2;
+  width: 36px; height: 36px; border-radius: 50%; border: 0; background: #fff; box-shadow: none;
+}
+/* Pagination in the same black */
+#pagination-bar .pg-btn { border-radius: 999px; }
+#pagination-bar .pg-btn:hover:not(:disabled), #pagination-bar .pg-btn.active { background: var(--ink); border-color: var(--ink); }
+
+/* Phones: two cards a row, like most fashion shops */
+@media (max-width: 420px) {
+  .products-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 12px; }
+  .product-card .product-name { font-size: 13px; }
+  .product-card .price-discounted { font-size: 15px; }
+  .hero { padding: 28px 0 16px; }
+  .hero-media-item:nth-child(2) { margin-top: 24px; }
+}
+.scroll-top-btn { background: var(--ink); box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+/* Price row follows the page direction (renderPriceHtml marks it ltr for the
+   numbers): sale price first, then the struck old one. */
+html[dir="rtl"] .product-card .product-price { direction: rtl; }
+.product-card .product-price { justify-content: flex-end; }
+.product-card .product-price > span { direction: ltr; unicode-bidi: isolate; }
+.product-card .product-body { gap: 6px; }
+@media (max-width: 900px) {
+  .sidebar-item.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+}
