@@ -133,7 +133,7 @@ async function extendFromInside(buf, pad) {
 // the edge shows up as a jump.
 // The strip reaches past the few pixels extendFromInside skips, since that
 // inner column is the one actually repeated.
-const EDGE_STRIP = 0.03, EDGE_SAMPLES = 200, EDGE_MAX_JUMP = 14;
+const EDGE_STRIP = 0.03, EDGE_SAMPLES = 200, EDGE_MAX_JUMP = 14, EDGE_MAX_RANGE = 45;
 async function plainEdge(buf, W, H, side) {
   const vertical = side === 'left' || side === 'right';
   const t = Math.max(2, Math.round((vertical ? W : H) * EDGE_STRIP));
@@ -149,6 +149,14 @@ async function plainEdge(buf, W, H, side) {
     .raw().toBuffer({ resolveWithObject: true });
   for (let i = 3; i < data.length; i += 3) {
     for (let c = 0; c < 3; c++) if (Math.abs(data[i + c] - data[i - 3 + c]) > EDGE_MAX_JUMP) return false;
+  }
+  // A dark garment filling most of the edge changes gradually between
+  // samples (no single jump), but spans a far wider range than a studio
+  // gradient (Koton's ~10, Mavi's ~30) — Defacto, 2026-10-07.
+  for (let c = 0; c < 3; c++) {
+    let lo = 255, hi = 0;
+    for (let i = c; i < data.length; i += 3) { lo = Math.min(lo, data[i]); hi = Math.max(hi, data[i]); }
+    if (hi - lo > EDGE_MAX_RANGE) return false;
   }
   return true;
 }
