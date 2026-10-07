@@ -7,6 +7,7 @@
 // for Farsi out of the box) — see the "font_test" exploration this was
 // validated against before writing this file.
 const sharp = require('sharp');
+const { frameProduct } = require('./productFrame');
 const path = require('path');
 
 const FONT_BLACK  = path.join(__dirname, '../assets/fonts/Vazirmatn-Black.ttf');
@@ -49,7 +50,7 @@ async function solidBackground() {
 // Rounded-corner card with a thin white border frame, optionally rotated —
 // used for both the single hero photo and the collage cards.
 async function photoCard(imagePath, { size, height = size, radius = 28, rotateDeg = 0 }) {
-  const img = await sharp(imagePath).resize(size, height, { fit: 'cover', position: 'top' }).toBuffer();
+  const img = await (await frameProduct(imagePath, size, height)).png().toBuffer();
   const mask = Buffer.from(
     `<svg width="${size}" height="${height}"><rect width="${size}" height="${height}" rx="${radius}" ry="${radius}" fill="#fff"/></svg>`
   );

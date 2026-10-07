@@ -1,14 +1,14 @@
 const fs   = require('fs');
 const path = require('path');
 
-let sharp;
-try { sharp = require('sharp'); } catch { sharp = null; }
+let sharp, frameProduct;
+try { sharp = require('sharp'); ({ frameProduct } = require('./productFrame')); } catch { sharp = null; }
 
 // Output size for product images and JPEG quality
 const CROP_SIZE    = 800;
 const JPEG_QUALITY = 85;
 
-// Resize + center-crop an image file in-place to CROP_SIZE × CROP_SIZE.
+// Resize an image file in-place to CROP_SIZE × CROP_SIZE (product centred).
 // Non-image files are left untouched.
 // Returns { compressed: bool, originalSize, finalSize, newPath? }.
 async function compressImageFile(filePath) {
@@ -20,10 +20,10 @@ async function compressImageFile(filePath) {
   const originalSize = fs.statSync(filePath).size;
 
   try {
-    // auto-orient from EXIF, then center-crop to CROP_SIZE × CROP_SIZE
-    const pipeline = sharp(filePath)
-      .rotate()
-      .resize(CROP_SIZE, CROP_SIZE, { fit: 'cover', position: 'centre' });
+    // auto-orient from EXIF, then CROP_SIZE × CROP_SIZE with the product
+    // centred and whole (see productFrame.js — a centre crop cut off-centre
+    // products in half).
+    const pipeline = await frameProduct(filePath, CROP_SIZE, CROP_SIZE);
 
     // Always output as JPEG (webp stays webp)
     const outputExt  = ext === '.webp' ? '.webp' : '.jpg';

@@ -8,6 +8,7 @@
 // joins them. A silent audio track is included since some players refuse
 // video-only files.
 const sharp = require('sharp');
+const { frameProduct } = require('./productFrame');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -66,7 +67,7 @@ function productImagePath(product) {
 }
 
 async function roundedPhoto(imagePath, width, height, radius = 36) {
-  const img = await sharp(imagePath).resize(width, height, { fit: 'cover', position: 'top' }).toBuffer();
+  const img = await (await frameProduct(imagePath, width, height)).png().toBuffer();
   const mask = Buffer.from(`<svg width="${width}" height="${height}"><rect width="${width}" height="${height}" rx="${radius}" ry="${radius}" fill="#fff"/></svg>`);
   return sharp(img).composite([{ input: mask, blend: 'dest-in' }]).png().toBuffer();
 }
