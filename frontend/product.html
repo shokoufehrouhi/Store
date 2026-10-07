@@ -23,7 +23,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=99">
+  <link rel="stylesheet" href="style.css?v=100">
   <style>
     /* ── fix sticky on product page ── */
     body { overflow-x: clip; }
@@ -268,7 +268,10 @@
     .pd-main-img { border-radius: 16px; background: var(--soft); aspect-ratio: 4 / 5; }
     .pd-thumb { border-radius: 10px; border-width: 2px; background: var(--soft); }
     .pd-info { padding: 8px 0 0; gap: 14px; }
-    .pd-brand { font-size: 14px; color: #767676; }
+    .pd-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+    .pd-brand { font-size: 14px; color: var(--ink); font-weight: 700; }
+    .pd-meta-label { color: #767676; font-weight: 400; }
+    .pd-gender { font-size: 13px; font-weight: 600; color: var(--ink); background: var(--soft); padding: 4px 12px; border-radius: 999px; }
     .pd-name { font-size: 28px; font-weight: 800; }
     .pd-price { font-size: 24px; color: var(--ink); display: flex; align-items: baseline; gap: 10px; justify-content: flex-start; }
     html[dir="rtl"] .pd-price { direction: rtl; }
@@ -407,7 +410,7 @@
   </div>
 </div>
 
-<script src="i18n.js?v=78"></script>
+<script src="i18n.js?v=79"></script>
 <script>
 // ── lang ──────────────────────────────────────────────────────────────────────
 var _qp = new URLSearchParams(location.search);
@@ -715,6 +718,17 @@ function colorNoStock(inv, cId){
 var _p=null, _ck=null, _cid=null, _sz=null, _mi=0;
 
 // ── render ────────────────────────────────────────────────────────────────────
+// "Brand: Mavi" plus who it's for, above the name, so it's clear which
+// brand and which gender the product is (user's request, 2026-10-07).
+function pdMetaLine(p){
+  var g = {female:T.gender_female, male:T.gender_male, kids:T.gender_kids, unisex:T.gender_unisex}[p.gender];
+  if(!p.brand && !g) return '';
+  return '<div class="pd-meta">'
+    + (p.brand ? '<span class="pd-brand"><span class="pd-meta-label">'+(T.brand_label||'Brand')+':</span> '+esc(p.brand)+'</span>' : '')
+    + (g ? '<span class="pd-gender">'+esc(g)+'</span>' : '')
+    + '</div>';
+}
+
 function render(p){
   _p = p;
   var name = p['name_'+CL] || p.name_fa || '';
@@ -826,7 +840,7 @@ function render(p){
 
     // info
     +'<div class="pd-info">'
-    +  (p.brand ? '<div class="pd-brand">'+esc(p.brand)+'</div>' : '')
+    +  pdMetaLine(p)
     +  '<h1 class="pd-name">'+esc(name)+'</h1>'
     +  ph
     +  (p.code ? '<div class="product-code-badge copyable" onclick="copyCode()" title="Copy"><span class="product-code-label">'+(T.product_code_label||'Ürün Kodu')+':</span> '+esc(p.code)+'</div>' : '')
