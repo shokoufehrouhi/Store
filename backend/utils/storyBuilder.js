@@ -158,15 +158,15 @@ async function buildPriceRow(product) {
   if (!price) return null;
   const sale = product.discounted_price != null && Number(product.discounted_price) < price ? Number(product.discounted_price) : null;
   const parts = [];
-  const saleBuf = await renderText({ text: formatTL(sale ?? price), fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black 88', width: 520, color: INK });
+  const saleBuf = await renderText({ text: formatTL(sale ?? price), fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black 68', width: 520, color: INK });
   parts.push(saleBuf);
   if (sale != null) {
-    const oldBuf = await renderText({ text: formatTL(price), fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium 50', width: 420, color: '#8a8a8a' });
+    const oldBuf = await renderText({ text: formatTL(price), fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium 40', width: 420, color: '#8a8a8a' });
     const om = await sharp(oldBuf).metadata();
     const strike = Buffer.from(`<svg width="${om.width}" height="${om.height}"><line x1="0" y1="${om.height / 2}" x2="${om.width}" y2="${om.height / 2}" stroke="#8a8a8a" stroke-width="4"/></svg>`);
     parts.push(await sharp(oldBuf).composite([{ input: strike }]).png().toBuffer());
     const pct = Math.round((price - sale) / price * 100);
-    const pctBuf = await renderText({ text: `${toFaDigits(pct)}٪ تخفیف`, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black 44', width: 420, color: ACCENT });
+    const pctBuf = await renderText({ text: `${toFaDigits(pct)}٪ تخفیف`, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black 36', width: 420, color: ACCENT });
     const pm = await sharp(pctBuf).metadata();
     const pw = pm.width + 48, ph = pm.height + 22;
     const pill = Buffer.from(`<svg width="${pw}" height="${ph}"><rect width="${pw}" height="${ph}" rx="${ph / 2}" fill="${ACCENT_BG}"/></svg>`);
