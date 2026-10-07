@@ -5622,6 +5622,7 @@ module.exports = {
   // exported for backend/scripts/reframeProductImages.js (re-reading a
   // Farktor product's photos the way the import picked them).
   fetchArmaLifeCatalog, fetchPaulMarkCatalog, groupArmaLifeCatalog, armalifeIds, armalifeLinkId, armalifeSizes,
+  scrapeZaraProduct,
   ARMALIFE_IMAGE_BASE, PAULMARK_IMAGE_BASE, ARMALIFE_MAX_GALLERY_IMAGES,
   // exported for siteSync.js#importSite and backend/scripts/addMenuSubcategories.js.
   loadSubcategoryIds, guessSubcategoryId, MENU_SUBCATEGORY_DEFS,

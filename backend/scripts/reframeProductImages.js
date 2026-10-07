@@ -97,6 +97,15 @@ function farktorSource(fetchCatalog, imageBase) {
   };
 }
 
+// Zara's product page builds its JSON-LD in the browser (plain HTTP gets
+// a shell without it), so it's read with the importer's own scraper in a
+// headless Chrome — the same ProductGroup "image" list the import stored.
+async function zaraImages(url, { pm }) {
+  const data = await require('../utils/siteImport').scrapeZaraProduct(pm, url);
+  return data?.images || [];
+}
+const NEEDS_BROWSER = new Set(['Zara']);
+
 const imp0 = require('../utils/siteImport');
 const SOURCES = {
   Koton: ldJsonImages, Mavi: maviCdnImages, Colins: ldJsonImages, Defacto: ldJsonImages, LCWaikiki: ldJsonImages,
@@ -105,6 +114,7 @@ const SOURCES = {
   BarrelsAndOil: ldJsonImages,
   ArmaLife: farktorSource(() => imp0.fetchArmaLifeCatalog(), imp0.ARMALIFE_IMAGE_BASE),
   PaulMark: farktorSource(() => imp0.fetchPaulMarkCatalog(), imp0.PAULMARK_IMAGE_BASE),
+  Zara: zaraImages,
 };
 
 function arg(name) {
@@ -124,7 +134,7 @@ async function saveFresh(imageUrl) {
   return '/uploads/' + path.basename(r.compressed && r.newPath ? r.newPath : file);
 }
 
-(async () => {
+async function main(ctx) {
   const brand = arg('brand');
   const apply = process.argv.includes('--apply');
   const limit = arg('limit') ? Number(arg('limit')) : null;
@@ -144,7 +154,7 @@ async function saveFresh(imageUrl) {
   const totals = { products: 0, replaced: 0, skipped: 0, failed: 0 };
   for (const p of products) {
     try {
-      const fresh = await source(p.product_link);
+      const fresh = await source(p.product_link, ctx);
       if (!fresh.length) { totals.skipped++; console.log(`  ${p.id}: no images on the page, skipped`); continue; }
       const n = Math.min(fresh.length, p.product_media.length);
       if (!apply) { console.log(`  ${p.id}: would replace ${n} of ${p.product_media.length} photo(s) (page has ${fresh.length})`); totals.products++; continue; }
@@ -174,5 +184,14 @@ async function saveFresh(imageUrl) {
     await new Promise(r => setTimeout(r, PAUSE_MS));
   }
   console.log(JSON.stringify(totals));
+}
+
+(async () => {
+  if (NEEDS_BROWSER.has(arg('brand'))) {
+    const { withBrowser } = require('../utils/siteSync');
+    await withBrowser((pm) => main({ pm }));
+  } else {
+    await main({});
+  }
   process.exit(0);
 })().catch(e => { console.error(e.message); process.exit(1); });
