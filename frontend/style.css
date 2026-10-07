@@ -4924,3 +4924,20 @@ html[dir="rtl"] .product-card .product-price { direction: rtl; }
 .footer-links a, .footer-col a { color: #444; }
 .footer-links a:hover, .footer-col a:hover { color: var(--ink); text-decoration: underline; }
 .footer-bottom { border-top-color: #eee; color: #8a8a8a; }
+
+/* Loyalty Club (profile): ink card with gold, the logo's colour, instead of
+   purple. Its accents used to be the old orange --primary; once that turned
+   ink they vanished on the dark card (e.g. the "only N more orders" number). */
+:root { --gold: #D4AF37; }
+.lc-card { background: var(--ink); box-shadow: none; border: 1px solid #2a2a2a; }
+.lc-card::after { background: radial-gradient(circle, rgba(212,175,55,.12) 0%, transparent 65%); }
+.lc-stamp.lc-next { border-color: rgba(212,175,55,.55); background: rgba(212,175,55,.08); animation-name: lc-next-ring-gold; }
+@keyframes lc-next-ring-gold {
+  0%,100% { box-shadow: 0 0 0 0 rgba(212,175,55,0); border-color: rgba(212,175,55,.4); }
+  50%      { box-shadow: 0 0 0 6px rgba(212,175,55,.15); border-color: rgba(212,175,55,.9); }
+}
+.lc-prize.lc-locked .lc-prize-box:hover { background: rgba(212,175,55,.1); border-color: rgba(212,175,55,.5); }
+.lc-prize.lc-unlocked .lc-prize-box { background: linear-gradient(140deg, rgba(255,184,0,.22), rgba(212,175,55,.12)); }
+.lc-prize-q { background: var(--gold); color: var(--ink); }
+.lc-footer strong { color: var(--gold); }
+.lp-card { background: var(--ink); }

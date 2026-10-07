@@ -3270,7 +3270,7 @@ function renderLoyaltyCard(completedOrders) {
 
   function star(state) {
     var fill   = state === 'filled' ? '#FFD34E' : 'none';
-    var stroke = state === 'filled' ? '#FFA500' : state === 'next' ? 'rgba(255,92,0,.75)' : 'rgba(255,255,255,.18)';
+    var stroke = state === 'filled' ? '#FFA500' : state === 'next' ? 'rgba(212,175,55,.9)' : 'rgba(255,255,255,.18)';
     return '<svg viewBox="0 0 24 24" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.6" stroke-linejoin="round">' +
       '<polygon points="12,2.5 14.8,9 22,9.8 16.8,14.6 18.4,21.5 12,17.8 5.6,21.5 7.2,14.6 2,9.8 9.2,9"/>' +
       '</svg>';
