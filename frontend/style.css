@@ -4941,3 +4941,13 @@ html[dir="rtl"] .product-card .product-price { direction: rtl; }
 .lc-prize-q { background: var(--gold); color: var(--ink); }
 .lc-footer strong { color: var(--gold); }
 .lp-card { background: var(--ink); }
+
+/* Favourites in ink like the rest (was red: header button, badge, hearts). */
+.fav-header-btn:hover, .fav-header-btn.has-favs { color: var(--ink); border-color: var(--ink); }
+.fav-header-btn.has-favs svg path { fill: currentColor; }
+.fav-header-badge { background: var(--ink); }
+.fav-btn:hover, .fav-btn.fav-active { color: var(--ink); }
+.fav-panel-remove:hover { background: var(--ink); }
+.fav-card-remove:hover { color: var(--ink); }
+.empty-banner--favs { background: var(--soft); color: var(--ink); }
+.empty-banner--favs .empty-banner-bg { display: none; }
