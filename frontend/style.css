@@ -4995,3 +4995,18 @@ html[dir="rtl"] .product-card .product-price { direction: rtl; }
 /* The link-request page opened behind the profile panel (z-index 900 vs
    410), so "Request a Product by Link" in Orders seemed to do nothing. */
 #linkreq-page-overlay { z-index: 950; }
+
+/* Header between phone and wide desktop: the full menu plus language,
+   login, favourites, cart and "Place Order" didn't fit below ~1150px
+   (English below 1100), so the cart button was cut off on 13" laptops.
+   1121–1199px: a tighter menu without "Place Order" (it's in the ☰ menu
+   too); 1120px and below: the ☰ menu, as on phones. Checked in fa/en/tr. */
+@media (max-width: 1199px) {
+  .order-btn { display: none; }
+  .nav-link { padding-inline: 7px; font-size: 13.5px; }
+  .nav-links { margin-inline-start: 12px; }
+}
+@media (max-width: 1120px) {
+  .nav-links { display: none; }
+  .menu-toggle { display: block; padding: 10px; }
+}
