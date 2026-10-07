@@ -134,6 +134,7 @@ async function extendFromInside(buf, pad) {
 // The strip reaches past the few pixels extendFromInside skips, since that
 // inner column is the one actually repeated.
 const EDGE_STRIP = 0.03, EDGE_SAMPLES = 200, EDGE_MAX_JUMP = 14, EDGE_MAX_RANGE = 45;
+const EDGE_MIN_LIGHT = 175, EDGE_MAX_TEXTURE = 2.5;
 async function plainEdge(buf, W, H, side) {
   const vertical = side === 'left' || side === 'right';
   const t = Math.max(2, Math.round((vertical ? W : H) * EDGE_STRIP));
@@ -158,7 +159,28 @@ async function plainEdge(buf, W, H, side) {
     for (let i = c; i < data.length; i += 3) { lo = Math.min(lo, data[i]); hi = Math.max(hi, data[i]); }
     if (hi - lo > EDGE_MAX_RANGE) return false;
   }
-  return true;
+  // A fabric close-up fills the whole photo, so its edges are one even
+  // colour too and passed the checks above — repeating them drew streaks
+  // (459 photos, mostly Mavi, 2026-10-08). Studio walls are light (176+ on
+  // every brand measured, fabric close-ups mostly under 130) and smooth at
+  // full size (neighbouring pixels differ by under ~2; knit and weave by
+  // 2–30), so an edge must be both.
+  let sum = 0;
+  for (let i = 0; i < data.length; i++) sum += data[i];
+  if (sum / data.length < EDGE_MIN_LIGHT) return false;
+  return (await edgeTexture(buf, box)) < EDGE_MAX_TEXTURE;
+}
+
+// Mean difference between neighbouring pixels of a strip, at full size.
+async function edgeTexture(buf, box) {
+  const { data, info } = await sharp(buf).extract(box).greyscale().raw().toBuffer({ resolveWithObject: true });
+  const w = info.width;
+  let s = 0, n = 0;
+  for (let i = 0; i < data.length; i++) {
+    if (i % w) { s += Math.abs(data[i] - data[i - 1]); n++; }
+    if (i >= w) { s += Math.abs(data[i] - data[i - w]); n++; }
+  }
+  return n ? s / n : 0;
 }
 
 module.exports = { frameProduct };
