@@ -106,6 +106,37 @@ async function zaraImages(url, { pm }) {
 }
 const NEEDS_BROWSER = new Set(['Zara']);
 
+// Mango: photos from its product API, one colour at a time. Which colour
+// the import put first depended on that day's discounts and stock, so the
+// colour whose first photo looks most like the stored first photo is used
+// (a small greyscale thumbnail compared pixel by pixel), and only that
+// colour's photos (the first 8, as the import took) are returned.
+const sharp = require('sharp');
+async function thumb(buf) {
+  return sharp(buf).resize(24, 24, { fit: 'fill' }).greyscale().raw().toBuffer();
+}
+async function mangoImages(url, { storedFirstFile }) {
+  const imp = require('../utils/siteImport');
+  const id = imp.mangoLinkProductId(url);
+  if (!id) return [];
+  const detail = await imp.mangoProduct(id);
+  const colors = (detail.colors || []).map(c => imp.mangoColorImages(c).slice(0, 8)).filter(l => l.length);
+  if (!colors.length) return [];
+  let best = colors[0];
+  if (colors.length > 1 && storedFirstFile && fs.existsSync(storedFirstFile)) {
+    const ref = await thumb(storedFirstFile);
+    let bestDiff = Infinity;
+    for (const list of colors) {
+      const r = await fetch(`${imp.MANGO_MEDIA}${list[0]}?wid=300`, { headers: UA });
+      if (!r.ok) continue;
+      const t = await thumb(Buffer.from(await r.arrayBuffer()));
+      let d = 0; for (let i = 0; i < t.length; i++) d += Math.abs(t[i] - ref[i]);
+      if (d < bestDiff) { bestDiff = d; best = list; }
+    }
+  }
+  return best.map(img => `${imp.MANGO_MEDIA}${img}?wid=1200`);
+}
+
 const imp0 = require('../utils/siteImport');
 const SOURCES = {
   Koton: ldJsonImages, Mavi: maviCdnImages, Colins: ldJsonImages, Defacto: ldJsonImages, LCWaikiki: ldJsonImages,
@@ -115,6 +146,7 @@ const SOURCES = {
   ArmaLife: farktorSource(() => imp0.fetchArmaLifeCatalog(), imp0.ARMALIFE_IMAGE_BASE),
   PaulMark: farktorSource(() => imp0.fetchPaulMarkCatalog(), imp0.PAULMARK_IMAGE_BASE),
   Zara: zaraImages,
+  Mango: mangoImages,
 };
 
 function arg(name) {
@@ -154,7 +186,8 @@ async function main(ctx) {
   const totals = { products: 0, replaced: 0, skipped: 0, failed: 0 };
   for (const p of products) {
     try {
-      const fresh = await source(p.product_link, ctx);
+      const firstStored = p.product_media[0] && path.join(UPLOAD_DIR, path.basename(p.product_media[0].url));
+      const fresh = await source(p.product_link, { ...ctx, storedFirstFile: firstStored });
       if (!fresh.length) { totals.skipped++; console.log(`  ${p.id}: no images on the page, skipped`); continue; }
       const n = Math.min(fresh.length, p.product_media.length);
       if (!apply) { console.log(`  ${p.id}: would replace ${n} of ${p.product_media.length} photo(s) (page has ${fresh.length})`); totals.products++; continue; }
