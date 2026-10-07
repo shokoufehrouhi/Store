@@ -282,6 +282,7 @@
     .pd-share-btn { border-radius: 999px; }
     .pd-contact-row a, .pd-contact-row button { border-radius: 999px; }
     .pd-back { border-radius: 999px; }
+    html[dir="rtl"] .pd-back-arrow { display: inline-block; transform: scaleX(-1); }
     .pd-shipping-note { background: var(--soft); border: 0; border-radius: 12px; }
     @media(max-width: 700px){ .pd-card { gap: 20px; } .pd-name { font-size: 22px; } }
   </style>
@@ -370,7 +371,7 @@
 <!-- page -->
 <div class="pd-page">
   <div class="pd-wrap">
-    <a class="pd-back" id="back-link" href="/">&#8592; <span id="back-txt">Geri</span></a>
+    <a class="pd-back" id="back-link" href="/"><span class="pd-back-arrow" aria-hidden="true">&#8592;</span> <span id="back-txt">Geri</span></a>
     <div id="pd-root"><div class="pd-loading">...</div></div>
   </div>
 </div>
@@ -426,8 +427,8 @@ document.documentElement.dir  = DIR;
 document.body.setAttribute('dir', DIR);
 
 // ── header init ───────────────────────────────────────────────────────────────
-var _backLbl = {fa:'← بازگشت', tr:'← Geri', en:'← Back'};
-document.getElementById('back-txt').textContent = _backLbl[CL] || '← Geri';
+var _backLbl = {fa:'بازگشت', tr:'Geri', en:'Back'};
+document.getElementById('back-txt').textContent = _backLbl[CL] || 'Geri';
 document.getElementById('back-link').href = '/?lang=' + CL;
 
 // lang label
