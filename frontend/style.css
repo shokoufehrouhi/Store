@@ -4992,3 +4992,6 @@ html[dir="rtl"] .product-card .product-price { direction: rtl; }
 .profile-logout-btn { color: #555; border-color: #e5e5e5; }
 .profile-logout-btn svg { stroke: currentColor; }
 .profile-logout-btn:hover { background: var(--soft); border-color: var(--ink); color: var(--ink); }
+/* The link-request page opened behind the profile panel (z-index 900 vs
+   410), so "Request a Product by Link" in Orders seemed to do nothing. */
+#linkreq-page-overlay { z-index: 950; }
