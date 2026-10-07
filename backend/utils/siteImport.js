@@ -5624,7 +5624,7 @@ module.exports = {
   fetchArmaLifeCatalog, fetchPaulMarkCatalog, groupArmaLifeCatalog, armalifeIds, armalifeLinkId, armalifeSizes,
   scrapeZaraProduct, mangoProduct, mangoLinkProductId, mangoColorImages, MANGO_MEDIA,
   openBershka, openPullAndBear, openStradivarius, bershkaApiArgs, pullAndBearApiArgs, stradivariusApiArgs,
-  readLeftiesProducts,
+  readLeftiesProducts, fetchLeftiesListingMeta, leftiesApiArgs,
   ARMALIFE_IMAGE_BASE, PAULMARK_IMAGE_BASE, ARMALIFE_MAX_GALLERY_IMAGES,
   // exported for siteSync.js#importSite and backend/scripts/addMenuSubcategories.js.
   loadSubcategoryIds, guessSubcategoryId, MENU_SUBCATEGORY_DEFS,

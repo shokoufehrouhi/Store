@@ -104,7 +104,7 @@ async function zaraImages(url, { pm }) {
   const data = await require('../utils/siteImport').scrapeZaraProduct(pm, url);
   return data?.images || [];
 }
-const NEEDS_BROWSER = new Set(['Zara', 'Bershka', 'PullAndBear', 'Stradivarius']);
+const NEEDS_BROWSER = new Set(['Zara', 'Bershka', 'PullAndBear', 'Stradivarius', 'Lefties']);
 
 // Mango: photos from its product API, one colour at a time. Which colour
 // the import put first depended on that day's discounts and stock, so the
@@ -142,7 +142,7 @@ async function mangoImages(url, { storedFirstFile }) {
   return best.map(img => `${imp.MANGO_MEDIA}${img}?wid=1200`);
 }
 
-// Bershka, Pull&Bear, Stradivarius (Inditex): the store's own API, called
+// Bershka, Pull&Bear, Stradivarius, Lefties (Inditex): the store's own API, called
 // from inside its homepage in the browser (Akamai blocks it otherwise) —
 // the importer's opener and reader. The link carries the category and
 // product ids ("…-c<category>p<product>.html"); the colour is matched by
@@ -174,6 +174,8 @@ const SOURCES = {
   Bershka: inditexSource((pm) => imp0.openBershka(pm), () => imp0.bershkaApiArgs()),
   PullAndBear: inditexSource((pm) => imp0.openPullAndBear(pm), () => imp0.pullAndBearApiArgs()),
   Stradivarius: inditexSource((pm) => imp0.openStradivarius(pm), () => imp0.stradivariusApiArgs()),
+  // Lefties: the same Inditex API, opened the way its importer does.
+  Lefties: inditexSource((pm) => imp0.fetchLeftiesListingMeta(pm), () => imp0.leftiesApiArgs()),
 };
 
 function arg(name) {
