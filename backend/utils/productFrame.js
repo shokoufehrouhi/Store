@@ -49,7 +49,7 @@ async function frameProduct(input, width, height, { margin = 0.06 } = {}) {
   const buf = await sharp(input).rotate().toBuffer();
   const { width: W, height: H } = await sharp(buf).metadata();
   const bg = await plainBackground(buf);
-  if (!bg) return sharp(buf).resize(width, height, { fit: 'cover', position: sharp.strategy.attention });
+  if (!bg) return frameScene(buf, W, H, width, height);
 
   // Box of the target shape around the product, plus the margin.
   const c = await contentBox(buf, bg, W, H);
@@ -85,6 +85,24 @@ async function frameProduct(input, width, height, { margin = 0.06 } = {}) {
     .extract({ left, top, width: ew, height: eh })
     .extend({ left: padL, right: padR, top: padT, bottom: padB, extendWith: 'copy' })
     .toBuffer();
+  return sharp(img).resize(width, height, { fit: 'cover' });
+}
+
+// A photo whose background isn't plain all round (e.g. Mavi's grey studio
+// with a floor shadow, or a street): keep the whole photo and grow it to
+// the target shape past whichever sides of the short axis are plain — a
+// portrait shot with plain walls left and right becomes square without
+// losing the head or feet. Only when neither side is plain is it cropped,
+// on the most interesting area.
+async function frameScene(buf, W, H, width, height) {
+  const ratio = width / height;
+  const wide = W / H < ratio; // needs width added (else height)
+  const [a, b] = wide ? ['left', 'right'] : ['top', 'bottom'];
+  const plainA = await plainEdge(buf, W, H, a), plainB = await plainEdge(buf, W, H, b);
+  if (!plainA && !plainB) return sharp(buf).resize(width, height, { fit: 'cover', position: sharp.strategy.attention });
+  const extra = wide ? Math.round(H * ratio) - W : Math.round(W / ratio) - H;
+  const first = plainA && plainB ? Math.floor(extra / 2) : plainA ? extra : 0;
+  const img = await sharp(buf).extend({ [a]: first, [b]: extra - first, extendWith: 'copy' }).toBuffer();
   return sharp(img).resize(width, height, { fit: 'cover' });
 }
 
