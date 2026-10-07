@@ -21,7 +21,7 @@ const prisma = require('./prisma/client');
 const { checkSiteStock, importSite, cleanupStaleChromeProfiles, importStatusText, claimSiteRun, SITE_RUN_STALE_MS } = require('./utils/siteSync');
 const { syncSubcategoryActiveState } = require('./utils/subcategorySync');
 const { buildSingleProductStory, buildCollageStory } = require('./utils/storyBuilder');
-const { buildReel } = require('./utils/reelBuilder');
+const { buildReel, buildAiReel } = require('./utils/reelBuilder');
 const { REEL_SLOTS, reelGroupFor } = require('./utils/reelPlan');
 const { deployStoryById } = require('./controllers/instagramContentController');
 const { publishAllChanges } = require('./controllers/adminController');
@@ -358,9 +358,47 @@ const REEL_MIN_PRICE_TL = 100;
 const REEL_MIN_DISCOUNT = 0.20;
 const reelDiscountOk = (minDiscount) => (p) => Number(p.price) > 0
   && (Number(p.price) - Number(p.discounted_price)) / Number(p.price) >= minDiscount;
+// The daily AI reel (utils/aiReel.js): one product, never one that was in
+// an earlier AI reel, and only one build at a time (it takes minutes).
+let aiReelInFlight = false;
+async function generateAiReel(slot, group) {
+  if (aiReelInFlight) return false;
+  aiReelInFlight = true;
+  try {
+    const earlier = await prisma.instagram_content.findMany({ where: { slot }, select: { product_ids: true } });
+    const product = (await eligibleStoryProducts(1, earlier.flatMap(r => (Array.isArray(r.product_ids) ? r.product_ids : [])), {
+      where: { AND: [group.where, { tag: 'discount' }, { discounted_price: { not: null } }] },
+      minPrice: REEL_MIN_PRICE_TL,
+      keep: reelDiscountOk(group.minDiscount ?? REEL_MIN_DISCOUNT),
+      poolSize: 400,
+    }))[0];
+    if (!product) {
+      console.warn(`[scheduler] AI reel (${group.key}): no eligible product, skipped`);
+      return false;
+    }
+    const t0 = Date.now();
+    const { videoUrl, kind, avatar } = await buildAiReel(product, group.key);
+    console.log(`[scheduler] AI reel (${group.key}/${kind}, product ${product.id}, avatar ${avatar || '-'}) built in ${Math.round((Date.now() - t0) / 1000)}s`);
+    await prisma.instagram_content.create({
+      data: {
+        kind: 'reel',
+        slot,
+        scheduled_date: new Date(currentDateStr()),
+        image_url: videoUrl,
+        product_ids: [product.id],
+        link: `${process.env.FRONTEND_URL}/product.html?id=${product.id}`,
+      },
+    });
+    return true;
+  } finally {
+    aiReelInFlight = false;
+  }
+}
+
 async function generateReel(slot) {
   const group = reelGroupFor(slot, currentDateStr());
   if (!group) return false;
+  if (group.ai) return generateAiReel(slot, group);
   const products = await eligibleStoryProducts(REEL_PRODUCTS, [], {
     where: { AND: [group.where, { tag: 'discount' }, { discounted_price: { not: null } }] },
     minPrice: REEL_MIN_PRICE_TL,
@@ -420,6 +458,12 @@ async function rebuildStoryForSlot(slot) {
       orderBy: { created_at: 'desc' },
     });
     excludeIds = Array.isArray(single?.product_ids) ? single.product_ids : [];
+  }
+  // The AI reel takes several minutes — longer than the admin's request
+  // waits — so it's built in the background and shows up when done.
+  if (REEL_SLOTS[slot]?.ai) {
+    generateReel(slot).catch(err => console.error(`[scheduler] AI reel rebuild failed:`, err));
+    return { started: true };
   }
   const ok = def.kind === 'reel' ? await generateReel(slot)
     : def.kind === 'single'
@@ -754,7 +798,9 @@ async function tick() {
   for (const [slot, def] of Object.entries(REEL_SLOTS)) {
     if (INSTAGRAM_ENABLED && nowHHMM === def.genTime && ranReelGenOn[slot] !== today) {
       ranReelGenOn[slot] = today;
-      await generateReel(slot).catch(err => console.error(`[scheduler] reel ${slot} generation failed:`, err));
+      // The AI reel runs for minutes: not awaited, so the rest of this tick goes on.
+      const run = generateReel(slot).catch(err => console.error(`[scheduler] reel ${slot} generation failed:`, err));
+      if (!def.ai) await run;
     }
     if (REEL_AUTO_POST && INSTAGRAM_ENABLED && nowHHMM === def.time && ranReelDeployOn[slot] !== today) {
       ranReelDeployOn[slot] = today;

@@ -187,4 +187,76 @@ async function buildReel(products, { headline, prefix = 'reel' }) {
   }
 }
 
-module.exports = { buildReel, buildProductSlide };
+// The daily AI reel (see aiReel.js): the ~10s clip of a person with the
+// product, with the logo on top and the discount + price at the bottom,
+// then the usual price slide and outro (~15s in all).
+const AI_PRICE_SEC = 3.0, AI_OUTRO_SEC = 2.4, AI_FADE_SEC = 0.35;
+async function aiClipOverlay(product) {
+  const layers = [];
+  const shade = Buffer.from(`<svg width="${W}" height="${H}"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".28"/><stop offset=".14" stop-color="#000" stop-opacity="0"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/></svg>`);
+  layers.push({ input: shade });
+  layers.push(await centered(await sharp(LOGO_PATH).resize({ width: 260 }).toBuffer(), 80));
+
+  const price = Number(product.price);
+  const sale = product.discounted_price != null ? Number(product.discounted_price) : price;
+  const pct = price > 0 ? Math.round((price - sale) / price * 100) : 0;
+  const label = pct > 0 ? `${toFaDigits(pct)}٪ تخفیف  ·  ${formatTL(sale)}` : formatTL(sale);
+  const text = await renderText({ text: label, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 960, size: 54, color: '#ffffff' });
+  const tm = await sharp(text).metadata();
+  const pw = tm.width + 80, ph = tm.height + 36;
+  const pill = await sharp(Buffer.from(`<svg width="${pw}" height="${ph}"><rect width="${pw}" height="${ph}" rx="${ph / 2}" ry="${ph / 2}" fill="${ORANGE}"/></svg>`))
+    .composite([{ input: text, left: 40, top: 18 }]).png().toBuffer();
+  layers.push({ input: pill, left: Math.round((W - pw) / 2), top: H - ph - 150 });
+  return sharp({ create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).composite(layers).png().toBuffer();
+}
+
+// Builds the AI reel for one product of `groupKey` and returns its
+// /uploads/... path plus what aiReel.js picked (kind, avatar).
+async function buildAiReel(product, groupKey) {
+  const { makeAiClip } = require('./aiReel');
+  const photo = productImagePath(product);
+  if (!photo || !fs.existsSync(photo)) throw new Error(`product ${product.id} has no photo on disk`);
+  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shilista-aireel-'));
+  try {
+    const clip = path.join(workDir, 'clip.mp4');
+    const info = await makeAiClip(product, groupKey, photo, clip);
+    const files = { overlay: 'overlay.png', price: 'price.jpg', outro: 'outro.jpg' };
+    fs.writeFileSync(path.join(workDir, files.overlay), await aiClipOverlay(product));
+    fs.writeFileSync(path.join(workDir, files.price), await buildProductSlide(product));
+    fs.writeFileSync(path.join(workDir, files.outro), await buildOutroSlide());
+
+    const probe = await new Promise((resolve) => execFile(ffmpegPath, ['-i', clip], (_e, _o, stderr) => resolve(String(stderr))));
+    const m = probe.match(/Duration: (\d+):(\d+):([\d.]+)/);
+    const clipSec = m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) : 10;
+    const total = clipSec + AI_PRICE_SEC + AI_OUTRO_SEC - 2 * AI_FADE_SEC;
+
+    const filename = `ig-reel-ai-${groupKey}-${Date.now()}.mp4`;
+    const outFile = path.join(UPLOADS_DIR, filename);
+    await runFfmpeg([
+      '-y', '-i', clip, '-i', path.join(workDir, files.overlay),
+      '-loop', '1', '-t', String(AI_PRICE_SEC), '-i', path.join(workDir, files.price),
+      '-loop', '1', '-t', String(AI_OUTRO_SEC), '-i', path.join(workDir, files.outro),
+      '-f', 'lavfi', '-t', total.toFixed(2), '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
+      '-filter_complex', [
+        // The clip is 480x832 at 16fps: filled to 1080x1920 at 30fps.
+        `[0:v]scale=${W}:${H}:force_original_aspect_ratio=increase:flags=lanczos,crop=${W}:${H},fps=${FPS},setpts=PTS-STARTPTS[c]`,
+        '[c][1:v]overlay=0:0,format=yuv420p,setsar=1[v0]',
+        `[2:v]${motionFilter(0, AI_PRICE_SEC)}[v1]`,
+        `[3:v]${motionFilter(1, AI_OUTRO_SEC)}[v2]`,
+        `[v0][v1]xfade=transition=fadewhite:duration=${AI_FADE_SEC}:offset=${(clipSec - AI_FADE_SEC).toFixed(2)}[x1]`,
+        `[x1][v2]xfade=transition=fadeblack:duration=${AI_FADE_SEC}:offset=${(clipSec + AI_PRICE_SEC - 2 * AI_FADE_SEC).toFixed(2)}[x2]`,
+      ].join(';'),
+      '-map', '[x2]', '-map', '4:a',
+      '-threads', '2',
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-r', String(FPS),
+      '-c:a', 'aac', '-b:a', '64k', '-shortest', '-movflags', '+faststart',
+      '-t', total.toFixed(2),
+      outFile,
+    ]);
+    return { videoUrl: `/uploads/${filename}`, ...info };
+  } finally {
+    fs.rmSync(workDir, { recursive: true, force: true });
+  }
+}
+
+module.exports = { buildReel, buildProductSlide, buildAiReel };

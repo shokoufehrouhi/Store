@@ -16,6 +16,9 @@
 const REEL_SLOTS = {
   'reel-12:00': { time: '12:00', genTime: '10:00' },
   'reel-20:00': { time: '20:00', genTime: '18:00' },
+  // The daily AI reel (utils/aiReel.js): one product worn/used by a person,
+  // made at 08:00 and left in the admin like the others.
+  'reel-08:00': { time: '08:00', genTime: '08:00', ai: true },
 };
 
 // `where` narrows the products table to the group (combined with the usual
@@ -31,6 +34,11 @@ const REEL_GROUPS = {
   bagsShoes: { headline: 'تخفیف‌های کیف و کفش',    tags: ['#کیف', '#کفش'],              where: { OR: [{ category_id: 2 }, { subcategory_id: 13 }] } },
 };
 
+// The AI reel's group, one per day in turn. Cosmetics only from the
+// makeup subcategories (face, eye, lip) — a person can show those.
+const AI_REEL_ROTATION = ['women', 'men', 'kids', 'bagsShoes', 'cosmetics'];
+const AI_REEL_WHERE = { cosmetics: { category_id: 10, subcategory_id: { in: [42, 43, 44] } } };
+
 // Date#getDay(): 0 Sunday ... 6 Saturday.
 const WEEKLY_PLAN = {
   6: { 'reel-12:00': 'men',       'reel-20:00': 'women' },
@@ -44,6 +52,11 @@ const WEEKLY_PLAN = {
 
 // The group for a slot on a given local date ("YYYY-MM-DD").
 function reelGroupFor(slot, dateStr) {
+  if (REEL_SLOTS[slot]?.ai) {
+    const day = Math.floor(Date.parse(`${dateStr}T12:00:00Z`) / 86400000);
+    const key = AI_REEL_ROTATION[day % AI_REEL_ROTATION.length];
+    return { key, ai: true, ...REEL_GROUPS[key], where: AI_REEL_WHERE[key] || REEL_GROUPS[key].where };
+  }
   const weekday = new Date(`${dateStr}T12:00:00`).getDay();
   const key = WEEKLY_PLAN[weekday]?.[slot];
   return key ? { key, ...REEL_GROUPS[key] } : null;
@@ -57,7 +70,9 @@ function reelCaption(group, products) {
     .map((p) => Math.round((Number(p.price) - Number(p.discounted_price)) / Number(p.price) * 100));
   const best = cuts.length ? Math.max(...cuts) : 0;
   const lines = [`🔥 ${group.headline}`];
-  if (best > 0) lines.push(`تا ${toFaDigits(best)}٪ تخفیف روی محصولات منتخب امروز`);
+  if (best > 0) {
+    lines.push(group.ai ? `${toFaDigits(best)}٪ تخفیف روی این محصول` : `تا ${toFaDigits(best)}٪ تخفیف روی محصولات منتخب امروز`);
+  }
   lines.push('', '🛍 shilista.com', '', ['#Shilista', '#شیلیستا', '#تخفیف', ...group.tags].join(' '));
   return lines.join('\n');
 }
