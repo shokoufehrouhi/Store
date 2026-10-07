@@ -299,6 +299,15 @@ function loadCartFromServer() {
   }).catch(function() {});
 }
 
+// Cart items whose product is no longer on the site can't be ordered and
+// aren't shown in the cart panel, yet still counted on the badge — drop them
+// once the product list has really loaded (never on an empty/failed load).
+function pruneUnavailableCartItems() {
+  if (!products.length) return;
+  var kept = cart.filter(function(item) { return products.some(function(p) { return p.id === item.id; }); });
+  if (kept.length !== cart.length) { cart = kept; saveCart(); }
+}
+
 function updateCartBadge() {
   var total = cart.reduce(function(sum, item) { return sum + item.qty; }, 0);
   var badge = document.getElementById('cart-badge');
@@ -3092,7 +3101,12 @@ function updateFavBadge() {
   var btn   = document.getElementById('fav-header-btn');
   if (!badge) return;
   var user  = getCurrentUser();
-  var count = user && user.favorites ? user.favorites.length : 0;
+  var favs  = user && user.favorites ? user.favorites : [];
+  // Count what the favourites panel shows: products that are no longer on
+  // the site (deactivated, e.g. sold out 5+ days) stay saved in case they
+  // come back, but made the badge say 2 over an empty panel.
+  if (products.length) favs = favs.filter(function(id) { return products.some(function(p) { return p.id === id; }); });
+  var count = favs.length;
   if (count > 0) {
     badge.textContent = count;
     badge.style.display = 'flex';
@@ -5904,6 +5918,9 @@ document.addEventListener('DOMContentLoaded', function() {
         var catData  = results[1];
         if (prodData && prodData.success) {
           products = prodData.data.map(mapApiProduct);
+          pruneUnavailableCartItems();
+          updateCartBadge();
+          updateFavBadge();
           var favTabEl = document.getElementById('profile-tab-favorites');
           if (favTabEl && favTabEl.style.display !== 'none') renderFavoritesTab();
         }
@@ -6038,6 +6055,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (prodData && prodData.success) {
       products = prodData.data.map(mapApiProduct);
       fillHeroMedia();
+      pruneUnavailableCartItems();
+      updateCartBadge();
+      updateFavBadge();
     }
 
     // Categories → sidebar + mega menu (filtered by stock)
