@@ -23,9 +23,13 @@ const LOGO_PATH   = path.join(__dirname, '../../frontend/images/shilista_logo.pn
 const UPLOADS_DIR = path.join(__dirname, '../public/uploads');
 
 const W = 1080, H = 1920, FPS = 30;
-const BG_DARK = '#0d0d0d';
-const GOLD    = '#D4AF37';
-const ORANGE  = '#FF5C00';
+// The site's minimal look (2026-10-07 redesign), like the stories: white,
+// ink text, orange only for the discount. Was black with an orange price.
+const BG        = '#ffffff';
+const INK       = '#1a1a1a';
+const MUTED     = '#6b6b6b';
+const ACCENT    = '#C2410C';
+const ACCENT_BG = '#fff1e8';
 const INTRO_SEC = 2.5, SLIDE_SEC = 2.6, OUTRO_SEC = 2.2, FADE_SEC = 0.5;
 // Picked in turn, so every reel mixes a few kinds of transition.
 const TRANSITIONS = ['slideleft', 'circleopen', 'smoothup', 'fadeblack', 'wiperight', 'zoomin', 'slideup'];
@@ -85,7 +89,7 @@ async function buildProductSlide(product) {
   // The prices go right under the name, which can wrap to two lines.
   const nameBuf = await renderText({
     text: shortName(product.name_fa), fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold',
-    width: 960, size: 76, color: '#ffffff',
+    width: 960, size: 76, color: INK,
   });
   const nameTop = 1350;
   layers.push(await centered(nameBuf, nameTop));
@@ -95,33 +99,33 @@ async function buildProductSlide(product) {
   const sale = product.discounted_price != null ? Number(product.discounted_price) : null;
   if (sale != null && sale < price) {
     const pct = Math.round((price - sale) / price * 100);
-    const oldBuf = await renderText({ text: formatTL(price), fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium', width: 600, size: 64, color: '#9a9a9a' });
+    const oldBuf = await renderText({ text: formatTL(price), fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium', width: 600, size: 64, color: '#8a8a8a' });
     const oldMeta = await sharp(oldBuf).metadata();
-    const strike = Buffer.from(`<svg width="${oldMeta.width}" height="${oldMeta.height}"><line x1="0" y1="${oldMeta.height / 2}" x2="${oldMeta.width}" y2="${oldMeta.height / 2}" stroke="#9a9a9a" stroke-width="5"/></svg>`);
+    const strike = Buffer.from(`<svg width="${oldMeta.width}" height="${oldMeta.height}"><line x1="0" y1="${oldMeta.height / 2}" x2="${oldMeta.width}" y2="${oldMeta.height / 2}" stroke="#8a8a8a" stroke-width="5"/></svg>`);
     layers.push(await centered(await sharp(oldBuf).composite([{ input: strike }]).png().toBuffer(), y));
     y += oldMeta.height + 5;
-    layers.push(await centered(await renderText({ text: formatTL(sale), fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 900, size: 124, color: ORANGE }), y));
+    layers.push(await centered(await renderText({ text: formatTL(sale), fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 900, size: 124, color: INK }), y));
 
-    const badgeText = await renderText({ text: `${toFaDigits(pct)}٪ تخفیف`, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 420, size: 60, color: '#ffffff' });
+    const badgeText = await renderText({ text: `${toFaDigits(pct)}٪ تخفیف`, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 420, size: 60, color: ACCENT });
     const bm = await sharp(badgeText).metadata();
     const bw = bm.width + 60, bh = bm.height + 30;
-    const badgeBg = Buffer.from(`<svg width="${bw}" height="${bh}"><rect width="${bw}" height="${bh}" rx="${bh / 2}" ry="${bh / 2}" fill="${ORANGE}"/></svg>`);
+    const badgeBg = Buffer.from(`<svg width="${bw}" height="${bh}"><rect width="${bw}" height="${bh}" rx="${bh / 2}" ry="${bh / 2}" fill="${ACCENT_BG}"/></svg>`);
     const badge = await sharp(badgeBg).composite([{ input: badgeText, left: 30, top: 15 }]).png().toBuffer();
     layers.push({ input: badge, left: W - bw - 90, top: 215 });
   } else {
-    layers.push(await centered(await renderText({ text: formatTL(sale ?? price), fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 900, size: 124, color: ORANGE }), y));
+    layers.push(await centered(await renderText({ text: formatTL(sale ?? price), fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 900, size: 124, color: INK }), y));
   }
 
-  return sharp({ create: { width: W, height: H, channels: 4, background: BG_DARK } }).composite(layers).jpeg({ quality: 92 }).toBuffer();
+  return sharp({ create: { width: W, height: H, channels: 4, background: BG } }).composite(layers).jpeg({ quality: 92 }).toBuffer();
 }
 
 async function buildOutroSlide() {
   const layers = [];
   const logo = await sharp(LOGO_PATH).resize({ width: 640 }).toBuffer();
   layers.push(await centered(logo, 640));
-  layers.push(await centered(await renderText({ text: 'همین الان در شیلیستا ببین', fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 960, height: 130, color: '#ffffff' }), 1000));
-  layers.push(await centered(await renderText({ text: 'shilista.com', fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold', width: 700, height: 100, color: GOLD }), 1160));
-  return sharp({ create: { width: W, height: H, channels: 4, background: BG_DARK } }).composite(layers).jpeg({ quality: 92 }).toBuffer();
+  layers.push(await centered(await renderText({ text: 'همین الان در شیلیستا ببین', fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 960, height: 130, color: INK }), 1000));
+  layers.push(await centered(await renderText({ text: 'shilista.com', fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold', width: 700, height: 100, color: MUTED }), 1160));
+  return sharp({ create: { width: W, height: H, channels: 4, background: BG } }).composite(layers).jpeg({ quality: 92 }).toBuffer();
 }
 
 function runFfmpeg(args) {
@@ -205,7 +209,7 @@ async function aiClipOverlay(product) {
   const text = await renderText({ text: label, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 960, size: 54, color: '#ffffff' });
   const tm = await sharp(text).metadata();
   const pw = tm.width + 80, ph = tm.height + 36;
-  const pill = await sharp(Buffer.from(`<svg width="${pw}" height="${ph}"><rect width="${pw}" height="${ph}" rx="${ph / 2}" ry="${ph / 2}" fill="${ORANGE}"/></svg>`))
+  const pill = await sharp(Buffer.from(`<svg width="${pw}" height="${ph}"><rect width="${pw}" height="${ph}" rx="${ph / 2}" ry="${ph / 2}" fill="${INK}"/></svg>`))
     .composite([{ input: text, left: 40, top: 18 }]).png().toBuffer();
   layers.push({ input: pill, left: Math.round((W - pw) / 2), top: H - ph - 150 });
   return sharp({ create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).composite(layers).png().toBuffer();

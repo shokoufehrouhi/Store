@@ -17,9 +17,14 @@ const LOGO_PATH   = path.join(__dirname, '../../frontend/images/shilista_logo.pn
 const UPLOADS_DIR = path.join(__dirname, '../public/uploads');
 
 const W = 1080, H = 1920;
-const BG_DARK = '#0d0d0d';
-const GOLD    = '#D4AF37';
-const ORANGE  = '#FF5C00';
+// The site's minimal look (2026-10-07 redesign): white, ink for text and
+// the button, orange only for the discount. Was black with gold headlines,
+// a gold-framed caption box and an orange button.
+const BG      = '#ffffff';
+const INK     = '#1a1a1a';
+const MUTED   = '#6b6b6b';
+const ACCENT  = '#C2410C'; // discount text, as on the site
+const ACCENT_BG = '#fff1e8';
 const SITE_LINK_TEXT = 'shilista.com';
 // Every story (single-product or collage) ends with the same caption card,
 // CTA and link -- fixed by design, not passed in per-call.
@@ -43,12 +48,13 @@ async function renderText({ text, fontFile, fontFamily, width, height, color, al
 
 async function solidBackground() {
   return sharp({
-    create: { width: W, height: H, channels: 4, background: BG_DARK },
+    create: { width: W, height: H, channels: 4, background: BG },
   }).png().toBuffer();
 }
 
-// Rounded-corner card with a thin white border frame, optionally rotated —
-// used for both the single hero photo and the collage cards.
+// Rounded-corner photo card, optionally rotated — used for both the single
+// hero photo and the collage cards. (The white border frame it had only
+// showed on the old black background.)
 async function photoCard(imagePath, { size, height = size, radius = 28, rotateDeg = 0 }) {
   const img = await (await frameProduct(imagePath, size, height)).png().toBuffer();
   const mask = Buffer.from(
@@ -65,7 +71,7 @@ async function photoCard(imagePath, { size, height = size, radius = 28, rotateDe
              fill="none" stroke="#ffffff" stroke-width="6"/>
      </svg>`
   );
-  const withBorder = await sharp(rounded).composite([{ input: border }]).png().toBuffer();
+  const withBorder = BG === '#ffffff' ? rounded : await sharp(rounded).composite([{ input: border }]).png().toBuffer();
 
   if (!rotateDeg) return { buffer: withBorder, width: size, height };
   const rotated = await sharp(withBorder)
@@ -88,54 +94,89 @@ function shortenName(name, max = 60) {
 }
 
 // Story 1: a single product — logo, promo headline, hero photo, short name,
-// the standard caption card, CTA and site link.
+// its price (sale price, the old one struck through and the discount), the
+// call to action and the site link.
 async function buildSingleProductStory(product, { headline }) {
   const layers = [{ input: await solidBackground() }];
 
-  const logo = await sharp(LOGO_PATH).resize({ width: 300 }).toBuffer();
+  const logo = await sharp(LOGO_PATH).resize({ width: 280 }).toBuffer();
   const logoMeta = await sharp(logo).metadata();
   layers.push({ input: logo, left: Math.round((W - logoMeta.width) / 2), top: 70 });
 
   const headlineBuf = await renderText({
     text: headline, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black',
-    width: 960, height: 150, color: GOLD,
+    width: 960, height: 130, color: INK,
   });
   const headlineMeta = await sharp(headlineBuf).metadata();
-  layers.push({ input: headlineBuf, left: Math.round((W - headlineMeta.width) / 2), top: 200 });
+  layers.push({ input: headlineBuf, left: Math.round((W - headlineMeta.width) / 2), top: 190 });
 
   const imgPath = productImagePath(product);
   if (imgPath) {
-    const card = await photoCard(imgPath, { size: 700 });
-    layers.push({ input: card.buffer, left: Math.round((W - card.width) / 2), top: 380 });
+    const card = await photoCard(imgPath, { size: 860, height: 960 });
+    layers.push({ input: card.buffer, left: Math.round((W - card.width) / 2), top: 350 });
   }
 
   const nameBuf = await renderText({
     text: shortenName(product.name_fa, 70),
     fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold',
-    width: 920, height: 140, color: '#ffffff',
+    width: 920, height: 110, color: INK,
   });
   const nameMeta = await sharp(nameBuf).metadata();
-  layers.push({ input: nameBuf, left: Math.round((W - nameMeta.width) / 2), top: 1110 });
+  layers.push({ input: nameBuf, left: Math.round((W - nameMeta.width) / 2), top: 1345 });
 
-  const caption = await buildCaptionCard(STANDARD_CAPTION);
-  const captionTop = 1280;
-  layers.push({ input: caption.buffer, left: Math.round((W - caption.width) / 2), top: captionTop });
+  const price = await buildPriceRow(product);
+  let y = 1345 + nameMeta.height + 30;
+  if (price) { layers.push({ input: price.buffer, left: Math.round((W - price.width) / 2), top: y }); y += price.height + 45; }
 
   const cta = await buildCtaBadge('شروع خرید');
-  const ctaTop = captionTop + caption.height + 30;
-  layers.push({ input: cta.buffer, left: Math.round((W - cta.width) / 2), top: ctaTop });
+  layers.push({ input: cta.buffer, left: Math.round((W - cta.width) / 2), top: y });
 
   const linkBuf = await renderText({
     text: SITE_LINK_TEXT, fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium',
-    width: 600, height: 80, color: GOLD,
+    width: 600, height: 64, color: MUTED,
   });
   const linkMeta = await sharp(linkBuf).metadata();
-  layers.push({ input: linkBuf, left: Math.round((W - linkMeta.width) / 2), top: ctaTop + cta.height + 30 });
+  layers.push({ input: linkBuf, left: Math.round((W - linkMeta.width) / 2), top: y + cta.height + 28 });
 
-  return sharp({ create: { width: W, height: H, channels: 4, background: BG_DARK } })
+  return sharp({ create: { width: W, height: H, channels: 4, background: BG } })
     .composite(layers)
     .jpeg({ quality: 92 })
     .toBuffer();
+}
+
+const toFaDigits = (s) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+const formatTL = (n) => `${Number(n).toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ₺`;
+
+// "1.290 ₺ (struck)  800 ₺  [-38%]" — the old price and the discount only
+// when the product really is discounted.
+async function buildPriceRow(product) {
+  const price = Number(product.price);
+  if (!price) return null;
+  const sale = product.discounted_price != null && Number(product.discounted_price) < price ? Number(product.discounted_price) : null;
+  const parts = [];
+  const saleBuf = await renderText({ text: formatTL(sale ?? price), fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black 88', width: 520, color: INK });
+  parts.push(saleBuf);
+  if (sale != null) {
+    const oldBuf = await renderText({ text: formatTL(price), fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium 50', width: 420, color: '#8a8a8a' });
+    const om = await sharp(oldBuf).metadata();
+    const strike = Buffer.from(`<svg width="${om.width}" height="${om.height}"><line x1="0" y1="${om.height / 2}" x2="${om.width}" y2="${om.height / 2}" stroke="#8a8a8a" stroke-width="4"/></svg>`);
+    parts.push(await sharp(oldBuf).composite([{ input: strike }]).png().toBuffer());
+    const pct = Math.round((price - sale) / price * 100);
+    const pctBuf = await renderText({ text: `${toFaDigits(pct)}٪ تخفیف`, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black 44', width: 420, color: ACCENT });
+    const pm = await sharp(pctBuf).metadata();
+    const pw = pm.width + 48, ph = pm.height + 22;
+    const pill = Buffer.from(`<svg width="${pw}" height="${ph}"><rect width="${pw}" height="${ph}" rx="${ph / 2}" fill="${ACCENT_BG}"/></svg>`);
+    parts.push(await sharp(pill).composite([{ input: pctBuf, left: 24, top: 11 }]).png().toBuffer());
+  }
+  const metas = await Promise.all(parts.map(b => sharp(b).metadata()));
+  const gap = 26;
+  const width = metas.reduce((s, m) => s + m.width, 0) + gap * (parts.length - 1);
+  const height = Math.max(...metas.map(m => m.height));
+  // Right to left like the page: sale price first (rightmost).
+  let x = width;
+  const comp = parts.map((b, i) => { x -= metas[i].width; const c = { input: b, left: x, top: Math.round((height - metas[i].height) / 2) }; x -= gap; return c; });
+  const buffer = await sharp({ create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).composite(comp).png().toBuffer();
+  return { buffer, width, height };
 }
 
 async function buildCtaBadge(text = 'مشاهده و خرید') {
@@ -147,7 +188,7 @@ async function buildCtaBadge(text = 'مشاهده و خرید') {
   const textMeta = await sharp(textBuf).metadata();
   const boxW = textMeta.width + padX * 2, boxH = 110;
   const box = Buffer.from(
-    `<svg width="${boxW}" height="${boxH}"><rect width="${boxW}" height="${boxH}" rx="${boxH / 2}" fill="${ORANGE}"/></svg>`
+    `<svg width="${boxW}" height="${boxH}"><rect width="${boxW}" height="${boxH}" rx="${boxH / 2}" fill="${INK}"/></svg>`
   );
   const buffer = await sharp(box)
     .composite([{ input: textBuf, left: Math.round((boxW - textMeta.width) / 2), top: Math.round((boxH - textH) / 2) }])
@@ -156,27 +197,15 @@ async function buildCtaBadge(text = 'مشاهده و خرید') {
   return { buffer, width: boxW, height: boxH };
 }
 
-// Rounded card holding the subline text, framed in gold — replaces the old
-// bare centered text so the promo line reads as one deliberate element
-// sitting under the product grid, not a second disconnected headline.
+// The subline under the photos: plain muted text now (it was a dark card
+// framed in gold, which only suited the old black background).
 async function buildCaptionCard(text, { textH = 160 } = {}) {
-  const textW = 860, padX = 50, padY = 30;
-  const textBuf = await renderText({
+  const buffer = await renderText({
     text, fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium',
-    width: textW, height: textH, color: '#ffffff',
+    width: 860, height: Math.min(textH, 90), color: MUTED,
   });
-  const boxW = textW + padX * 2, boxH = textH + padY * 2;
-  const box = Buffer.from(
-    `<svg width="${boxW}" height="${boxH}">
-       <rect x="1.5" y="1.5" width="${boxW - 3}" height="${boxH - 3}" rx="22" ry="22"
-             fill="#161616" stroke="${GOLD}" stroke-width="3"/>
-     </svg>`
-  );
-  const buffer = await sharp(box)
-    .composite([{ input: textBuf, left: padX, top: padY }])
-    .png()
-    .toBuffer();
-  return { buffer, width: boxW, height: boxH };
+  const meta = await sharp(buffer).metadata();
+  return { buffer, width: meta.width, height: meta.height };
 }
 
 // Collage layout: a plain grid of large portrait cards -- 2 side by side,
@@ -224,8 +253,7 @@ async function layoutGrid(products, top) {
 }
 
 // Story 2: 2-4 products, with a promo headline, a bordered caption card, a
-// "شروع خرید" CTA and the site link — kept on-brand (dark bg, gold accents),
-// unlike a straight photo-booth/film-strip mockup which reads off-brand.
+// "شروع خرید" CTA and the site link, in the site's look.
 async function buildCollageStory(products, { headline }) {
   const layers = [{ input: await solidBackground() }];
 
@@ -235,7 +263,7 @@ async function buildCollageStory(products, { headline }) {
 
   const headlineBuf = await renderText({
     text: headline, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black',
-    width: 960, height: 180, color: GOLD,
+    width: 960, height: 160, color: INK,
   });
   const headlineMeta = await sharp(headlineBuf).metadata();
   layers.push({ input: headlineBuf, left: Math.round((W - headlineMeta.width) / 2), top: 250 });
@@ -257,13 +285,13 @@ async function buildCollageStory(products, { headline }) {
   layers.push({ input: cta.buffer, left: Math.round((W - cta.width) / 2), top: ctaTop });
 
   const linkBuf = await renderText({
-    text: SITE_LINK_TEXT, fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold',
-    width: 600, height: 80, color: GOLD,
+    text: SITE_LINK_TEXT, fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium',
+    width: 600, height: 64, color: MUTED,
   });
   const linkMeta = await sharp(linkBuf).metadata();
   layers.push({ input: linkBuf, left: Math.round((W - linkMeta.width) / 2), top: Math.round(ctaTop + cta.height + 30) });
 
-  return sharp({ create: { width: W, height: H, channels: 4, background: BG_DARK } })
+  return sharp({ create: { width: W, height: H, channels: 4, background: BG } })
     .composite(layers)
     .jpeg({ quality: 92 })
     .toBuffer();
