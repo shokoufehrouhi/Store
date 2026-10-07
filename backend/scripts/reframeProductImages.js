@@ -100,6 +100,9 @@ function farktorSource(fetchCatalog, imageBase) {
 const imp0 = require('../utils/siteImport');
 const SOURCES = {
   Koton: ldJsonImages, Mavi: maviCdnImages, Colins: ldJsonImages, Defacto: ldJsonImages, LCWaikiki: ldJsonImages,
+  // Barrels and Oil's page lists the stored colour's photos (the import
+  // added other colours after them; those extra photos stay as they are).
+  BarrelsAndOil: ldJsonImages,
   ArmaLife: farktorSource(() => imp0.fetchArmaLifeCatalog(), imp0.ARMALIFE_IMAGE_BASE),
   PaulMark: farktorSource(() => imp0.fetchPaulMarkCatalog(), imp0.PAULMARK_IMAGE_BASE),
 };
