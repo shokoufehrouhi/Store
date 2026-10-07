@@ -46,7 +46,24 @@ async function ldJsonImages(url) {
   }
   return [];
 }
-const SOURCES = { Koton: ldJsonImages };
+// Mavi's photos sit on its image CDN as <product code>_image_<n>.jpg (the
+// same files its API's galleryImagesNew lists, in the same order), and the
+// CDN answers plain HTTP — unlike the site and API behind Cloudflare — so
+// they're listed by trying n = 1, 2, … until one is missing.
+const MAVI_MAX_IMAGES = 15;
+async function maviCdnImages(url) {
+  const code = url.match(/\/p\/([^/?#]+)/)?.[1];
+  if (!code) throw new Error('no Mavi product code in the link');
+  const images = [];
+  for (let n = 1; n <= MAVI_MAX_IMAGES; n++) {
+    const img = `https://sky-static.mavi.com/mnresize/1005/1425/${code}_image_${n}.jpg`;
+    const res = await fetch(img, { method: 'HEAD', headers: UA });
+    if (!res.ok) break;
+    images.push(img);
+  }
+  return images;
+}
+const SOURCES = { Koton: ldJsonImages, Mavi: maviCdnImages };
 
 function arg(name) {
   const i = process.argv.indexOf(`--${name}`);
