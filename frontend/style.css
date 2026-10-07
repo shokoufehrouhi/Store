@@ -4882,3 +4882,10 @@ html[dir="rtl"] .product-card .product-price { direction: rtl; }
 /* Profile header: plain ink instead of the brown/orange glow. */
 .profile-sidebar-hero { background: var(--ink); }
 .profile-avatar-wrap { background: #3a3a3a; }
+/* Leftover hard-coded oranges (login button hover was orange, 2026-10-07). */
+.auth-submit-btn:hover { background: #000; }
+.auth-submit-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.address-edit-btn:hover { background: var(--soft); }
+.empty-banner--addr { background: var(--soft); color: var(--ink); }
+.empty-banner--addr .empty-banner-bg { display: none; }
+.policy-card:hover { border-color: var(--ink); }
