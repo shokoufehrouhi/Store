@@ -1358,14 +1358,34 @@ function renderProduct(p) {
   );
 }
 
-// Hero pictures: the two biggest current discounts, each opening its product.
+// Hero pictures: two of the newest discounted products, a different pair
+// each day (the same pair all day for everyone — the shuffle is seeded with
+// today's date), of different genders and brands when possible so it isn't
+// e.g. two men's jumpers from the same import. Product ids grow with each
+// import, so "newest" is the highest ids; the pool is wide enough to span
+// several imports (the latest one alone can be 100 products of one brand).
+var HERO_POOL_SIZE = 150;
 function fillHeroMedia() {
   var box = document.getElementById('hero-media');
   if (!box) return;
-  var picks = products
+  var pool = products
     .filter(function(p) { return p.tag !== 'sold_out' && p.images && p.images.length && p.price && p.discounted_price && p.discounted_price < p.price; })
-    .sort(function(a, b) { return (b.price - b.discounted_price) / b.price - (a.price - a.discounted_price) / a.price; })
-    .slice(0, 2);
+    .sort(function(a, b) { return b.id - a.id; })
+    .slice(0, HERO_POOL_SIZE);
+
+  var d = new Date();
+  var seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  var rand = function() { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  for (var i = pool.length - 1; i > 0; i--) {
+    var j = Math.floor(rand() * (i + 1));
+    var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+  }
+  var picks = pool.slice(0, 1);
+  var differs = function(p) { return picks.length && p.gender !== picks[0].gender; };
+  var second = pool.find(function(p) { return differs(p) && p.brand !== picks[0].brand; })
+    || pool.find(differs) || pool[1];
+  if (second && second !== picks[0]) picks.push(second);
+
   box.innerHTML = picks.map(function(p) {
     return '<a href="javascript:void(0)" class="hero-media-item" onclick="openModal(' + p.id + ')">' +
       '<img src="' + SERVER_BASE + p.images[0].url + '" alt="' + p.name[currentLang] + '"></a>';
