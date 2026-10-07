@@ -104,7 +104,7 @@ async function zaraImages(url, { pm }) {
   const data = await require('../utils/siteImport').scrapeZaraProduct(pm, url);
   return data?.images || [];
 }
-const NEEDS_BROWSER = new Set(['Zara']);
+const NEEDS_BROWSER = new Set(['Zara', 'Bershka', 'PullAndBear', 'Stradivarius']);
 
 // Mango: photos from its product API, one colour at a time. Which colour
 // the import put first depended on that day's discounts and stock, so the
@@ -115,6 +115,22 @@ const sharp = require('sharp');
 async function thumb(buf) {
   return sharp(buf).resize(24, 24, { fit: 'fill' }).greyscale().raw().toBuffer();
 }
+// Of several colours' photo lists, the one whose first photo looks most
+// like the stored first photo.
+async function closestColour(lists, storedFirstFile, previewUrl) {
+  if (lists.length < 2 || !storedFirstFile || !fs.existsSync(storedFirstFile)) return lists[0];
+  const ref = await thumb(storedFirstFile);
+  let best = lists[0], bestDiff = Infinity;
+  for (const list of lists) {
+    const r = await fetch(previewUrl(list[0]), { headers: UA });
+    if (!r.ok) continue;
+    const t = await thumb(Buffer.from(await r.arrayBuffer()));
+    let d = 0; for (let i = 0; i < t.length; i++) d += Math.abs(t[i] - ref[i]);
+    if (d < bestDiff) { bestDiff = d; best = list; }
+  }
+  return best;
+}
+
 async function mangoImages(url, { storedFirstFile }) {
   const imp = require('../utils/siteImport');
   const id = imp.mangoLinkProductId(url);
@@ -122,19 +138,27 @@ async function mangoImages(url, { storedFirstFile }) {
   const detail = await imp.mangoProduct(id);
   const colors = (detail.colors || []).map(c => imp.mangoColorImages(c).slice(0, 8)).filter(l => l.length);
   if (!colors.length) return [];
-  let best = colors[0];
-  if (colors.length > 1 && storedFirstFile && fs.existsSync(storedFirstFile)) {
-    const ref = await thumb(storedFirstFile);
-    let bestDiff = Infinity;
-    for (const list of colors) {
-      const r = await fetch(`${imp.MANGO_MEDIA}${list[0]}?wid=300`, { headers: UA });
-      if (!r.ok) continue;
-      const t = await thumb(Buffer.from(await r.arrayBuffer()));
-      let d = 0; for (let i = 0; i < t.length; i++) d += Math.abs(t[i] - ref[i]);
-      if (d < bestDiff) { bestDiff = d; best = list; }
-    }
-  }
+  const best = await closestColour(colors, storedFirstFile, (img) => `${imp.MANGO_MEDIA}${img}?wid=300`);
   return best.map(img => `${imp.MANGO_MEDIA}${img}?wid=1200`);
+}
+
+// Bershka, Pull&Bear, Stradivarius (Inditex): the store's own API, called
+// from inside its homepage in the browser (Akamai blocks it otherwise) —
+// the importer's opener and reader. The link carries the category and
+// product ids ("…-c<category>p<product>.html"); the colour is matched by
+// photo as for Mango, and its first 8 photos returned, as the import took.
+function inditexSource(open, apiArgs) {
+  let page = null;
+  return async (url, { pm, storedFirstFile }) => {
+    const imp = require('../utils/siteImport');
+    const m = String(url).match(/-c(\d+)p(\d+)\.html/);
+    if (!m) return [];
+    if (!page) page = (await open(pm)).page;
+    const [product] = await imp.readLeftiesProducts(page, Number(m[1]), [Number(m[2])], apiArgs());
+    const colors = (product?.colors || []).map(c => (c.images || []).slice(0, 8)).filter(l => l.length);
+    if (!colors.length) return [];
+    return closestColour(colors, storedFirstFile, (u) => u);
+  };
 }
 
 const imp0 = require('../utils/siteImport');
@@ -147,6 +171,9 @@ const SOURCES = {
   PaulMark: farktorSource(() => imp0.fetchPaulMarkCatalog(), imp0.PAULMARK_IMAGE_BASE),
   Zara: zaraImages,
   Mango: mangoImages,
+  Bershka: inditexSource((pm) => imp0.openBershka(pm), () => imp0.bershkaApiArgs()),
+  PullAndBear: inditexSource((pm) => imp0.openPullAndBear(pm), () => imp0.pullAndBearApiArgs()),
+  Stradivarius: inditexSource((pm) => imp0.openStradivarius(pm), () => imp0.stradivariusApiArgs()),
 };
 
 function arg(name) {
