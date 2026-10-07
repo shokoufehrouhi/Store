@@ -5413,14 +5413,20 @@ function renderBanner() {
   document.getElementById('discount-banner').style.display = '';
 }
 
+// Same as copyProductCode: navigator.clipboard only exists on HTTPS (so on
+// plain-http pages the copy silently failed), and the old feedback was an
+// 11px tick next to the code that was easy to miss — now the toast.
 function copyBannerCode() {
   var code = document.getElementById('discount-banner-code')?.textContent;
   if (!code) return;
-  navigator.clipboard.writeText(code).then(function() {
-    var tip = document.getElementById('discount-banner-copy-tip');
-    tip.style.opacity = '1';
-    setTimeout(function(){ tip.style.opacity = '0'; }, 1500);
-  }).catch(function() {});
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).catch(function() { _clipboardFallback(code); });
+    } else {
+      _clipboardFallback(code);
+    }
+  } catch (e) { _clipboardFallback(code); }
+  showCopyToast(code);
 }
 
 function closeBanner() {
