@@ -35,7 +35,7 @@ const EMAIL_ATTACHMENTS = [
 
 const FOOTER_TR = `
       <tr>
-        <td dir="ltr" style="background:#2d1a0e;padding:28px 32px 24px;border-top:2px solid #c0562a">
+        <td dir="ltr" style="background:#1a1a1a;padding:28px 32px 24px">
           <table width="100%" cellpadding="0" cellspacing="0" dir="ltr">
             <tr>
               <td style="text-align:center;padding-bottom:18px">
@@ -81,8 +81,8 @@ const FOOTER_TR = `
                   <table cellpadding="0" cellspacing="0" style="display:inline-table">
                     <tr>
                       <td style="vertical-align:middle">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f0a070" stroke-width="2" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                        <span style="color:#f0a070;font-size:12px;font-family:Arial,sans-serif;vertical-align:middle;margin-left:4px">sales@shilista.com</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d6d6d6" stroke-width="2" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                        <span style="color:#d6d6d6;font-size:12px;font-family:Arial,sans-serif;vertical-align:middle;margin-left:4px">sales@shilista.com</span>
                       </td>
                     </tr>
                   </table>
@@ -93,8 +93,8 @@ const FOOTER_TR = `
                   <table cellpadding="0" cellspacing="0" style="display:inline-table">
                     <tr>
                       <td style="vertical-align:middle">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f0a070" stroke-width="2" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                        <span style="color:#f0a070;font-size:12px;font-family:Arial,sans-serif;vertical-align:middle;margin-left:4px">www.shilista.com</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d6d6d6" stroke-width="2" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        <span style="color:#d6d6d6;font-size:12px;font-family:Arial,sans-serif;vertical-align:middle;margin-left:4px">www.shilista.com</span>
                       </td>
                     </tr>
                   </table>
@@ -336,27 +336,27 @@ function buildItemsTable(order, lang, l) {
     const total = fmt(Number(item.unit_price) * item.qty);
     return `
       <tr>
-        <td style="padding:10px 12px;border-bottom:1px solid #f0e8df;font-size:14px;color:#2d1a0e">
+        <td style="padding:10px 12px;border-bottom:1px solid #eeeeee;font-size:14px;color:#1a1a1a">
           ${name}${p.code ? '<br><span style="font-size:11px;color:#aaa;font-family:monospace">' + p.code + '</span>' : ''}
         </td>
-        <td style="padding:10px 12px;border-bottom:1px solid #f0e8df;font-size:13px;color:#666;text-align:center">${color}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #f0e8df;font-size:13px;color:#666;text-align:center">${size}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #f0e8df;font-size:13px;color:#666;text-align:center">${item.qty}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #f0e8df;font-size:13px;color:#666;text-align:center;direction:ltr">${price}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid #f0e8df;font-size:13px;font-weight:700;color:#c0562a;text-align:center;direction:ltr">${total}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #eeeeee;font-size:13px;color:#666;text-align:center">${color}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #eeeeee;font-size:13px;color:#666;text-align:center">${size}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #eeeeee;font-size:13px;color:#666;text-align:center">${item.qty}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #eeeeee;font-size:13px;color:#666;text-align:center;direction:ltr">${price}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #eeeeee;font-size:13px;font-weight:700;color:#1a1a1a;text-align:center;direction:ltr">${total}</td>
       </tr>`;
   }).join('');
 
   return `
-    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #f0e8df;border-radius:8px;overflow:hidden;margin-bottom:20px">
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #eeeeee;border-radius:8px;overflow:hidden;margin-bottom:20px">
       <thead>
-        <tr style="background:#fdf5ed">
-          <th style="padding:10px 12px;font-size:12px;color:#a07050;font-weight:600;text-align:${lang === 'fa' ? 'right' : 'left'}">${l.product}</th>
-          <th style="padding:10px 12px;font-size:12px;color:#a07050;font-weight:600;text-align:center">${l.color}</th>
-          <th style="padding:10px 12px;font-size:12px;color:#a07050;font-weight:600;text-align:center">${l.size}</th>
-          <th style="padding:10px 12px;font-size:12px;color:#a07050;font-weight:600;text-align:center">${l.qty}</th>
-          <th style="padding:10px 12px;font-size:12px;color:#a07050;font-weight:600;text-align:center">${l.unit_price}</th>
-          <th style="padding:10px 12px;font-size:12px;color:#a07050;font-weight:600;text-align:center">${l.total}</th>
+        <tr style="background:#f6f6f6">
+          <th style="padding:10px 12px;font-size:12px;color:#666666;font-weight:600;text-align:${lang === 'fa' ? 'right' : 'left'}">${l.product}</th>
+          <th style="padding:10px 12px;font-size:12px;color:#666666;font-weight:600;text-align:center">${l.color}</th>
+          <th style="padding:10px 12px;font-size:12px;color:#666666;font-weight:600;text-align:center">${l.size}</th>
+          <th style="padding:10px 12px;font-size:12px;color:#666666;font-weight:600;text-align:center">${l.qty}</th>
+          <th style="padding:10px 12px;font-size:12px;color:#666666;font-weight:600;text-align:center">${l.unit_price}</th>
+          <th style="padding:10px 12px;font-size:12px;color:#666666;font-weight:600;text-align:center">${l.total}</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -369,12 +369,12 @@ function buildInfoBlock(items) {
   const rows = items.filter(function(r) { return r.value; }).map(function(r) {
     return `<tr>
       <td style="padding:8px 12px;font-size:13px;color:#888;width:40%">${r.label}</td>
-      <td style="padding:8px 12px;font-size:13px;font-weight:600;color:#2d1a0e;direction:${r.dir || 'ltr'}">${r.value}</td>
+      <td style="padding:8px 12px;font-size:13px;font-weight:600;color:#1a1a1a;direction:${r.dir || 'ltr'}">${r.value}</td>
     </tr>`;
   }).join('');
   if (!rows) return '';
   return `<table width="100%" cellpadding="0" cellspacing="0"
-    style="border-collapse:collapse;background:#fdf5ed;border:1px solid #f0e8df;border-radius:8px;margin-bottom:20px">
+    style="border-collapse:collapse;background:#f6f6f6;border:1px solid #eeeeee;border-radius:8px;margin-bottom:20px">
     ${rows}
   </table>`;
 }
@@ -404,13 +404,13 @@ function buildReferralBlock(lang, referralUrl, dir) {
 <tr>
   <td style="padding:0 32px 28px">
     <table width="100%" cellpadding="0" cellspacing="0"
-      style="background:linear-gradient(135deg,#fff8f3,#fdeee3);border:1.5px solid #f0c8a0;border-radius:12px;padding:22px 24px">
+      style="background:#f6f6f6;border:1.5px solid #e5e5e5;border-radius:12px;padding:22px 24px">
       <tr>
         <td style="text-align:center">
-          <p style="margin:0 0 8px;font-size:17px;font-weight:700;color:#c0562a">${r.heading}</p>
+          <p style="margin:0 0 8px;font-size:17px;font-weight:700;color:#1a1a1a">${r.heading}</p>
           <p style="margin:0 0 18px;font-size:13px;color:#666;line-height:1.7;direction:${dir}">${r.body}</p>
           <a href="${referralUrl}"
-            style="display:inline-block;background:#c0562a;color:#fff;font-size:14px;font-weight:700;
+            style="display:inline-block;background:#1a1a1a;color:#fff;font-size:14px;font-weight:700;
                    padding:11px 28px;border-radius:8px;text-decoration:none;letter-spacing:.3px">
             ${r.btn}
           </a>
@@ -451,21 +451,21 @@ function buildHtml(type, order, customer, extraInfo) {
   const html = `<!DOCTYPE html>
 <html dir="${dir}" lang="${lang}">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,Tahoma,sans-serif;direction:${dir}">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0eb;padding:32px 0">
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Tahoma,sans-serif;direction:${dir}">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:32px 0">
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
 
       <!-- Header -->
       <tr>
-        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
+        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #eeeeee;text-align:center">
           <img src="${EMAIL_LOGO_URL}" alt="Shilista" width="200" style="width:200px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
 
       <!-- Status banner -->
       <tr>
-        <td style="background:linear-gradient(135deg,#c0562a,#e07a40);padding:20px 32px;text-align:center">
+        <td style="background:#1a1a1a;padding:20px 32px;text-align:center">
           <p style="margin:0;font-size:18px;font-weight:700;color:#fff;letter-spacing:.5px">${title}</p>
         </td>
       </tr>
@@ -478,7 +478,7 @@ function buildHtml(type, order, customer, extraInfo) {
           <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
             <tr>
               <td style="font-size:13px;color:#888">${l.order_num}</td>
-              <td style="font-size:13px;font-weight:700;color:#2d1a0e;text-align:${dir === 'rtl' ? 'left' : 'right'}">#${order.id}</td>
+              <td style="font-size:13px;font-weight:700;color:#1a1a1a;text-align:${dir === 'rtl' ? 'left' : 'right'}">#${order.id}</td>
             </tr>
             <tr>
               <td style="font-size:13px;color:#888;padding-top:4px">${l.order_date}</td>
@@ -498,8 +498,8 @@ function buildHtml(type, order, customer, extraInfo) {
           <!-- Total -->
           <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
             <tr>
-              <td style="font-size:15px;font-weight:700;color:#2d1a0e">${l.order_total}</td>
-              <td style="font-size:18px;font-weight:700;color:#c0562a;text-align:${dir === 'rtl' ? 'left' : 'right'};direction:ltr">${totalAmount}</td>
+              <td style="font-size:15px;font-weight:700;color:#1a1a1a">${l.order_total}</td>
+              <td style="font-size:18px;font-weight:700;color:#1a1a1a;text-align:${dir === 'rtl' ? 'left' : 'right'};direction:ltr">${totalAmount}</td>
             </tr>
           </table>
 
@@ -593,37 +593,37 @@ async function sendFriendInviteEmail({ toName, toEmail, referrerName, lang, trac
   const html = `<!DOCTYPE html>
 <html dir="${dir}" lang="${lang}">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,Tahoma,sans-serif;direction:${dir}">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0eb;padding:32px 0">
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Tahoma,sans-serif;direction:${dir}">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:32px 0">
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0"
       style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
 
       <tr>
-        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
-          <span style="font-size:26px;font-weight:700;color:#c0562a;letter-spacing:1px;font-family:Arial,sans-serif">Shilista</span>
+        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #eeeeee;text-align:center">
+          <span style="font-size:26px;font-weight:700;color:#1a1a1a;letter-spacing:1px;font-family:Arial,sans-serif">Shilista</span>
         </td>
       </tr>
 
       <tr>
-        <td style="background:linear-gradient(135deg,#c0562a,#e07a40);padding:22px 32px;text-align:center">
+        <td style="background:#1a1a1a;padding:22px 32px;text-align:center">
           <p style="margin:0;font-size:20px;font-weight:700;color:#fff">${ll.title}</p>
         </td>
       </tr>
 
       <tr>
         <td style="padding:32px 32px 0">
-          ${toName ? `<p style="margin:0 0 10px;font-size:15px;font-weight:700;color:#2d1a0e">${toName},</p>` : ''}
+          ${toName ? `<p style="margin:0 0 10px;font-size:15px;font-weight:700;color:#1a1a1a">${toName},</p>` : ''}
           <p style="margin:0 0 12px;font-size:14px;color:#555;line-height:1.75">${body1}</p>
           <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.75">${ll.body2}</p>
 
           <table width="100%" cellpadding="0" cellspacing="0"
-            style="background:#fdf5ed;border:2px dashed #e07a40;border-radius:12px;margin-bottom:20px">
+            style="background:#f6f6f6;border:2px dashed #1a1a1a;border-radius:12px;margin-bottom:20px">
             <tr>
               <td style="padding:20px;text-align:center">
-                <p style="margin:0 0 10px;font-size:13px;color:#a07050;font-weight:600">${ll.code_label}</p>
-                <p style="margin:0 0 8px;font-size:32px;font-weight:800;color:#c0562a;letter-spacing:4px;font-family:monospace">BESTIE</p>
-                <p style="margin:0;font-size:13px;color:#e07a40;font-weight:700">${discountText} ${lang === 'fa' ? 'تخفیف' : lang === 'tr' ? 'indirim' : 'off'}</p>
+                <p style="margin:0 0 10px;font-size:13px;color:#666666;font-weight:600">${ll.code_label}</p>
+                <p style="margin:0 0 8px;font-size:32px;font-weight:800;color:#C2410C;letter-spacing:4px;font-family:monospace">BESTIE</p>
+                <p style="margin:0;font-size:13px;color:#C2410C;font-weight:700">${discountText} ${lang === 'fa' ? 'تخفیف' : lang === 'tr' ? 'indirim' : 'off'}</p>
               </td>
             </tr>
           </table>
@@ -634,7 +634,7 @@ async function sendFriendInviteEmail({ toName, toEmail, referrerName, lang, trac
             <tr>
               <td style="text-align:center">
                 <a href="${siteUrl}?lang=tr"
-                  style="display:inline-block;background:#c0562a;color:#fff;font-size:15px;font-weight:700;
+                  style="display:inline-block;background:#1a1a1a;color:#fff;font-size:15px;font-weight:700;
                          padding:13px 36px;border-radius:9px;text-decoration:none;letter-spacing:.3px">
                   ${ll.btn}
                 </a>
@@ -691,19 +691,19 @@ async function sendReplyEmail(customer, order, replyText) {
   const html = `<!DOCTYPE html>
 <html dir="${dir}" lang="${lang}">
 <head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,Tahoma,sans-serif;direction:${dir}">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0eb;padding:32px 0">
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Tahoma,sans-serif;direction:${dir}">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:32px 0">
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
-      <tr><td style="background:#fff;padding:24px 32px 16px;border-bottom:2px solid #f0e8df;text-align:center">
+      <tr><td style="background:#fff;padding:24px 32px 16px;border-bottom:2px solid #eeeeee;text-align:center">
         <img src="${EMAIL_LOGO_URL}" alt="Shilista" width="200" style="width:200px;max-width:90%;height:auto;display:inline-block">
       </td></tr>
-      <tr><td style="background:linear-gradient(135deg,#c0562a,#e07a40);padding:16px 32px;text-align:center">
+      <tr><td style="background:#1a1a1a;padding:16px 32px;text-align:center">
         <p style="margin:0;font-size:16px;font-weight:700;color:#fff">${subject}</p>
       </td></tr>
       <tr><td style="padding:28px 32px">
         <p style="margin:0 0 12px;font-size:14px;color:#555">${l.intro}</p>
-        <div style="background:#f9f5f2;border-left:4px solid #c0562a;padding:14px 18px;border-radius:6px;font-size:14px;color:#333;line-height:1.7;white-space:pre-wrap">${replyText}</div>
+        <div style="background:#f6f6f6;border-left:4px solid #1a1a1a;padding:14px 18px;border-radius:6px;font-size:14px;color:#333;line-height:1.7;white-space:pre-wrap">${replyText}</div>
       </td></tr>
       ${FOOTER_TR}
     </table>
@@ -766,19 +766,19 @@ async function sendLoyaltyEmail(customer, deliveredCount) {
   const html = `<!DOCTYPE html>
 <html dir="${dir}" lang="${lang}">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,Tahoma,sans-serif;direction:${dir}">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0eb;padding:32px 0">
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Tahoma,sans-serif;direction:${dir}">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:32px 0">
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
 
       <tr>
-        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
+        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #eeeeee;text-align:center">
           <img src="${EMAIL_LOGO_URL}" alt="Shilista" width="200" style="width:200px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
 
       <tr>
-        <td style="background:linear-gradient(135deg,#c0562a,#e07a40);padding:20px 32px;text-align:center">
+        <td style="background:#1a1a1a;padding:20px 32px;text-align:center">
           <p style="margin:0;font-size:20px;font-weight:700;color:#fff;letter-spacing:.5px">${title}</p>
         </td>
       </tr>
@@ -790,7 +790,7 @@ async function sendLoyaltyEmail(customer, deliveredCount) {
             <tr>
               <td align="center">
                 <a href="${profileUrl}"
-                  style="display:inline-block;background:#c0562a;color:#fff;font-size:15px;font-weight:700;
+                  style="display:inline-block;background:#1a1a1a;color:#fff;font-size:15px;font-weight:700;
                          padding:13px 36px;border-radius:8px;text-decoration:none;letter-spacing:.3px">
                   ${ll.btn}
                 </a>
@@ -850,12 +850,12 @@ async function sendPrizeEarnedEmail(customer) {
   const html = `<!DOCTYPE html>
 <html dir="${ll.dir}" lang="${lang}">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,Tahoma,sans-serif;direction:${ll.dir}">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0eb;padding:32px 0">
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Tahoma,sans-serif;direction:${ll.dir}">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:32px 0">
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
       <tr>
-        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
+        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #eeeeee;text-align:center">
           <img src="${EMAIL_LOGO_URL}" alt="Shilista" width="200" style="width:200px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
@@ -945,19 +945,19 @@ async function sendBirthdayEmail(customer, birthdayDate, validUntil) {
   const html = `<!DOCTYPE html>
 <html dir="${dir}" lang="${lang}">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,Tahoma,sans-serif;direction:${dir}">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0eb;padding:32px 0">
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Tahoma,sans-serif;direction:${dir}">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:32px 0">
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
 
       <tr>
-        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
+        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #eeeeee;text-align:center">
           <img src="${EMAIL_LOGO_URL}" alt="Shilista" width="200" style="width:200px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
 
       <tr>
-        <td style="background:linear-gradient(135deg,#c0562a,#e07a40);padding:22px 32px;text-align:center">
+        <td style="background:#1a1a1a;padding:22px 32px;text-align:center">
           <p style="margin:0 0 4px;font-size:28px">🎂🎉🎈</p>
           <p style="margin:0;font-size:20px;font-weight:700;color:#fff;letter-spacing:.5px">${ll.title}</p>
           ${name ? `<p style="margin:6px 0 0;font-size:14px;color:rgba(255,255,255,.85)">${name}</p>` : ''}
@@ -972,8 +972,8 @@ async function sendBirthdayEmail(customer, birthdayDate, validUntil) {
             <tr>
               <td style="text-align:center">
                 <p style="margin:0 0 10px;font-size:13px;color:#888">${ll.code_label}</p>
-                <div style="display:inline-block;background:#fdf5ed;border:2px dashed #c0562a;border-radius:10px;padding:14px 32px">
-                  <span style="font-family:monospace;font-size:26px;font-weight:800;color:#c0562a;letter-spacing:3px">BIRTHDAY</span>
+                <div style="display:inline-block;background:#f6f6f6;border:2px dashed #1a1a1a;border-radius:10px;padding:14px 32px">
+                  <span style="font-family:monospace;font-size:26px;font-weight:800;color:#C2410C;letter-spacing:3px">BIRTHDAY</span>
                 </div>
                 <p style="margin:10px 0 0;font-size:12px;color:#aaa">${noteText}</p>
               </td>
@@ -984,7 +984,7 @@ async function sendBirthdayEmail(customer, birthdayDate, validUntil) {
             <tr>
               <td align="center">
                 <a href="${siteUrl}"
-                  style="display:inline-block;background:#c0562a;color:#fff;font-size:15px;font-weight:700;
+                  style="display:inline-block;background:#1a1a1a;color:#fff;font-size:15px;font-weight:700;
                          padding:13px 40px;border-radius:8px;text-decoration:none;letter-spacing:.3px">
                   ${ll.btn}
                 </a>
@@ -1054,20 +1054,20 @@ async function sendWelcomeEmail(customer) {
   const html = `<!DOCTYPE html>
 <html dir="${ll.dir}" lang="${lang}">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,Tahoma,sans-serif;direction:${ll.dir}">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0eb;padding:32px 0">
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Tahoma,sans-serif;direction:${ll.dir}">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:32px 0">
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0"
       style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
 
       <tr>
-        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
+        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #eeeeee;text-align:center">
           <img src="${EMAIL_LOGO_URL}" alt="Shilista" width="200" style="width:200px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
 
       <tr>
-        <td style="background:linear-gradient(135deg,#c0562a,#e07a40);padding:22px 32px;text-align:center">
+        <td style="background:#1a1a1a;padding:22px 32px;text-align:center">
           <p style="margin:0;font-size:20px;font-weight:700;color:#fff;letter-spacing:.5px">${ll.title}</p>
           ${name ? `<p style="margin:6px 0 0;font-size:14px;color:rgba(255,255,255,.85)">${name}</p>` : ''}
         </td>
@@ -1080,9 +1080,9 @@ async function sendWelcomeEmail(customer) {
           <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
             <tr>
               <td style="text-align:center">
-                <p style="margin:0 0 10px;font-size:13px;color:#a07050;font-weight:600">${ll.code_label}</p>
-                <div style="display:inline-block;background:#fdf5ed;border:2px dashed #c0562a;border-radius:12px;padding:18px 40px">
-                  <span style="font-family:monospace;font-size:34px;font-weight:800;color:#c0562a;letter-spacing:5px">FOD</span>
+                <p style="margin:0 0 10px;font-size:13px;color:#666666;font-weight:600">${ll.code_label}</p>
+                <div style="display:inline-block;background:#f6f6f6;border:2px dashed #1a1a1a;border-radius:12px;padding:18px 40px">
+                  <span style="font-family:monospace;font-size:34px;font-weight:800;color:#C2410C;letter-spacing:5px">FOD</span>
                 </div>
                 <p style="margin:12px 0 0;font-size:13px;color:#888">${ll.note}</p>
               </td>
@@ -1093,7 +1093,7 @@ async function sendWelcomeEmail(customer) {
             <tr>
               <td align="center">
                 <a href="${siteUrl}"
-                  style="display:inline-block;background:#c0562a;color:#fff;font-size:15px;font-weight:700;
+                  style="display:inline-block;background:#1a1a1a;color:#fff;font-size:15px;font-weight:700;
                          padding:13px 40px;border-radius:8px;text-decoration:none;letter-spacing:.3px">
                   ${ll.btn}
                 </a>
@@ -1133,25 +1133,25 @@ async function sendVerificationEmail(toEmail, code, lang) {
   const html = `<!DOCTYPE html>
 <html dir="${ll.dir}" lang="${lang}">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,Tahoma,sans-serif;direction:${ll.dir}">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0eb;padding:32px 0">
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Tahoma,sans-serif;direction:${ll.dir}">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:32px 0">
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0"
       style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
       <tr>
-        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #f0e8df;text-align:center">
+        <td style="background:#fff;padding:28px 32px 20px;border-bottom:2px solid #eeeeee;text-align:center">
           <img src="${EMAIL_LOGO_URL}" alt="Shilista" width="200" style="width:200px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
       <tr>
-        <td style="background:linear-gradient(135deg,#c0562a,#e07a40);padding:20px 32px;text-align:center">
+        <td style="background:#1a1a1a;padding:20px 32px;text-align:center">
           <p style="margin:0;font-size:18px;font-weight:700;color:#fff;letter-spacing:.5px">${ll.intro}</p>
         </td>
       </tr>
       <tr>
         <td style="padding:36px 32px;text-align:center">
-          <div style="display:inline-block;background:#fff5f0;border:2px solid #c0562a;border-radius:14px;padding:20px 40px;margin-bottom:20px">
-            <span style="font-size:40px;font-weight:900;letter-spacing:12px;color:#c0562a;font-family:monospace">${code}</span>
+          <div style="display:inline-block;background:#f6f6f6;border:2px solid #1a1a1a;border-radius:14px;padding:20px 40px;margin-bottom:20px">
+            <span style="font-size:40px;font-weight:900;letter-spacing:12px;color:#1a1a1a;font-family:monospace">${code}</span>
           </div>
           <p style="margin:0;font-size:13px;color:#aaa">${ll.note}</p>
         </td>

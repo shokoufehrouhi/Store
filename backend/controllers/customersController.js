@@ -435,12 +435,12 @@ function buildResetEmail(lang, name, resetLink) {
   return `<!DOCTYPE html>
 <html dir="${c.dir}" lang="${lang}">
 <head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#f5f0eb;font-family:Arial,Tahoma,sans-serif">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f0eb;padding:32px 0">
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Tahoma,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:32px 0">
   <tr><td align="center">
     <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)">
       <tr>
-        <td style="background:#fff;padding:24px 32px 16px;border-bottom:2px solid #f0e8df;text-align:center">
+        <td style="background:#fff;padding:24px 32px 16px;border-bottom:2px solid #eeeeee;text-align:center">
           <img src="cid:logo@shilista" alt="Shilista" width="280" style="width:280px;max-width:90%;height:auto;display:inline-block">
         </td>
       </tr>
@@ -449,14 +449,14 @@ function buildResetEmail(lang, name, resetLink) {
           <p style="margin:0 0 12px;font-size:15px;color:#333">${c.greeting(name)}</p>
           <p style="margin:0 0 24px;font-size:14px;color:#555">${c.body}</p>
           <div style="text-align:center;margin-bottom:24px">
-            <a href="${resetLink}" style="background:#c0562a;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-size:15px;font-weight:bold;display:inline-block">${c.btn}</a>
+            <a href="${resetLink}" style="background:#1a1a1a;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-size:15px;font-weight:bold;display:inline-block">${c.btn}</a>
           </div>
           <p style="margin:0 0 4px;font-size:12px;color:#888">${c.expire}</p>
           <p style="margin:0;font-size:11px;color:#aaa">${c.ignore}</p>
         </td>
       </tr>
       <tr>
-        <td style="background:#fff;padding:24px 32px 12px;border-top:1px solid #f0e8df;text-align:center">
+        <td style="background:#fff;padding:24px 32px 12px;border-top:1px solid #eeeeee;text-align:center">
           <img src="cid:footer@shilista" alt="Shilista" width="480" style="width:480px;max-width:100%;height:auto;display:inline-block">
         </td>
       </tr>

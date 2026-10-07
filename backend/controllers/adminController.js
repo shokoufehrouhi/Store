@@ -1275,7 +1275,7 @@ async function setPaymentInfo(req, res, next) {
       const ol = updated.lang || 'fa';
       const extraInfo = usingLink
         ? [
-            { label: label('payment_link', ol), value: `<a href="${payment_link_url}" target="_blank" style="color:#c0562a">${payment_link_label || payment_link_url}</a>`, dir: 'ltr' },
+            { label: label('payment_link', ol), value: `<a href="${payment_link_url}" target="_blank" style="color:#1a1a1a">${payment_link_label || payment_link_url}</a>`, dir: 'ltr' },
             { label: label('order_total', ol),  value: Number(updated.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' TL', dir: 'ltr' },
           ]
         : [
