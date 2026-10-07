@@ -259,6 +259,31 @@
       cursor: pointer; font-family: inherit; transition: background .2s;
     }
     .pd-cart-checkout-btn:hover { background: var(--primary-dark); }
+
+    /* ── Redesign A — minimal (2026-10-07) ── */
+    .pd-page { background: #fff; }
+    .pd-wrap { max-width: 1200px; }
+    .pd-card { box-shadow: none; border-radius: 0; gap: 48px; }
+    .pd-gallery { border-inline-start: none; padding: 0; }
+    .pd-main-img { border-radius: 16px; background: var(--soft); aspect-ratio: 4 / 5; }
+    .pd-thumb { border-radius: 10px; border-width: 2px; background: var(--soft); }
+    .pd-info { padding: 8px 0 0; gap: 14px; }
+    .pd-brand { font-size: 14px; color: #767676; }
+    .pd-name { font-size: 28px; font-weight: 800; }
+    .pd-price { font-size: 24px; color: var(--ink); display: flex; align-items: baseline; gap: 10px; justify-content: flex-start; }
+    html[dir="rtl"] .pd-price { direction: rtl; }
+    .pd-price > * { direction: ltr; unicode-bidi: isolate; }
+    .pd-price strong { font-weight: 800; order: -1; }
+    .pd-price-orig { font-size: 16px; margin: 0; }
+    .pd-price-off { background: #fff1e8; color: var(--accent-text); font-size: 14px; font-weight: 800; padding: 3px 10px; border-radius: 999px; }
+    .pd-info .product-code-badge { background: none; border: 0; padding: 0; font-size: 12px; color: var(--text-muted); }
+    .pd-buy { margin-top: 12px; border-top: 0; padding-top: 0; }
+    .pd-add-btn, .pd-cart-checkout-btn { border-radius: 999px; padding: 15px; font-size: 16px; }
+    .pd-share-btn { border-radius: 999px; }
+    .pd-contact-row a, .pd-contact-row button { border-radius: 999px; }
+    .pd-back { border-radius: 999px; }
+    .pd-shipping-note { background: var(--soft); border: 0; border-radius: 12px; }
+    @media(max-width: 700px){ .pd-card { gap: 20px; } .pd-name { font-size: 22px; } }
   </style>
 </head>
 <body>
@@ -706,6 +731,7 @@ function render(p){
     ph = '<div class="pd-price">'
        + (hasDis ? '<span class="pd-price-orig">'+priceStr(p.price)+'</span>' : '')
        + '<strong>'+(hasDis ? priceStr(p.discounted_price) : priceStr(p.price))+'</strong>'
+       + (hasDis ? '<span class="pd-price-off">-'+Math.round((Number(p.price)-Number(p.discounted_price))/Number(p.price)*100)+'%</span>' : '')
        + '</div>';
   }
 
@@ -729,13 +755,6 @@ function render(p){
         }).join('')
       + '</div>'
     : '';
-
-  // category
-  var cat = p.categories ? (p.categories['label_'+CL] || p.categories.label_tr || '') : '';
-  var gBadge = '';
-  if(p.gender==='female') gBadge='<span class="gender-badge gender-female">'+(T.gender_female||'Kadın')+'</span>';
-  else if(p.gender==='male') gBadge='<span class="gender-badge gender-male">'+(T.gender_male||'Erkek')+'</span>';
-  else if(p.gender==='kids') gBadge='<span class="gender-badge gender-kids">'+(T.gender_kids||'Çocuk')+'</span>';
 
   // colors
   var colH = '';
@@ -806,13 +825,7 @@ function render(p){
 
     // info
     +'<div class="pd-info">'
-    +  '<div class="pd-badges">'
-    +    '<div class="pd-badges-tags">'
-    +      (cat ? '<span class="category-badge" style="'+catBadgeStyle(p.categories?p.categories.key:'')+'">'+esc(cat)+'</span>' : '')
-    +      gBadge
-    +    '</div>'
-    +    (p.brand ? '<span class="product-brand-badge"><span class="brand-label">'+(T.brand_label||'Brand')+':</span><span class="brand-name">'+esc(p.brand)+'</span></span>' : '')
-    +  '</div>'
+    +  (p.brand ? '<div class="pd-brand">'+esc(p.brand)+'</div>' : '')
     +  '<h1 class="pd-name">'+esc(name)+'</h1>'
     +  ph
     +  (p.code ? '<div class="product-code-badge copyable" onclick="copyCode()" title="Copy"><span class="product-code-label">'+(T.product_code_label||'Ürün Kodu')+':</span> '+esc(p.code)+'</div>' : '')

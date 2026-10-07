@@ -5,34 +5,35 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Shilista — Refer a Friend</title>
   <link rel="icon" href="/images/favicon.png" type="image/png">
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{min-height:100vh;display:flex;align-items:center;justify-content:center;
-         background:#f5f0eb;font-family:Arial,Tahoma,sans-serif;padding:24px}
-    .card{background:#fff;border-radius:18px;box-shadow:0 8px 40px rgba(0,0,0,.10);
+         background:#f4f4f4;font-family:'Vazirmatn',Arial,Tahoma,sans-serif;padding:24px}
+    .card{background:#fff;border-radius:18px;box-shadow:none;border:1px solid #eee;
           width:100%;max-width:440px;overflow:hidden}
-    .card-header{background:linear-gradient(135deg,#c0562a,#e07a40);padding:28px 32px;text-align:center}
+    .card-header{background:#1a1a1a;padding:28px 32px;text-align:center}
     .logo{font-size:24px;font-weight:800;color:#fff;letter-spacing:1px;margin-bottom:6px}
     .card-header h2{font-size:18px;font-weight:700;color:#fff;margin:0}
     .card-header p{font-size:13px;color:rgba(255,255,255,.85);margin:8px 0 0;line-height:1.6}
     .card-body{padding:28px 32px}
     label{display:block;font-size:13px;font-weight:600;color:#666;margin-bottom:5px}
-    input{width:100%;padding:10px 13px;border:1.5px solid #e0d4cc;border-radius:8px;
+    input{width:100%;padding:10px 13px;border:1.5px solid #e5e5e5;border-radius:12px;
           font-size:14px;color:#333;outline:none;transition:border .2s;margin-bottom:14px}
-    input:focus{border-color:#c0562a}
+    input:focus{border-color:#1a1a1a}
     .hint{font-size:12px;color:#aaa;margin-top:-10px;margin-bottom:14px}
-    .btn{width:100%;padding:12px;background:#c0562a;color:#fff;border:none;border-radius:9px;
+    .btn{width:100%;padding:13px;background:#1a1a1a;color:#fff;border:none;border-radius:999px;
          font-size:15px;font-weight:700;cursor:pointer;transition:background .2s;margin-top:4px}
-    .btn:hover{background:#a8481f}
+    .btn:hover{background:#000}
     .btn:disabled{opacity:.6;cursor:not-allowed}
     .success{text-align:center;padding:20px 0}
     .success .icon{font-size:52px;margin-bottom:12px}
-    .success h3{font-size:18px;font-weight:700;color:#c0562a;margin-bottom:8px}
+    .success h3{font-size:18px;font-weight:700;color:#1a1a1a;margin-bottom:8px}
     .success p{font-size:14px;color:#666;line-height:1.6}
     .err{color:#e04040;font-size:13px;margin-bottom:10px;text-align:center}
-    .already{background:#fdf5ed;border:1px solid #f0c8a0;border-radius:8px;
-              padding:14px;text-align:center;font-size:13px;color:#a07050}
-    [dir=rtl] *{font-family:Arial,Tahoma,'Segoe UI',sans-serif}
+    .already{background:#f4f4f4;border:0;border-radius:12px;
+              padding:14px;text-align:center;font-size:13px;color:#555}
+    [dir=rtl] *{font-family:'Vazirmatn',Arial,Tahoma,'Segoe UI',sans-serif}
   </style>
 </head>
 <body>

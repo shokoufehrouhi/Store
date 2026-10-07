@@ -445,7 +445,7 @@ function renderCart() {
       (totalPrice ? '<span class="cart-total-price">' + formatPrice(totalPrice) + '</span>' : '') +
       '</div>' +
       '<div class="cart-order-btns">' +
-      '<button class="cart-order-btn" style="background:#FF5C00;color:#fff;width:100%" onclick="openCheckout()">' +
+      '<button class="cart-order-btn" style="background:var(--primary);color:#fff;width:100%" onclick="openCheckout()">' +
       (t.preorder_btn || 'ثبت پیش‌سفارش') +
       '</button>' +
       '</div>';
