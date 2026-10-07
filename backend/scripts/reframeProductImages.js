@@ -36,7 +36,7 @@ const UA = {
 const MIN_IMAGE_BYTES = 5000;
 const PAUSE_MS = 800; // between products, to stay polite to the brand's site
 
-// The product page's image list, per brand. Koton's pages carry them in
+// The product page's image list, per brand. Koton's (and Colin's) pages carry them in
 // the schema.org JSON-LD "image" field (a bare string or an array).
 async function ldJsonImages(url) {
   const res = await fetch(url, { headers: UA, redirect: 'follow' });
@@ -67,7 +67,8 @@ async function maviCdnImages(url) {
   }
   return images;
 }
-const SOURCES = { Koton: ldJsonImages, Mavi: maviCdnImages };
+// Colin's product pages list the full-size originals in their JSON-LD too.
+const SOURCES = { Koton: ldJsonImages, Mavi: maviCdnImages, Colins: ldJsonImages };
 
 function arg(name) {
   const i = process.argv.indexOf(`--${name}`);

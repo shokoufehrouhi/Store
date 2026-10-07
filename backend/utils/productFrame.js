@@ -131,7 +131,9 @@ async function extendFromInside(buf, pad) {
 // gradient (common in studio shots, top to bottom) still counts as plain —
 // repeating it outwards is seamless — but hair, clothing or a prop crossing
 // the edge shows up as a jump.
-const EDGE_STRIP = 0.01, EDGE_SAMPLES = 200, EDGE_MAX_JUMP = 14;
+// The strip reaches past the few pixels extendFromInside skips, since that
+// inner column is the one actually repeated.
+const EDGE_STRIP = 0.03, EDGE_SAMPLES = 200, EDGE_MAX_JUMP = 14;
 async function plainEdge(buf, W, H, side) {
   const vertical = side === 'left' || side === 'right';
   const t = Math.max(2, Math.round((vertical ? W : H) * EDGE_STRIP));
@@ -139,10 +141,15 @@ async function plainEdge(buf, W, H, side) {
     : side === 'right' ? { left: W - t, top: 0, width: t, height: H }
     : side === 'top' ? { left: 0, top: 0, width: W, height: t }
     : { left: 0, top: H - t, width: W, height: t };
-  const { data } = await sharp(buf).extract(box).greyscale()
+  // In colour: in greyscale a light-blue sleeve reaching the edge looked
+  // the same as a light-grey wall, so it was "plain" and got smeared out
+  // into a blue stripe (Colin's, 2026-10-07).
+  const { data } = await sharp(buf).extract(box).removeAlpha()
     .resize(vertical ? 1 : EDGE_SAMPLES, vertical ? EDGE_SAMPLES : 1, { fit: 'fill' })
     .raw().toBuffer({ resolveWithObject: true });
-  for (let i = 1; i < data.length; i++) if (Math.abs(data[i] - data[i - 1]) > EDGE_MAX_JUMP) return false;
+  for (let i = 3; i < data.length; i += 3) {
+    for (let c = 0; c < 3; c++) if (Math.abs(data[i + c] - data[i - 3 + c]) > EDGE_MAX_JUMP) return false;
+  }
   return true;
 }
 
