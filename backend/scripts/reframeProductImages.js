@@ -69,7 +69,40 @@ async function maviCdnImages(url) {
 }
 // Colin's, Defacto's and LC Waikiki's product pages list their photos in
 // JSON-LD too, in the same order as stored (checked 2026-10-07).
-const SOURCES = { Koton: ldJsonImages, Mavi: maviCdnImages, Colins: ldJsonImages, Defacto: ldJsonImages, LCWaikiki: ldJsonImages };
+
+// ArmaLife and PaulMark (both on Farktor): the photos come from the
+// company's catalog JSON, as at import — the colour the stored link points
+// at first (its full set), then two photos of each other colour in stock.
+// The import picked "the" colour by stock, which can differ today, so the
+// link's own colour is used to keep the order the stored photos have.
+function farktorSource(fetchCatalog, imageBase) {
+  let byId = null;
+  return async (url) => {
+    const imp = require('../utils/siteImport');
+    if (!byId) {
+      byId = new Map();
+      for (const g of imp.groupArmaLifeCatalog(await fetchCatalog())) for (const id of g.ids) byId.set(id, g);
+    }
+    const linkId = imp.armalifeLinkId(url);
+    const group = linkId && byId.get(linkId);
+    if (!group) return []; // no longer in the catalog: left as it is
+    const own = group.members.find(c => imp.armalifeIds(c).has(linkId)) || group.rep;
+    const photosOf = c => String(c.photoAll || c.photo || '').split('||').map(p => p.trim()).filter(Boolean);
+    const list = [...photosOf(own)];
+    for (const c of group.members) {
+      if (c === own || !imp.armalifeSizes(c).some(sz => sz.qty > 0)) continue;
+      list.push(...photosOf(c).slice(0, 2));
+    }
+    return [...new Set(list)].slice(0, imp.ARMALIFE_MAX_GALLERY_IMAGES).map(ph => imageBase + ph);
+  };
+}
+
+const imp0 = require('../utils/siteImport');
+const SOURCES = {
+  Koton: ldJsonImages, Mavi: maviCdnImages, Colins: ldJsonImages, Defacto: ldJsonImages, LCWaikiki: ldJsonImages,
+  ArmaLife: farktorSource(() => imp0.fetchArmaLifeCatalog(), imp0.ARMALIFE_IMAGE_BASE),
+  PaulMark: farktorSource(() => imp0.fetchPaulMarkCatalog(), imp0.PAULMARK_IMAGE_BASE),
+};
 
 function arg(name) {
   const i = process.argv.indexOf(`--${name}`);

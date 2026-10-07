@@ -5619,6 +5619,10 @@ module.exports = {
   checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock, checkOyshoStock, checkBershkaStock, checkPullAndBearStock, checkStradivariusStock, checkColinsStock, checkPaulMarkStock, checkBarrelsAndOilStock, checkFlormarStock,
   // exported for backend/scripts/mergeArmaLifeColors.js.
   mergeArmaLifeColors,
+  // exported for backend/scripts/reframeProductImages.js (re-reading a
+  // Farktor product's photos the way the import picked them).
+  fetchArmaLifeCatalog, fetchPaulMarkCatalog, groupArmaLifeCatalog, armalifeIds, armalifeLinkId, armalifeSizes,
+  ARMALIFE_IMAGE_BASE, PAULMARK_IMAGE_BASE, ARMALIFE_MAX_GALLERY_IMAGES,
   // exported for siteSync.js#importSite and backend/scripts/addMenuSubcategories.js.
   loadSubcategoryIds, guessSubcategoryId, MENU_SUBCATEGORY_DEFS,
   // exported for backend/scripts/backfillMissingColors.js — reusing the
