@@ -67,8 +67,9 @@ async function maviCdnImages(url) {
   }
   return images;
 }
-// Colin's product pages list the full-size originals in their JSON-LD too.
-const SOURCES = { Koton: ldJsonImages, Mavi: maviCdnImages, Colins: ldJsonImages };
+// Colin's, Defacto's and LC Waikiki's product pages list their photos in
+// JSON-LD too, in the same order as stored (checked 2026-10-07).
+const SOURCES = { Koton: ldJsonImages, Mavi: maviCdnImages, Colins: ldJsonImages, Defacto: ldJsonImages, LCWaikiki: ldJsonImages };
 
 function arg(name) {
   const i = process.argv.indexOf(`--${name}`);
