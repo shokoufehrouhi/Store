@@ -308,6 +308,15 @@
 
   <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="handleAvatarChange(this)">
 
+  <div id="confirm-overlay" class="confirm-overlay" style="display:none">
+    <div id="confirm-box" class="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="confirm-msg">
+      <p id="confirm-msg" class="confirm-msg"></p>
+      <div class="confirm-actions">
+        <button id="confirm-yes" class="confirm-yes"></button>
+        <button id="confirm-no" class="confirm-no"></button>
+      </div>
+    </div>
+  </div>
   <div id="app-toast">
     <div class="app-toast-card">
       <div class="app-toast-check" id="app-toast-icon">✓</div>

@@ -4966,3 +4966,29 @@ html[dir="rtl"] .product-card .product-price { direction: rtl; }
 .app-toast-check.error { background: none; color: #f87171; }
 #app-toast-msg { color: #fff; font-size: 14px; }
 #code-copy-toast { background: var(--ink); }
+
+/* Order flow (2026-10-07): the confirm popup was a red square button with
+   inline styles; order/return buttons, the receipt link and the tracking/
+   return boxes kept the old blue, red, purple and beige. All in the minimal
+   look now: pill buttons, ink for the main action, outline for the rest. */
+.confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 9000; align-items: center; justify-content: center; padding: 16px; }
+.confirm-box { background: #fff; border-radius: 20px; padding: 28px 24px 22px; max-width: 340px; width: 100%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+.confirm-msg { font-size: 16px; font-weight: 700; color: var(--ink); line-height: 1.6; margin: 0 0 20px; }
+.confirm-actions { display: flex; gap: 10px; }
+.confirm-yes, .confirm-no { flex: 1; min-height: 46px; padding: 0 16px; border-radius: 999px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.confirm-yes { background: var(--ink); color: #fff; border: 1px solid var(--ink); }
+.confirm-yes:hover { background: #000; }
+.confirm-no { background: #fff; color: var(--ink); border: 1px solid #d6d6d6; }
+.confirm-no:hover { border-color: var(--ink); }
+
+.order-action-btn, .return-action-btn, .checkout-submit-btn, .checkout-add-addr-btn, .addr-cancel-btn, .auth-submit-btn, .qa-confirm-btn { border-radius: 999px; }
+.order-action-cancel { border: 1px solid #d6d6d6 !important; color: var(--ink); }
+.order-action-cancel:hover { border-color: var(--ink) !important; opacity: 1; }
+.order-receipt-link { color: var(--ink); }
+.order-tracking-box, .return-policy-box { background: var(--soft); border: 0; border-radius: 12px; }
+.order-payment-info-box { border-inline-start-color: var(--ink); border-radius: 12px; }
+.return-btn-secondary { border: 1px solid #d6d6d6 !important; color: var(--ink); }
+.return-btn-amber, .return-btn-success { background: var(--ink); color: #fff; }
+.profile-logout-btn { color: #555; border-color: #e5e5e5; }
+.profile-logout-btn svg { stroke: currentColor; }
+.profile-logout-btn:hover { background: var(--soft); border-color: var(--ink); color: var(--ink); }
