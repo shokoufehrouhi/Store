@@ -4889,3 +4889,26 @@ html[dir="rtl"] .product-card .product-price { direction: rtl; }
 .empty-banner--addr { background: var(--soft); color: var(--ink); }
 .empty-banner--addr .empty-banner-bg { display: none; }
 .policy-card:hover { border-color: var(--ink); }
+
+/* Contact + footer: light like the rest (2026-10-07). The dark versions'
+   hovers used --primary, which is ink now, so links vanished on hover. */
+.contact-section { background: var(--soft); padding: 64px 0; }
+.contact-card { background: #fff; border: 1px solid #eaeaea; border-radius: 20px; padding: 44px 36px; }
+.contact-icon-big { display: none; }
+.contact-card h2 { color: var(--ink); }
+.contact-card p { color: #555; }
+.phone-link, .contact-email-link { color: var(--ink); }
+.phone-link:hover, .contact-email-link:hover { color: #555; }
+.channel-btn { background: #fff; color: var(--ink); border: 1px solid #d6d6d6; padding: 12px 24px; }
+.channel-btn:hover { transform: none; opacity: 1; border-color: var(--ink); }
+.channel-btn.whatsapp-btn { background: var(--ink); color: #fff; border-color: var(--ink); }
+.channel-btn.whatsapp-btn:hover { background: #000; }
+.working-hours { color: #6b6b6b !important; }
+
+.footer { background: #fff; border-top: 1px solid #eee; padding: 48px 0 28px; }
+.footer-logo { color: var(--ink); }
+.footer-tagline { color: #6b6b6b; }
+.footer-col-title { color: #8a8a8a; }
+.footer-links a, .footer-col a { color: #444; }
+.footer-links a:hover, .footer-col a:hover { color: var(--ink); text-decoration: underline; }
+.footer-bottom { border-top-color: #eee; color: #8a8a8a; }
