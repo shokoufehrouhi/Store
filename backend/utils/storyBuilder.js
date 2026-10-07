@@ -136,8 +136,8 @@ async function buildSingleProductStory(product, { headline }) {
   layers.push({ input: cta.buffer, left: Math.round((W - cta.width) / 2), top: y });
 
   const linkBuf = await renderText({
-    text: SITE_LINK_TEXT, fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium',
-    width: 600, height: 64, color: MUTED,
+    text: SITE_LINK_TEXT, fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium 40',
+    width: 600, color: MUTED,
   });
   const linkMeta = await sharp(linkBuf).metadata();
   layers.push({ input: linkBuf, left: Math.round((W - linkMeta.width) / 2), top: y + cta.height + 28 });
@@ -184,13 +184,14 @@ async function buildPriceRow(product) {
 }
 
 async function buildCtaBadge(text = 'مشاهده و خرید') {
-  const padX = 60, textH = 90;
+  const padX = 56;
   const textBuf = await renderText({
-    text, fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold',
-    width: 500, height: textH, color: '#ffffff',
+    text, fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold 46',
+    width: 500, color: '#ffffff',
   });
   const textMeta = await sharp(textBuf).metadata();
-  const boxW = textMeta.width + padX * 2, boxH = 110;
+  const textH = textMeta.height;
+  const boxW = textMeta.width + padX * 2, boxH = textH + 40;
   const box = Buffer.from(
     `<svg width="${boxW}" height="${boxH}"><rect width="${boxW}" height="${boxH}" rx="${boxH / 2}" fill="${INK}"/></svg>`
   );
@@ -203,10 +204,10 @@ async function buildCtaBadge(text = 'مشاهده و خرید') {
 
 // The subline under the photos: plain muted text now (it was a dark card
 // framed in gold, which only suited the old black background).
-async function buildCaptionCard(text, { textH = 160 } = {}) {
+async function buildCaptionCard(text) {
   const buffer = await renderText({
-    text, fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium',
-    width: 860, height: Math.min(textH, 90), color: MUTED,
+    text, fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium 42',
+    width: 860, color: MUTED,
   });
   const meta = await sharp(buffer).metadata();
   return { buffer, width: meta.width, height: meta.height };
@@ -280,7 +281,7 @@ async function buildCollageStory(products, { headline }) {
 
   // Shorter caption box than the single-product story's, so the larger
   // grid above still leaves room for the CTA and link on a 1920px canvas.
-  const caption = await buildCaptionCard(STANDARD_CAPTION, { textH: 100 });
+  const caption = await buildCaptionCard(STANDARD_CAPTION);
   const captionTop = Math.round(gridBottom + 30);
   layers.push({ input: caption.buffer, left: Math.round((W - caption.width) / 2), top: captionTop });
 
@@ -289,8 +290,8 @@ async function buildCollageStory(products, { headline }) {
   layers.push({ input: cta.buffer, left: Math.round((W - cta.width) / 2), top: ctaTop });
 
   const linkBuf = await renderText({
-    text: SITE_LINK_TEXT, fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium',
-    width: 600, height: 64, color: MUTED,
+    text: SITE_LINK_TEXT, fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium 40',
+    width: 600, color: MUTED,
   });
   const linkMeta = await sharp(linkBuf).metadata();
   layers.push({ input: linkBuf, left: Math.round((W - linkMeta.width) / 2), top: Math.round(ctaTop + cta.height + 30) });
