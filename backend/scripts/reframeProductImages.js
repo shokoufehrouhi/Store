@@ -112,22 +112,37 @@ const NEEDS_BROWSER = new Set(['Zara', 'Bershka', 'PullAndBear', 'Stradivarius',
 // (a small greyscale thumbnail compared pixel by pixel), and only that
 // colour's photos (the first 8, as the import took) are returned.
 const sharp = require('sharp');
+// Square from the centre, as the old import cropped, in colour: the stored
+// photo IS that crop of the right colour's first photo, so it matches it
+// almost exactly. A greyscale thumbnail stretched to a square (until
+// 2026-10-08) mostly compared layout, and grey, beige and olive came out
+// alike — Stradivarius, Pull&Bear and Mango products got another colour's
+// photos.
 async function thumb(buf) {
-  return sharp(buf).resize(24, 24, { fit: 'fill' }).greyscale().raw().toBuffer();
+  return sharp(buf).resize(16, 16, { fit: 'cover' }).removeAlpha().raw().toBuffer();
 }
 // Of several colours' photo lists, the one whose first photo looks most
-// like the stored first photo.
-async function closestColour(lists, storedFirstFile, previewUrl) {
-  if (lists.length < 2 || !storedFirstFile || !fs.existsSync(storedFirstFile)) return lists[0];
-  const ref = await thumb(storedFirstFile);
+// like the stored first photo. `refs` are candidate files for that stored
+// photo (the current one, or old ones from the backup — see --refs); the
+// closest pair wins.
+async function closestColour(lists, refs, previewUrl) {
+  const files = (Array.isArray(refs) ? refs : [refs]).filter(f => f && fs.existsSync(f));
+  if (lists.length < 2 || !files.length) return lists[0];
+  const refThumbs = [];
+  for (const f of files) { try { refThumbs.push(await thumb(f)); } catch { /* unreadable */ } }
+  if (!refThumbs.length) return lists[0];
   let best = lists[0], bestDiff = Infinity;
   for (const list of lists) {
     const r = await fetch(previewUrl(list[0]), { headers: UA });
     if (!r.ok) continue;
-    const t = await thumb(Buffer.from(await r.arrayBuffer()));
-    let d = 0; for (let i = 0; i < t.length; i++) d += Math.abs(t[i] - ref[i]);
-    if (d < bestDiff) { bestDiff = d; best = list; }
+    let t;
+    try { t = await thumb(Buffer.from(await r.arrayBuffer())); } catch { continue; }
+    for (const ref of refThumbs) {
+      let d = 0; for (let i = 0; i < t.length; i++) d += Math.abs(t[i] - ref[i]);
+      if (d < bestDiff) { bestDiff = d; best = list; }
+    }
   }
+  if (process.env.REFRAME_DEBUG) console.log(`    colour ${lists.indexOf(best) + 1}/${lists.length}, diff ${Math.round(bestDiff / (16 * 16 * 3))}`);
   return best;
 }
 
@@ -201,6 +216,7 @@ async function main(ctx) {
   const limit = arg('limit') ? Number(arg('limit')) : null;
   const ids = arg('ids') ? arg('ids').split(',').map(Number) : null;
   const source = SOURCES[brand];
+  const refs = arg('refs') ? JSON.parse(fs.readFileSync(arg('refs'), 'utf8')) : {};
   if (!source) throw new Error(`no image source for brand "${brand}" (have: ${Object.keys(SOURCES).join(', ')})`);
   if (apply) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
@@ -216,7 +232,9 @@ async function main(ctx) {
   for (const p of products) {
     try {
       const firstStored = p.product_media[0] && path.join(UPLOAD_DIR, path.basename(p.product_media[0].url));
-      const fresh = await source(p.product_link, { ...ctx, storedFirstFile: firstStored });
+      // --refs: candidate original first photos for products already
+      // reframed once (their current first photo may be the wrong colour).
+      const fresh = await source(p.product_link, { ...ctx, storedFirstFile: refs[p.id] || firstStored });
       if (!fresh.length) { totals.skipped++; console.log(`  ${p.id}: no images on the page, skipped`); continue; }
       const n = Math.min(fresh.length, p.product_media.length);
       if (!apply) { console.log(`  ${p.id}: would replace ${n} of ${p.product_media.length} photo(s) (page has ${fresh.length})`); totals.products++; continue; }
