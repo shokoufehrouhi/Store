@@ -133,10 +133,16 @@ async function closestColour(lists, refs, previewUrl) {
   if (!refThumbs.length) return lists[0];
   let best = lists[0], bestDiff = Infinity;
   for (const list of lists) {
-    const r = await fetch(previewUrl(list[0]), { headers: UA });
-    if (!r.ok) continue;
-    let t;
-    try { t = await thumb(Buffer.from(await r.arrayBuffer())); } catch { continue; }
+    // The colour's first real photo (not a swatch — see main's loop).
+    let t = null;
+    for (const img of list.slice(0, 3)) {
+      const r = await fetch(previewUrl(img), { headers: UA });
+      if (!r.ok) continue;
+      const buf = Buffer.from(await r.arrayBuffer());
+      if (buf.length < MIN_IMAGE_BYTES) continue;
+      try { t = await thumb(buf); break; } catch { /* not an image */ }
+    }
+    if (!t) continue;
     for (const ref of refThumbs) {
       let d = 0; for (let i = 0; i < t.length; i++) d += Math.abs(t[i] - ref[i]);
       if (d < bestDiff) { bestDiff = d; best = list; }
@@ -240,10 +246,19 @@ async function main(ctx) {
       if (!apply) { console.log(`  ${p.id}: would replace ${n} of ${p.product_media.length} photo(s) (page has ${fresh.length})`); totals.products++; continue; }
       let done = 0;
       const swapped = new Map(); // old url -> new url
+      // The import skipped "photos" too small to be one (Inditex lists each
+      // colour's swatch among them), so the stored photos have no slot for
+      // them: skip them here too, or that slot kept its old photo and every
+      // later one moved a slot (Stradivarius, 2026-10-08).
+      let j = 0;
       for (let i = 0; i < n; i++) {
         const media = p.product_media[i];
         try {
-          const url = await saveFresh(fresh[i]);
+          let url = null;
+          while (!url && j < fresh.length) {
+            try { url = await saveFresh(fresh[j++]); } catch (e) { if (!/too small/.test(e.message)) throw e; }
+          }
+          if (!url) break;
           await prisma.product_media.update({ where: { id: media.id }, data: { url } });
           const old = path.join(UPLOAD_DIR, path.basename(media.url));
           if (fs.existsSync(old)) fs.copyFileSync(old, path.join(BACKUP_DIR, path.basename(media.url)));
