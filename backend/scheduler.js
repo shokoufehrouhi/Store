@@ -26,6 +26,7 @@ const { REEL_SLOTS, reelGroupFor } = require('./utils/reelPlan');
 const { deployStoryById } = require('./controllers/instagramContentController');
 const { publishAllChanges } = require('./controllers/adminController');
 const { queueNewProductsForInstagram } = require('./utils/instagramProductQueue');
+const { backfillTranslations } = require('./utils/translationBackfill');
 const {
   createFeedContainer, createCarouselChildContainer, createCarouselContainer,
   publishContainer, waitUntilContainerReady, isRateLimitError, isRateLimitMessage, isAccountBlockedError,
@@ -848,6 +849,12 @@ async function tick() {
       // job — nothing is waiting on it to finish quickly.
       if (settings.import_schedule_time === nowHHMM) {
         for (const site of sites) await runImport(site);
+        // Products whose translation failed at import (quota, a network
+        // blip) get another try now instead of waiting for someone to run
+        // the backfill script by hand.
+        await backfillTranslations({ log: () => {} })
+          .then(r => { if (r.candidates) console.log(`[scheduler] translation backfill: ${JSON.stringify(r)}`); })
+          .catch(err => console.error('[scheduler] translation backfill failed:', err));
       }
       if (settings.stock_check_schedule_time === nowHHMM) {
         for (const site of sites) await runStockCheck(site);
