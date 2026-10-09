@@ -14,7 +14,7 @@ const fs = require('fs');
 const os = require('os');
 const { execFile } = require('child_process');
 const ffmpegPath = require('ffmpeg-static');
-const { buildCollageStory } = require('./storyBuilder');
+const { buildCollageStory, displayName } = require('./storyBuilder');
 
 const FONT_BLACK  = path.join(__dirname, '../assets/fonts/Vazirmatn-Black.ttf');
 const FONT_BOLD   = path.join(__dirname, '../assets/fonts/Vazirmatn-Bold.ttf');
@@ -88,7 +88,7 @@ async function buildProductSlide(product) {
 
   // The prices go right under the name, which can wrap to two lines.
   const nameBuf = await renderText({
-    text: shortName(product.name_fa), fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold',
+    text: shortName(displayName(product)), fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold',
     width: 960, size: 76, color: INK,
   });
   const nameTop = 1350;

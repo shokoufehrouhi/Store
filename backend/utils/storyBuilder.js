@@ -92,6 +92,13 @@ function productImagePath(product) {
   return path.join(UPLOADS_DIR, path.basename(media.url));
 }
 
+// The Persian name, or the English/Turkish one when its translation failed
+// at import — an empty name_fa threw "no text to render" and cost the whole
+// 12:00 reel (2026-10-08 and -09).
+function displayName(product) {
+  return [product.name_fa, product.name_en, product.name_tr, product.brand].find(n => String(n || '').trim()) || 'Shilista';
+}
+
 function shortenName(name, max = 60) {
   if (!name) return '';
   return name.length > max ? name.slice(0, max - 1).trimEnd() + '…' : name;
@@ -121,7 +128,7 @@ async function buildSingleProductStory(product, { headline }) {
   }
 
   const nameBuf = await renderText({
-    text: shortenName(product.name_fa, 70),
+    text: shortenName(displayName(product), 70),
     fontFile: FONT_BOLD, fontFamily: `Vazirmatn Bold ${NAME_SIZE}`,
     width: 920, color: INK,
   });
@@ -302,4 +309,4 @@ async function buildCollageStory(products, { headline }) {
     .toBuffer();
 }
 
-module.exports = { buildSingleProductStory, buildCollageStory };
+module.exports = { buildSingleProductStory, buildCollageStory, displayName };
