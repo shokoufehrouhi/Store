@@ -125,6 +125,7 @@
     .pd-color-name { font-size: 13px; color: var(--primary); font-weight: 600; min-height: 18px; margin-top: 6px; }
     .pd-colors-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
     .pd-sizes-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pd-size-hint { display: block; font-size: 12.5px; color: var(--text-muted); margin: 2px 0 8px; }
     .pd-stock { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; display: inline-block; }
     .stock-in  { background: #d1fae5; color: #065f46; }
     .stock-low { background: #fef3c7; color: #92400e; }
@@ -410,7 +411,7 @@
   </div>
 </div>
 
-<script src="i18n.js?v=79"></script>
+<script src="i18n.js?v=80"></script>
 <script>
 // ── lang ──────────────────────────────────────────────────────────────────────
 var _qp = new URLSearchParams(location.search);
@@ -802,6 +803,9 @@ function render(p){
     }
     szH = '<div>'
       + '<span class="pd-sec-label">'+(T.sizes_label||'Beden')+'</span>'
+      // Jeans come as "waist/length" (e.g. 29/34): say which is which.
+      + (sizes.some(function(ps){ return /^\d+\/\d+$/.test(ps.size_label); })
+          ? '<span class="pd-size-hint">'+esc(T.size_waist_length||'')+'</span>' : '')
       + sizeGuideBtn
       + (sizes.length ? '<div class="pd-sizes-row">'
         + sizes.map(function(ps){
