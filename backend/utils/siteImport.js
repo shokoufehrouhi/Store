@@ -2782,6 +2782,7 @@ async function Lefties(pm, site, opts = {}) {
   // Each product once, under the first listing that has it — the same
   // product shows up in several listings (see leftiesProductId).
   const products = new Map(); // id -> { product, listing, categoryId }
+  let brokenInARow = 0;
   for (const listing of listings) {
     const categoryId = listing.url.match(/-c(\d+)\.html/)?.[1];
     if (!categoryId) continue;
@@ -2789,9 +2790,13 @@ async function Lefties(pm, site, opts = {}) {
       for (const product of await readLeftiesCategory(page, categoryId)) {
         if (!products.has(product.id)) products.set(product.id, { product, listing, categoryId });
       }
+      brokenInARow = 0;
     } catch (err) {
       // One failing listing shouldn't cost the run every other listing.
       console.warn(`[siteImport] Lefties listing failed, skipping: ${listing.url} — ${err.message}`);
+      if (brokenBrowserError(err) && ++brokenInARow >= MAX_BROKEN_BROWSER_FAILURES) {
+        throw new Error(`Lefties: browser stopped responding (${brokenInARow} listings in a row: ${err.message})`);
+      }
     }
   }
 
@@ -2976,6 +2981,14 @@ function walkInditexTree(categories, visit, keys = [], names = [], depth = 0) {
 }
 
 // The whole discount-only import for one Inditex store.
+// A broken Chrome (crashed tab, detached frame, wedged page) makes every
+// further category call fail only after its full protocol timeout — on
+// 2026-10-09 Oysho spent 4.5 hours failing its 733 categories one by one,
+// and every site after it in the nightly run never ran. After this many
+// such failures in a row the site's run is given up instead.
+const MAX_BROKEN_BROWSER_FAILURES = 5;
+const brokenBrowserError = (err) => /timed out|Target closed|detached Frame|Session closed|Protocol error/i.test(err.message);
+
 async function importInditexStore(pm, site, opts, { open, apiArgs, home, label }) {
   const limit = opts.limit || 30;
   let opened;
@@ -2996,18 +3009,22 @@ async function importInditexStore(pm, site, opts, { open, apiArgs, home, label }
   await page.evaluate((ids) => { window.__leftiesSkip = new Set(ids); }, [...existingIds]);
 
   const products = new Map(); // id -> { product, listing, categoryId }
-  let noList = 0;
+  let noList = 0, brokenInARow = 0;
   for (const listing of listings) {
     try {
       for (const product of await readLeftiesCategory(page, listing.id, apiArgs)) {
         if (!product.colors.length) continue; // banner block, not a product
         if (!products.has(product.id)) products.set(product.id, { product, listing, categoryId: listing.id });
       }
+      brokenInARow = 0;
     } catch (err) {
       // Menu headings and redirect entries have no product list of their
       // own (404); their products are read through other categories.
       if (/API 404/.test(err.message)) { noList++; continue; }
       console.warn(`[siteImport] ${label} category failed, skipping: ${listing.id} ${listing.name} — ${err.message}`);
+      if (brokenBrowserError(err) && ++brokenInARow >= MAX_BROKEN_BROWSER_FAILURES) {
+        throw new Error(`${label}: browser stopped responding (${brokenInARow} categories in a row: ${err.message})`);
+      }
     }
   }
   if (noList) console.log(`[siteImport] ${label}: ${noList} of ${listings.length} categories have no product list of their own (menu headings/redirects)`);
