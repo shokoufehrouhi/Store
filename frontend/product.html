@@ -266,7 +266,9 @@
     .pd-wrap { max-width: 1200px; }
     .pd-card { box-shadow: none; border-radius: 0; gap: 48px; }
     .pd-gallery { border-inline-start: none; padding: 0; }
-    .pd-main-img { border-radius: 16px; background: var(--soft); aspect-ratio: 4 / 5; }
+    /* Square like the photos themselves (every import frames them 1:1) —
+       4/5 left an empty band above and below each one. */
+    .pd-main-img { border-radius: 16px; background: var(--soft); aspect-ratio: 1 / 1; }
     .pd-thumb { border-radius: 10px; border-width: 2px; background: var(--soft); }
     .pd-info { padding: 8px 0 0; gap: 14px; }
     .pd-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
