@@ -239,9 +239,15 @@ async function eligibleStoryProducts(limit, excludeIds = [], { where = null, min
     // (seen in production data) would otherwise crash sharp mid-render —
     // filter those out here rather than letting generateMorning/EveningStory
     // fail silently for the whole day.
+    // Only products with a real Persian name: one whose translation failed
+    // at import has it empty (rendering that threw "no text to render" and
+    // cost the whole 12:00 reel, 2026-10-08/09) or left as the Turkish
+    // fallback — the user would rather another product be shown.
     return pool.filter(p => {
       const media = p.product_media[0];
-      return media && fs.existsSync(path.join(UPLOADS_DIR, path.basename(media.url))) && (!keep || keep(p));
+      const nameFa = String(p.name_fa || '').trim();
+      return media && nameFa && nameFa !== String(p.name_tr || '').trim()
+        && fs.existsSync(path.join(UPLOADS_DIR, path.basename(media.url))) && (!keep || keep(p));
     });
   }
 
