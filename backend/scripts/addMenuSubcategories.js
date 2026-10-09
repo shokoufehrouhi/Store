@@ -17,9 +17,10 @@
 // Then for real:
 //   node scripts/addMenuSubcategories.js --apply
 const prisma = require('../prisma/client');
-const { loadSubcategoryIds, guessSubcategoryId, MENU_SUBCATEGORY_DEFS } = require('../utils/siteImport');
+const { loadSubcategoryIds, guessSubcategoryId, categoryFromName, MENU_SUBCATEGORY_DEFS } = require('../utils/siteImport');
 const { syncSubcategoryActiveState } = require('../utils/subcategorySync');
 
+const CATEGORY_NAMES = { 1: 'Clothing', 2: 'Shoes', 3: 'Accessories', 8: 'Lifestyle', 10: 'Cosmetics' };
 const CLOTHING_WORDS = /pantolon|şort|etek|bluz|gömlek|elbise|ceket|blazer|tulum|tişört|kazak|hırka|yelek|jean|tayt|eşofman|sweatshirt|mont|kaban|palto|trençkot|body|atlet|pijama|sabahlık|tunik/i;
 // No "kemer" (belt) here: "Kemer Detaylı Şort" is shorts with a belt detail,
 // while a real belt ("Deri Kemer") has no clothing word and stays put.
@@ -56,19 +57,22 @@ const ACCESSORY_WORDS = /çanta|cüzdan|kartlık|kolye|küpe|bileklik|yüzük|ş
   for (const p of products) {
     const isMisfiledClothing = p.category_id === 3 && CLOTHING_WORDS.test(p.name_tr) && !ACCESSORY_WORDS.test(p.name_tr);
     if (!isMisfiledClothing && p.subcategory_id != null) continue;
-    const category_id = isMisfiledClothing ? 1 : p.category_id;
+    // Shoes, bags, perfume, towels under Clothing (Zara's clothing listings
+    // carry them too — 2026-10-09): their own name says where they belong.
+    const fromName = p.category_id === 1 && !isMisfiledClothing ? categoryFromName(p.name_tr) : null;
+    const category_id = isMisfiledClothing ? 1 : fromName || p.category_id;
     const subcategory_id = guessSubcategoryId(p.name_tr, category_id);
     if (category_id === p.category_id && subcategory_id == null) continue;
-    changes.push({ p, category_id, subcategory_id, moved: isMisfiledClothing });
+    changes.push({ p, category_id, subcategory_id, moved: category_id !== p.category_id });
   }
 
   const summary = new Map();
   for (const c of changes) {
-    const k = `${c.moved ? 'Accessories -> Clothing / ' : ''}${c.subcategory_id ? subName.get(c.subcategory_id) : '-'}`;
+    const k = `${c.moved ? `${CATEGORY_NAMES[c.p.category_id] || c.p.category_id} -> ${CATEGORY_NAMES[c.category_id] || c.category_id} / ` : ''}${c.subcategory_id ? subName.get(c.subcategory_id) : '-'}`;
     summary.set(k, (summary.get(k) || 0) + 1);
   }
   for (const [k, n] of [...summary].sort((a, b) => b[1] - a[1])) console.log(`  ${n}  ${k}`);
-  for (const c of changes.filter(c => c.moved).slice(0, 30)) console.log(`  moved: ${c.p.code} (${c.p.supplier_shop_name}) "${c.p.name_tr}"`);
+  for (const c of changes.filter(c => c.moved).slice(0, 60)) console.log(`  moved: ${c.p.code} (${c.p.supplier_shop_name}) "${c.p.name_tr}"`);
 
   if (apply) {
     const touched = new Set();

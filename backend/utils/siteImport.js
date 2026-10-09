@@ -86,28 +86,28 @@ async function loadSubcategoryIds(planned = []) {
 // come before the broad ones ("Tişört Elbise" is a dress, "Şort Etek" a
 // skirt, "Sweatshirt ve Şort Takımı" a set). Falls back to null.
 const TR_KEYWORD_TO_SUBCATEGORY = [
-  [/pijama|gecelik|sabahlık|iç çamaşır|külot|boxer|sütyen|bralet|slip\b/i, 'underwear'],
-  [/mayo|bikini/i, 'swimwear'],
+  [/pijama|gecelik|sabahlık|kimono|iç çamaşır|külot|boxer|sütyen|bralet|slip\b|zıbın|flanel alt/i, 'underwear'],
+  [/mayo|bikini|pareo|plaj eteğ/i, 'swimwear'],
   [/elbise|tulum|abiye|salopet/i, 'dresses'],
-  [/etek/i, 'skirts'],
+  [/etek|eteğ/i, 'skirts'],
   [/takım|\bset\b|seti\b/i, 'sets'],
   [/tişört|\btshirt|t-shirt|polo(?! yaka)/i, 1], // "polo yaka kazak" is a sweater
   [/şort|bermuda/i, 2],
-  [/pantolon|eşofman altı|jogger|\bjean/i, 3],
+  [/pantolon|eşofman altı|sweat alt|jogger|\bjean/i, 3],
   [/tayt/i, 4],
-  [/sweatshirt|hırka|kazak|triko|polar/i, 5],
-  [/mont|ceket|yelek|kaban|trençkot|yağmurluk|parka|blazer|palto/i, 6],
-  [/gömlek|bluz|tunik|şömiz/i, 'shirts-blouses'],
-  [/\bbody\b|bodysuit|atlet|büstiyer|korse|\btop\b|crop/i, 'tops'],
+  [/sweatsh[iı]rt|sweat üst|hırka|kazak|süveter|triko|polar/i, 5],
+  [/mont|ceket|yelek|kaban|trençkot|yağmurluk|parka|blazer|palto|shacket/i, 6],
+  [/gömlek|bluz|tunik|şömiz|flanel/i, 'shirts-blouses'],
+  [/\bbody\b|bodysuit|atlet|büstiyer|korse|\btop\b|crop|(^|\s)üst(\s|$)/i, 'tops'],
 ];
 
 // category_id 2 (Shoes).
 const TR_KEYWORD_TO_SHOE_SUBCATEGORY = [
-  [/sandalet|terlik|parmak arası|slipper|flip/i, 'sandals'],
+  [/sandalet|terli[kğ]|panduf|parmak arası|slipper|flip/i, 'sandals'],
   [/\bbot\b|botu\b|bootie|çizme|postal/i, 'boots'],
   [/topuklu|stiletto|\bheel/i, 'heels'],
-  [/babet|loafer|makosen|espadril|ballerina/i, 'flats'],
-  [/spor|sneaker|koşu|trainer|basketbol|tenis/i, 'sneakers'],
+  [/babet|loafer|laofer|makosen|espadril|ballerina|bale ayakkabı|düz ayakkabı|tekne ayakkabı|yürüme öncesi|arkası açık/i, 'flats'],
+  [/spor|sneaker|koşu|trainer|basketbol|tenis|krampon|file ayakkabı/i, 'sneakers'],
   [/klasik|oxford|deri ayakkabı/i, 'classic-shoes'],
 ];
 
@@ -116,7 +116,8 @@ const TR_KEYWORD_TO_ACCESSORY_SUBCATEGORY = [
   [/cüzdan|kartlık/i, 'wallets'],
   [/çanta|canta|valiz|clutch/i, 13],
   [/kolye|küpe|bileklik|yüzük|takı|broş|choker|halhal/i, 'jewelry'],
-  [/şapka|bere\b|kasket|atkı|şal\b|eldiven|fular|bandana|boyunluk|kulaklık/i, 'hats-scarves'],
+  [/şapka|bere\b|kasket|başlık|atkı|şal\b|panço|eldiven|fular|bandana|boyunluk|kulaklık/i, 'hats-scarves'],
+  [/çorap/i, 16],
   [/kemer\b|kemeri\b|kemerler/i, 'belts'],
   [/toka|saç bandı|taç\b|saç aksesuar/i, 'hair'],
   [/gözlük/i, 'sunglasses'],
@@ -143,15 +144,34 @@ const TR_KEYWORD_TO_SPORT_SUBCATEGORY = [
 const TR_KEYWORD_TO_COSMETIC_SUBCATEGORY = [
   [/ruj|dudak|lip\b/i, 44],
   [/rimel|göz kalemi|eyeliner|maskara|kaş|eye\b/i, 43],
-  [/fondöten|allık|far|kapatıcı|bb krem/i, 42],
+  [/fondöten|allık|far|kapatıcı|bb krem|pudra|bronzer/i, 42],
   [/oje|tırnak|nail/i, 49],
-  [/parfüm|deodorant|koku|perfume/i, 48],
+  [/parfüm|deodorant|koku|perfume|\bedt\b|\bedp\b/i, 48],
   [/şampuan|saç|conditioner|hair/i, 46],
   [/vücut|body/i, 47],
   [/fırça|sünger|aparat|cihaz|brush|booster cap/i, 50],
-  [/serum|krem|maske|tonik|nemlendirici|temizleyici|peeling|esans|mask|cream|cleanser|essence|toner/i, 45],
+  [/serum|krem|maske|tonik|nemlendirici|temizleyici|peeling|esans|ampul|spf|güneş|mask|cream|cleanser|essence|toner/i, 45],
   [/\bset\b|seti\b|setleri|\bkit\b|trio|\bduo\b|palette|palet/i, 'sets'],
 ];
+
+// category_id 8 (Lifestyle), for the few home items that come in through a
+// clothing listing (a kids' towel or blanket on Zara).
+const TR_KEYWORD_TO_LIFESTYLE_SUBCATEGORY = [
+  [/havlu|bornoz/i, 'bathroom'],
+  [/battaniye|nevresim|yastık/i, 'bedroom'],
+];
+
+// The category a product's own name points to when it isn't clothing —
+// for stores whose clothing listings also carry shoes, bags, perfume or a
+// towel (Zara put all of those under Clothing). null: keep the listing's.
+function categoryFromName(nameTr) {
+  const name = String(nameTr || '').toLocaleLowerCase('tr');
+  if (/ayakkabı|sandalet|makosen|\bbot\b|çizme|terli[kğ]|panduf|krampon|sneaker|babet|loafer|laofer/.test(name)) return 2;
+  if (/\bedt\b|\bedp\b|parfüm|dudak parlatıcı|ruj\b/.test(name)) return 10;
+  if (/çanta|cüzdan|şapka|başlık|bere\b|çorap|kolye|küpe|bileklik/.test(name)) return 3;
+  if (/havlu|bornoz|battaniye|nevresim/.test(name)) return LIFESTYLE_CATEGORY_ID;
+  return null;
+}
 
 function guessSubcategoryId(nameTr, categoryId = 1) {
   const map = categoryId === 7 ? TR_KEYWORD_TO_SPORT_SUBCATEGORY
@@ -159,9 +179,15 @@ function guessSubcategoryId(nameTr, categoryId = 1) {
     : categoryId === 2 ? TR_KEYWORD_TO_SHOE_SUBCATEGORY
     : categoryId === 3 ? TR_KEYWORD_TO_ACCESSORY_SUBCATEGORY
     : categoryId === 1 ? TR_KEYWORD_TO_SUBCATEGORY
-    : []; // e.g. Lifestyle: its importers pick those subcategories themselves
+    : categoryId === LIFESTYLE_CATEGORY_ID ? TR_KEYWORD_TO_LIFESTYLE_SUBCATEGORY
+    : [];
+  // Turkish lowercasing: Zara writes names in capitals ("PİJAMA", "HIRKA",
+  // "ELBİSE"), and /pijama/i doesn't match "PİJAMA" in JavaScript ("İ" isn't
+  // "i", and "I" lowercases to "i", not "ı") — most of Zara's clothing had
+  // no subcategory (2026-10-09).
+  const name = String(nameTr || '').toLocaleLowerCase('tr');
   for (const [re, target] of map) {
-    if (!re.test(nameTr || '')) continue;
+    if (!re.test(name)) continue;
     if (typeof target === 'number') return target;
     const id = subcategoryIdByKey.get(`${categoryId}:${target}`);
     if (id) return id;
@@ -1089,8 +1115,10 @@ async function Zara(pm, site, opts = {}) {
         subcategory_id = getLifestyleSubcategoryId(listingMeta.homeSlug);
         gender = 'unisex';
       } else {
-        category_id = 1;
-        subcategory_id = guessSubcategoryId(data.name, 1);
+        // Zara's clothing listings carry shoes, bags, perfume and kids'
+        // towels too — they all went to Clothing.
+        category_id = categoryFromName(data.name) || 1;
+        subcategory_id = guessSubcategoryId(data.name, category_id);
         gender = listingMeta.gender || 'unisex';
       }
       // size_label is VarChar(10): labels like "2 yaş (92 cm)" or
@@ -5659,7 +5687,7 @@ module.exports = {
   readLeftiesProducts, fetchLeftiesListingMeta, leftiesApiArgs,
   ARMALIFE_IMAGE_BASE, PAULMARK_IMAGE_BASE, ARMALIFE_MAX_GALLERY_IMAGES,
   // exported for siteSync.js#importSite and backend/scripts/addMenuSubcategories.js.
-  loadSubcategoryIds, guessSubcategoryId, MENU_SUBCATEGORY_DEFS,
+  loadSubcategoryIds, guessSubcategoryId, categoryFromName, MENU_SUBCATEGORY_DEFS,
   // exported for backend/scripts/backfillMissingColors.js — reusing the
   // same lookup/create logic the live importers use, rather than
   // duplicating it in the backfill script.
