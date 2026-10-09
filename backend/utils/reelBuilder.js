@@ -131,7 +131,13 @@ async function buildOutroSlide() {
 function runFfmpeg(args) {
   return new Promise((resolve, reject) => {
     execFile(ffmpegPath, args, { maxBuffer: 32 * 1024 * 1024 }, (err, _stdout, stderr) => {
-      if (err) reject(new Error(`ffmpeg failed: ${String(stderr).split('\n').slice(-6).join(' ')}`));
+      // The cause is usually far above the last lines (which only say
+      // nothing was written): keep the lines that name an error too.
+      if (err) {
+        const lines = String(stderr).split('\n');
+        const why = lines.filter(l => /error|invalid|mismatch|do not match|failed|unable|cannot/i.test(l)).slice(0, 6);
+        reject(new Error(`ffmpeg failed: ${[...why, ...lines.slice(-3)].join(' | ')}`));
+      }
       else resolve();
     });
   });
@@ -142,7 +148,7 @@ function runFfmpeg(args) {
 function motionFilter(i, seconds) {
   const frames = Math.round(seconds * FPS);
   const zoom = i % 2 === 0 ? "min(zoom+0.0009,1.12)" : "if(eq(on,0),1.12,max(zoom-0.0009,1))";
-  return `scale=${W * 2}:${H * 2},zoompan=z='${zoom}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${W}x${H}:fps=${FPS},format=yuv420p,setsar=1`;
+  return `scale=${W * 2}:${H * 2},zoompan=z='${zoom}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${W}x${H}:fps=${FPS},format=yuv420p,setsar=1,settb=1/${FPS}`;
 }
 
 // Builds the reel for `products` (2+) and returns its /uploads/... path.
@@ -230,21 +236,32 @@ async function buildAiReel(product, groupKey) {
     fs.writeFileSync(path.join(workDir, files.price), await buildProductSlide(product));
     fs.writeFileSync(path.join(workDir, files.outro), await buildOutroSlide());
 
-    const probe = await new Promise((resolve) => execFile(ffmpegPath, ['-i', clip], (_e, _o, stderr) => resolve(String(stderr))));
+    // The clip on its own first, to plain 1080x1920 30fps (the Space's
+    // output varies): if this fails it's the clip, not the reel's assembly —
+    // the 2026-10-09 run failed in one combined step with no way to tell.
+    const norm = path.join(workDir, 'clip-norm.mp4');
+    await runFfmpeg(['-y', '-i', clip, '-an',
+      '-vf', `scale=${W}:${H}:force_original_aspect_ratio=increase:flags=lanczos,crop=${W}:${H},fps=${FPS},format=yuv420p,setsar=1`,
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', norm]);
+    const probe = await new Promise((resolve) => execFile(ffmpegPath, ['-i', norm], (_e, _o, stderr) => resolve(String(stderr))));
     const m = probe.match(/Duration: (\d+):(\d+):([\d.]+)/);
-    const clipSec = m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) : 10;
+    const clipSec = m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) : 0;
+    if (clipSec < 1) throw new Error(`AI clip too short (${probe.match(/Duration: [^,]*/)?.[0] || 'no duration'})`);
     const total = clipSec + AI_PRICE_SEC + AI_OUTRO_SEC - 2 * AI_FADE_SEC;
 
     const filename = `ig-reel-ai-${groupKey}-${Date.now()}.mp4`;
     const outFile = path.join(UPLOADS_DIR, filename);
+    // A failed run leaves an empty file behind in uploads/.
     await runFfmpeg([
-      '-y', '-i', clip, '-i', path.join(workDir, files.overlay),
+      '-y', '-i', norm, '-i', path.join(workDir, files.overlay),
       '-loop', '1', '-t', String(AI_PRICE_SEC), '-i', path.join(workDir, files.price),
       '-loop', '1', '-t', String(AI_OUTRO_SEC), '-i', path.join(workDir, files.outro),
       '-f', 'lavfi', '-t', total.toFixed(2), '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
       '-filter_complex', [
-        // The clip is 480x832 at 16fps: filled to 1080x1920 at 30fps.
-        `[0:v]scale=${W}:${H}:force_original_aspect_ratio=increase:flags=lanczos,crop=${W}:${H},fps=${FPS},setpts=PTS-STARTPTS[c]`,
+        // xfade needs every input on the same timebase, and the clip's
+        // depends on what the Space returned (1/15360 vs 1/30: "Invalid
+        // argument", nothing written) — so it's set explicitly everywhere.
+        `[0:v]fps=${FPS},settb=1/${FPS},setpts=PTS-STARTPTS[c]`,
         '[c][1:v]overlay=0:0,format=yuv420p,setsar=1[v0]',
         `[2:v]${motionFilter(0, AI_PRICE_SEC)}[v1]`,
         `[3:v]${motionFilter(1, AI_OUTRO_SEC)}[v2]`,
@@ -257,8 +274,18 @@ async function buildAiReel(product, groupKey) {
       '-c:a', 'aac', '-b:a', '64k', '-shortest', '-movflags', '+faststart',
       '-t', total.toFixed(2),
       outFile,
-    ]);
+    ]).catch((e) => { fs.rmSync(outFile, { force: true }); throw e; });
     return { videoUrl: `/uploads/${filename}`, ...info };
+  } catch (err) {
+    // The AI clip took minutes of free GPU quota and can't be made again
+    // today: keep it so the failure can be looked into.
+    const clip = path.join(workDir, 'clip.mp4');
+    if (fs.existsSync(clip)) {
+      const kept = path.join(os.tmpdir(), `shilista-aireel-failed-${Date.now()}.mp4`);
+      fs.copyFileSync(clip, kept);
+      err.message += ` (clip kept at ${kept})`;
+    }
+    throw err;
   } finally {
     fs.rmSync(workDir, { recursive: true, force: true });
   }
