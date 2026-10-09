@@ -3355,10 +3355,16 @@ const colinsLinkId = (link) => String(link || '').match(/-(\d+)(?:[?#].*)?$/)?.[
 // { id, name, sizes: [{ name, inStock }], images }.
 const colinsColorRows = (colors) => colors.map((c) => ({ id: c.id, name: c.colorName, sizes: c.sizes, images: c.images }));
 
+// "Kemer" is a belt — but "Kemerli Pantolon" (trousers with a belt) and
+// "Kemer Detaylı Şort" are clothing: 7 Barrels and Oil trousers/skirts were
+// filed under Accessories (2026-10-09).
+const CLOTHING_NAME_WORDS = /pantolon|şort|etek|elbise|ceket|jean|gömlek|bluz|tulum|tişört|kazak|hırka|yelek|mont|kaban|sweatshirt|eşofman|tayt/i;
+const isBelt = (text) => /kemer\b/i.test(text) && !CLOTHING_NAME_WORDS.test(text);
+
 function routeColinsCategory(text) {
   if (/parfüm|parfum/i.test(text)) return 10;
   if (/terlik|ayakkabı|sneaker|\bbot\b/i.test(text)) return 2;
-  if (/çanta|cüzdan|kemer|şapka|bere\b|atkı|eldiven|aksesuar|kartlık|boyunluk/i.test(text)) return 3;
+  if (/çanta|cüzdan|şapka|bere\b|atkı|eldiven|aksesuar|kartlık|boyunluk/i.test(text) || isBelt(text)) return 3;
   return 1;
 }
 
@@ -3535,7 +3541,7 @@ function routePaulMarkCategory(card, name) {
   const text = `${armalifeClass(card, '02')} ${name}`;
   if (/parfüm|parfum/i.test(text)) return { category_id: 10, subcategory_id: guessSubcategoryId(name, 10) };
   if (/ayakkabı|terlik|\bbot\b|çizme|sandalet|babet|sneaker/i.test(text)) return { category_id: 2, subcategory_id: guessSubcategoryId(name, 2) };
-  if (/çanta|cüzdan|kartlık|kemer|şapka|bere\b|atkı|eldiven|kravat|mendil|fular|şal\b|aksesuar/i.test(text)) {
+  if (/çanta|cüzdan|kartlık|şapka|bere\b|atkı|eldiven|kravat|mendil|fular|şal\b|aksesuar/i.test(text) || isBelt(text)) {
     return { category_id: 3, subcategory_id: guessSubcategoryId(name, 3) };
   }
   return { category_id: 1, subcategory_id: guessSubcategoryId(text, 1) };
@@ -3813,7 +3819,7 @@ function routeBarrelsCategory(path, name) {
   if (/PARFÜM|parfüm/i.test(text)) return 10;
   if (/AYAKKABI|ÇİZME|BOT\b|TERLİK|ayakkabı|çizme|terlik/i.test(text)) return 2;
   if (/ÇORAP|çorap|İÇ GİYİM|BOXER|KÜLOT/i.test(text)) return 1;
-  if (/AKSESUAR|ÇANTA|CÜZDAN|ŞAPKA|çanta|cüzdan|şapka|bere\b|kemer/i.test(text)) return 3;
+  if (/AKSESUAR|ÇANTA|CÜZDAN|ŞAPKA|çanta|cüzdan|şapka|bere\b/i.test(text) || isBelt(text)) return 3;
   return 1;
 }
 
