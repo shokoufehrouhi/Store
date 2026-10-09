@@ -19,9 +19,30 @@ AFTER=$(git rev-parse HEAD)
 # staging's own API physically lands in staging's local uploads/ and 404s
 # (or ENOENTs — see backend/controllers/adminController.js's approve/reject
 # payment handlers) the moment production tries to read the same row.
+#
+# That re-link ran on EVERY pull (a few old uploads are tracked in git, so
+# each reset turned the symlink back into a plain dir), and a script writing
+# photos at that moment made rm fail, set -e then skipped the ln, and the
+# next pull rm -rf'd everything written there since — 468 photos lost on
+# 2026-10-08. So the clone is sparse now (uploads/ excluded: reset leaves
+# the symlink alone), and if a plain dir ever does show up, it's swapped
+# out in one rename and its files are moved over, never just deleted.
+if [ "$(git config core.sparseCheckout)" != "true" ]; then
+  git sparse-checkout init --no-cone
+  printf '/*\n!/backend/public/uploads/\n' > .git/info/sparse-checkout
+  git sparse-checkout reapply 2>/dev/null || true
+fi
 if [ ! -L backend/public/uploads ]; then
-  rm -rf backend/public/uploads
+  STRAY="backend/public/uploads.stray.$$"
+  mv backend/public/uploads "$STRAY" 2>/dev/null || true
+  # uploads/ was the only tracked thing in public/, so the sparse checkout
+  # removes public/ itself.
+  mkdir -p backend/public
   ln -s /home/admin/Store/backend/public/uploads backend/public/uploads
+  if [ -d "$STRAY" ]; then
+    cp -an "$STRAY"/. /home/admin/Store/backend/public/uploads/ || true
+    rm -rf "$STRAY"
+  fi
   echo "$(date -Iseconds) re-linked backend/public/uploads -> production's uploads dir"
 fi
 
