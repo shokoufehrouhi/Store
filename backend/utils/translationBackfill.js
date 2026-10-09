@@ -14,9 +14,15 @@ const needsTranslation = (val, fallback) => !val || val === fallback;
 
 // Spaced out to stay under MyMemory's burst rate limit — 4 calls/product
 // back-to-back with no gap gets HTTP 429'd almost every time.
+//
+// Many "Turkish" names are English already (MISSHA, Kiko…): tr->en gives
+// the same text back, so the field still equals name_tr and keeps being
+// picked up. Saving that would mark the product changed every night for
+// nothing — it's left as is instead.
 async function translateField(data, key, text, lang, log) {
   try {
-    data[key] = await translateText(text, 'tr', lang);
+    const translated = await translateText(text, 'tr', lang);
+    if (translated.trim() !== text.trim()) data[key] = translated;
   } catch (err) {
     log(`  [field error] ${key}: ${err.message}`);
   }
@@ -37,7 +43,7 @@ async function backfillTranslations({ log = console.log } = {}) {
     needsTranslation(p.name_en, p.name_tr) ||
     (p.desc_tr && (needsTranslation(p.desc_fa, p.desc_tr) || needsTranslation(p.desc_en, p.desc_tr)))
   );
-  const result = { candidates: products.length, updated: 0, failed: 0 };
+  const result = { candidates: products.length, updated: 0, unchanged: 0 };
 
   for (const p of products) {
     // Collected per-field (not one try/catch around all four) so one failed
@@ -57,12 +63,12 @@ async function backfillTranslations({ log = console.log } = {}) {
         result.updated++;
         log(`[ok] #${p.id} ${p.name_tr}`);
       } catch (err) {
-        result.failed++;
+        result.unchanged++;
         log(`[db error] #${p.id} ${p.name_tr} — ${err.message}`);
       }
     } else {
-      result.failed++;
-      log(`[skip] #${p.id} ${p.name_tr} — all fields failed`);
+      result.unchanged++;
+      log(`[skip] #${p.id} ${p.name_tr} — nothing new (already in that language, or failed)`);
     }
   }
   return result;
