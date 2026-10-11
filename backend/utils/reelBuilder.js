@@ -262,7 +262,11 @@ async function buildAiReel(product, groupKey) {
         // depends on what the Space returned (1/15360 vs 1/30: "Invalid
         // argument", nothing written) — so it's set explicitly everywhere.
         `[0:v]fps=${FPS},settb=1/${FPS},setpts=PTS-STARTPTS[c]`,
-        '[c][1:v]overlay=0:0,format=yuv420p,setsar=1[v0]',
+        // ffmpeg 7 (the VPS's ffmpeg-static) gives overlay's output an
+        // unknown frame rate when the still overlay image (25fps) and the
+        // clip (30fps) differ, and xfade refuses it ("current rate of 1/0",
+        // the 2026-10-10/11 runs): fps= sets it again.
+        `[c][1:v]overlay=0:0,format=yuv420p,setsar=1,fps=${FPS}[v0]`,
         `[2:v]${motionFilter(0, AI_PRICE_SEC)}[v1]`,
         `[3:v]${motionFilter(1, AI_OUTRO_SEC)}[v2]`,
         `[v0][v1]xfade=transition=fadewhite:duration=${AI_FADE_SEC}:offset=${(clipSec - AI_FADE_SEC).toFixed(2)}[x1]`,
