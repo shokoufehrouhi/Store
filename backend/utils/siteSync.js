@@ -178,7 +178,7 @@ async function checkSiteStockNow(site) {
                 ...priceUpdate, stock: 0, tag: 'sold_out', is_dirty: true, updated_at: new Date(),
                 // Only stamped on the actual transition into sold_out, not on
                 // every re-check while it stays sold out — see scheduler.js's
-                // 5-days-later auto-deactivation, which reads this.
+                // 2-days-later auto-deactivation, which reads this.
                 ...(p.tag !== 'sold_out' ? { sold_out_at: new Date() } : {}),
               },
             });

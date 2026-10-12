@@ -153,8 +153,8 @@ function hhmmToMinutes(hhmm) {
 // but nothing about a product having sat sold out that long needs a human
 // to confirm it should stop showing, so this flips is_live itself rather
 // than just marking it dirty and waiting for the next unrelated publish.
-// Was a month until 2026-09-30; shortened to 5 days on request.
-const SOLD_OUT_DEACTIVATE_DAYS = 5;
+// Was a month until 2026-09-30, then 5 days; 2 days since 2026-10-12 (user's request).
+const SOLD_OUT_DEACTIVATE_DAYS = 2;
 
 async function deactivateExpiredSoldOutProducts() {
   const cutoff = new Date();
