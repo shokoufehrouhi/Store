@@ -120,7 +120,7 @@ async function readSiteData(pm, url) {
 // from this site: marks fully-sold-out products stock=0 / tag='sold_out',
 // and re-prices cost_price/price/discounted_price if the site's price moved
 // — using this site's markup_percent, same formula as at import time.
-async function checkSiteStock(site) {
+async function checkSiteStockNow(site) {
   const products = await prisma.products.findMany({
     where: { supplier_shop_name: site.name, product_link: { not: null }, is_active: true },
   });
@@ -212,7 +212,7 @@ async function checkSiteStock(site) {
 // Colin's had ~3,200 importable discounted models on 2026-10-06.
 const SITE_IMPORT_LIMITS = { ArmaLife: 100, Lefties: 50, Colins: 100 };
 
-async function importSite(site, opts = {}) {
+async function importSiteNow(site, opts = {}) {
   const importer = importers[site.name];
   if (!importer) throw new Error(`no importer implemented for site "${site.name}"`);
   if (SITE_IMPORT_LIMITS[site.name]) opts = { ...opts, limit: SITE_IMPORT_LIMITS[site.name] };
@@ -260,7 +260,14 @@ function hasImporter(name) {
 // atomic update; whoever loses the race skips it. `flag` is
 // 'import_in_progress' or 'stock_check_in_progress'. A claim older than
 // SITE_RUN_STALE_MS (its process died mid-run) can be taken over.
-const SITE_RUN_STALE_MS = 6 * 60 * 60 * 1000;
+// A live run refreshes its claim every SITE_RUN_HEARTBEAT_MS (see
+// keepSiteRunAlive), so a claim only goes stale once its process is gone.
+// This used to be a flat 6 hours with no heartbeat: a run killed by a
+// Deploy/restart left the site showing "in progress", with its Sync
+// button locked, for up to 6 hours (2026-10-12: Stradivarius, killed by a
+// Deploy 2 minutes after it was started).
+const SITE_RUN_STALE_MS = 10 * 60 * 1000;
+const SITE_RUN_HEARTBEAT_MS = 60 * 1000;
 async function claimSiteRun(siteId, flag) {
   const { count } = await prisma.sites.updateMany({
     where: { id: siteId, OR: [{ [flag]: false }, { updated_at: { lt: new Date(Date.now() - SITE_RUN_STALE_MS) } }] },
@@ -269,4 +276,46 @@ async function claimSiteRun(siteId, flag) {
   return count === 1;
 }
 
-module.exports = { checkSiteStock, importSite, withBrowser, cleanupStaleChromeProfiles, importStatusText, hasImporter, claimSiteRun, SITE_RUN_STALE_MS };
+function keepSiteRunAlive(siteId, flag) {
+  const timer = setInterval(() => {
+    prisma.sites.updateMany({ where: { id: siteId, [flag]: true }, data: { updated_at: new Date() } })
+      .catch(err => console.error(`[siteSync] ${flag} heartbeat failed for site ${siteId}:`, err.message));
+  }, SITE_RUN_HEARTBEAT_MS);
+  return () => clearInterval(timer);
+}
+
+// Whether a claim is still held by a live run (see SITE_RUN_STALE_MS) --
+// for showing the real state in the admin panel.
+function siteRunIsLive(row, flag) {
+  return !!row[flag] && Date.now() - new Date(row.updated_at).getTime() < SITE_RUN_STALE_MS;
+}
+
+// Every import and stock check launches its own Chrome, and this VPS has
+// 4GB of RAM: several at once pushed it into swap, and every in-page call
+// then hit Puppeteer's timeout, so each run dragged on for hours
+// (2026-10-12: Stradivarius, PullAndBear, Oysho and PaulMark started from
+// the Sync buttons within 9 seconds of each other). Runs in this process
+// now wait for each other instead; the caller's claim stays alive while
+// waiting.
+let runChain = Promise.resolve();
+function runOneAtATime(fn) {
+  const run = runChain.then(fn, fn);
+  runChain = run.catch(() => {});
+  return run;
+}
+
+async function runClaimed(siteId, flag, fn) {
+  const stop = keepSiteRunAlive(siteId, flag);
+  try {
+    return await runOneAtATime(fn);
+  } finally {
+    stop();
+  }
+}
+
+// What callers use: they claim the site first (claimSiteRun), then these
+// keep the claim alive and run it in turn.
+const importSite = (site, opts = {}) => runClaimed(site.id, 'import_in_progress', () => importSiteNow(site, opts));
+const checkSiteStock = (site) => runClaimed(site.id, 'stock_check_in_progress', () => checkSiteStockNow(site));
+
+module.exports = { siteRunIsLive, checkSiteStock, importSite, withBrowser, cleanupStaleChromeProfiles, importStatusText, hasImporter, claimSiteRun, SITE_RUN_STALE_MS };

@@ -2559,11 +2559,20 @@ const LEFTIES_MAX_GALLERY_IMAGES = 14;
 // category id (one call covers every product in it) or null to ask per
 // product.
 // Also used for Oysho (same Inditex API; `label` and `imageBase` differ).
-function leftiesReadProductsInPage({ api, stockApi, lang, batch, categoryId, ids, stockScope, label = 'Lefties', imageBase = 'https://static.lefties.com/' }) {
+// `timeoutMs` (optional) caps the whole call -- see LEFTIES_CATEGORY_TIMEOUT_MS.
+function leftiesReadProductsInPage({ api, stockApi, lang, batch, categoryId, ids, stockScope, timeoutMs, label = 'Lefties', imageBase = 'https://static.lefties.com/' }) {
+  const signal = timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined;
   const get = async (url) => {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`${label} API ${res.status} (category ${categoryId})`);
-    return res.json();
+    let res;
+    try {
+      res = await fetch(url, { signal });
+      if (!res.ok) throw new Error(`${label} API ${res.status} (category ${categoryId})`);
+      return await res.json();
+    } catch (err) {
+      // Chrome reports it as either TimeoutError or AbortError.
+      if (signal?.aborted) throw new Error(`${label} category ${categoryId} timed out after ${timeoutMs / 1000}s`);
+      throw err;
+    }
   };
   return (async () => {
     const availability = new Map(); // sku -> 'in_stock' | 'out_of_stock' | ...
@@ -2629,19 +2638,41 @@ const leftiesApiArgs = () => ({ api: LEFTIES_API, stockApi: LEFTIES_STOCK_API, l
 // this run, or already imported, are remembered inside the page itself
 // (window.__leftiesSkip, seeded once per run) and never re-read — most
 // products sit in several categories (parent, child, "view all").
+// Puppeteer's own limit for one in-page call is 180s, and hitting it does
+// not stop the call: its fetches go on inside the page, alongside the next
+// category's. On a loaded server that happened over and over (2026-10-12:
+// Stradivarius, PullAndBear and Oysho each lost 3 minutes per stuck
+// category, for hours). This limit aborts the fetches themselves; a
+// healthy category takes a few seconds.
+const LEFTIES_CATEGORY_TIMEOUT_MS = 90 * 1000;
+
 async function readLeftiesCategory(page, categoryId, apiArgs = leftiesApiArgs()) {
-  const args = { ...apiArgs, categoryId };
-  const ids = await page.evaluate(async ({ api, lang, categoryId, label = 'Lefties' }) => {
-    const res = await fetch(`${api}/category/${categoryId}/product?showProducts=false&languageId=${lang}&appId=1`);
-    if (!res.ok) throw new Error(`${label} API ${res.status} (category ${categoryId})`);
-    const list = await res.json();
+  const args = { ...apiArgs, categoryId, timeoutMs: LEFTIES_CATEGORY_TIMEOUT_MS };
+  const ids = await page.evaluate(async ({ api, lang, categoryId, timeoutMs, label = 'Lefties' }) => {
+    const signal = AbortSignal.timeout(timeoutMs);
+    let list;
+    try {
+      const res = await fetch(`${api}/category/${categoryId}/product?showProducts=false&languageId=${lang}&appId=1`, { signal });
+      if (!res.ok) throw new Error(`${label} API ${res.status} (category ${categoryId})`);
+      list = await res.json();
+    } catch (err) {
+      if (signal.aborted) throw new Error(`${label} category ${categoryId} timed out after ${timeoutMs / 1000}s`);
+      throw err;
+    }
     const skip = window.__leftiesSkip || (window.__leftiesSkip = new Set());
     const fresh = (list.productIds || []).map(String).filter(id => !skip.has(id));
     fresh.forEach(id => skip.add(id));
     return fresh;
   }, args);
   if (!ids.length) return [];
-  const products = await page.evaluate(leftiesReadProductsInPage, { ...args, ids, stockScope: categoryId });
+  let products;
+  try {
+    products = await page.evaluate(leftiesReadProductsInPage, { ...args, ids, stockScope: categoryId });
+  } catch (err) {
+    // Not read after all: let a later category that lists them read them.
+    await page.evaluate((unread) => unread.forEach(id => window.__leftiesSkip.delete(id)), ids).catch(() => {});
+    throw err;
+  }
   // Bundles list under a top-level id but are stored by their inner id.
   await page.evaluate((more) => more.forEach(id => window.__leftiesSkip.add(id)), products.flatMap(p => [p.id, p.topId]));
   return products;

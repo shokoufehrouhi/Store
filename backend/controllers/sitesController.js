@@ -1,7 +1,14 @@
 const prisma = require('../prisma/client');
-const { checkSiteStock, importSite, importStatusText, hasImporter, claimSiteRun } = require('../utils/siteSync');
+const { checkSiteStock, importSite, importStatusText, hasImporter, claimSiteRun, siteRunIsLive } = require('../utils/siteSync');
 
-const withImporterFlag = (row) => ({ ...row, has_importer: hasImporter(row.name) });
+// A flag left set by a run whose process died (restart/Deploy) is shown as
+// not running, same rule claimSiteRun uses to take it over.
+const withImporterFlag = (row) => ({
+  ...row,
+  has_importer: hasImporter(row.name),
+  import_in_progress: siteRunIsLive(row, 'import_in_progress'),
+  stock_check_in_progress: siteRunIsLive(row, 'stock_check_in_progress'),
+});
 const { queueNewProductsForInstagram } = require('../utils/instagramProductQueue');
 
 async function listSites(req, res, next) {
