@@ -149,6 +149,7 @@ router.delete('/instagram-content/:id',      ic.deleteStory);
 
 const ipp = require('../controllers/instagramProductPostsController');
 router.get('/instagram-product-posts', ipp.listProductPosts);
+router.post('/instagram-product-posts', ipp.addProductPost);
 
 const sc = require('../controllers/suppliersController');
 router.get('/suppliers',       sc.listSuppliers);
