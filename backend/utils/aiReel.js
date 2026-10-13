@@ -37,13 +37,16 @@ function pickAvatar(gender) {
 }
 
 // What the person does with the product, by kind (see aiReelKind).
-const SAFE = 'modest, elegant and natural, static camera, bright clean studio, realistic smooth natural motion';
+// The second clip used to turn the person around, and Wan made up the
+// back of the product (another product, in effect): the product stays in
+// view now and is said to stay the same (user's request, 2026-10-13).
+const SAFE = 'the same person wearing exactly the same product the whole time, modest, elegant and natural, static camera, bright clean studio, realistic smooth natural motion';
 const SCENES = {
   clothing: {
     edit: (item) => `The person on the left is now wearing the ${item} shown on the right, reproduced exactly (same color, pattern, fabric, cut and details), styled with simple neutral matching clothes and shoes. Keep their face, hair, skin tone and body identical. Remove the separate product image on the right and replace the whole background with a bright clean minimal light grey studio. Full body from head to toe, realistic fashion lookbook photo.`,
     clips: [
       `The person walks a few confident steps toward the camera, then does a slow half turn so the outfit is seen from the side, natural arm movement, gentle smile, ${SAFE}`,
-      `The same person puts one hand on the hip, slowly turns around to show the back of the outfit, then turns back to face the camera with a confident smile, ${SAFE}`,
+      `The same person puts one hand on the hip, turns slightly to one side so the outfit is seen at an angle, then faces the camera again with a confident smile, ${SAFE}`,
     ],
   },
   kids: {
@@ -64,7 +67,7 @@ const SCENES = {
     edit: (item) => `The person on the left is now wearing the ${item} shown on the right on their feet, reproduced exactly (same color, shape and details), with a simple neutral outfit that leaves the shoes fully visible. Keep their face, hair, skin tone and body identical. Remove the separate product image on the right and replace the whole background with a bright clean minimal light grey studio. Full body from head to toe, shoes clearly visible, realistic fashion lookbook photo.`,
     clips: [
       `The person walks a few relaxed steps toward the camera so the shoes are clearly seen, then stops and turns one foot to show the side of the shoe, ${SAFE}`,
-      `The same person turns around slowly, walks two steps away and turns back to the camera with a smile, ${SAFE}`,
+      `The same person takes two slow steps to the side so the shoes are seen at an angle, then faces the camera again with a smile, ${SAFE}`,
     ],
   },
   cosmetics: {
@@ -131,7 +134,9 @@ async function animate(imageBuf, prompt, seed) {
 }
 
 // Writes the joined AI clip (two chained clips, ~10s) for `product` to
-// `outFile`. `productPhotoPath` is the product's photo on disk.
+// `outFile`. `productPhotoPath` is the product's photo on disk. Also
+// returns `look`: the try-on picture (9:16 JPEG) the clips start from, so
+// the rest of the reel shows the same person with the same product.
 async function makeAiClip(product, groupKey, productPhotoPath, outFile) {
   const kind = aiReelKind(product, groupKey);
   const scene = SCENES[kind];
@@ -159,7 +164,7 @@ async function makeAiClip(product, groupKey, productPhotoPath, outFile) {
     await runFfmpeg(['-y', '-i', clip1, '-i', clip2, '-filter_complex',
       '[0:v]setsar=1[a];[1:v]trim=start_frame=1,setpts=PTS-STARTPTS[b0];[b0][a]scale2ref[b][a2];[a2][b]concat=n=2:v=1[v]',
       '-map', '[v]', '-c:v', 'libx264', '-crf', '16', '-pix_fmt', 'yuv420p', outFile]);
-    return { kind, avatar: avatarPath ? path.basename(avatarPath) : null };
+    return { kind, avatar: avatarPath ? path.basename(avatarPath) : null, look: firstFrame };
   } finally {
     fs.rmSync(workDir, { recursive: true, force: true });
   }

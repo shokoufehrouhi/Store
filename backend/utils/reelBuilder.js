@@ -200,8 +200,88 @@ async function buildReel(products, { headline, prefix = 'reel' }) {
 
 // The daily AI reel (see aiReel.js): the ~10s clip of a person with the
 // product, with the logo on top and the discount + price at the bottom,
-// then the usual price slide and outro (~15s in all).
-const AI_PRICE_SEC = 3.0, AI_OUTRO_SEC = 2.4, AI_FADE_SEC = 0.35;
+// then a price slide and the outro — exactly AI_REEL_SEC in all. User's
+// request (2026-10-13): one product only, and the person wearing it in
+// every part, so the price slide and outro show the try-on picture (`look`)
+// instead of the bare product photo.
+const AI_REEL_SEC = 15, AI_PRICE_SEC = 3.0, AI_OUTRO_SEC = 2.4, AI_FADE_SEC = 0.35;
+const AI_CLIP_SEC = AI_REEL_SEC - AI_PRICE_SEC - AI_OUTRO_SEC + 2 * AI_FADE_SEC;
+
+// The try-on picture blurred and washed out, filling the frame.
+async function aiBackdrop(look) {
+  const blur = await sharp(look).resize(W, H, { fit: 'cover' }).blur(40).toBuffer();
+  const wash = Buffer.from(`<svg width="${W}" height="${H}"><rect width="100%" height="100%" fill="#fff" fill-opacity=".55"/></svg>`);
+  return { input: await sharp(blur).composite([{ input: wash }]).png().toBuffer(), left: 0, top: 0 };
+}
+
+async function roundedBuf(buf, width, height, radius = 36) {
+  const img = await sharp(buf).resize(width, height, { fit: 'cover', position: 'top' }).png().toBuffer();
+  const mask = Buffer.from(`<svg width="${width}" height="${height}"><rect width="${width}" height="${height}" rx="${radius}" ry="${radius}" fill="#fff"/></svg>`);
+  return sharp(img).composite([{ input: mask, blend: 'dest-in' }]).png().toBuffer();
+}
+
+function whiteCard(width, height, radius = 44) {
+  return Buffer.from(`<svg width="${width}" height="${height}"><rect width="${width}" height="${height}" rx="${radius}" ry="${radius}" fill="#fff"/></svg>`);
+}
+
+// The person with the product, then name, prices and the discount on a
+// white card under it.
+async function aiPriceSlide(product, look) {
+  const layers = [await aiBackdrop(look)];
+  layers.push(await centered(await sharp(LOGO_PATH).resize({ width: 220 }).toBuffer(), 50));
+  const photoH = 1150, photoW = Math.round(photoH * 9 / 16);
+  layers.push(await centered(await roundedBuf(look, photoW, photoH), 160));
+
+  // The card fits its text (the name can take one line or two).
+  const cardTop = 1350, cardW = 980;
+  const cardAt = layers.length;
+  const nameBuf = await renderText({
+    text: shortName(displayName(product)), fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold',
+    width: 900, size: 58, color: INK,
+  });
+  layers.push(await centered(nameBuf, cardTop + 35));
+  let y = cardTop + 35 + (await sharp(nameBuf).metadata()).height + 20;
+
+  const price = Number(product.price);
+  const sale = product.discounted_price != null ? Number(product.discounted_price) : null;
+  if (sale != null && sale < price) {
+    const pct = Math.round((price - sale) / price * 100);
+    const oldBuf = await renderText({ text: formatTL(price), fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium', width: 600, size: 52, color: '#8a8a8a' });
+    const oldMeta = await sharp(oldBuf).metadata();
+    const strike = Buffer.from(`<svg width="${oldMeta.width}" height="${oldMeta.height}"><line x1="0" y1="${oldMeta.height / 2}" x2="${oldMeta.width}" y2="${oldMeta.height / 2}" stroke="#8a8a8a" stroke-width="4"/></svg>`);
+    layers.push(await centered(await sharp(oldBuf).composite([{ input: strike }]).png().toBuffer(), y));
+    y += oldMeta.height;
+    const saleBuf = await renderText({ text: formatTL(sale), fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 900, size: 104, color: INK });
+    layers.push(await centered(saleBuf, y));
+    y += (await sharp(saleBuf).metadata()).height;
+
+    const badgeText = await renderText({ text: `${toFaDigits(pct)}٪ تخفیف`, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 420, size: 56, color: ACCENT });
+    const bm = await sharp(badgeText).metadata();
+    const bw = bm.width + 60, bh = bm.height + 30;
+    const badgeBg = Buffer.from(`<svg width="${bw}" height="${bh}"><rect width="${bw}" height="${bh}" rx="${bh / 2}" ry="${bh / 2}" fill="${ACCENT_BG}"/></svg>`);
+    const badge = await sharp(badgeBg).composite([{ input: badgeText, left: 30, top: 15 }]).png().toBuffer();
+    layers.push({ input: badge, left: Math.round((W + photoW) / 2) - bw + 30, top: 190 });
+  } else {
+    const saleBuf = await renderText({ text: formatTL(sale ?? price), fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 900, size: 104, color: INK });
+    layers.push(await centered(saleBuf, y));
+    y += (await sharp(saleBuf).metadata()).height;
+  }
+  layers.splice(cardAt, 0, { input: whiteCard(cardW, y - cardTop + 40), left: (W - cardW) / 2, top: cardTop });
+  return sharp({ create: { width: W, height: H, channels: 4, background: BG } }).composite(layers).jpeg({ quality: 92 }).toBuffer();
+}
+
+// The outro on top of the same person: logo, call to action, site link.
+async function aiOutroSlide(look) {
+  const layers = [await aiBackdrop(look)];
+  const photoH = 900, photoW = Math.round(photoH * 9 / 16);
+  layers.push(await centered(await roundedBuf(look, photoW, photoH), 170));
+  const cardW = 900, cardH = 560, cardTop = 1170;
+  layers.push({ input: whiteCard(cardW, cardH), left: (W - cardW) / 2, top: cardTop });
+  layers.push(await centered(await sharp(LOGO_PATH).resize({ width: 480 }).toBuffer(), cardTop + 50));
+  layers.push(await centered(await renderText({ text: 'همین الان در شیلیستا ببین', fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 820, size: 66, color: INK }), cardTop + 300));
+  layers.push(await centered(await renderText({ text: 'shilista.com', fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold', width: 700, size: 52, color: MUTED }), cardTop + 430));
+  return sharp({ create: { width: W, height: H, channels: 4, background: BG } }).composite(layers).jpeg({ quality: 92 }).toBuffer();
+}
 async function aiClipOverlay(product) {
   const layers = [];
   const shade = Buffer.from(`<svg width="${W}" height="${H}"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".28"/><stop offset=".14" stop-color="#000" stop-opacity="0"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/></svg>`);
@@ -230,24 +310,33 @@ async function buildAiReel(product, groupKey) {
   const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shilista-aireel-'));
   try {
     const clip = path.join(workDir, 'clip.mp4');
-    const info = await makeAiClip(product, groupKey, photo, clip);
+    const { look, ...info } = await makeAiClip(product, groupKey, photo, clip);
     const files = { overlay: 'overlay.png', price: 'price.jpg', outro: 'outro.jpg' };
     fs.writeFileSync(path.join(workDir, files.overlay), await aiClipOverlay(product));
-    fs.writeFileSync(path.join(workDir, files.price), await buildProductSlide(product));
-    fs.writeFileSync(path.join(workDir, files.outro), await buildOutroSlide());
+    fs.writeFileSync(path.join(workDir, files.price), await aiPriceSlide(product, look));
+    fs.writeFileSync(path.join(workDir, files.outro), await aiOutroSlide(look));
 
     // The clip on its own first, to plain 1080x1920 30fps (the Space's
     // output varies): if this fails it's the clip, not the reel's assembly —
     // the 2026-10-09 run failed in one combined step with no way to tell.
+    // It's also fitted to AI_CLIP_SEC here so the reel is always
+    // AI_REEL_SEC: slowed down or sped up a little (at most 0.8-1.4x), then
+    // the last frame held / the end cut for whatever is left.
+    const probeSec = async (file) => {
+      const probe = await new Promise((resolve) => execFile(ffmpegPath, ['-i', file], (_e, _o, stderr) => resolve(String(stderr))));
+      const m = probe.match(/Duration: (\d+):(\d+):([\d.]+)/);
+      return { sec: m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) : 0, probe };
+    };
+    const raw = await probeSec(clip);
+    if (raw.sec < 1) throw new Error(`AI clip too short (${raw.probe.match(/Duration: [^,]*/)?.[0] || 'no duration'})`);
+    const stretch = Math.min(1.4, Math.max(0.8, AI_CLIP_SEC / raw.sec));
     const norm = path.join(workDir, 'clip-norm.mp4');
     await runFfmpeg(['-y', '-i', clip, '-an',
-      '-vf', `scale=${W}:${H}:force_original_aspect_ratio=increase:flags=lanczos,crop=${W}:${H},fps=${FPS},format=yuv420p,setsar=1`,
+      '-vf', `setpts=${stretch.toFixed(4)}*(PTS-STARTPTS),scale=${W}:${H}:force_original_aspect_ratio=increase:flags=lanczos,crop=${W}:${H},fps=${FPS},tpad=stop_mode=clone:stop_duration=${AI_CLIP_SEC},format=yuv420p,setsar=1`,
+      '-t', String(AI_CLIP_SEC),
       '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', norm]);
-    const probe = await new Promise((resolve) => execFile(ffmpegPath, ['-i', norm], (_e, _o, stderr) => resolve(String(stderr))));
-    const m = probe.match(/Duration: (\d+):(\d+):([\d.]+)/);
-    const clipSec = m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) : 0;
-    if (clipSec < 1) throw new Error(`AI clip too short (${probe.match(/Duration: [^,]*/)?.[0] || 'no duration'})`);
-    const total = clipSec + AI_PRICE_SEC + AI_OUTRO_SEC - 2 * AI_FADE_SEC;
+    const clipSec = AI_CLIP_SEC;
+    const total = AI_REEL_SEC;
 
     const filename = `ig-reel-ai-${groupKey}-${Date.now()}.mp4`;
     const outFile = path.join(UPLOADS_DIR, filename);
