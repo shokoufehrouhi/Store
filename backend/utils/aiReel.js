@@ -6,17 +6,14 @@
 // Face Spaces (utils/hfSpaces.js):
 //   1. FLUX.1 Kontext puts the product on the avatar (one input image: the
 //      avatar on the left, the product photo on the right);
-//   2. Wan 2.2 animates that picture, two 5s clips chained (the second
-//      starts from the first one's last frame — 5s is the Space's maximum);
+//   2. Wan 2.2 animates that picture into one 5s clip (the Space's
+//      maximum; it was two chained clips until 2026-10-13);
 // then reelBuilder.js#buildAiReel adds the logo, the discount, the price
 // slide and the outro. Kids' clothes get an AI child instead of an avatar.
 // Tested by hand 2026-10-07: ~30s for the picture and ~1-1.5 min per clip.
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 const sharp = require('sharp');
-const { execFile } = require('child_process');
-const ffmpegPath = require('ffmpeg-static');
 const hf = require('./hfSpaces');
 
 const KONTEXT = 'black-forest-labs/FLUX.1-Kontext-Dev';
@@ -44,38 +41,23 @@ const SAFE = 'the same person wearing exactly the same product the whole time, m
 const SCENES = {
   clothing: {
     edit: (item) => `The person on the left is now wearing the ${item} shown on the right, reproduced exactly (same color, pattern, fabric, cut and details), styled with simple neutral matching clothes and shoes. Keep their face, hair, skin tone and body identical. Remove the separate product image on the right and replace the whole background with a bright clean minimal light grey studio. Full body from head to toe, realistic fashion lookbook photo.`,
-    clips: [
-      `The person walks a few confident steps toward the camera, then does a slow half turn so the outfit is seen from the side, natural arm movement, gentle smile, ${SAFE}`,
-      `The same person puts one hand on the hip, turns slightly to one side so the outfit is seen at an angle, then faces the camera again with a confident smile, ${SAFE}`,
-    ],
+    clip: `The person walks a few confident steps toward the camera, then does a slow half turn so the outfit is seen from the side, natural arm movement, gentle smile, ${SAFE}`,
   },
   kids: {
     edit: (item) => `A cheerful child model about seven years old is wearing the ${item} shown in this image, reproduced exactly (same color, print and details), with simple matching clothes and sneakers. Bright clean minimal light grey studio background. Full body from head to toe, realistic kids fashion catalogue photo.`,
-    clips: [
-      `The child walks happily toward the camera and does a little playful spin, smiling, ${SAFE}`,
-      `The same child jumps lightly on the spot, laughs and waves at the camera, ${SAFE}`,
-    ],
+    clip: `The child walks happily toward the camera and does a little playful spin, smiling, ${SAFE}`,
   },
   bag: {
     edit: (item) => `The person on the left is now carrying the ${item} shown on the right, reproduced exactly (same color, shape, material and hardware), with a simple neutral outfit. Keep their face, hair, skin tone and body identical. Remove the separate product image on the right and replace the whole background with a bright clean minimal light grey studio. Full body, the bag clearly visible, realistic fashion lookbook photo.`,
-    clips: [
-      `The person walks toward the camera carrying the bag, then stops and lifts it slightly to show it, smiling, ${SAFE}`,
-      `The same person turns to the side showing the bag from another angle, then looks back at the camera with a confident smile, ${SAFE}`,
-    ],
+    clip: `The person walks toward the camera carrying the bag, then stops and lifts it slightly to show it, smiling, ${SAFE}`,
   },
   shoes: {
     edit: (item) => `The person on the left is now wearing the ${item} shown on the right on their feet, reproduced exactly (same color, shape and details), with a simple neutral outfit that leaves the shoes fully visible. Keep their face, hair, skin tone and body identical. Remove the separate product image on the right and replace the whole background with a bright clean minimal light grey studio. Full body from head to toe, shoes clearly visible, realistic fashion lookbook photo.`,
-    clips: [
-      `The person walks a few relaxed steps toward the camera so the shoes are clearly seen, then stops and turns one foot to show the side of the shoe, ${SAFE}`,
-      `The same person takes two slow steps to the side so the shoes are seen at an angle, then faces the camera again with a smile, ${SAFE}`,
-    ],
+    clip: `The person walks a few relaxed steps toward the camera so the shoes are clearly seen, then stops and turns one foot to show the side of the shoe, ${SAFE}`,
   },
   cosmetics: {
     edit: (item) => `Beauty portrait: the woman on the left is holding the ${item} shown on the right near her face, the product reproduced exactly and clearly visible. Keep her face, hair and skin tone identical, natural makeup. Remove the separate product image on the right and replace the whole background with a soft clean light studio background. Upper body, vertical framing, realistic beauty campaign photo.`,
-    clips: [
-      `The woman smiles, brings the product closer to the camera to show it, then gently turns her head, ${SAFE}`,
-      `The same woman lightly applies the product, then smiles warmly at the camera, ${SAFE}`,
-    ],
+    clip: `The woman smiles, brings the product closer to the camera to show it, then gently turns her head, ${SAFE}`,
   },
 };
 
@@ -84,15 +66,6 @@ function aiReelKind(product, groupKey) {
   if (groupKey === 'cosmetics') return 'cosmetics';
   if (groupKey === 'bagsShoes') return product.category_id === 2 ? 'shoes' : 'bag';
   return 'clothing';
-}
-
-function runFfmpeg(args) {
-  return new Promise((resolve, reject) => {
-    execFile(ffmpegPath, args, { maxBuffer: 32 * 1024 * 1024 }, (err, _stdout, stderr) => {
-      if (err) reject(new Error(`ffmpeg failed: ${String(stderr).split('\n').slice(-6).join(' ')}`));
-      else resolve();
-    });
-  });
 }
 
 // The free Spaces fail now and then (busy, restarting) — a few tries each.
@@ -133,9 +106,9 @@ async function animate(imageBuf, prompt, seed) {
   return hf.downloadOutput(out[0]);
 }
 
-// Writes the joined AI clip (two chained clips, ~10s) for `product` to
+// Writes the AI clip (~5s) for `product` to
 // `outFile`. `productPhotoPath` is the product's photo on disk. Also
-// returns `look`: the try-on picture (9:16 JPEG) the clips start from, so
+// returns `look`: the try-on picture (9:16 JPEG) the clip starts from, so
 // the rest of the reel shows the same person with the same product.
 async function makeAiClip(product, groupKey, productPhotoPath, outFile) {
   const kind = aiReelKind(product, groupKey);
@@ -143,31 +116,18 @@ async function makeAiClip(product, groupKey, productPhotoPath, outFile) {
   const avatarPath = kind === 'kids' ? null : pickAvatar(product.gender === 'male' ? 'male' : 'female');
   const item = String(product.name_en || 'item').replace(/\s+/g, ' ').trim().slice(0, 80);
   const seed = Math.floor(Math.random() * 1e6);
-  const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shilista-aireel-'));
-  try {
-    const editInput = await buildEditInput(avatarPath, productPhotoPath);
-    const edited = await withRetries('try-on', async () => {
-      const input = await hf.uploadFile(KONTEXT, editInput, 'input.jpg');
-      const out = await hf.callSpace(KONTEXT, 'infer', [input, scene.edit(item), seed, false, 2.5, 28]);
-      return hf.downloadOutput(out[0]);
-    });
-    const firstFrame = await portraitCrop(edited);
+  const editInput = await buildEditInput(avatarPath, productPhotoPath);
+  const edited = await withRetries('try-on', async () => {
+    const input = await hf.uploadFile(KONTEXT, editInput, 'input.jpg');
+    const out = await hf.callSpace(KONTEXT, 'infer', [input, scene.edit(item), seed, false, 2.5, 28]);
+    return hf.downloadOutput(out[0]);
+  });
+  const firstFrame = await portraitCrop(edited);
 
-    const clip1 = path.join(workDir, 'clip1.mp4');
-    fs.writeFileSync(clip1, await withRetries('clip 1', () => animate(firstFrame, scene.clips[0], seed)));
-    const lastFrame = path.join(workDir, 'last.jpg');
-    await runFfmpeg(['-y', '-sseof', '-0.1', '-i', clip1, '-frames:v', '1', '-q:v', '2', lastFrame]);
-    const clip2 = path.join(workDir, 'clip2.mp4');
-    fs.writeFileSync(clip2, await withRetries('clip 2', () => animate(fs.readFileSync(lastFrame), scene.clips[1], seed + 1)));
-
-    // Second clip's first frame repeats the first clip's last one: dropped.
-    await runFfmpeg(['-y', '-i', clip1, '-i', clip2, '-filter_complex',
-      '[0:v]setsar=1[a];[1:v]trim=start_frame=1,setpts=PTS-STARTPTS[b0];[b0][a]scale2ref[b][a2];[a2][b]concat=n=2:v=1[v]',
-      '-map', '[v]', '-c:v', 'libx264', '-crf', '16', '-pix_fmt', 'yuv420p', outFile]);
-    return { kind, avatar: avatarPath ? path.basename(avatarPath) : null, look: firstFrame };
-  } finally {
-    fs.rmSync(workDir, { recursive: true, force: true });
-  }
+  // One clip: the reel's AI part is 5s since 2026-10-13 (it was two
+  // chained clips, ~10s).
+  fs.writeFileSync(outFile, await withRetries('clip', () => animate(firstFrame, scene.clip, seed)));
+  return { kind, avatar: avatarPath ? path.basename(avatarPath) : null, look: firstFrame };
 }
 
 module.exports = { makeAiClip, aiReelKind };

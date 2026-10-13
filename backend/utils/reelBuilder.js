@@ -198,15 +198,19 @@ async function buildReel(products, { headline, prefix = 'reel' }) {
   }
 }
 
-// The daily AI reel (see aiReel.js): the ~10s clip of a person with the
+// The daily AI reel (see aiReel.js): the ~5s clip of a person with the
 // product, with the logo on top and the real product photo in the corner
 // (no price on the clip — user's choice, 2026-10-13),
-// then a price slide and the outro — exactly AI_REEL_SEC in all. User's
+// then a product slide and the outro — exactly AI_REEL_SEC in all. User's
 // request (2026-10-13): one product only, and the person wearing it in
-// every part, so the price slide and outro show the try-on picture (`look`)
+// every part, so the product slide and outro show the try-on picture (`look`)
 // instead of the bare product photo.
-const AI_REEL_SEC = 15, AI_PRICE_SEC = 3.0, AI_OUTRO_SEC = 2.4, AI_FADE_SEC = 0.35;
-const AI_CLIP_SEC = AI_REEL_SEC - AI_PRICE_SEC - AI_OUTRO_SEC + 2 * AI_FADE_SEC;
+// Three parts of 5s each (user's choice, 2026-10-13): the clip, the
+// product slide and the outro; the first two run AI_FADE_SEC longer to
+// make up for the cross-fades.
+const AI_PART_SEC = 5, AI_FADE_SEC = 0.35;
+const AI_CLIP_SEC = AI_PART_SEC + AI_FADE_SEC, AI_PRODUCT_SEC = AI_PART_SEC + AI_FADE_SEC, AI_OUTRO_SEC = AI_PART_SEC;
+const AI_REEL_SEC = AI_CLIP_SEC + AI_PRODUCT_SEC + AI_OUTRO_SEC - 2 * AI_FADE_SEC;
 
 // The try-on picture blurred and washed out, filling the frame.
 async function aiBackdrop(look) {
@@ -225,9 +229,9 @@ function whiteCard(width, height, radius = 44) {
   return Buffer.from(`<svg width="${width}" height="${height}"><rect width="${width}" height="${height}" rx="${radius}" ry="${radius}" fill="#fff"/></svg>`);
 }
 
-// The person with the product, then name, prices and the discount on a
-// white card under it.
-async function aiPriceSlide(product, look) {
+// The person with the product and the real product photo, the name on a
+// white card under it and the discount.
+async function aiProductSlide(product, look) {
   const layers = [await aiBackdrop(look)];
   layers.push(await centered(await sharp(LOGO_PATH).resize({ width: 220 }).toBuffer(), 50));
   const photoH = 1150, photoW = Math.round(photoH * 9 / 16);
@@ -235,39 +239,27 @@ async function aiPriceSlide(product, look) {
   const cornerSize = 260;
   layers.push({ input: await productCorner(product, cornerSize), left: Math.round((W + photoW) / 2) - cornerSize - 24, top: 160 + photoH - cornerSize - 24 });
 
-  // The card fits its text (the name can take one line or two).
-  const cardTop = 1350, cardW = 980;
+  // The card fits the name (one line or two).
+  const cardTop = 1360, cardW = 980;
   const cardAt = layers.length;
   const nameBuf = await renderText({
     text: shortName(displayName(product)), fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold',
-    width: 900, size: 58, color: INK,
+    width: 900, size: 64, color: INK,
   });
   layers.push(await centered(nameBuf, cardTop + 35));
-  let y = cardTop + 35 + (await sharp(nameBuf).metadata()).height + 20;
+  const y = cardTop + 35 + (await sharp(nameBuf).metadata()).height;
 
+  // No prices at all (user's choice, 2026-10-13), only the discount.
   const price = Number(product.price);
   const sale = product.discounted_price != null ? Number(product.discounted_price) : null;
   if (sale != null && sale < price) {
     const pct = Math.round((price - sale) / price * 100);
-    const oldBuf = await renderText({ text: formatTL(price), fontFile: FONT_MEDIUM, fontFamily: 'Vazirmatn Medium', width: 600, size: 52, color: '#8a8a8a' });
-    const oldMeta = await sharp(oldBuf).metadata();
-    const strike = Buffer.from(`<svg width="${oldMeta.width}" height="${oldMeta.height}"><line x1="0" y1="${oldMeta.height / 2}" x2="${oldMeta.width}" y2="${oldMeta.height / 2}" stroke="#8a8a8a" stroke-width="4"/></svg>`);
-    layers.push(await centered(await sharp(oldBuf).composite([{ input: strike }]).png().toBuffer(), y));
-    y += oldMeta.height;
-    const saleBuf = await renderText({ text: formatTL(sale), fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 900, size: 104, color: INK });
-    layers.push(await centered(saleBuf, y));
-    y += (await sharp(saleBuf).metadata()).height;
-
     const badgeText = await renderText({ text: `${toFaDigits(pct)}٪ تخفیف`, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 420, size: 56, color: ACCENT });
     const bm = await sharp(badgeText).metadata();
     const bw = bm.width + 60, bh = bm.height + 30;
     const badgeBg = Buffer.from(`<svg width="${bw}" height="${bh}"><rect width="${bw}" height="${bh}" rx="${bh / 2}" ry="${bh / 2}" fill="${ACCENT_BG}"/></svg>`);
     const badge = await sharp(badgeBg).composite([{ input: badgeText, left: 30, top: 15 }]).png().toBuffer();
     layers.push({ input: badge, left: Math.round((W + photoW) / 2) - bw + 30, top: 190 });
-  } else {
-    const saleBuf = await renderText({ text: formatTL(sale ?? price), fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 900, size: 104, color: INK });
-    layers.push(await centered(saleBuf, y));
-    y += (await sharp(saleBuf).metadata()).height;
   }
   layers.splice(cardAt, 0, { input: whiteCard(cardW, y - cardTop + 40), left: (W - cardW) / 2, top: cardTop });
   return sharp({ create: { width: W, height: H, channels: 4, background: BG } }).composite(layers).jpeg({ quality: 92 }).toBuffer();
@@ -315,9 +307,9 @@ async function buildAiReel(product, groupKey) {
   try {
     const clip = path.join(workDir, 'clip.mp4');
     const { look, ...info } = await makeAiClip(product, groupKey, photo, clip);
-    const files = { overlay: 'overlay.png', price: 'price.jpg', outro: 'outro.jpg' };
+    const files = { overlay: 'overlay.png', product: 'product.jpg', outro: 'outro.jpg' };
     fs.writeFileSync(path.join(workDir, files.overlay), await aiClipOverlay(product));
-    fs.writeFileSync(path.join(workDir, files.price), await aiPriceSlide(product, look));
+    fs.writeFileSync(path.join(workDir, files.product), await aiProductSlide(product, look));
     fs.writeFileSync(path.join(workDir, files.outro), await aiOutroSlide(look));
 
     // The clip on its own first, to plain 1080x1920 30fps (the Space's
@@ -347,7 +339,7 @@ async function buildAiReel(product, groupKey) {
     // A failed run leaves an empty file behind in uploads/.
     await runFfmpeg([
       '-y', '-i', norm, '-i', path.join(workDir, files.overlay),
-      '-loop', '1', '-t', String(AI_PRICE_SEC), '-i', path.join(workDir, files.price),
+      '-loop', '1', '-t', String(AI_PRODUCT_SEC), '-i', path.join(workDir, files.product),
       '-loop', '1', '-t', String(AI_OUTRO_SEC), '-i', path.join(workDir, files.outro),
       '-f', 'lavfi', '-t', total.toFixed(2), '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
       '-filter_complex', [
@@ -360,10 +352,10 @@ async function buildAiReel(product, groupKey) {
         // clip (30fps) differ, and xfade refuses it ("current rate of 1/0",
         // the 2026-10-10/11 runs): fps= sets it again.
         `[c][1:v]overlay=0:0,format=yuv420p,setsar=1,fps=${FPS}[v0]`,
-        `[2:v]${motionFilter(0, AI_PRICE_SEC)}[v1]`,
+        `[2:v]${motionFilter(0, AI_PRODUCT_SEC)}[v1]`,
         `[3:v]${motionFilter(1, AI_OUTRO_SEC)}[v2]`,
         `[v0][v1]xfade=transition=fadewhite:duration=${AI_FADE_SEC}:offset=${(clipSec - AI_FADE_SEC).toFixed(2)}[x1]`,
-        `[x1][v2]xfade=transition=fadeblack:duration=${AI_FADE_SEC}:offset=${(clipSec + AI_PRICE_SEC - 2 * AI_FADE_SEC).toFixed(2)}[x2]`,
+        `[x1][v2]xfade=transition=fadeblack:duration=${AI_FADE_SEC}:offset=${(clipSec + AI_PRODUCT_SEC - 2 * AI_FADE_SEC).toFixed(2)}[x2]`,
       ].join(';'),
       '-map', '[x2]', '-map', '4:a',
       '-threads', '2',
