@@ -199,7 +199,8 @@ async function buildReel(products, { headline, prefix = 'reel' }) {
 }
 
 // The daily AI reel (see aiReel.js): the ~10s clip of a person with the
-// product, with the logo on top and the discount + price at the bottom,
+// product, with the logo on top and the real product photo in the corner
+// (no price on the clip — user's choice, 2026-10-13),
 // then a price slide and the outro — exactly AI_REEL_SEC in all. User's
 // request (2026-10-13): one product only, and the person wearing it in
 // every part, so the price slide and outro show the try-on picture (`look`)
@@ -231,6 +232,8 @@ async function aiPriceSlide(product, look) {
   layers.push(await centered(await sharp(LOGO_PATH).resize({ width: 220 }).toBuffer(), 50));
   const photoH = 1150, photoW = Math.round(photoH * 9 / 16);
   layers.push(await centered(await roundedBuf(look, photoW, photoH), 160));
+  const cornerSize = 260;
+  layers.push({ input: await productCorner(product, cornerSize), left: Math.round((W + photoW) / 2) - cornerSize - 24, top: 160 + photoH - cornerSize - 24 });
 
   // The card fits its text (the name can take one line or two).
   const cardTop = 1350, cardW = 980;
@@ -287,18 +290,19 @@ async function aiClipOverlay(product) {
   const shade = Buffer.from(`<svg width="${W}" height="${H}"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".28"/><stop offset=".14" stop-color="#000" stop-opacity="0"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/></svg>`);
   layers.push({ input: shade });
   layers.push(await centered(await sharp(LOGO_PATH).resize({ width: 260 }).toBuffer(), 80));
-
-  const price = Number(product.price);
-  const sale = product.discounted_price != null ? Number(product.discounted_price) : price;
-  const pct = price > 0 ? Math.round((price - sale) / price * 100) : 0;
-  const label = pct > 0 ? `${toFaDigits(pct)}٪ تخفیف  ·  ${formatTL(sale)}` : formatTL(sale);
-  const text = await renderText({ text: label, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 960, size: 54, color: '#ffffff' });
-  const tm = await sharp(text).metadata();
-  const pw = tm.width + 80, ph = tm.height + 36;
-  const pill = await sharp(Buffer.from(`<svg width="${pw}" height="${ph}"><rect width="${pw}" height="${ph}" rx="${ph / 2}" ry="${ph / 2}" fill="${INK}"/></svg>`))
-    .composite([{ input: text, left: 40, top: 18 }]).png().toBuffer();
-  layers.push({ input: pill, left: Math.round((W - pw) / 2), top: H - ph - 150 });
+  const corner = await productCorner(product, 340);
+  layers.push({ input: corner, left: W - 340 - 50, top: H - 340 - 140 });
   return sharp({ create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).composite(layers).png().toBuffer();
+}
+
+// The real product photo on a small white card for a corner of the AI
+// reel: the AI often gets the product wrong (2026-10-13: a pink bottle
+// instead of the KIKO foundation), so the real one is always on screen.
+async function productCorner(product, size) {
+  const pad = Math.round(size * 0.06);
+  const photo = await roundedPhoto(productImagePath(product), size - 2 * pad, size - 2 * pad, 24);
+  const card = Buffer.from(`<svg width="${size}" height="${size}"><rect x="1" y="1" width="${size - 2}" height="${size - 2}" rx="32" ry="32" fill="#fff" stroke="#e5e5e5" stroke-width="2"/></svg>`);
+  return sharp(card).composite([{ input: photo, left: pad, top: pad }]).png().toBuffer();
 }
 
 // Builds the AI reel for one product of `groupKey` and returns its
