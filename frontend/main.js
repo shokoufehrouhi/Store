@@ -1391,6 +1391,7 @@ function fillHeroMedia() {
     var j = Math.floor(rand() * (i + 1));
     var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
   }
+  if (fillHeroBanner(box, pool)) return;
   var picks = pool.slice(0, 1);
   var differs = function(p) { return picks.length && p.gender !== picks[0].gender; };
   var second = pool.find(function(p) { return differs(p) && p.brand !== picks[0].brand; })
@@ -1402,6 +1403,40 @@ function fillHeroMedia() {
       '<img src="' + SERVER_BASE + p.images[0].url + '" alt="' + p.name[currentLang] + '"></a>';
   }).join('');
   box.style.display = picks.length ? '' : 'none';
+}
+
+// The animated banner (heroBanner.js, user's choice 2026-10-17) in place of
+// the two pictures: up to HERO_BANNER_SIZE of the shuffled pool, one brand
+// after another so a loop doesn't show six items of one import. Needs 6+
+// products; false = not shown, the two pictures are used instead.
+var HERO_BANNER_SIZE = 24;
+function fillHeroBanner(box, pool) {
+  if (!window.initHeroBanner) return false;
+  var byBrand = {}, brands = [];
+  pool.forEach(function(p) {
+    var k = String(p.brand || '').toLowerCase();
+    if (!byBrand[k]) { byBrand[k] = []; brands.push(k); }
+    byBrand[k].push(p);
+  });
+  var list = [];
+  for (var round = 0; list.length < HERO_BANNER_SIZE && round < HERO_BANNER_SIZE; round++) {
+    brands.forEach(function(k) { if (byBrand[k][round] && list.length < HERO_BANNER_SIZE) list.push(byBrand[k][round]); });
+  }
+  if (list.length < 6) return false;
+  box.classList.add('hero-banner');
+  box.style.display = '';
+  var t = function() { return TRANSLATIONS[currentLang] || TRANSLATIONS.fa; };
+  initHeroBanner(box, list.map(function(p) {
+    return { id: p.id, img: SERVER_BASE + p.images[0].url, brand: p.brand, price: p.price, sale: p.discounted_price, p: p };
+  }), {
+    text: function(k) { return t()['hb_' + k]; },
+    name: function(b) { return b.p.name[currentLang] || b.p.name.fa; },
+    num: function(s) { return currentLang === 'fa' ? String(s).replace(/\d/g, function(d) { return PERSIAN_DIGITS[d]; }) : String(s); },
+    price: formatPrice,
+    dir: function() { return t().dir; },
+    onOpen: function(id) { openModal(id); },
+  });
+  return true;
 }
 
 function animateCards(grid) {

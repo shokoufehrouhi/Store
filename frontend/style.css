@@ -5010,3 +5010,28 @@ html[dir="rtl"] .product-card .product-price { direction: rtl; }
   .nav-links { display: none; }
   .menu-toggle { display: block; padding: 10px; }
 }
+
+/* Animated home banner (heroBanner.js): a 600x600 stage scaled to the box. */
+.hero-media.hero-banner { display: block; position: relative; flex: 1 1 440px; max-width: 560px; aspect-ratio: 1 / 1; border-radius: 28px; overflow: hidden; background: #f5f5f2; cursor: pointer; }
+.hb-stage { position: absolute; left: 0; top: 0; width: 600px; height: 600px; transform-origin: 0 0; overflow: hidden; }
+.hb-cam { position: absolute; left: 0; top: 0; width: 600px; height: 600px; transform-origin: 0 0; }
+.hb-tile, .hb-circle { position: absolute; overflow: hidden; background: #ececec; }
+.hb-tile img, .hb-circle img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hb-iris { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hb-chip { position: absolute; right: 10px; bottom: 10px; background: #fff; color: var(--accent-text, #C2410C); font-weight: 800; font-size: 15px; padding: 3px 10px; border-radius: 999px; direction: ltr; box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+.hb-pill { position: absolute; background: #1a1a1a; overflow: hidden; display: flex; align-items: center; justify-content: center; z-index: 3; }
+.hb-pill span { color: #fff; font-weight: 800; font-size: 26px; white-space: nowrap; direction: rtl; }
+.hb-card { position: absolute; left: 0; right: 0; bottom: 0; height: 190px; background: #fff; border-radius: 26px 26px 0 0; padding: 22px 28px; direction: rtl; text-align: right; z-index: 4; box-shadow: 0 -10px 30px rgba(0,0,0,.08); }
+.hb-brand { font-weight: 800; font-size: 15px; letter-spacing: .14em; color: #6b6b6b; direction: ltr; text-align: right; }
+.hb-name { font-weight: 700; font-size: 24px; color: #1a1a1a; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 330px; }
+.hb-row { display: flex; align-items: baseline; gap: 12px; margin-top: 10px; }
+.hb-new { font-weight: 900; font-size: 32px; color: #1a1a1a; direction: ltr; }
+.hb-old { font-size: 18px; color: #8a8a8a; text-decoration: line-through; direction: ltr; }
+.hb-btn { position: absolute; left: 28px; bottom: 26px; background: #1a1a1a; color: #fff; font-weight: 800; font-size: 18px; padding: 12px 22px; border-radius: 999px; }
+.hb-badge { position: absolute; left: 28px; top: 22px; background: #C2410C; color: #fff; font-weight: 900; font-size: 17px; padding: 5px 14px; border-radius: 999px; }
+.hb-flood { position: absolute; border-radius: 50%; background: #1a1a1a; z-index: 5; }
+.hb-card[dir="ltr"] { direction: ltr; text-align: left; }
+.hb-card[dir="ltr"] .hb-brand { text-align: left; }
+.hb-card[dir="ltr"] .hb-btn, .hb-card[dir="ltr"] .hb-badge { left: auto; right: 28px; }
+.hero-media.hero-banner { width: 100%; }
+@media (max-width: 768px) { .hero-media.hero-banner { flex-basis: auto; max-width: 520px; margin-inline: auto; } }
