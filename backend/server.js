@@ -1,4 +1,14 @@
 require('dotenv').config();
+
+// The API's memory is mostly outside the JS heap (2026-10-17: 1.4GB RSS with
+// a 128MB heap, then OOM-killed on the 4GB VPS at ~2GB) -- the usual
+// libvips + glibc malloc fragmentation sharp warns about. Its operation
+// cache and a thread pool per CPU only help batch jobs; images here are
+// processed one at a time between imports and reels.
+const sharp = require('sharp');
+sharp.cache(false);
+sharp.concurrency(1);
+
 const express      = require('express');
 const cors         = require('cors');
 const rateLimit    = require('express-rate-limit');

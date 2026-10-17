@@ -523,9 +523,15 @@ async function maybeRetryRateLimitedStories() {
   }
 }
 
-async function runImport(site) {
+// Written when a scheduled run claims a site and replaced by the real result
+// when it ends -- so a site still showing it after a restart is the one the
+// process died on (see catchUpMissedScheduledRuns).
+const SCHEDULED_RUN_STATUS = 'running (scheduled)';
+
+async function runImport(site, { scheduled = false } = {}) {
   // Skipped when another process (staging/production) is already on it.
   if (!(await claimSiteRun(site.id, 'import_in_progress').catch(() => false))) return;
+  if (scheduled) await prisma.sites.update({ where: { id: site.id }, data: { last_import_status: SCHEDULED_RUN_STATUS } }).catch(() => {});
   try {
     const result = await importSite(site, { limit: 30 });
 
@@ -741,8 +747,9 @@ async function maybePostQueuedProduct() {
   await postQueuedProductToInstagram(next);
 }
 
-async function runStockCheck(site) {
+async function runStockCheck(site, { scheduled = false } = {}) {
   if (!(await claimSiteRun(site.id, 'stock_check_in_progress').catch(() => false))) return;
+  if (scheduled) await prisma.sites.update({ where: { id: site.id }, data: { last_stock_check_status: SCHEDULED_RUN_STATUS } }).catch(() => {});
   try {
     const results = await checkSiteStock(site);
     const soldOut = results.filter(r => r.status === 'sold_out').length;
@@ -773,6 +780,74 @@ async function expireStaleQueuedProductPosts() {
     data: { status: 'skipped', error_message: 'not posted on the day it was queued' },
   });
   if (count) console.log(`[scheduler] skipped ${count} product post(s) left over from an earlier day`);
+}
+
+// Products whose translation failed at import (quota, a network blip) get
+// another try after each import round instead of waiting for someone to run
+// the backfill script by hand.
+async function runTranslationBackfill() {
+  await backfillTranslations({ log: () => {} })
+    .then(r => { if (r.candidates) console.log(`[scheduler] translation backfill: ${JSON.stringify(r)}`); })
+    .catch(err => console.error('[scheduler] translation backfill failed:', err));
+}
+
+// The nightly runs only start in their exact schedule minute, so a restart
+// in the middle of one used to lose the rest of it for the day: 2026-10-17
+// the kernel OOM-killed the API at 02:22, during the 01:00 import, and not
+// a single product got imported that day (the 02:00 stock check was lost
+// too). After boot, every active site whose last run is older than today's
+// schedule time gets it now instead. The site the old process died on is
+// marked and skipped rather than retried -- if it is what ran the box out
+// of memory, retrying it would just crash again on every boot.
+const PROCESS_STARTED_AT = new Date();
+const CATCH_UP_DELAY_MS = 3 * 60 * 1000; // > 2 heartbeats, so a run still alive in another process has refreshed its claim by then
+
+function todayAt(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+const SCHEDULED_RUNS = [
+  { name: 'import', timeKey: 'import_schedule_time', flag: 'import_in_progress', atField: 'last_import_at', statusField: 'last_import_status', run: runImport },
+  { name: 'stock check', timeKey: 'stock_check_schedule_time', flag: 'stock_check_in_progress', atField: 'last_stock_check_at', statusField: 'last_stock_check_status', run: runStockCheck },
+];
+
+async function catchUpMissedRuns(kind, settings) {
+  const hhmm = settings[kind.timeKey];
+  if (!hhmm) return 0;
+  const due = todayAt(hhmm);
+  if (Date.now() < due.getTime()) return 0; // today's run hasn't come up yet
+  const missed = await prisma.sites.findMany({
+    where: { is_active: true, OR: [{ [kind.atField]: null }, { [kind.atField]: { lt: due } }] },
+  });
+  let ran = 0;
+  for (const site of missed) {
+    // Re-read: the regular schedule (or a Sync Now) may have done it meanwhile.
+    const fresh = await prisma.sites.findUnique({ where: { id: site.id } });
+    if (!fresh || !fresh.is_active || (fresh[kind.atField] && fresh[kind.atField] >= due)) continue;
+    if (fresh[kind.statusField] === SCHEDULED_RUN_STATUS && fresh.updated_at < PROCESS_STARTED_AT) {
+      await prisma.sites.update({
+        where: { id: site.id },
+        data: { [kind.flag]: false, [kind.atField]: new Date(), [kind.statusField]: 'error: server restarted in the middle of this run (not retried)' },
+      }).catch(() => {});
+      console.log(`[scheduler] ${kind.name} catch-up: skipping ${fresh.name}, the server restarted in the middle of it`);
+      continue;
+    }
+    console.log(`[scheduler] ${kind.name} catch-up: ${fresh.name} missed today's ${hhmm} run`);
+    await kind.run(fresh, { scheduled: true });
+    ran++;
+  }
+  return ran;
+}
+
+async function catchUpMissedScheduledRuns() {
+  const settings = await prisma.sync_settings.findUnique({ where: { id: 1 } });
+  if (!settings) return;
+  const [importKind, stockKind] = SCHEDULED_RUNS;
+  if (await catchUpMissedRuns(importKind, settings)) await runTranslationBackfill();
+  await catchUpMissedRuns(stockKind, settings);
 }
 
 async function tick() {
@@ -854,16 +929,11 @@ async function tick() {
       // time instead, which is the right tradeoff for an unattended overnight
       // job — nothing is waiting on it to finish quickly.
       if (settings.import_schedule_time === nowHHMM) {
-        for (const site of sites) await runImport(site);
-        // Products whose translation failed at import (quota, a network
-        // blip) get another try now instead of waiting for someone to run
-        // the backfill script by hand.
-        await backfillTranslations({ log: () => {} })
-          .then(r => { if (r.candidates) console.log(`[scheduler] translation backfill: ${JSON.stringify(r)}`); })
-          .catch(err => console.error('[scheduler] translation backfill failed:', err));
+        for (const site of sites) await runImport(site, { scheduled: true });
+        await runTranslationBackfill();
       }
       if (settings.stock_check_schedule_time === nowHHMM) {
-        for (const site of sites) await runStockCheck(site);
+        for (const site of sites) await runStockCheck(site, { scheduled: true });
       }
     }
   }
@@ -934,6 +1004,10 @@ function start() {
     where: { status: 'posting' },
     data: { status: 'draft' },
   }).catch(err => console.error('[scheduler] failed to reset stale story posting rows:', err));
+
+  setTimeout(() => {
+    catchUpMissedScheduledRuns().catch(err => console.error('[scheduler] missed-run catch-up failed:', err));
+  }, CATCH_UP_DELAY_MS);
 
   setInterval(() => { tick().catch(err => console.error('[scheduler] tick error:', err)); }, 60 * 1000);
   console.log(`[scheduler] site sync scheduler started${INSTAGRAM_ENABLED ? '' : ' (Instagram posting disabled on this instance)'}`);
