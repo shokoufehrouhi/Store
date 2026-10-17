@@ -6,7 +6,7 @@ const PRODUCT_INCLUDE = {
   subcategories:      { select: { key: true, label_fa: true, label_en: true, label_tr: true } },
   product_colors:     { select: { color_id: true, is_available: true } },
   product_sizes:      { select: { size_label: true, is_available: true } },
-  product_media:      { orderBy: { sort_order: 'asc' }, select: { type: true, url: true, sort_order: true } },
+  product_media:      { orderBy: [{ sort_order: 'asc' }, { id: 'asc' }], select: { type: true, url: true, sort_order: true } },
   product_categories: { include: { categories: { select: { key: true } }, subcategories: { select: { key: true } } } },
 };
 

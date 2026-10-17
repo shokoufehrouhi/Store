@@ -604,33 +604,78 @@ async function getPublishStatus(req, res, next) {
   } catch (err) { next(err); }
 }
 
-// Re-snapshots EVERY row (not just is_dirty ones) so that, e.g., a category
+// Re-checks EVERY row (not just is_dirty ones) so that, e.g., a category
 // rename correctly cascades into every product's embedded category label in
-// the same publish click. Do not "optimize" this to only touch dirty rows —
-// that would silently break cross-entity consistency.
+// the same publish click -- and plenty of writers (stock check, translation
+// backfill, the sold-out sweep, scripts) change products without setting
+// is_dirty. Do not "optimize" this to only look at dirty rows -- that would
+// silently break cross-entity consistency.
+//
+// What it does skip is rewriting rows whose snapshot is already what's
+// published. This runs every 30 min from the scheduler, and it used to load
+// all ~6,000 products with their relations at once and rewrite every one of
+// them in a single transaction (2026-10-17: 46 actually changed) -- the API
+// jumped by ~650MB each time on the 4GB VPS, and Postgres wrote ~4,000
+// buffers per run. Now it reads PUBLISH_BATCH_SIZE products at a time and
+// only writes the ones that differ.
 //
 // Shared by the manual "Publish Changes" button (below) and scheduler.js's
 // auto-publish timer, same as instagramContentController.js#deployStoryById
 // is shared by its manual/auto callers — one code path either way. Both skip
 // products held for review (isHeldForReview); `onlyProductIds` publishes just
 // those products (held or not) -- the review tab's per-product Publish.
+const PUBLISH_BATCH_SIZE = 200;
+
+// Postgres jsonb doesn't keep key order, so compare with keys sorted.
+// toJSON first: a Date (or Decimal) is stored as what JSON.stringify makes
+// of it, and undefined keys aren't stored at all.
+function stableStringify(v) {
+  if (v && typeof v.toJSON === 'function') v = v.toJSON();
+  if (Array.isArray(v)) return '[' + v.map(stableStringify).join(',') + ']';
+  if (v && typeof v === 'object') {
+    return '{' + Object.keys(v).filter(k => v[k] !== undefined).sort()
+      .map(k => JSON.stringify(k) + ':' + stableStringify(v[k])).join(',') + '}';
+  }
+  return JSON.stringify(v);
+}
+
+function productIsPublished(p, snapshot) {
+  return !p.is_dirty && p.is_live === p.is_active && p.published_data != null
+    && stableStringify(p.published_data) === stableStringify(snapshot);
+}
+
 async function publishAllChanges({ onlyProductIds = null } = {}) {
-  const [allProducts, categories, subcategories, heldCategoryIds] = await Promise.all([
-    prisma.products.findMany({
-      where: onlyProductIds ? { id: { in: onlyProductIds } } : undefined,
-      include: PRODUCT_INCLUDE,
-    }),
+  const [categories, subcategories, heldCategoryIds] = await Promise.all([
     prisma.categories.findMany(),
     prisma.subcategories.findMany(),
     getHeldCategoryIds(),
   ]);
-  const products = onlyProductIds ? allProducts : allProducts.filter(p => !isHeldForReview(p, heldCategoryIds));
+
+  let afterId = 0;
+  for (;;) {
+    const batch = await prisma.products.findMany({
+      where: { id: onlyProductIds ? { in: onlyProductIds, gt: afterId } : { gt: afterId } },
+      include: PRODUCT_INCLUDE,
+      orderBy: { id: 'asc' },
+      take: PUBLISH_BATCH_SIZE,
+    });
+    if (!batch.length) break;
+    afterId = batch[batch.length - 1].id;
+
+    const updates = [];
+    for (const p of batch) {
+      if (!onlyProductIds && isHeldForReview(p, heldCategoryIds)) continue;
+      const snapshot = buildProductSnapshot(p);
+      if (productIsPublished(p, snapshot)) continue;
+      updates.push(prisma.products.update({
+        where: { id: p.id },
+        data: { is_live: p.is_active, is_dirty: false, published_data: snapshot },
+      }));
+    }
+    if (updates.length) await prisma.$transaction(updates);
+  }
 
   await prisma.$transaction([
-    ...products.map(p => prisma.products.update({
-      where: { id: p.id },
-      data: { is_live: p.is_active, is_dirty: false, published_data: buildProductSnapshot(p) },
-    })),
     ...categories.map(c => prisma.categories.update({
       where: { id: c.id },
       data: { is_live: c.is_active, is_dirty: false, published_data: buildCategorySnapshot(c) },
