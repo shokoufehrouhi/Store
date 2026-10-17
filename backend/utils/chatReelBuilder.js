@@ -5,18 +5,13 @@
 // on the biggest discount, it's added to the cart and the outro says how
 // much off it is. ~16s, 1080x1920, no music like the other reels.
 //
-// The motion lives in chatReel/chatReel.html, where every frame is a pure
-// function of time (seek(t)): Puppeteer screenshots each frame and
-// ffmpeg-static joins them, so nothing extra (no Remotion licence) is needed.
+// The motion lives in chatReel/chatReel.html (rendered by htmlReel.js).
 const path = require('path');
-const fs = require('fs');
-const { spawn } = require('child_process');
-const ffmpegPath = require('ffmpeg-static');
 const { displayName } = require('./storyBuilder');
+const { renderHtmlReel } = require('./htmlReel');
 
 const TEMPLATE = path.join(__dirname, 'chatReel', 'chatReel.html');
 const UPLOADS_DIR = path.join(__dirname, '../public/uploads');
-const FPS = 30;
 
 // What the customer "types" (three lines, one per composer line) and the
 // outro's first line, per reel group (utils/reelPlan.js).
@@ -61,64 +56,9 @@ function reelData(products, groupKey) {
 // Builds the reel for `products` (3-5, discounted, with a photo on disk)
 // and returns its /uploads/... path.
 async function buildChatReel(products, { groupKey, prefix = 'reel-chat' }) {
-  const data = reelData(products, groupKey);
   const filename = `ig-${prefix}-${Date.now()}.mp4`;
-  const outFile = path.join(UPLOADS_DIR, filename);
-
-  const puppeteer = (await import('puppeteer')).default;
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--allow-file-access-from-files'],
-  });
-  let ff;
-  try {
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1080, height: 1920, deviceScaleFactor: 1 });
-    await page.goto('file://' + TEMPLATE, { waitUntil: 'load' });
-    await page.evaluate(async (d) => {
-      await document.fonts.ready;
-      window.setup(d);
-      await Promise.all([...document.images].map((i) => i.decode().catch(() => {})));
-    }, data);
-    const broken = await page.evaluate(() => [...document.images].filter((i) => !i.naturalWidth).map((i) => i.src));
-    if (broken.length) throw new Error(`chat reel: images failed to load: ${broken.join(', ')}`);
-
-    const dur = await page.evaluate(() => window.DURATION);
-    const frames = Math.round(dur * FPS);
-    let stderr = '';
-    ff = spawn(ffmpegPath, [
-      '-y', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-',
-      '-f', 'lavfi', '-t', dur.toFixed(2), '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
-      '-map', '0:v', '-map', '1:a',
-      // 2 threads: the server also runs the site (same as reelBuilder.js).
-      '-threads', '2',
-      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-r', String(FPS),
-      '-c:a', 'aac', '-b:a', '64k', '-shortest', '-movflags', '+faststart',
-      outFile,
-    ], { stdio: ['pipe', 'ignore', 'pipe'] });
-    ff.stderr.on('data', (c) => { stderr = (stderr + c).slice(-4000); });
-    const done = new Promise((resolve, reject) => {
-      ff.on('error', reject);
-      ff.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}: ${stderr.split('\n').slice(-4).join(' | ')}`))));
-    });
-    // An ffmpeg that died mid-way would otherwise leave a drain wait hanging forever.
-    const closed = done.catch(() => {});
-    for (let f = 0; f < frames; f++) {
-      await page.evaluate((t) => window.seek(t), f / FPS);
-      const buf = await page.screenshot({ type: 'jpeg', quality: 92 });
-      if (ff.exitCode !== null) break;
-      if (!ff.stdin.write(buf)) await Promise.race([new Promise((r) => ff.stdin.once('drain', r)), closed]);
-    }
-    ff.stdin.end();
-    await done;
-    return `/uploads/${filename}`;
-  } catch (err) {
-    if (ff && ff.exitCode === null) ff.kill('SIGKILL');
-    fs.rmSync(outFile, { force: true });
-    throw err;
-  } finally {
-    await browser.close().catch(() => {});
-  }
+  await renderHtmlReel(TEMPLATE, reelData(products, groupKey), path.join(UPLOADS_DIR, filename));
+  return `/uploads/${filename}`;
 }
 
 module.exports = { buildChatReel, reelData };

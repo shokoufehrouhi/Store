@@ -18,6 +18,9 @@ const REEL_SLOTS = {
   // The chat-style "shopping assistant" reel (utils/chatReelBuilder.js),
   // only for this slot (user's choice, 2026-10-17); 12:00 keeps the slides.
   'reel-20:00': { time: '20:00', genTime: '18:00', style: 'chat' },
+  // The brand ad reel (utils/brandReelBuilder.js), every day (user's choice,
+  // 2026-10-17): photos from as many brands as possible, any group.
+  'reel-11:00': { time: '11:00', genTime: '09:00', style: 'brand' },
   // The daily AI reel (utils/aiReel.js): one product worn/used by a person,
   // made at 08:00 and left in the admin like the others.
   'reel-08:00': { time: '08:00', genTime: '08:00', ai: true },
@@ -34,6 +37,8 @@ const REEL_GROUPS = {
   cosmetics: { headline: 'تخفیف‌های آرایشی',       tags: ['#آرایشی', '#لوازم_آرایش'],   where: { category_id: 10 } },
   lifestyle: { headline: 'تخفیف‌های خانه و دکور',  tags: ['#دکوراسیون', '#لایف_استایل'], where: { category_id: 8 }, minDiscount: 0 },
   bagsShoes: { headline: 'تخفیف‌های کیف و کفش',    tags: ['#کیف', '#کفش'],              where: { OR: [{ category_id: 2 }, { subcategory_id: 13 }] } },
+  // Only the brand reel (reel-11:00) uses this one: clothing, bags and shoes.
+  brand:     { headline: 'برندهای محبوب با تخفیف',  tags: ['#برند_اصل', '#مد', '#استایل'], where: { OR: [{ category_id: { in: [1, 2, 7] } }, { subcategory_id: 13 }] } },
 };
 
 // The AI reel's group, one per day in turn. Cosmetics only from the
@@ -59,6 +64,7 @@ function reelGroupFor(slot, dateStr) {
     const key = AI_REEL_ROTATION[day % AI_REEL_ROTATION.length];
     return { key, ai: true, ...REEL_GROUPS[key], where: AI_REEL_WHERE[key] || REEL_GROUPS[key].where };
   }
+  if (REEL_SLOTS[slot]?.style === 'brand') return { key: 'brand', ...REEL_GROUPS.brand };
   const weekday = new Date(`${dateStr}T12:00:00`).getDay();
   const key = WEEKLY_PLAN[weekday]?.[slot];
   return key ? { key, ...REEL_GROUPS[key] } : null;

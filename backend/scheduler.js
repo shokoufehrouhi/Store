@@ -23,6 +23,7 @@ const { syncSubcategoryActiveState } = require('./utils/subcategorySync');
 const { buildSingleProductStory, buildCollageStory } = require('./utils/storyBuilder');
 const { buildReel, buildAiReel } = require('./utils/reelBuilder');
 const { buildChatReel } = require('./utils/chatReelBuilder');
+const { buildBrandReel } = require('./utils/brandReelBuilder');
 const { REEL_SLOTS, reelGroupFor } = require('./utils/reelPlan');
 const { deployStoryById } = require('./controllers/instagramContentController');
 const { publishAllChanges } = require('./controllers/adminController');
@@ -403,10 +404,52 @@ async function generateAiReel(slot, group) {
   }
 }
 
+// The brand reel (reel-11:00): up to BRAND_REEL_PHOTOS products, one per
+// brand in turn so the flipping brand names match the photos.
+const BRAND_REEL_PHOTOS = 11;
+const BRAND_REEL_MIN_PHOTOS = 6;
+async function generateBrandReel(slot, group) {
+  const pool = await eligibleStoryProducts(400, [], {
+    where: { AND: [group.where, { tag: 'discount' }, { discounted_price: { not: null } }] },
+    minPrice: REEL_MIN_PRICE_TL,
+    keep: reelDiscountOk(REEL_MIN_DISCOUNT),
+    poolSize: 600,
+  });
+  const byBrand = new Map();
+  for (const p of pool) {
+    const key = String(p.brand || '').toLowerCase();
+    if (!byBrand.has(key)) byBrand.set(key, []);
+    byBrand.get(key).push(p);
+  }
+  const products = [];
+  for (let round = 0; products.length < BRAND_REEL_PHOTOS && round < BRAND_REEL_PHOTOS; round++) {
+    for (const list of byBrand.values()) if (list[round] && products.length < BRAND_REEL_PHOTOS) products.push(list[round]);
+  }
+  if (products.length < BRAND_REEL_MIN_PHOTOS) {
+    console.warn(`[scheduler] reel ${slot} (brand): only ${products.length} eligible product(s), skipped`);
+    return false;
+  }
+  const t0 = Date.now();
+  const videoUrl = await buildBrandReel(products, { prefix: `${slot.replace(':', '')}-brand` });
+  console.log(`[scheduler] brand reel ${slot} (${byBrand.size} brands) built in ${Math.round((Date.now() - t0) / 1000)}s`);
+  await prisma.instagram_content.create({
+    data: {
+      kind: 'reel',
+      slot,
+      scheduled_date: new Date(currentDateStr()),
+      image_url: videoUrl,
+      product_ids: products.map(p => p.id),
+      link: `${process.env.FRONTEND_URL}/index.html`,
+    },
+  });
+  return true;
+}
+
 async function generateReel(slot) {
   const group = reelGroupFor(slot, currentDateStr());
   if (!group) return false;
   if (group.ai) return generateAiReel(slot, group);
+  if (REEL_SLOTS[slot]?.style === 'brand') return generateBrandReel(slot, group);
   const products = await eligibleStoryProducts(REEL_PRODUCTS, [], {
     where: { AND: [group.where, { tag: 'discount' }, { discounted_price: { not: null } }] },
     minPrice: REEL_MIN_PRICE_TL,

@@ -1,0 +1,316 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:Vazir;src:url(../../assets/fonts/Vazirmatn-Medium.ttf);font-weight:500}
+@font-face{font-family:Vazir;src:url(../../assets/fonts/Vazirmatn-Bold.ttf);font-weight:700}
+@font-face{font-family:Vazir;src:url(../../assets/fonts/Vazirmatn-Black.ttf);font-weight:900}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#fff;font-family:Vazir,sans-serif}
+#stage{position:absolute;inset:0;overflow:hidden;background:#fff}
+#cam{position:absolute;left:0;top:0;width:1080px;height:1920px;transform-origin:0 0}
+.abs{position:absolute}
+.mask{position:absolute;overflow:hidden}
+.ph{position:absolute;border-radius:30px;overflow:hidden;background:#f2f2f2;transform-origin:50% 50%}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph.frame{border:10px solid #fff;box-shadow:0 18px 40px rgba(0,0,0,.14)}
+.big{font-weight:900;color:#1a1a1a;direction:rtl;white-space:nowrap;text-align:center}
+.brand{font-weight:900;color:#1a1a1a;letter-spacing:.06em;white-space:nowrap;text-align:center;direction:ltr}
+svg.paint{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:10}
+</style></head>
+<body>
+<div id="stage"><div id="cam">
+  <div id="photos"></div>
+
+  <!-- S1 -->
+  <div id="m1" class="mask" style="left:0;top:600px;width:1080px;height:200px"><div id="t1" class="abs big" style="left:0;top:0;width:1080px;font-size:124px;line-height:200px">استایل خاص شما،</div></div>
+  <!-- S2 -->
+  <div id="m2" class="mask" style="left:0;top:800px;width:1080px;height:130px"><div id="t2" class="abs big" style="left:0;top:0;width:1080px;font-size:78px;line-height:130px;color:#6b6b6b;font-weight:700">از برندهای محبوب</div></div>
+  <div id="mb" class="mask" style="left:0;top:930px;width:1080px;height:200px"></div>
+
+  <!-- S4 -->
+  <div id="pill" class="abs" style="display:flex;align-items:center;justify-content:center;border-radius:999px;white-space:nowrap;direction:rtl;overflow:hidden">
+    <div id="pillText" class="abs" style="left:0;width:100%;text-align:center;color:#fff;font-weight:900"></div>
+  </div>
+
+  <!-- S6 -->
+  <img id="logo" class="abs" src="../../../frontend/images/shilista_logo.png" style="width:760px;left:160px;top:760px">
+  <div id="tag" class="abs big" style="left:0;width:1080px;top:1030px;font-size:54px;font-weight:700;color:#1a1a1a"></div>
+  <div id="url" class="abs" style="left:0;width:1080px;top:1130px;text-align:center;font-weight:700;font-size:56px;color:#6b6b6b;letter-spacing:.04em">shilista.com</div>
+
+  <svg id="paint" class="paint" width="1080" height="1920"></svg>
+</div></div>
+
+<script>
+const W = 1080, H = 1920, ACCENT = '#C2410C';
+// Filled by setup(data) from brandReelBuilder.js: { photos: [file URLs],
+// maxPct, brands: [10 names, repeated if fewer] }.
+let PHOTOS, MAXPCT, BRANDS;
+const FEATURES = ['کیفیت اصل', 'ضمانت اصالت', 'ارسال سریع'];
+const fa = s => String(s).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
+
+const cl = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => cl((t - a) / (b - a));
+const lerp = (a, b, k) => a + (b - a) * k;
+const eo = k => 1 - Math.pow(1 - k, 3);
+const eo5 = k => 1 - Math.pow(1 - k, 5);
+const eio = k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+const ei = k => k * k * k;
+function spring(t, t0, w = 16, z = 0.55) {
+  if (t <= t0) return 0;
+  const d = t - t0;
+  if (z >= 1) return 1 - Math.exp(-w * d) * (1 + w * d);
+  const wd = w * Math.sqrt(1 - z * z);
+  return 1 - Math.exp(-z * w * d) * (Math.cos(wd * d) + (z * w / wd) * Math.sin(wd * d));
+}
+const $ = id => document.getElementById(id);
+const show = (el, on) => { el.style.visibility = on ? 'visible' : 'hidden'; };
+function place(el, r) { el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; el.style.width = r.w + 'px'; el.style.height = r.h + 'px'; }
+const lerpR = (a, b, k) => ({ x: lerp(a.x, b.x, k), y: lerp(a.y, b.y, k), w: lerp(a.w, b.w, k), h: lerp(a.h, b.h, k) });
+
+const CAM = [[0, 1.1], [1.6, 1.0], [3.5, 1.0], [4.1, 1.07], [5.2, 1.0], [5.95, 1.0], [6.45, 1.15], [7.3, 1.0], [11.2, 1.0], [11.6, 1.12], [12.6, 1.0], [99, 1.0]];
+function camZ(t) {
+  let i = 0; while (i < CAM.length - 2 && t > CAM[i + 1][0]) i++;
+  const k = eio(prog(t, CAM[i][0], CAM[i + 1][0]));
+  return Math.exp(lerp(Math.log(CAM[i][1]), Math.log(CAM[i + 1][1]), k));
+}
+
+// ---- painted strokes (drawn with stroke-dashoffset) ----
+const SVGNS = 'http://www.w3.org/2000/svg';
+const strokes = {};
+function addStroke(id, d, color = ACCENT, width = 12) {
+  const p = document.createElementNS(SVGNS, 'path');
+  p.setAttribute('d', d); p.setAttribute('fill', 'none'); p.setAttribute('stroke', color);
+  p.setAttribute('stroke-width', width); p.setAttribute('stroke-linecap', 'round'); p.setAttribute('stroke-linejoin', 'round');
+  $('paint').appendChild(p);
+  const len = p.getTotalLength();
+  p.style.strokeDasharray = `${len} ${len}`;
+  strokes[id] = { p, len };
+}
+// draw in over [a,b], erase over [c,d] (erasing runs from the start, like a pen lifting)
+function drawStroke(id, t, a, b, c = 99, d = 100) {
+  const s = strokes[id];
+  const k = eo(prog(t, a, b)), e = eio(prog(t, c, d));
+  s.p.style.strokeDashoffset = s.len * (1 - k) - s.len * e * 0;
+  if (e > 0) { s.p.style.strokeDasharray = `0 ${s.len * e} ${s.len * (1 - e)} ${s.len}`; s.p.style.strokeDashoffset = 0; }
+  else s.p.style.strokeDasharray = `${s.len} ${s.len}`;
+  s.p.style.visibility = k > 0 && e < 1 ? 'visible' : 'hidden';
+}
+// A hand-drawn loop: an ellipse that runs a bit past its start, with a wobble.
+function scribble(cx, cy, rx, ry, turns = 1.18, seed = 1) {
+  let d = '';
+  const n = 70;
+  for (let i = 0; i <= n; i++) {
+    const a = -Math.PI * 0.6 + (i / n) * Math.PI * 2 * turns;
+    const wob = 1 + 0.035 * Math.sin(a * 3 + seed) + 0.02 * Math.sin(a * 7 + seed * 2);
+    const grow = 1 + 0.06 * (i / n);
+    const x = cx + Math.cos(a) * rx * wob * grow, y = cy + Math.sin(a) * ry * wob * grow;
+    d += (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+  }
+  return d;
+}
+function sparkle(cx, cy, r) {
+  return `M${cx} ${cy - r}L${cx} ${cy + r}M${cx - r} ${cy}L${cx + r} ${cy}M${cx - r * .6} ${cy - r * .6}L${cx + r * .6} ${cy + r * .6}`;
+}
+
+// ---- layout ----
+// Scattered spots for the small photos while brand names flip (kept off the text band).
+const SCATTER = [
+  { x: 70, y: 210, s: 270, r: -8 }, { x: 720, y: 170, s: 290, r: 7 }, { x: 400, y: 260, s: 230, r: -3 },
+  { x: 60, y: 1240, s: 300, r: 6 }, { x: 740, y: 1270, s: 270, r: -7 }, { x: 420, y: 1420, s: 250, r: 4 },
+  { x: 120, y: 1600, s: 220, r: -5 }, { x: 760, y: 1580, s: 230, r: 9 }, { x: 330, y: 1180, s: 200, r: -10 },
+  { x: 620, y: 1110, s: 190, r: 3 },
+];
+const HERO = 2; // the big photo (index in PHOTOS)
+const BIG = { x: 90, y: 420, w: 900, h: 1080 };
+const COLS = [{ x: 60, y: 470, w: 300, h: 980 }, { x: 390, y: 470, w: 300, h: 980 }, { x: 720, y: 470, w: 300, h: 980 }];
+const COL_PHOTOS = [HERO, 4, 0];
+const GRID = [];
+for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) GRID.push({ x: 50 + c * 336, y: 270 + r * 346, w: 312, h: 322 });
+// Which photo sits in each grid cell: the 3 columns' photos first.
+const GRID_PHOTOS = [0, 4, HERO, 1, 3, 5, 6, 7, 8, 9, 10, 1];
+const FLOAT = [{ x: 60, y: 260, s: 200, r: -6 }, { x: 820, y: 330, s: 200, r: 6 }, { x: 70, y: 1480, s: 210, r: 5 }, { x: 800, y: 1440, s: 210, r: -5 }];
+
+const photoEls = [];
+function setup(data) {
+  PHOTOS = data.photos; MAXPCT = data.maxPct; BRANDS = data.brands;
+  // three layers of photo elements: scatter, columns/grid, floaters
+  const mk = (src, cls) => { const d = document.createElement('div'); d.className = 'ph ' + cls; d.innerHTML = `<img src="${src}">`; $('photos').appendChild(d); return d; };
+  SCATTER.forEach((_, i) => photoEls.push(mk(PHOTOS[i % PHOTOS.length], 'frame')));
+  GRID.forEach((_, i) => photoEls.push(mk(PHOTOS[GRID_PHOTOS[i] % PHOTOS.length], '')));
+  FLOAT.forEach((_, i) => photoEls.push(mk(PHOTOS[(i + 5) % PHOTOS.length], 'frame')));
+  BRANDS.forEach((b, i) => { const d = document.createElement('div'); d.className = 'abs brand'; d.id = 'b' + i; d.textContent = b; d.style.cssText += ';left:0;top:0;width:1080px;font-size:150px;line-height:200px'; $('mb').appendChild(d);
+    // long names (BARRELS AND OIL) shrink to fit the width
+    const probe = document.createElement('span'); probe.className = 'brand'; probe.style.cssText = 'position:absolute;font-size:150px;visibility:hidden';
+    probe.textContent = b; document.body.appendChild(probe);
+    const wdt = probe.getBoundingClientRect().width; probe.remove();
+    if (wdt > 980) d.style.fontSize = (150 * 980 / wdt) + 'px'; });
+  $('pillText').textContent = `تا ${fa(MAXPCT)}٪ تخفیف`;
+  $('tag').textContent = 'لباس، کفش و اکسسوری با کیفیت';
+  addStroke('underline', 'M250 805 C 420 790, 640 792, 840 800 S 900 806, 870 812');
+  addStroke('circle', scribble(540, 900, 380, 470, 1.15, 2));
+  addStroke('arrow', 'M960 1660 C 900 1600, 870 1560, 840 1500 M840 1500 L 815 1560 M840 1500 L 892 1525', ACCENT, 11);
+  addStroke('sp1', sparkle(180, 780, 46), ACCENT, 10);
+  addStroke('sp2', sparkle(910, 1150, 38), ACCENT, 10);
+  addStroke('sp3', sparkle(860, 760, 30), '#1a1a1a', 8);
+  // feature icons (centre 540, 760)
+  addStroke('ic0', 'M540 680 L 610 710 L 610 770 C 610 815, 575 845, 540 860 C 505 845, 470 815, 470 770 L 470 710 Z M505 768 L 532 795 L 580 742', '#1a1a1a', 12);
+  addStroke('ic1', scribble(540, 765, 92, 92, 1.02, 4) + ' M498 768 L 528 798 L 586 736', '#1a1a1a', 12);
+  addStroke('ic2', 'M440 720 L 600 720 M470 765 L 640 765 M420 810 L 580 810 M600 720 L 640 765 L 580 810', '#1a1a1a', 12);
+  seek(0);
+}
+
+function seek(t) {
+  $('cam').style.transform = `translate(${W / 2}px,${H / 2}px) scale(${camZ(t)}) translate(${-W / 2}px,${-H / 2}px)`;
+
+  // ---------- S1: "your style," rises from a mask line ----------
+  const r1 = spring(t, 0.15, 13, 0.85);
+  const up1 = eio(prog(t, 3.45, 3.75));
+  $('t1').style.transform = `translateY(${(1 - r1) * 200 - up1 * 200}px)`;
+  drawStroke('underline', t, 0.55, 0.95, 3.3, 3.6);
+  // ---------- S2: "from popular brands" + flipping brand names ----------
+  const r2 = spring(t, 1.45, 13, 0.85);
+  $('t2').style.transform = `translateY(${(1 - r2) * 130 - eio(prog(t, 3.5, 3.8)) * 130}px)`;
+  const B0 = 1.7, BSTEP = 0.19;
+  BRANDS.forEach((b, i) => {
+    const el = $('b' + i);
+    const tin = B0 + i * BSTEP, tout = B0 + (i + 1) * BSTEP;
+    const last = i === BRANDS.length - 1;
+    const kin = eo5(prog(t, tin, tin + 0.1));
+    const kout = last ? eio(prog(t, 3.55, 3.85)) : eo5(prog(t, tout, tout + 0.1));
+    el.style.transform = `translateY(${(1 - kin) * 200 - kout * 200}px)`;
+    show(el, t > tin && kout < 1);
+  });
+
+  // ---------- photos ----------
+  const nS = SCATTER.length, nG = GRID.length;
+  // scatter layer: pop in one per brand flip, then all fly into the hero
+  SCATTER.forEach((s, i) => {
+    const el = photoEls[i];
+    const tin = B0 + i * BSTEP;
+    const pop = spring(t, tin, 18, 0.5);
+    const gather = eio(prog(t, 3.6, 4.05));
+    let r = { x: s.x, y: s.y, w: s.s, h: s.s };
+    const isHero = (i % PHOTOS.length) === HERO;
+    if (isHero) {
+      r = lerpR(r, BIG, gather);
+      el.style.borderWidth = lerp(10, 0, gather) + 'px';
+    } else {
+      r = lerpR(r, { x: BIG.x + BIG.w / 2 - 60, y: BIG.y + BIG.h / 2 - 60, w: 120, h: 120 }, gather);
+    }
+    // the hero hands over to the grid layer's column once the columns start
+    const handoff = t >= 5.15;
+    place(el, r);
+    el.style.transform = `scale(${pop * (isHero ? 1 : 1 - ei(gather))}) rotate(${s.r * (1 - gather)}deg)`;
+    el.style.zIndex = isHero ? 3 : 2;
+    show(el, t > tin && !handoff && (isHero || gather < 1));
+  });
+  // painted elements over the hero
+  drawStroke('circle', t, 4.2, 4.75, 5.0, 5.2);
+  drawStroke('arrow', t, 4.55, 4.85, 5.0, 5.2);
+  // grid layer: columns 5.15-6.0, then the 3x4 grid, then it falls away
+  GRID.forEach((g, i) => {
+    const el = photoEls[nS + i];
+    const col = [2, 1, 0].indexOf(i); // grid cells 0,1,2 are the columns' photos (right to left)
+    let r, sc = 1, rot = 0, vis = t >= 5.15 && t < 9.0;
+    const toGrid = eio(prog(t, 5.95, 6.45));
+    if (col >= 0) {
+      const ci = [0, 1, 2][col];
+      const colIdx = COL_PHOTOS.indexOf(GRID_PHOTOS[i]);
+      const c = COLS[colIdx];
+      if (GRID_PHOTOS[i] === HERO) {
+        const k = eio(prog(t, 5.15, 5.6));
+        r = lerpR(BIG, c, k);
+      } else {
+        const k = eo(prog(t, 5.25 + colIdx * 0.08, 5.7 + colIdx * 0.08));
+        r = { ...c, x: lerp(W + 40, c.x, k) };
+      }
+      r = lerpR(r, g, toGrid);
+    } else {
+      const s = spring(t, 6.15 + (i - 3) * 0.05, 16, 0.6);
+      r = g; sc = s; vis = vis && t > 6.15 + (i - 3) * 0.05;
+    }
+    // fall away under the pill
+    const fall = ei(prog(t, 8.45 + (i % 3) * 0.05 + Math.floor(i / 3) * 0.03, 8.85 + (i % 3) * 0.05 + Math.floor(i / 3) * 0.03));
+    r = { ...r, y: r.y + fall * 1400 };
+    rot = fall * ((i % 2) ? 14 : -14);
+    place(el, r);
+    el.style.transform = `scale(${sc}) rotate(${rot}deg)`;
+    el.style.zIndex = 4;
+    show(el, vis);
+  });
+  // floaters around the features
+  FLOAT.forEach((f, i) => {
+    const el = photoEls[nS + nG + i];
+    const s = spring(t, 8.85 + i * 0.08, 14, 0.6);
+    const out = ei(prog(t, 11.15, 11.45));
+    const drift = Math.sin((t - 8.8) * 1.3 + i) * 14;
+    const r = { x: lerp(f.x, 540 - f.s / 2, out), y: lerp(f.y, 960 - f.s / 2, out) + drift, w: f.s, h: f.s };
+    place(el, r);
+    el.style.transform = `scale(${s * (1 - out)}) rotate(${f.r + Math.sin(t + i) * 2}deg)`;
+    el.style.zIndex = 3;
+    show(el, t > 8.85 && out < 1);
+  });
+
+  // ---------- S4/S5: the pill: discount -> the site's three promises -> dot ----------
+  const pill = $('pill'), pt = $('pillText');
+  const pIn = spring(t, 6.75, 15, 0.45);
+  // size per phase
+  const toFeat = eio(prog(t, 8.75, 9.1));
+  const toDot = eio(prog(t, 11.1, 11.45));
+  let pw = lerp(880, 700, toFeat), ph = lerp(220, 150, toFeat);
+  pw = lerp(pw, 60, toDot); ph = lerp(ph, 60, toDot);
+  const py = lerp(lerp(860, 900, toFeat), 930, toDot);
+  place(pill, { x: 540 - pw / 2, y: py, w: pw, h: ph });
+  const orange = [194, 65, 12], ink = [26, 26, 26];
+  const col = orange.map((o, i) => Math.round(lerp(o, ink[i], toFeat)));
+  const back = orange.map((o, i) => Math.round(lerp(col[i], o, toDot)));
+  pill.style.background = `rgb(${back.join(',')})`;
+  pill.style.transform = `scale(${pIn * (1 + 0.4 * (spring(t, 11.45, 20, 0.35) - (t > 11.45 ? 1 : 0)) )}) rotate(${(1 - pIn) * -14 + lerp(-3, 0, toFeat)}deg)`;
+  pill.style.zIndex = 6;
+  show(pill, t > 6.75 && t < 11.75);
+  // text: discount, then features swap through the mask
+  let label = `تا ${fa(MAXPCT)}٪ تخفیف`, ty = 0, fsz = 112;
+  const FT = [9.05, 9.75, 10.45];
+  if (t >= 8.75) {
+    fsz = 84;
+    let idx = -1; FT.forEach((f, i) => { if (t >= f) idx = i; });
+    if (idx < 0) { label = `تا ${fa(MAXPCT)}٪ تخفیف`; ty = -eo5(prog(t, 8.75, 9.05)) * 160; }
+    else {
+      label = FEATURES[idx];
+      const kin = eo5(prog(t, FT[idx], FT[idx] + 0.18));
+      const next = FT[idx + 1] ?? 11.0;
+      const kout = eo5(prog(t, next - 0.12, next + 0.06));
+      ty = (1 - kin) * 160 - kout * 160;
+    }
+  }
+  pt.textContent = label;
+  pt.style.fontSize = fsz + 'px';
+  pt.style.lineHeight = ph + 'px';
+  pt.style.top = '0px';
+  pt.style.transform = `translateY(${ty}px)`;
+  pt.style.opacity = 1 - toDot;
+  // sparkles around the discount
+  drawStroke('sp1', t, 6.95, 7.25, 8.5, 8.75);
+  drawStroke('sp2', t, 7.1, 7.4, 8.5, 8.75);
+  drawStroke('sp3', t, 7.25, 7.5, 8.5, 8.75);
+  // feature icons above the pill
+  [0, 1, 2].forEach(i => drawStroke('ic' + i, t, FT[i] + 0.05, FT[i] + 0.5, (FT[i + 1] ?? 11.05) - 0.2, (FT[i + 1] ?? 11.05) + 0.05));
+
+  // ---------- S6: logo ----------
+  const ls = spring(t, 11.5, 12, 0.55);
+  $('logo').style.transform = `scale(${0.4 + 0.6 * ls})`;
+  $('logo').style.opacity = cl(ls * 1.4);
+  show($('logo'), t > 11.5);
+  const tg = spring(t, 11.95, 13, 0.85);
+  $('tag').style.transform = `translateY(${(1 - tg) * 50}px)`;
+  $('tag').style.clipPath = `inset(0 0 ${(1 - tg) * 100}% 0)`;
+  show($('tag'), t > 11.95);
+  const uw = eo(prog(t, 12.35, 12.8));
+  $('url').style.clipPath = `inset(0 ${(1 - uw) * 50}% 0 ${(1 - uw) * 50}%)`;
+  show($('url'), t > 12.35);
+}
+window.DURATION = 14.2;
+window.seek = seek;
+window.setup = setup;
+</script>
+</body></html>
