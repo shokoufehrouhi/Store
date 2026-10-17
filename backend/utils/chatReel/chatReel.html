@@ -1,0 +1,375 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:Vazir;src:url(../../assets/fonts/Vazirmatn-Medium.ttf);font-weight:500}
+@font-face{font-family:Vazir;src:url(../../assets/fonts/Vazirmatn-Bold.ttf);font-weight:700}
+@font-face{font-family:Vazir;src:url(../../assets/fonts/Vazirmatn-Black.ttf);font-weight:900}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#f5f5f2;font-family:Vazir,sans-serif}
+#stage{position:absolute;inset:0;overflow:hidden;background:#f5f5f2}
+#cam{position:absolute;left:0;top:0;width:1080px;height:1920px;transform-origin:0 0}
+.abs{position:absolute}
+.rtl{direction:rtl}
+#glow{border-radius:80px;filter:blur(38px);background:conic-gradient(from 0deg,#ff7ab6,#ff8a3d,#ffd23f,#5ee7df,#8b7bff,#ff7ab6)}
+#comp{background:#fff;border-radius:60px;box-shadow:0 10px 40px rgba(0,0,0,.06)}
+#typed{font-weight:700;color:#1a1a1a;line-height:1.6;direction:rtl;text-align:right;white-space:nowrap;overflow:hidden}
+#send{border-radius:50%;background:#C2410C;display:flex;align-items:center;justify-content:center}
+#ripple{border-radius:50%;border:6px solid #C2410C}
+.card{width:640px;height:1000px;background:#fff;border-radius:44px;overflow:hidden;box-shadow:0 30px 70px rgba(0,0,0,.18);transform-origin:0 0}
+.card img{width:640px;height:640px;object-fit:cover;display:block;background:#f2f2f2}
+.card .info{padding:28px 38px;direction:rtl;text-align:right}
+.card .brand{font-weight:900;font-size:30px;letter-spacing:.16em;color:#6b6b6b;direction:ltr;text-align:right}
+.card .name{font-weight:700;font-size:42px;color:#1a1a1a;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .prices{display:flex;align-items:baseline;gap:22px;margin-top:18px;direction:rtl}
+.card .new{font-weight:900;font-size:60px;color:#1a1a1a;direction:ltr}
+.card .old{font-weight:500;font-size:34px;color:#8a8a8a;text-decoration:line-through;text-decoration-thickness:3px;direction:ltr}
+.card .badge{position:absolute;top:28px;right:28px;background:#C2410C;color:#fff;font-weight:900;font-size:40px;padding:8px 26px;border-radius:999px;direction:rtl}
+.say{font-weight:700;font-size:44px;color:#1a1a1a;direction:rtl;text-align:right;line-height:1.5}
+.pill{border-radius:999px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:40px;direction:rtl;white-space:nowrap}
+#think{font-weight:700;font-size:48px;direction:rtl;background:linear-gradient(90deg,#9a9a9a 0%,#9a9a9a 40%,#1a1a1a 50%,#9a9a9a 60%,#9a9a9a 100%);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent}
+.word{display:inline-block}
+#outro .line{font-weight:900;font-size:84px;color:#fff;direction:rtl;text-align:center;width:1080px;line-height:1.35;text-wrap:balance}
+</style></head>
+<body>
+<div id="stage"><div id="cam">
+  <!-- header -->
+  <img id="hlogo" class="abs" src="../../../frontend/images/shilista_logo.png" style="left:390px;top:70px;width:300px">
+  <div id="cart" class="abs" style="left:64px;top:78px;width:84px;height:84px">
+    <svg width="84" height="84" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+    <div id="cartBadge" class="abs" style="right:-6px;top:-6px;width:44px;height:44px;border-radius:50%;background:#C2410C;color:#fff;font-weight:900;font-size:28px;display:flex;align-items:center;justify-content:center">۱</div>
+  </div>
+  <div id="hsub" class="abs rtl" style="left:0;top:190px;width:1080px;text-align:center;font-weight:700;font-size:34px;color:#6b6b6b">دستیار خرید شیلیستا</div>
+
+  <!-- composer -->
+  <div id="glow" class="abs"></div>
+  <div id="comp" class="abs"></div>
+  <div id="placeholder" class="abs rtl" style="font-weight:500;font-size:40px;color:#a0a0a0">پیامت رو بنویس…</div>
+  <div id="ripple" class="abs"></div>
+  <div id="send" class="abs">
+    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+  </div>
+  <div id="typed" class="abs"><div id="l0"></div><div id="l1"></div><div id="l2"></div></div>
+
+  <!-- think -->
+  <div id="bag" class="abs" style="width:260px;height:300px">
+    <svg width="260" height="300" viewBox="0 0 26 30"><path d="M8 9V7a5 5 0 0 1 10 0v2" fill="none" stroke="#C2410C" stroke-width="2.2" stroke-linecap="round"/><rect x="2" y="9" width="22" height="20" rx="4" fill="#C2410C"/></svg>
+  </div>
+  <div id="tosses"></div>
+  <div id="think" class="abs" style="left:0;width:1080px;text-align:center;top:1240px">دارم برات می‌گردم…</div>
+
+  <!-- drop -->
+  <div id="flood" class="abs" style="border-radius:50%;background:#C2410C"></div>
+  <div id="cards"></div>
+  <div id="best" class="abs pill" style="background:#1a1a1a;color:#fff;height:84px;padding:0 40px;font-size:38px">✦ بهترین انتخاب برای تو</div>
+
+  <!-- chat reply -->
+  <div id="say1" class="abs say" style="left:60px;width:960px;top:1330px"></div>
+  <div id="say2" class="abs say" style="left:60px;width:960px;top:1400px">بذارم تو سبد خریدت؟</div>
+  <div id="pillB" class="abs pill" style="border:4px solid #1a1a1a;color:#1a1a1a;background:#fff">گزینه‌های بیشتر</div>
+  <div id="pillA" class="abs pill" style="background:#1a1a1a;color:#fff;overflow:hidden">
+    <span id="pillAlabel">افزودن به سبد</span>
+    <svg id="spin" class="abs" width="56" height="56" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-dasharray="80 200"/></svg>
+  </div>
+  <div id="finger" class="abs" style="width:96px;height:96px;border-radius:50%;background:rgba(26,26,26,.28);border:5px solid #fff;box-shadow:0 6px 20px rgba(0,0,0,.2)"></div>
+
+  <!-- outro -->
+  <div id="outro" class="abs" style="left:0;top:0;width:1080px;height:1920px">
+    <div id="olines" class="abs" style="left:0;top:0;width:1080px;height:1920px;display:flex;flex-direction:column;justify-content:center;gap:24px;padding:0 70px">
+      <div id="ol1" class="line" style="width:auto"></div><div id="ol2" class="line" style="width:auto"></div>
+    </div>
+    <img id="ologo" class="abs" src="../../../frontend/images/shilista_logo.png" style="width:700px;left:190px;top:780px">
+    <div id="ourl" class="abs" style="left:0;width:1080px;top:1050px;text-align:center;font-weight:700;font-size:60px;color:#d9d9d9;letter-spacing:.04em">shilista.com</div>
+  </div>
+</div></div>
+
+<script>
+const W = 1080, H = 1920, ACCENT = '#C2410C';
+// Filled by setup(data) from chatReelBuilder.js: { products: [{ brand, name,
+// price, sale, img }], pick, lines: [3 strings], reply, out1, out2 }.
+let PRODUCTS, PICK, LINES, OUT1, OUT2;
+const fa = s => String(s).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
+const tl = n => `${Number(n).toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ₺`;
+const pct = p => Math.round((p.price - p.sale) / p.price * 100);
+
+// ---- math: everything is a pure function of t ----
+const cl = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => cl((t - a) / (b - a));
+const lerp = (a, b, k) => a + (b - a) * k;
+const eo = k => 1 - Math.pow(1 - k, 3);
+const eio = k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+const ei = k => k * k * k;
+// Closed-form step response of a damped spring.
+function spring(t, t0, w = 16, z = 0.55) {
+  if (t <= t0) return 0;
+  const d = t - t0;
+  if (z >= 1) return 1 - Math.exp(-w * d) * (1 + w * d);
+  const wd = w * Math.sqrt(1 - z * z);
+  return 1 - Math.exp(-z * w * d) * (Math.cos(wd * d) + (z * w / wd) * Math.sin(wd * d));
+}
+const smooth = (t, t0, w = 14) => spring(t, t0, w, 1); // no overshoot
+function rect(el, x, y, w, h) { el.style.left = x + 'px'; el.style.top = y + 'px'; el.style.width = w + 'px'; el.style.height = h + 'px'; }
+function show(el, on) { el.style.visibility = on ? 'visible' : 'hidden'; }
+const $ = id => document.getElementById(id);
+
+// Camera: [time, zoom, cx, cy], eased segments, zoom in log space.
+const CAM = [
+  [0, 1.04, 540, 940], [2.9, 1.1, 540, 940], [3.35, 1.1, 540, 940], [3.95, 1, 540, 960],
+  [12.3, 1, 540, 960], [12.8, 1.08, 540, 960], [13.3, 1, 540, 960], [99, 1, 540, 960],
+];
+function camAt(t) {
+  let i = 0; while (i < CAM.length - 2 && t > CAM[i + 1][0]) i++;
+  const [t0, z0, x0, y0] = CAM[i], [t1, z1, x1, y1] = CAM[i + 1];
+  const k = eio(prog(t, t0, t1));
+  return [Math.exp(lerp(Math.log(z0), Math.log(z1), k)), lerp(x0, x1, k), lerp(y0, y1, k)];
+}
+
+// ---- build cards & toss items ----
+function setup(data) {
+PRODUCTS = data.products; PICK = data.pick; LINES = data.lines; OUT1 = data.out1; OUT2 = data.out2;
+$('say1').textContent = data.reply;
+const cardsEl = $('cards'), tossEl = $('tosses');
+PRODUCTS.forEach((p, i) => {
+  const c = document.createElement('div');
+  c.className = 'card abs'; c.id = 'c' + i;
+  c.innerHTML = `<img src="${p.img}"><div class="badge">${fa(pct(p))}٪ تخفیف</div>
+    <div class="info"><div class="brand">${p.brand.toUpperCase()}</div><div class="name">${p.name}</div>
+    <div class="prices"><span class="new">${tl(p.sale)}</span><span class="old">${tl(p.price)}</span></div></div>`;
+  cardsEl.appendChild(c);
+});
+const others = PRODUCTS.map((_, i) => i).filter(i => i !== PICK);
+[0, 1, 2, 3].map(k => others[k % others.length]).forEach((pi, i) => {
+  const d = document.createElement('div');
+  d.className = 'abs'; d.id = 't' + i;
+  d.style.cssText = `width:120px;height:120px;border-radius:50%;overflow:hidden;border:5px solid #fff;box-shadow:0 8px 20px rgba(0,0,0,.15);background:#eee`;
+  d.innerHTML = `<img src="${PRODUCTS[pi].img}" style="width:100%;height:100%;object-fit:cover">`;
+  tossEl.appendChild(d);
+});
+// The request has to fit the composer on one line each: measure and shrink.
+const probe = document.createElement('span');
+probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;font-family:Vazir;font-weight:700;font-size:54px';
+document.body.appendChild(probe);
+const widest = Math.max(...LINES.map(l => { probe.textContent = l; return probe.getBoundingClientRect().width; }));
+probe.remove();
+const k = Math.min(1, 690 / widest);
+TYPED_ASK.fs = 54 * k; BUBBLE.fs = 46 * Math.min(1, 640 / (widest * 46 / 54));
+seek(0);
+}
+
+// ---- layout constants ----
+const COMP_ASK  = { x: 60, y: 760, w: 960, h: 360 };
+const COMP_DOCK = { x: 60, y: 1660, w: 960, h: 170 };
+let TYPED_ASK = { x: 250, y: 800, w: 720, h: 280, fs: 54, pad: 0 };
+let BUBBLE    = { x: 300, y: 300, w: 720, h: 300, fs: 46, pad: 40 };
+const CARD_SLOT = { x: 60, y: 640, s: 0.62 };          // chosen card in the chat
+const CARD_W = 640, CARD_H = 1000, GAP = 60, STRIP_Y = 470;
+const PILL_A = { x: 560, y: 1520, w: 460, h: 104 };
+const PILL_B = { x: 60,  y: 1520, w: 460, h: 104 };
+const BAG_C = [540, 1000];
+
+function seek(t) {
+  // camera
+  const [z, cx, cy] = camAt(t);
+  $('cam').style.transform = `translate(${W / 2}px,${H / 2}px) scale(${z}) translate(${-cx}px,${-cy}px)`;
+
+  // ---------- ASK + SEND ----------
+  const dock = eio(prog(t, 3.35, 3.95));
+  const cr = { x: COMP_ASK.x, y: lerp(COMP_ASK.y, COMP_DOCK.y, dock), w: COMP_ASK.w, h: lerp(COMP_ASK.h, COMP_DOCK.h, dock) };
+  rect($('comp'), cr.x, cr.y, cr.w, cr.h);
+  const g = $('glow');
+  rect(g, cr.x - 14, cr.y - 14, cr.w + 28, cr.h + 28);
+  g.style.background = `conic-gradient(from ${t * 120}deg,#ff7ab6,#ff8a3d,#ffd23f,#5ee7df,#8b7bff,#ff7ab6)`;
+  g.style.opacity = lerp(0.85, 0.35, dock) * (1 - prog(t, 11.9, 12.3));
+
+  // send button: inside the composer, bottom-left
+  const sb = 120 * (1 - 0.14 * Math.sin(Math.PI * prog(t, 3.1, 3.35)));
+  const sx = cr.x + 40 + (120 - sb) / 2, sy = cr.y + cr.h - 25 - 120 + (120 - sb) / 2;
+  rect($('send'), sx, sy, sb, sb);
+  // ripple from the press
+  const rp = prog(t, 3.2, 3.8);
+  const rr = 60 + eo(rp) * 260;
+  rect($('ripple'), sx + sb / 2 - rr, sy + sb / 2 - rr, rr * 2, rr * 2);
+  $('ripple').style.opacity = rp > 0 && rp < 1 ? (1 - rp) : 0;
+
+  // placeholder appears in the docked composer
+  const ph = $('placeholder');
+  rect(ph, cr.x + 260, cr.y + cr.h / 2 - 34, 640, 70);
+  ph.style.textAlign = 'right';
+  ph.style.opacity = prog(t, 3.8, 4.1) * (1 - prog(t, 11.9, 12.2));
+
+  // typed request -> user bubble (shared element)
+  const chars = LINES.join('').length;
+  const typedN = Math.floor(lerp(0, chars + 0.999, prog(t, 0.35, 2.85)));
+  let left = typedN;
+  LINES.forEach((ln, i) => { const n = cl(left, 0, ln.length); $('l' + i).textContent = ln.slice(0, n); left -= ln.length; });
+  const caretOn = t < 3.2 && Math.floor(t * 2.6) % 2 === 0;
+  const lastLine = LINES.findIndex((ln, i) => LINES.slice(0, i + 1).join('').length >= typedN);
+  [0, 1, 2].forEach(i => { $('l' + i).style.borderLeft = (caretOn && i === Math.max(0, lastLine)) ? `4px solid ${ACCENT}` : '4px solid transparent'; $('l' + i).style.width = 'fit-content'; $('l' + i).style.marginLeft = 'auto'; $('l' + i).style.paddingLeft = '6px'; });
+  const m = eio(prog(t, 3.35, 3.95));
+  const ty = $('typed');
+  const bx = lerp(TYPED_ASK.x, BUBBLE.x, m), by = lerp(TYPED_ASK.y, BUBBLE.y, m) - 40 * Math.sin(Math.PI * m);
+  rect(ty, bx, by, lerp(TYPED_ASK.w, BUBBLE.w, m), lerp(TYPED_ASK.h, BUBBLE.h, m));
+  ty.style.fontSize = lerp(TYPED_ASK.fs, BUBBLE.fs, m) + 'px';
+  ty.style.padding = `${lerp(0, BUBBLE.pad, m)}px ${lerp(0, 48, m)}px`;
+  ty.style.background = `rgba(26,26,26,${m})`;
+  const c = Math.round(lerp(26, 255, m));
+  ty.style.color = `rgb(${c},${c},${c})`;
+  ty.style.borderRadius = `${lerp(0, 48, m)}px ${lerp(0, 48, m)}px ${lerp(0, 14, m)}px ${lerp(0, 48, m)}px`;
+  // the bubble hides behind the outro
+  show(ty, t < 12.8);
+
+  // ---------- THINK ----------
+  const bagIn = spring(t, 3.95, 13, 0.6);
+  const bagOut = ei(prog(t, 5.95, 6.12));
+  const bagS = cl(bagIn) * (1 - bagOut);
+  const bagFrom = [sx + sb / 2, sy + sb / 2];
+  const bagP = eo(prog(t, 3.95, 4.5));
+  const bcx = lerp(bagFrom[0], BAG_C[0], bagP), bcy = lerp(bagFrom[1], BAG_C[1], bagP);
+  // squash on every toss
+  let squash = 0;
+  [4.5, 4.85, 5.2, 5.55].forEach(tt => { squash += 0.12 * Math.sin(Math.PI * prog(t, tt - 0.08, tt + 0.12)); });
+  const bag = $('bag');
+  bag.style.left = (bcx - 130) + 'px'; bag.style.top = (bcy - 150) + 'px';
+  bag.style.transform = `scale(${bagIn * (1 + squash * 0.6) * (1 - bagOut)},${bagIn * (1 - squash) * (1 - bagOut)}) rotate(${Math.sin(t * 9) * 3 * (t > 4.4 ? 1 : 0)}deg)`;
+  show(bag, t > 3.95 && t < 6.15);
+  // tosses: photos jump out of the bag and fall back in
+  [4.5, 4.85, 5.2, 5.55].forEach((tt, i) => {
+    const k = prog(t, tt, tt + 0.62);
+    const el = $('t' + i);
+    const dir = [-1, 1, -0.5, 0.6][i];
+    const x = BAG_C[0] - 60 + dir * 230 * Math.sin(Math.PI * k * 0.5);
+    const y = BAG_C[1] - 120 - 480 * 4 * k * (1 - k);
+    el.style.left = x + 'px'; el.style.top = y + 'px';
+    el.style.transform = `rotate(${k * 360 * dir}deg) scale(${Math.sin(Math.PI * k) * 1.1})`;
+    show(el, k > 0 && k < 1);
+  });
+  const th = $('think');
+  th.style.backgroundPosition = `${100 - ((t * 70) % 100) * 1.5}% 0`;
+  const thIn = smooth(t, 4.3), thOut = prog(t, 5.9, 6.05);
+  th.style.opacity = thIn * (1 - thOut);
+  th.style.transform = `translateY(${(1 - thIn) * 40}px)`;
+
+  // ---------- DROP ----------
+  const fl = $('flood');
+  const BUB_C = [BUBBLE.x + BUBBLE.w / 2, BUBBLE.y + BUBBLE.h / 2];
+  let fr = 0, fcx = BAG_C[0], fcy = BAG_C[1];
+  if (t >= 6.0 && t < 8.9) fr = eo(prog(t, 6.0, 6.35)) * 2300;
+  else if (t >= 8.9) {
+    // contracts into the user's bubble
+    const k = eio(prog(t, 8.9, 9.3));
+    fr = lerp(2300, 0, k);
+    fcx = lerp(BAG_C[0], BUB_C[0], k); fcy = lerp(BAG_C[1], BUB_C[1], k);
+  }
+  rect(fl, fcx - fr, fcy - fr, fr * 2, fr * 2);
+  show(fl, fr > 0);
+
+  // strip: cards burst from the centre, slide across three, land on the pick
+  const stripX = lerp(0, PICK * (CARD_W + GAP), eio(prog(t, 6.9, 8.05)));
+  const pickLift = spring(t, 8.1, 14, 0.5);
+  const fly = eio(prog(t, 8.9, 9.5));
+  PRODUCTS.forEach((p, i) => {
+    const el = $('c' + i);
+    const s = spring(t, 6.12 + Math.abs(i - 1) * 0.07, 15, 0.62);
+    const fx = (W - CARD_W) / 2 + i * (CARD_W + GAP) - stripX;
+    const fy = STRIP_Y;
+    let x = lerp(W / 2 - CARD_W / 2, fx, s), y = lerp(BAG_C[1] - CARD_H / 2, fy, s), sc = s;
+    let rot = (1 - s) * (i - 1) * 14;
+    if (i === PICK) {
+      sc *= 1 + 0.05 * pickLift * (1 - fly); y -= 34 * pickLift * (1 - fly);
+      // fly to the chat slot (top-left origin)
+      x = lerp(x, CARD_SLOT.x, fly); y = lerp(y, CARD_SLOT.y, fly); sc = lerp(sc, CARD_SLOT.s, fly);
+    } else {
+      const out = ei(prog(t, 8.75, 9.05));
+      sc *= 1 - out;
+      x = lerp(x, x + CARD_W / 2, out); y = lerp(y, y + CARD_H / 2, out);
+    }
+    el.style.left = x + 'px'; el.style.top = y + 'px';
+    el.style.transform = `scale(${Math.max(0, sc)}) rotate(${rot}deg)`;
+    el.style.zIndex = i === PICK ? 6 : 5;
+    show(el, t > 6.12 && sc > 0.001 && t < 12.8);
+  });
+  const best = $('best');
+  const bs = spring(t, 8.25, 16, 0.5) * (1 - ei(prog(t, 8.75, 8.95)));
+  best.style.left = (W / 2 - 260) + 'px'; best.style.top = (STRIP_Y - 120) + 'px';
+  best.style.width = '520px';
+  best.style.transform = `scale(${bs})`;
+  best.style.zIndex = 7;
+  show(best, bs > 0.001);
+
+  // ---------- CHAT ----------
+  [['say1', 9.5, 1330], ['say2', 9.9, 1410]].forEach(([id, t0, top]) => {
+    const k = smooth(t, t0, 12);
+    const el = $(id);
+    el.style.top = (top + (1 - k) * 50) + 'px';
+    el.style.clipPath = `inset(0 0 ${(1 - k) * 100}% 0)`;
+    show(el, t > t0 && t < 12.8);
+  });
+  const pa = $('pillA'), pb = $('pillB');
+  const ps = spring(t, 10.3, 15, 0.55), pbS = spring(t, 10.38, 15, 0.55);
+  pb.style.left = PILL_B.x + 'px'; pb.style.top = PILL_B.y + 'px'; pb.style.width = PILL_B.w + 'px'; pb.style.height = PILL_B.h + 'px';
+  pb.style.transform = `scale(${pbS})`;
+  show(pb, t > 10.38 && t < 12.6);
+  // finger taps "add to cart"
+  const fg = $('finger');
+  const fk = eio(prog(t, 10.55, 11.0));
+  const fxp = lerp(880, PILL_A.x + PILL_A.w / 2 - 48, fk), fyp = lerp(1960, PILL_A.y + PILL_A.h / 2 - 30, fk);
+  const press = Math.sin(Math.PI * prog(t, 11.0, 11.22));
+  fg.style.left = fxp + 'px'; fg.style.top = fyp + 'px';
+  fg.style.transform = `scale(${1 - 0.25 * press})`;
+  fg.style.opacity = 1 - prog(t, 11.35, 11.6);
+  fg.style.zIndex = 25;
+  show(fg, t > 10.55 && t < 11.6);
+  // pill A: label -> spinner -> done, then floods the frame (stays pill-shaped)
+  const ex = eio(prog(t, 12.3, 12.8));
+  const pr = { x: lerp(PILL_A.x, -600, ex), y: lerp(PILL_A.y, -300, ex), w: lerp(PILL_A.w, W + 1200, ex), h: lerp(PILL_A.h, H + 600, ex) };
+  rect(pa, pr.x, pr.y, pr.w, pr.h);
+  pa.style.borderRadius = Math.min(pr.w, pr.h) / 2 + 'px';
+  pa.style.transform = `scale(${ps * (1 - 0.05 * press)})`;
+  pa.style.zIndex = 20;
+  show(pa, t > 10.3);
+  const lab = $('pillAlabel'), spin = $('spin');
+  const spinning = t > 11.18 && t < 11.75;
+  lab.textContent = t < 11.75 ? 'افزودن به سبد' : '✓ به سبد اضافه شد';
+  lab.style.opacity = spinning ? 0 : 1;
+  const labS = t >= 11.75 ? spring(t, 11.75, 16, 0.6) : 1;
+  const grow = eio(prog(t, 12.35, 12.8));
+  const slideAway = ei(prog(t, 12.9, 13.2));
+  lab.style.display = 'inline-block';
+  lab.style.transform = `translateY(${-slideAway * 1100}px) scale(${labS * lerp(1, 2.1, grow)})`;
+  spin.style.left = (pr.w / 2 - 28) + 'px'; spin.style.top = (pr.h / 2 - 28) + 'px';
+  spin.style.transform = `rotate(${t * 720}deg)`;
+  show(spin, spinning);
+  // cart badge pops when the item lands
+  const cbS = spring(t, 11.8, 18, 0.4);
+  $('cartBadge').style.transform = `scale(${cbS})`;
+  show($('cartBadge'), t > 11.8);
+  $('cart').style.transform = `scale(${1 + 0.18 * Math.sin(Math.PI * prog(t, 11.8, 12.05))})`;
+
+  // ---------- OUTRO ----------
+  const ou = $('outro');
+  ou.style.zIndex = 30;
+  show(ou, t > 12.8);
+  function words(el, text, t0) {
+    if (el.dataset.text !== text) { el.innerHTML = text.split(' ').map(w => `<span class="word">${w}</span>`).join(' '); el.dataset.text = text; }
+    [...el.children].forEach((w, i) => {
+      const k = spring(t, t0 + i * 0.11, 15, 0.6);
+      w.style.opacity = cl(k * 1.5);
+      w.style.transform = `translateY(${(1 - k) * 70}px)`;
+    });
+  }
+  words($('ol1'), OUT1, 13.2);
+  words($('ol2'), OUT2, 13.75);
+  const up = eio(prog(t, 14.55, 14.9));
+  $('ol1').style.transform = `translateY(${-up * 1200}px)`;
+  $('ol2').style.transform = `translateY(${-up * 1200}px)`;
+  const ls = spring(t, 14.75, 13, 0.55);
+  $('ologo').style.transform = `translateY(${(1 - ls) * 600}px) scale(${0.6 + 0.4 * ls})`;
+  show($('ologo'), t > 14.75);
+  const uw = eo(prog(t, 15.15, 15.6));
+  $('ourl').style.clipPath = `inset(0 ${(1 - uw) * 50}% 0 ${(1 - uw) * 50}%)`;
+  show($('ourl'), t > 15.15);
+}
+window.DURATION = 16.4;
+window.seek = seek;
+window.setup = setup;
+</script>
+</body></html>

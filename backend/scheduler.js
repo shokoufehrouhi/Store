@@ -22,6 +22,7 @@ const { checkSiteStock, importSite, cleanupStaleChromeProfiles, importStatusText
 const { syncSubcategoryActiveState } = require('./utils/subcategorySync');
 const { buildSingleProductStory, buildCollageStory } = require('./utils/storyBuilder');
 const { buildReel, buildAiReel } = require('./utils/reelBuilder');
+const { buildChatReel } = require('./utils/chatReelBuilder');
 const { REEL_SLOTS, reelGroupFor } = require('./utils/reelPlan');
 const { deployStoryById } = require('./controllers/instagramContentController');
 const { publishAllChanges } = require('./controllers/adminController');
@@ -416,7 +417,16 @@ async function generateReel(slot) {
     console.warn(`[scheduler] reel ${slot} (${group.key}): only ${products.length} eligible product(s), skipped`);
     return false;
   }
-  const videoUrl = await buildReel(products, { headline: group.headline, prefix: `${slot.replace(':', '')}-${group.key}` });
+  const prefix = `${slot.replace(':', '')}-${group.key}`;
+  let videoUrl;
+  if (REEL_SLOTS[slot]?.style === 'chat') {
+    // Falls back to the slide reel so a broken chat reel doesn't lose the slot.
+    const t0 = Date.now();
+    videoUrl = await buildChatReel(products, { groupKey: group.key, prefix: `${prefix}-chat` })
+      .then((url) => { console.log(`[scheduler] chat reel ${slot} (${group.key}) built in ${Math.round((Date.now() - t0) / 1000)}s`); return url; })
+      .catch((err) => { console.error(`[scheduler] chat reel ${slot} failed, using the slide reel:`, err); return null; });
+  }
+  if (!videoUrl) videoUrl = await buildReel(products, { headline: group.headline, prefix });
   await prisma.instagram_content.create({
     data: {
       kind: 'reel',

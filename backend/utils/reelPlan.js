@@ -15,7 +15,9 @@
 
 const REEL_SLOTS = {
   'reel-12:00': { time: '12:00', genTime: '10:00' },
-  'reel-20:00': { time: '20:00', genTime: '18:00' },
+  // The chat-style "shopping assistant" reel (utils/chatReelBuilder.js),
+  // only for this slot (user's choice, 2026-10-17); 12:00 keeps the slides.
+  'reel-20:00': { time: '20:00', genTime: '18:00', style: 'chat' },
   // The daily AI reel (utils/aiReel.js): one product worn/used by a person,
   // made at 08:00 and left in the admin like the others.
   'reel-08:00': { time: '08:00', genTime: '08:00', ai: true },
