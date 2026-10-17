@@ -21,6 +21,10 @@ const REEL_SLOTS = {
   // The brand ad reel (utils/brandReelBuilder.js), every day (user's choice,
   // 2026-10-17): photos from as many brands as possible, any group.
   'reel-11:00': { time: '11:00', genTime: '09:00', style: 'brand' },
+  // The site fly-over reel (utils/siteReelBuilder.js), once a week, Thursday
+  // night (user's choice, 2026-10-17). `weekdays` limits the scheduled run
+  // (Date#getDay); the admin's rebuild works any day.
+  'reel-21:30': { time: '21:30', genTime: '19:30', style: 'site', weekdays: [4] },
   // The daily AI reel (utils/aiReel.js): one product worn/used by a person,
   // made at 08:00 and left in the admin like the others.
   'reel-08:00': { time: '08:00', genTime: '08:00', ai: true },
@@ -39,6 +43,8 @@ const REEL_GROUPS = {
   bagsShoes: { headline: 'تخفیف‌های کیف و کفش',    tags: ['#کیف', '#کفش'],              where: { OR: [{ category_id: 2 }, { subcategory_id: 13 }] } },
   // Only the brand reel (reel-11:00) uses this one: clothing, bags and shoes.
   brand:     { headline: 'برندهای محبوب با تخفیف',  tags: ['#برند_اصل', '#مد', '#استایل'], where: { OR: [{ category_id: { in: [1, 2, 7] } }, { subcategory_id: 13 }] } },
+  // Only the site reel (reel-21:30); it shows the home page, not a product group.
+  site:      { headline: 'خرید از برندهای محبوب، فقط در شیلیستا', tags: ['#خرید_آنلاین', '#برند_اصل', '#مد'] },
 };
 
 // The AI reel's group, one per day in turn. Cosmetics only from the
@@ -65,6 +71,7 @@ function reelGroupFor(slot, dateStr) {
     return { key, ai: true, ...REEL_GROUPS[key], where: AI_REEL_WHERE[key] || REEL_GROUPS[key].where };
   }
   if (REEL_SLOTS[slot]?.style === 'brand') return { key: 'brand', ...REEL_GROUPS.brand };
+  if (REEL_SLOTS[slot]?.style === 'site') return { key: 'site', ...REEL_GROUPS.site };
   const weekday = new Date(`${dateStr}T12:00:00`).getDay();
   const key = WEEKLY_PLAN[weekday]?.[slot];
   return key ? { key, ...REEL_GROUPS[key] } : null;

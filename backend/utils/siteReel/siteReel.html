@@ -1,0 +1,160 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:Vazir;src:url(../../assets/fonts/Vazirmatn-Medium.ttf);font-weight:500}
+@font-face{font-family:Vazir;src:url(../../assets/fonts/Vazirmatn-Black.ttf);font-weight:900}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;font-family:Vazir,sans-serif}
+#stage{position:absolute;inset:0;overflow:hidden;background:radial-gradient(ellipse at 50% 50%,#f9fbfb 0%,#f9fbfb 35%,#f2f3f6 100%)}
+.world{position:absolute;inset:0;perspective:1360px;perspective-origin:540px 960px}
+.page{position:absolute;left:0;top:0;width:1440px;border-radius:24px;transform-style:preserve-3d;box-shadow:0 40px 120px rgba(20,30,40,.16),0 8px 30px rgba(20,30,40,.08)}
+.lift{position:absolute;transform-origin:50% 100%;border-radius:16px}
+.hole{position:absolute;background:#f4f4f4;border-radius:16px}
+#blurw{filter:blur(9px);-webkit-mask-image:linear-gradient(to top,#000 0%,#000 8%,transparent 40%);mask-image:linear-gradient(to top,#000 0%,#000 8%,transparent 40%)}
+.tile{position:absolute;background:#fff;border-radius:22%;box-shadow:0 18px 40px rgba(20,30,40,.14);overflow:hidden}
+.tile img{position:absolute;height:80%;left:20%;top:10%;clip-path:inset(0 77% 0 0)}
+#card{position:absolute;border-radius:26px;overflow:hidden;background-repeat:no-repeat;box-shadow:0 30px 80px rgba(20,30,40,.18)}
+.tline{position:absolute;left:0;width:1080px;text-align:center;direction:rtl;white-space:nowrap}
+.mask{position:absolute;left:0;width:1080px;overflow:hidden}
+</style></head>
+<body>
+<div id="stage">
+  <div id="sharpw" class="world"></div>
+  <div id="blurw" class="world"></div>
+  <div id="card"></div>
+  <div class="mask" id="m1" style="top:560px;height:130px"><div id="t1" class="tline" style="font-weight:500;font-size:84px;line-height:130px;color:#1a1a1a">خرید از برندهای محبوب،</div></div>
+  <div class="mask" id="m2" style="top:680px;height:130px"><div id="t2" class="tline" style="font-weight:900;font-size:84px;line-height:130px;color:#C2410C">فقط در شیلیستا.</div></div>
+  <div id="tiles"></div>
+</div>
+<script>
+const W = 1080, H = 1920, PW = 1440, PERSP = 1360;
+let PH = 3800, PAGE = ''; // set by setup()
+let R; // rects from capture.js
+const cl = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => cl((t - a) / (b - a));
+const lerp = (a, b, k) => a + (b - a) * k;
+const eio = k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+const eo = k => 1 - Math.pow(1 - k, 3);
+const ei = k => k * k;
+function spring(t, t0, w = 14, z = 0.7) {
+  if (t <= t0) return 0;
+  const d = t - t0, wd = w * Math.sqrt(1 - z * z);
+  return 1 - Math.exp(-z * w * d) * (Math.cos(wd * d) + (z * w / wd) * Math.sin(wd * d));
+}
+const $ = id => document.getElementById(id);
+
+const worlds = [];
+function buildWorld(root) {
+  const page = document.createElement('div'); page.className = 'page'; root.appendChild(page);
+  const lifts = R.lifts.map(r => {
+    const hole = document.createElement('div'); hole.className = 'hole';
+    Object.assign(hole.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' });
+    const el = document.createElement('div'); el.className = 'lift';
+    Object.assign(el.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px', backgroundPosition: `${-r.x}px ${-r.y}px` });
+    page.appendChild(hole); page.appendChild(el);
+    return { el, hole, r };
+  });
+  return { root, page, lifts };
+}
+
+// Camera: the point of the page it looks at (lx, ly), its tilt and how close it is.
+function camAt(t) {
+  // glide: eases in, then one steady speed down the page
+  const g = t < 0.6 ? 0.5 * (t / 0.6) * (t / 0.6) * 0.6 : 0.3 + (t - 0.6);
+  const speed = (Math.min(3020, PH - 780) - 470) / (8.2 - 0.3); // px of page per second
+  let ly = 470 + g * speed;
+  let lx = 720, tilt = 56, z = -260;
+  // rise: straight overhead, pulling back to the whole page as one strip
+  const rise = eio(prog(t, 7.75, 9.25));
+  ly = lerp(ly, PH / 2, rise);
+  tilt = lerp(56, 0, rise);
+  z = lerp(z, -2300, rise);
+  // dive: into the hero, which lands as the card
+  const dive = eio(prog(t, 9.47, 9.97));
+  const heroCy = 440, heroZ = PERSP * (1 - PW / 900); // hero 900px wide on screen
+  ly = lerp(ly, heroCy, dive);
+  z = lerp(z, heroZ, dive);
+  return { lx, ly, tilt, z };
+}
+
+const CARD_END = { x: 90, y: 870, w: 900, h: 900 * 760 / 1440 };
+// data: { page: file URL of the full-page screenshot, ph: its height,
+// rects: from siteReelBuilder.js's capture (banner, cards) }.
+function setup(data) {
+  R = data.rects; PH = data.ph; PAGE = data.page;
+  R.lifts = [
+    ...R.cards.map(c => ({ x: c.x, y: c.y, w: c.w, h: c.h })),
+    ...(R.banner ? [{ x: R.banner.x, y: R.banner.y, w: R.banner.w, h: R.banner.h, big: true }] : []),
+  ];
+  worlds.push(buildWorld($('sharpw')), buildWorld($('blurw')));
+  document.querySelectorAll('.page, .lift, #card').forEach(e => { e.style.backgroundImage = `url("${PAGE}")`; });
+  document.querySelectorAll('.page').forEach(e => { e.style.height = PH + 'px'; e.style.backgroundSize = `${PW}px ${PH}px`; });
+  document.querySelectorAll('.lift').forEach(e => { e.style.backgroundSize = `${PW}px ${PH}px`; });
+  // four logo tiles
+  for (let i = 0; i < 4; i++) {
+    const d = document.createElement('div'); d.className = 'tile'; d.id = 'tile' + i;
+    d.innerHTML = '<img src="../../../frontend/images/shilista_logo.png">';
+    $('tiles').appendChild(d);
+  }
+  const card = $('card');
+  card.style.backgroundSize = `${CARD_END.w}px ${CARD_END.w * PH / PW}px`;
+  card.style.backgroundPosition = `0 ${-60 * CARD_END.w / PW}px`;
+}
+
+function seek(t) {
+  const c = camAt(t);
+  worlds.forEach((w, wi) => {
+    w.page.style.transformOrigin = `${c.lx}px ${c.ly}px`;
+    w.page.style.transform = `translate3d(${W / 2 - c.lx}px,${H / 2 - c.ly}px,${c.z}px) rotateX(${c.tilt}deg)`;
+    // photos stand up toward the lens as the camera passes them
+    const rise = eio(prog(t, 7.75, 8.6));
+    w.lifts.forEach(L => {
+      const bottom = L.r.y + L.r.h;
+      const pass = cl((c.ly + 380 - bottom) / 420) * (L.r.big ? 0.55 : 1);
+      const k = eo(pass) * (1 - rise);
+      L.el.style.transform = `translateZ(${k * 40}px) rotateX(${-k * 62}deg)`;
+      L.el.style.boxShadow = k > 0.01 ? `0 ${20 * k}px ${50 * k}px rgba(20,30,40,${0.18 * k})` : 'none';
+      L.hole.style.opacity = k > 0.01 ? 1 : 0;
+    });
+    w.root.style.visibility = t < 9.97 ? 'visible' : 'hidden';
+  });
+  // depth of field only while the camera is low
+  $('blurw').style.opacity = 1 - eio(prog(t, 7.6, 8.6));
+
+  // ---- the card under the title ----
+  const card = $('card');
+  const land = eio(prog(t, 9.97, 10.6));
+  const start = { x: 90, y: H / 2 - CARD_END.h / 2, w: 900, h: CARD_END.h };
+  const r = { x: start.x, y: lerp(start.y, CARD_END.y, land), w: 900, h: CARD_END.h };
+  Object.assign(card.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' });
+  card.style.borderRadius = lerp(24 * 900 / PW, 26, land) + 'px';
+  card.style.visibility = t >= 9.97 ? 'visible' : 'hidden';
+  [['t1', 10.35], ['t2', 10.6]].forEach(([id, t0]) => {
+    const k = spring(t, t0, 13, 0.85);
+    $(id).style.transform = `translateY(${(1 - k) * 130}px)`;
+  });
+
+  // ---- logo tiles: lift off beside the button, hang at the top, settle by the card ----
+  const POS0 = [[-60, -40], [60, -40], [-60, 40], [60, 40]];   // around the button (screen, at t=0)
+  const HANG = [[100, 170, 180], [980, 210, 160], [80, 1740, 150], [1000, 1700, 200]];
+  const END = [[170, 1520, 130], [910, 1520, 130], [400, 1530, 96], [680, 1530, 96]];
+  for (let i = 0; i < 4; i++) {
+    const el = $('tile' + i);
+    const up = eo(prog(t, 0.1 + i * 0.06, 1.35 + i * 0.06));
+    const settle = eio(prog(t, 10.3 + i * 0.05, 11.0 + i * 0.05));
+    const bx = 540 + POS0[i][0] + 120, by = 960 + 120 + POS0[i][1];
+    let x = lerp(bx, HANG[i][0], up), y = lerp(by, HANG[i][1], up), s = lerp(32, HANG[i][2], up);
+    const bob = Math.sin(t * 1.4 + i * 1.7) * 10 * up * (1 - settle);
+    x = lerp(x, END[i][0], settle); y = lerp(y, END[i][1], settle) + bob; s = lerp(s, END[i][2], settle);
+    Object.assign(el.style, { left: (x - s / 2) + 'px', top: (y - s / 2) + 'px', width: s + 'px', height: s + 'px' });
+    el.style.transform = `rotate(${Math.sin(t * 0.9 + i) * 6 * (1 - settle)}deg)`;
+    el.style.visibility = t > 0.1 + i * 0.06 ? 'visible' : 'hidden';
+    // a soft focus on the tiles too while the camera is low
+    el.style.filter = `blur(${(i >= 2 ? 3 : 0) * (1 - eio(prog(t, 7.6, 8.6)))}px)`;
+  }
+}
+window.DURATION = 14.5;
+window.seek = seek;
+window.setup = setup;
+</script>
+</body></html>

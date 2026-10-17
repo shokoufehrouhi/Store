@@ -24,6 +24,7 @@ const { buildSingleProductStory, buildCollageStory } = require('./utils/storyBui
 const { buildReel, buildAiReel } = require('./utils/reelBuilder');
 const { buildChatReel } = require('./utils/chatReelBuilder');
 const { buildBrandReel } = require('./utils/brandReelBuilder');
+const { buildSiteReel } = require('./utils/siteReelBuilder');
 const { REEL_SLOTS, reelGroupFor } = require('./utils/reelPlan');
 const { deployStoryById } = require('./controllers/instagramContentController');
 const { publishAllChanges } = require('./controllers/adminController');
@@ -445,11 +446,31 @@ async function generateBrandReel(slot, group) {
   return true;
 }
 
+// The weekly site reel (reel-21:30): the live home page, so no products of
+// its own to pick.
+async function generateSiteReel(slot) {
+  const t0 = Date.now();
+  const videoUrl = await buildSiteReel({ prefix: `${slot.replace(':', '')}-site` });
+  console.log(`[scheduler] site reel ${slot} built in ${Math.round((Date.now() - t0) / 1000)}s`);
+  await prisma.instagram_content.create({
+    data: {
+      kind: 'reel',
+      slot,
+      scheduled_date: new Date(currentDateStr()),
+      image_url: videoUrl,
+      product_ids: [],
+      link: `${process.env.FRONTEND_URL}/index.html`,
+    },
+  });
+  return true;
+}
+
 async function generateReel(slot) {
   const group = reelGroupFor(slot, currentDateStr());
   if (!group) return false;
   if (group.ai) return generateAiReel(slot, group);
   if (REEL_SLOTS[slot]?.style === 'brand') return generateBrandReel(slot, group);
+  if (REEL_SLOTS[slot]?.style === 'site') return generateSiteReel(slot);
   const products = await eligibleStoryProducts(REEL_PRODUCTS, [], {
     where: { AND: [group.where, { tag: 'discount' }, { discounted_price: { not: null } }] },
     minPrice: REEL_MIN_PRICE_TL,
@@ -930,7 +951,9 @@ async function tick() {
   // Reels: drafted at their genTime (utils/reelPlan.js). Not posted
   // automatically (REEL_AUTO_POST): the API can't add Instagram's own
   // (trending) music, so the user posts them from the app with music.
+  const weekdayToday = new Date(`${today}T12:00:00`).getDay();
   for (const [slot, def] of Object.entries(REEL_SLOTS)) {
+    if (def.weekdays && !def.weekdays.includes(weekdayToday)) continue;
     if (INSTAGRAM_ENABLED && nowHHMM === def.genTime && ranReelGenOn[slot] !== today) {
       ranReelGenOn[slot] = today;
       // The AI reel runs for minutes: not awaited, so the rest of this tick goes on.
