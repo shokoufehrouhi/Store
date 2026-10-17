@@ -31,51 +31,38 @@ function mergeLiveRefs(snapshot, colorsById, sizeChartsById) {
   return data;
 }
 
+// Every page of the storefront fetches this list unfiltered, and building it
+// reads every live product (2026-10-17: ~5,300, a 14.6MB response, ~100MB of
+// API memory per request on the 4GB VPS). So the unfiltered JSON is built
+// once and reused for LIST_CACHE_TTL_MS -- concurrent requests share one
+// build -- and Publish clears it (invalidateProductListCache) so published
+// changes show up right away. Stock (product_inventory) in the list can be
+// up to that long out of date -- no worse than a page left open, and
+// product.html reads it fresh from getOne. Staging (PREVIEW_MODE) shows
+// unpublished edits as they're made, so it isn't cached.
+const LIST_CACHE_TTL_MS = 60 * 1000;
+let listCache = null; // { at, json: Promise<string> }
+
+function cachedProductListJson() {
+  if (listCache && Date.now() - listCache.at < LIST_CACHE_TTL_MS) return listCache.json;
+  const entry = { at: Date.now(), json: buildProductList().then(data => JSON.stringify({ success: true, data })) };
+  entry.json.catch(() => { if (listCache === entry) listCache = null; });
+  listCache = entry;
+  return entry.json;
+}
+
+function invalidateProductListCache() {
+  listCache = null;
+}
+
 async function getAll(req, res, next) {
   try {
     const { category, subcategory, gender, tag } = req.query;
-
-    const [rows, allColors, allSizeCharts] = await Promise.all([
-      PREVIEW_MODE
-        ? prisma.products.findMany({
-            where: { is_active: true },
-            include: {
-              ...PRODUCT_INCLUDE,
-              _count: { select: { order_items: true, customer_product_photos: { where: { is_approved: true } } } },
-            },
-            orderBy: { created_at: 'desc' },
-          })
-        : prisma.products.findMany({
-            where: { is_live: true },
-            select: {
-              id: true, created_at: true, published_data: true,
-              _count: { select: { order_items: true, customer_product_photos: { where: { is_approved: true } } } },
-            },
-            orderBy: { created_at: 'desc' },
-          }),
-      prisma.colors.findMany(),
-      prisma.size_charts.findMany(),
-    ]);
-    const colorsById = new Map(allColors.map(c => [c.id, c]));
-    const sizeChartsById = new Map(allSizeCharts.map(s => [s.id, s]));
-    const ids = rows.map(r => r.id);
-    const inventory = ids.length
-      ? await prisma.product_inventory.findMany({ where: { product_id: { in: ids } }, select: { product_id: true, color_id: true, size_label: true, quantity: true } })
-      : [];
-    const inventoryByProduct = new Map();
-    for (const inv of inventory) {
-      if (!inventoryByProduct.has(inv.product_id)) inventoryByProduct.set(inv.product_id, []);
-      inventoryByProduct.get(inv.product_id).push(inv);
+    if (!PREVIEW_MODE && !category && !subcategory && !gender && !tag) {
+      return res.type('application/json').send(await cachedProductListJson());
     }
 
-    let products = rows.map(r => ({
-      id: r.id,
-      ...mergeLiveRefs(PREVIEW_MODE ? buildProductSnapshot(r) : (r.published_data || {}), colorsById, sizeChartsById),
-      product_inventory: inventoryByProduct.get(r.id) || [],
-      sales: r._count.order_items,
-      has_customer_photos: r._count.customer_product_photos > 0,
-    }));
-
+    let products = await buildProductList();
     if (gender) products = products.filter(p => p.gender === gender);
     if (tag)    products = products.filter(p => p.tag === tag);
     if (category) {
@@ -93,6 +80,49 @@ async function getAll(req, res, next) {
   } catch (err) {
     next(err);
   }
+}
+
+async function buildProductList() {
+  const [rows, allColors, allSizeCharts] = await Promise.all([
+    PREVIEW_MODE
+      ? prisma.products.findMany({
+          where: { is_active: true },
+          include: {
+            ...PRODUCT_INCLUDE,
+            _count: { select: { order_items: true, customer_product_photos: { where: { is_approved: true } } } },
+          },
+          orderBy: { created_at: 'desc' },
+        })
+      : prisma.products.findMany({
+          where: { is_live: true },
+          select: {
+            id: true, created_at: true, published_data: true,
+            _count: { select: { order_items: true, customer_product_photos: { where: { is_approved: true } } } },
+          },
+          orderBy: { created_at: 'desc' },
+        }),
+    prisma.colors.findMany(),
+    prisma.size_charts.findMany(),
+  ]);
+  const colorsById = new Map(allColors.map(c => [c.id, c]));
+  const sizeChartsById = new Map(allSizeCharts.map(s => [s.id, s]));
+  const ids = rows.map(r => r.id);
+  const inventory = ids.length
+    ? await prisma.product_inventory.findMany({ where: { product_id: { in: ids } }, select: { product_id: true, color_id: true, size_label: true, quantity: true } })
+    : [];
+  const inventoryByProduct = new Map();
+  for (const inv of inventory) {
+    if (!inventoryByProduct.has(inv.product_id)) inventoryByProduct.set(inv.product_id, []);
+    inventoryByProduct.get(inv.product_id).push(inv);
+  }
+
+  return rows.map(r => ({
+    id: r.id,
+    ...mergeLiveRefs(PREVIEW_MODE ? buildProductSnapshot(r) : (r.published_data || {}), colorsById, sizeChartsById),
+    product_inventory: inventoryByProduct.get(r.id) || [],
+    sales: r._count.order_items,
+    has_customer_photos: r._count.customer_product_photos > 0,
+  }));
 }
 
 async function getOne(req, res, next) {
@@ -252,4 +282,4 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { getAll, getOne, create, update, remove, getFacebookFeed };
+module.exports = { getAll, getOne, create, update, remove, getFacebookFeed, invalidateProductListCache };

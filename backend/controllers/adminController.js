@@ -7,6 +7,7 @@ const { execFile } = require('child_process');
 const execFileAsync = util.promisify(execFile);
 const { sendOrderEmail, sendLoyaltyEmail, sendPrizeEarnedEmail, label } = require('../utils/mailer');
 const { syncSubcategoryActiveState, reconcileAllSubcategories } = require('../utils/subcategorySync');
+const { invalidateProductListCache } = require('./productsController');
 
 // A product whose every submitted size (or, for a color-only product with
 // no sizes at all — e.g. a bag with just color swatches, no size picker —
@@ -685,6 +686,7 @@ async function publishAllChanges({ onlyProductIds = null } = {}) {
       data: { is_live: s.is_active, is_dirty: false, published_data: buildSubcategorySnapshot(s) },
     })),
   ]);
+  invalidateProductListCache();
 }
 
 async function publishChanges(req, res, next) {
