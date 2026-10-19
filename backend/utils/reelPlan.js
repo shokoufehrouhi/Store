@@ -1,4 +1,5 @@
-// The daily Instagram Reels plan (user's choice, 2026-10-06): two reels a
+// The Instagram Reels plan (user's choice, 2026-10-06; the 12:00 reel
+// stopped 2026-10-19, its column below is no longer used): two reels a
 // day, at 12:00 and 20:00, each showing the discounted products of one
 // group, by weekday:
 //   Saturday   12 men's clothing   20 women's clothing
@@ -14,7 +15,9 @@
 // 18:00) and posted automatically at its time unless the admin deletes it.
 
 const REEL_SLOTS = {
-  'reel-12:00': { time: '12:00', genTime: '10:00' },
+  // No longer made (user's choice, 2026-10-19): an empty `weekdays` keeps
+  // the slot known for its old rows but never runs it.
+  'reel-12:00': { time: '12:00', genTime: '10:00', weekdays: [] },
   // The chat-style "shopping assistant" reel (utils/chatReelBuilder.js),
   // only for this slot (user's choice, 2026-10-17); 12:00 keeps the slides.
   'reel-20:00': { time: '20:00', genTime: '18:00', style: 'chat' },
@@ -25,9 +28,10 @@ const REEL_SLOTS = {
   // night (user's choice, 2026-10-17). `weekdays` limits the scheduled run
   // (Date#getDay); the admin's rebuild works any day.
   'reel-21:30': { time: '21:30', genTime: '19:30', style: 'site', weekdays: [4] },
-  // The daily AI reel (utils/aiReel.js): one product worn/used by a person,
-  // made at 08:00 and left in the admin like the others.
-  'reel-08:00': { time: '08:00', genTime: '08:00', ai: true },
+  // The AI reel (utils/aiReel.js): one product worn/used by a person,
+  // made at 08:00 and left in the admin like the others. Only Saturday,
+  // Monday and Wednesday (user's choice, 2026-10-19; was every day).
+  'reel-08:00': { time: '08:00', genTime: '08:00', ai: true, weekdays: [6, 1, 3] },
 };
 
 // `where` narrows the products table to the group (combined with the usual
@@ -47,7 +51,7 @@ const REEL_GROUPS = {
   site:      { headline: 'خرید از برندهای محبوب، فقط در شیلیستا', tags: ['#خرید_آنلاین', '#برند_اصل', '#مد'] },
 };
 
-// The AI reel's group, one per day in turn. Cosmetics only from the
+// The AI reel's group, one per run in turn. Cosmetics only from the
 // makeup subcategories (face, eye, lip) — a person can show those.
 const AI_REEL_ROTATION = ['women', 'men', 'kids', 'bagsShoes', 'cosmetics'];
 const AI_REEL_WHERE = { cosmetics: { category_id: 10, subcategory_id: { in: [42, 43, 44] } } };
@@ -66,8 +70,14 @@ const WEEKLY_PLAN = {
 // The group for a slot on a given local date ("YYYY-MM-DD").
 function reelGroupFor(slot, dateStr) {
   if (REEL_SLOTS[slot]?.ai) {
+    // Counts the runs (its weekdays), not the days, so every group gets its
+    // turn evenly. Day 0 (1970-01-01) was a Thursday, so a week counted from
+    // it runs Thursday..Wednesday: Saturday, Monday, Wednesday in that order.
     const day = Math.floor(Date.parse(`${dateStr}T12:00:00Z`) / 86400000);
-    const key = AI_REEL_ROTATION[day % AI_REEL_ROTATION.length];
+    const runDays = [...REEL_SLOTS[slot].weekdays].sort((a, b) => (a + 3) % 7 - (b + 3) % 7);
+    const pos = Math.max(0, runDays.indexOf((day + 4) % 7));
+    const run = Math.floor(day / 7) * runDays.length + pos;
+    const key = AI_REEL_ROTATION[run % AI_REEL_ROTATION.length];
     return { key, ai: true, ...REEL_GROUPS[key], where: AI_REEL_WHERE[key] || REEL_GROUPS[key].where };
   }
   if (REEL_SLOTS[slot]?.style === 'brand') return { key: 'brand', ...REEL_GROUPS.brand };
