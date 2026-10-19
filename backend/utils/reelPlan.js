@@ -7,10 +7,13 @@
 //   Monday     12 lifestyle        20 women's clothing
 //   Tuesday    12 cosmetics        20 men's clothing
 //   Wednesday  12 women's clothing 20 bags & shoes
-//   Thursday   12 women's clothing 20 women's clothing
-//   Friday     12 men's clothing   20 women's clothing
+//   Thursday   12 women's clothing 20 cosmetics
+//   Friday     12 men's clothing   20 kids' clothing
 // (Wednesday and Thursday noon were lifestyle too, until it turned out
 // only ~4 lifestyle products had a 20%+ discount — user's change, same day.)
+// 2026-10-19 (user's choice, from Insights: the cosmetics and kids reels
+// got the most views): Thursday 20:00 is cosmetics and Friday 20:00 kids,
+// both were women's clothing.
 // Like the stories, each is generated as a draft two hours ahead (10:00 and
 // 18:00) and posted automatically at its time unless the admin deletes it.
 
@@ -63,8 +66,8 @@ const WEEKLY_PLAN = {
   1: { 'reel-12:00': 'lifestyle', 'reel-20:00': 'women' },
   2: { 'reel-12:00': 'cosmetics', 'reel-20:00': 'men' },
   3: { 'reel-12:00': 'women',     'reel-20:00': 'bagsShoes' },
-  4: { 'reel-12:00': 'women',     'reel-20:00': 'women' },
-  5: { 'reel-12:00': 'men',       'reel-20:00': 'women' },
+  4: { 'reel-12:00': 'women',     'reel-20:00': 'cosmetics' },
+  5: { 'reel-12:00': 'men',       'reel-20:00': 'kids' },
 };
 
 // The group for a slot on a given local date ("YYYY-MM-DD").

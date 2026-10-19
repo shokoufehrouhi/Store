@@ -126,6 +126,7 @@ function camAt(t) {
 // ---- build cards & toss items ----
 function setup(data) {
 PRODUCTS = data.products; PICK = data.pick; LINES = data.lines; OUT1 = data.out1; OUT2 = data.out2;
+ReelHook.mount(data.hook);
 $('say1').textContent = data.reply;
 const cardsEl = $('cards'), tossEl = $('tosses');
 PRODUCTS.forEach((p, i) => {
@@ -167,6 +168,7 @@ const PILL_B = { x: 60,  y: 1520, w: 460, h: 104 };
 const BAG_C = [540, 1000];
 
 function seek(t) {
+  ReelHook.seek(t);
   // camera
   const [z, cx, cy] = camAt(t);
   $('cam').style.transform = `translate(${W / 2}px,${H / 2}px) scale(${z}) translate(${-cx}px,${-cy}px)`;
@@ -372,4 +374,5 @@ window.DURATION = 16.4;
 window.seek = seek;
 window.setup = setup;
 </script>
+<script src="../reelHook/hook.js"></script>
 </body></html>

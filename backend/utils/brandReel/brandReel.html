@@ -133,6 +133,7 @@ const FLOAT = [{ x: 60, y: 260, s: 200, r: -6 }, { x: 820, y: 330, s: 200, r: 6 
 const photoEls = [];
 function setup(data) {
   PHOTOS = data.photos; MAXPCT = data.maxPct; BRANDS = data.brands;
+  ReelHook.mount(data.hook);
   // three layers of photo elements: scatter, columns/grid, floaters
   const mk = (src, cls) => { const d = document.createElement('div'); d.className = 'ph ' + cls; d.innerHTML = `<img src="${src}">`; $('photos').appendChild(d); return d; };
   SCATTER.forEach((_, i) => photoEls.push(mk(PHOTOS[i % PHOTOS.length], 'frame')));
@@ -160,6 +161,7 @@ function setup(data) {
 }
 
 function seek(t) {
+  ReelHook.seek(t);
   $('cam').style.transform = `translate(${W / 2}px,${H / 2}px) scale(${camZ(t)}) translate(${-W / 2}px,${-H / 2}px)`;
 
   // ---------- S1: "your style," rises from a mask line ----------
@@ -313,4 +315,5 @@ window.DURATION = 14.2;
 window.seek = seek;
 window.setup = setup;
 </script>
+<script src="../reelHook/hook.js"></script>
 </body></html>

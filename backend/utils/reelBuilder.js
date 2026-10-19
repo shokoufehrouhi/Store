@@ -128,6 +128,37 @@ async function buildOutroSlide() {
   return sharp({ create: { width: W, height: H, channels: 4, background: BG } }).composite(layers).jpeg({ quality: 92 }).toBuffer();
 }
 
+// The opening hook (user's choice, 2026-10-19): the discount in big type
+// for the first HOOK_SEC — "up to X%" for a reel of several products, "X%"
+// for one. The HTML reels draw it with reelHook/hook.js from the same
+// { text, sub }; the ffmpeg reels overlay hookOverlay()'s picture.
+const HOOK_SEC = 2.4, HOOK_OUT_SEC = 0.35;
+const cutOf = (p) => Math.round((Number(p.price) - Number(p.discounted_price)) / Number(p.price) * 100);
+function reelHook(products, { top } = {}) {
+  const cuts = products.filter((p) => p.discounted_price != null && Number(p.discounted_price) < Number(p.price)).map(cutOf);
+  if (!cuts.length) return null;
+  const pct = toFaDigits(Math.max(...cuts));
+  const several = products.length > 1;
+  return { text: several ? `تا ${pct}٪ تخفیف` : `${pct}٪ تخفیف`, sub: several ? 'برندهای اصل ترکیه' : 'برند اصل ترکیه', ...(top != null && { top }) };
+}
+
+// The hook as a full-frame transparent PNG, looking like reelHook/hook.js's.
+async function hookOverlay(hook, top = 1260) {
+  const big = await renderText({ text: hook.text, fontFile: FONT_BLACK, fontFamily: 'Vazirmatn Black', width: 1000, size: 132, color: '#ffffff' });
+  const sub = await renderText({ text: hook.sub, fontFile: FONT_BOLD, fontFamily: 'Vazirmatn Bold', width: 1000, size: 46, color: '#ffffff' });
+  const bm = await sharp(big).metadata(), sm = await sharp(sub).metadata();
+  const bw = Math.max(bm.width, sm.width) + 160, bh = bm.height + sm.height + 70;
+  const box = Buffer.from(`<svg width="${bw}" height="${bh}"><rect width="${bw}" height="${bh}" rx="64" ry="64" fill="${ACCENT}"/></svg>`);
+  const pill = await sharp(box).composite([
+    { input: big, left: Math.round((bw - bm.width) / 2), top: 26 },
+    { input: sub, left: Math.round((bw - sm.width) / 2), top: 26 + bm.height + 6 },
+  ]).png().toBuffer();
+  return sharp({ create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite([{ input: pill, left: Math.round((W - bw) / 2), top }]).png().toBuffer();
+}
+// ffmpeg filter for input `n` (the hook PNG, looped for HOOK_SEC): fades out at the end.
+const hookFilter = (n) => `[${n}:v]format=rgba,fade=t=out:st=${(HOOK_SEC - HOOK_OUT_SEC).toFixed(2)}:d=${HOOK_OUT_SEC}:alpha=1[hook]`;
+
 function runFfmpeg(args) {
   return new Promise((resolve, reject) => {
     execFile(ffmpegPath, args, { maxBuffer: 32 * 1024 * 1024 }, (err, _stdout, stderr) => {
@@ -167,6 +198,12 @@ async function buildReel(products, { headline, prefix = 'reel' }) {
       inputs.push('-i', file);
     });
 
+    const hook = reelHook(products);
+    if (hook) {
+      const file = path.join(workDir, 'hook.png');
+      fs.writeFileSync(file, await hookOverlay(hook));
+      inputs.push('-loop', '1', '-t', String(HOOK_SEC), '-i', file);
+    }
     const filters = slides.map((s, i) => `[${i}:v]${motionFilter(i, s.sec)}[v${i}]`);
     let last = 'v0';
     let offset = 0;
@@ -177,6 +214,11 @@ async function buildReel(products, { headline, prefix = 'reel' }) {
       last = out;
     }
     const total = slides.reduce((sum, s) => sum + s.sec, 0) - FADE_SEC * (slides.length - 1);
+    if (hook) {
+      filters.push(hookFilter(slides.length), `[${last}][hook]overlay=0:0:eof_action=pass,format=yuv420p,fps=${FPS}[vh]`);
+      last = 'vh';
+    }
+    const audioIn = slides.length + (hook ? 1 : 0);
 
     const filename = `ig-${prefix}-${Date.now()}.mp4`;
     const outFile = path.join(UPLOADS_DIR, filename);
@@ -184,7 +226,7 @@ async function buildReel(products, { headline, prefix = 'reel' }) {
       '-y', ...inputs,
       '-f', 'lavfi', '-t', total.toFixed(2), '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
       '-filter_complex', filters.join(';'),
-      '-map', `[${last}]`, '-map', `${slides.length}:a`,
+      '-map', `[${last}]`, '-map', `${audioIn}:a`,
       // 2 threads: the server also runs the site and the imports (~680MB peak RAM per build).
       '-threads', '2',
       '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-pix_fmt', 'yuv420p', '-r', String(FPS),
@@ -307,8 +349,11 @@ async function buildAiReel(product, groupKey) {
   try {
     const clip = path.join(workDir, 'clip.mp4');
     const { look, ...info } = await makeAiClip(product, groupKey, photo, clip);
-    const files = { overlay: 'overlay.png', product: 'product.jpg', outro: 'outro.jpg' };
+    const files = { overlay: 'overlay.png', product: 'product.jpg', outro: 'outro.jpg', hook: 'hook.png' };
     fs.writeFileSync(path.join(workDir, files.overlay), await aiClipOverlay(product));
+    // Under the logo: the person (and the real product's corner) fill the rest.
+    const hook = reelHook([product]);
+    if (hook) fs.writeFileSync(path.join(workDir, files.hook), await hookOverlay(hook, 260));
     fs.writeFileSync(path.join(workDir, files.product), await aiProductSlide(product, look));
     fs.writeFileSync(path.join(workDir, files.outro), await aiOutroSlide(look));
 
@@ -342,6 +387,7 @@ async function buildAiReel(product, groupKey) {
       '-loop', '1', '-t', String(AI_PRODUCT_SEC), '-i', path.join(workDir, files.product),
       '-loop', '1', '-t', String(AI_OUTRO_SEC), '-i', path.join(workDir, files.outro),
       '-f', 'lavfi', '-t', total.toFixed(2), '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
+      ...(hook ? ['-loop', '1', '-t', String(HOOK_SEC), '-i', path.join(workDir, files.hook)] : []),
       '-filter_complex', [
         // xfade needs every input on the same timebase, and the clip's
         // depends on what the Space returned (1/15360 vs 1/30: "Invalid
@@ -351,7 +397,9 @@ async function buildAiReel(product, groupKey) {
         // unknown frame rate when the still overlay image (25fps) and the
         // clip (30fps) differ, and xfade refuses it ("current rate of 1/0",
         // the 2026-10-10/11 runs): fps= sets it again.
-        `[c][1:v]overlay=0:0,format=yuv420p,setsar=1,fps=${FPS}[v0]`,
+        ...(hook
+          ? [hookFilter(5), `[c][1:v]overlay=0:0[o]`, `[o][hook]overlay=0:0:eof_action=pass,format=yuv420p,setsar=1,fps=${FPS}[v0]`]
+          : [`[c][1:v]overlay=0:0,format=yuv420p,setsar=1,fps=${FPS}[v0]`]),
         `[2:v]${motionFilter(0, AI_PRODUCT_SEC)}[v1]`,
         `[3:v]${motionFilter(1, AI_OUTRO_SEC)}[v2]`,
         `[v0][v1]xfade=transition=fadewhite:duration=${AI_FADE_SEC}:offset=${(clipSec - AI_FADE_SEC).toFixed(2)}[x1]`,
@@ -380,4 +428,4 @@ async function buildAiReel(product, groupKey) {
   }
 }
 
-module.exports = { buildReel, buildProductSlide, buildAiReel };
+module.exports = { buildReel, buildProductSlide, buildAiReel, reelHook, hookOverlay };

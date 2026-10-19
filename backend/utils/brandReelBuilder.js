@@ -8,6 +8,7 @@
 // The motion lives in brandReel/brandReel.html (rendered by htmlReel.js).
 const path = require('path');
 const { renderHtmlReel } = require('./htmlReel');
+const { reelHook } = require('./reelBuilder');
 
 const TEMPLATE = path.join(__dirname, 'brandReel', 'brandReel.html');
 const UPLOADS_DIR = path.join(__dirname, '../public/uploads');
@@ -28,6 +29,7 @@ function reelData(products) {
     photos: products.map((p) => 'file://' + path.join(UPLOADS_DIR, path.basename(p.product_media[0].url))),
     maxPct: Math.max(...products.map(cutOf)),
     brands: Array.from({ length: BRAND_FLIPS }, (_, i) => brands[i % brands.length]),
+    hook: reelHook(products),
   };
 }
 

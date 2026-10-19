@@ -9,6 +9,7 @@
 const path = require('path');
 const { displayName } = require('./storyBuilder');
 const { renderHtmlReel } = require('./htmlReel');
+const { reelHook } = require('./reelBuilder');
 
 const TEMPLATE = path.join(__dirname, 'chatReel', 'chatReel.html');
 const UPLOADS_DIR = path.join(__dirname, '../public/uploads');
@@ -50,6 +51,8 @@ function reelData(products, groupKey) {
     reply: `پیداش کردم! ${best.brand || 'Shilista'} با ${pct}٪ تخفیف.`,
     out1: copy.out1,
     out2: `حالا با ${pct}٪ تخفیف مال توئه.`,
+    // Under the composer, where the request is typed.
+    hook: reelHook(products, { top: 1250 }),
   };
 }
 

@@ -214,8 +214,10 @@ const STORY_MIN_PRICE_TL = 300;
 // Reels pass `where` (their product group plus "discounted"), their own
 // lower `minPrice` (cosmetics are often under the stories' 300 TL) and a
 // `keep` test the database can't do itself (the size of the discount), with
-// a deeper `poolSize` to leave enough after it.
-async function eligibleStoryProducts(limit, excludeIds = [], { where = null, minPrice = STORY_MIN_PRICE_TL, keep = null, poolSize = null } = {}) {
+// a deeper `poolSize` to leave enough after it. `bigCutsFirst` (reels,
+// user's choice 2026-10-19: the big-discount reels did best) keeps only the
+// biggest discounts of the pool before the shuffle.
+async function eligibleStoryProducts(limit, excludeIds = [], { where = null, minPrice = STORY_MIN_PRICE_TL, keep = null, poolSize = null, bigCutsFirst = false } = {}) {
   const recent = await recentlyUsedProductIds();
   const baseWhere = {
     is_active: true,
@@ -265,6 +267,11 @@ async function eligibleStoryProducts(limit, excludeIds = [], { where = null, min
     seenNames.add(p.name_fa);
     return true;
   });
+
+  if (bigCutsFirst) {
+    const cut = (p) => (p.discounted_price != null && Number(p.price) > 0 ? 1 - Number(p.discounted_price) / Number(p.price) : 0);
+    withFiles = withFiles.sort((a, b) => cut(b) - cut(a)).slice(0, Math.max(limit * 3, 12));
+  }
 
   for (let i = withFiles.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -381,6 +388,7 @@ async function generateAiReel(slot, group) {
       minPrice: REEL_MIN_PRICE_TL,
       keep: reelDiscountOk(group.minDiscount ?? REEL_MIN_DISCOUNT),
       poolSize: 400,
+      bigCutsFirst: true,
     }))[0];
     if (!product) {
       console.warn(`[scheduler] AI reel (${group.key}): no eligible product, skipped`);
@@ -422,6 +430,9 @@ async function generateBrandReel(slot, group) {
     if (!byBrand.has(key)) byBrand.set(key, []);
     byBrand.get(key).push(p);
   }
+  // Each brand's biggest discount first (see bigCutsFirst).
+  const cut = (p) => 1 - Number(p.discounted_price) / Number(p.price);
+  for (const list of byBrand.values()) list.sort((a, b) => cut(b) - cut(a));
   const products = [];
   for (let round = 0; products.length < BRAND_REEL_PHOTOS && round < BRAND_REEL_PHOTOS; round++) {
     for (const list of byBrand.values()) if (list[round] && products.length < BRAND_REEL_PHOTOS) products.push(list[round]);
@@ -476,6 +487,7 @@ async function generateReel(slot) {
     minPrice: REEL_MIN_PRICE_TL,
     keep: reelDiscountOk(group.minDiscount ?? REEL_MIN_DISCOUNT),
     poolSize: 400,
+    bigCutsFirst: true,
   });
   if (products.length < REEL_MIN_PRODUCTS) {
     console.warn(`[scheduler] reel ${slot} (${group.key}): only ${products.length} eligible product(s), skipped`);
