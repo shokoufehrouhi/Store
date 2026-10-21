@@ -5,16 +5,17 @@
 @font-face{font-family:Vazir;src:url(../../assets/fonts/Vazirmatn-Bold.ttf);font-weight:700}
 @font-face{font-family:Vazir;src:url(../../assets/fonts/Vazirmatn-Black.ttf);font-weight:900}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{width:1080px;height:1920px;overflow:hidden;background:#f5f5f2;font-family:Vazir,sans-serif}
-#stage{position:absolute;inset:0;overflow:hidden;background:#f5f5f2}
+:root{--accent:#C2410C;--bg:#f5f5f2}
+html,body{width:1080px;height:1920px;overflow:hidden;background:var(--bg);font-family:Vazir,sans-serif}
+#stage{position:absolute;inset:0;overflow:hidden;background:var(--bg)}
 #cam{position:absolute;left:0;top:0;width:1080px;height:1920px;transform-origin:0 0}
 .abs{position:absolute}
 .rtl{direction:rtl}
 #glow{border-radius:80px;filter:blur(38px);background:conic-gradient(from 0deg,#ff7ab6,#ff8a3d,#ffd23f,#5ee7df,#8b7bff,#ff7ab6)}
 #comp{background:#fff;border-radius:60px;box-shadow:0 10px 40px rgba(0,0,0,.06)}
 #typed{font-weight:700;color:#1a1a1a;line-height:1.6;direction:rtl;text-align:right;white-space:nowrap;overflow:hidden}
-#send{border-radius:50%;background:#C2410C;display:flex;align-items:center;justify-content:center}
-#ripple{border-radius:50%;border:6px solid #C2410C}
+#send{border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center}
+#ripple{border-radius:50%;border:6px solid var(--accent)}
 .card{width:640px;height:1000px;background:#fff;border-radius:44px;overflow:hidden;box-shadow:0 30px 70px rgba(0,0,0,.18);transform-origin:0 0}
 .card img{width:640px;height:640px;object-fit:cover;display:block;background:#f2f2f2}
 .card .info{padding:28px 38px;direction:rtl;text-align:right}
@@ -23,7 +24,7 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:#f5f5f2;font-fam
 .card .prices{display:flex;align-items:baseline;gap:22px;margin-top:18px;direction:rtl}
 .card .new{font-weight:900;font-size:60px;color:#1a1a1a;direction:ltr}
 .card .old{font-weight:500;font-size:34px;color:#8a8a8a;text-decoration:line-through;text-decoration-thickness:3px;direction:ltr}
-.card .badge{position:absolute;top:28px;right:28px;background:#C2410C;color:#fff;font-weight:900;font-size:40px;padding:8px 26px;border-radius:999px;direction:rtl}
+.card .badge{position:absolute;top:28px;right:28px;background:var(--accent);color:#fff;font-weight:900;font-size:40px;padding:8px 26px;border-radius:999px;direction:rtl}
 .say{font-weight:700;font-size:44px;color:#1a1a1a;direction:rtl;text-align:right;line-height:1.5}
 .pill{border-radius:999px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:40px;direction:rtl;white-space:nowrap}
 #think{font-weight:700;font-size:48px;direction:rtl;background:linear-gradient(90deg,#9a9a9a 0%,#9a9a9a 40%,#1a1a1a 50%,#9a9a9a 60%,#9a9a9a 100%);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -36,7 +37,7 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:#f5f5f2;font-fam
   <img id="hlogo" class="abs" src="../../../frontend/images/shilista_logo.png" style="left:390px;top:70px;width:300px">
   <div id="cart" class="abs" style="left:64px;top:78px;width:84px;height:84px">
     <svg width="84" height="84" viewBox="0 0 24 24" fill="none" stroke="#1a1a1a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
-    <div id="cartBadge" class="abs" style="right:-6px;top:-6px;width:44px;height:44px;border-radius:50%;background:#C2410C;color:#fff;font-weight:900;font-size:28px;display:flex;align-items:center;justify-content:center">۱</div>
+    <div id="cartBadge" class="abs" style="right:-6px;top:-6px;width:44px;height:44px;border-radius:50%;background:var(--accent);color:#fff;font-weight:900;font-size:28px;display:flex;align-items:center;justify-content:center">۱</div>
   </div>
   <div id="hsub" class="abs rtl" style="left:0;top:190px;width:1080px;text-align:center;font-weight:700;font-size:34px;color:#6b6b6b">دستیار خرید شیلیستا</div>
 
@@ -52,13 +53,13 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:#f5f5f2;font-fam
 
   <!-- think -->
   <div id="bag" class="abs" style="width:260px;height:300px">
-    <svg width="260" height="300" viewBox="0 0 26 30"><path d="M8 9V7a5 5 0 0 1 10 0v2" fill="none" stroke="#C2410C" stroke-width="2.2" stroke-linecap="round"/><rect x="2" y="9" width="22" height="20" rx="4" fill="#C2410C"/></svg>
+    <svg width="260" height="300" viewBox="0 0 26 30"><path d="M8 9V7a5 5 0 0 1 10 0v2" fill="none" style="stroke:var(--accent)" stroke-width="2.2" stroke-linecap="round"/><rect x="2" y="9" width="22" height="20" rx="4" style="fill:var(--accent)"/></svg>
   </div>
   <div id="tosses"></div>
   <div id="think" class="abs" style="left:0;width:1080px;text-align:center;top:1240px">دارم برات می‌گردم…</div>
 
   <!-- drop -->
-  <div id="flood" class="abs" style="border-radius:50%;background:#C2410C"></div>
+  <div id="flood" class="abs" style="border-radius:50%;background:var(--accent)"></div>
   <div id="cards"></div>
   <div id="best" class="abs pill" style="background:#1a1a1a;color:#fff;height:84px;padding:0 40px;font-size:38px">✦ بهترین انتخاب برای تو</div>
 
@@ -83,7 +84,8 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:#f5f5f2;font-fam
 </div></div>
 
 <script>
-const W = 1080, H = 1920, ACCENT = '#C2410C';
+const W = 1080, H = 1920;
+let ACCENT = '#C2410C'; // data.theme (see reelCover/cover.js) can change it
 // Filled by setup(data) from chatReelBuilder.js: { products: [{ brand, name,
 // price, sale, img }], pick, lines: [3 strings], reply, out1, out2 }.
 let PRODUCTS, PICK, LINES, OUT1, OUT2;
@@ -126,6 +128,11 @@ function camAt(t) {
 // ---- build cards & toss items ----
 function setup(data) {
 PRODUCTS = data.products; PICK = data.pick; LINES = data.lines; OUT1 = data.out1; OUT2 = data.out2;
+if (data.theme) {
+  ACCENT = data.theme.accent;
+  document.documentElement.style.setProperty('--accent', ACCENT);
+  document.documentElement.style.setProperty('--bg', data.theme.bg);
+}
 ReelHook.mount(data.hook);
 $('say1').textContent = data.reply;
 const cardsEl = $('cards'), tossEl = $('tosses');
@@ -375,4 +382,5 @@ window.seek = seek;
 window.setup = setup;
 </script>
 <script src="../reelHook/hook.js"></script>
+<script src="../reelCover/cover.js"></script>
 </body></html>

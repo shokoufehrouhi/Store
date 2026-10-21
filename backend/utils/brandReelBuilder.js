@@ -22,24 +22,42 @@ const BRAND_NAMES = {
 };
 const brandName = (b) => BRAND_NAMES[b] || String(b || '').toUpperCase();
 const cutOf = (p) => Math.round((Number(p.price) - Number(p.discounted_price)) / Number(p.price) * 100);
+const toFaDigits = (s) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
-function reelData(products) {
+// The three looks, taken in turn by day (user's choice, 2026-10-21, so the
+// grid doesn't repeat): the cover (reelCover/cover.js) and the colours.
+const LOOKS = [
+  { cover: 'mosaic',    theme: { bg: '#ffffff', accent: '#C2410C' } },
+  { cover: 'brandwall', theme: { bg: '#F4EDE3', accent: '#9F1239' } },
+  { cover: 'hero',      theme: { bg: '#EEF2F7', accent: '#1D4ED8' } },
+];
+
+// `look`: index into LOOKS; without one the reel opens as before (with the hook).
+function reelData(products, look) {
   const brands = [...new Set(products.map((p) => brandName(p.brand)).filter(Boolean))];
+  const photos = products.map((p) => 'file://' + path.join(UPLOADS_DIR, path.basename(p.product_media[0].url)));
+  const cuts = products.map(cutOf);
+  const maxPct = Math.max(...cuts);
+  const L = look == null ? null : LOOKS[look % LOOKS.length];
   return {
-    photos: products.map((p) => 'file://' + path.join(UPLOADS_DIR, path.basename(p.product_media[0].url))),
-    maxPct: Math.max(...products.map(cutOf)),
+    photos,
+    maxPct,
     brands: Array.from({ length: BRAND_FLIPS }, (_, i) => brands[i % brands.length]),
     hook: reelHook(products),
+    ...(L && {
+      theme: L.theme,
+      cover: { layout: L.cover, photos, pct: toFaDigits(maxPct), brands, hero: cuts.indexOf(maxPct) },
+    }),
   };
 }
 
 // Builds the reel for `products` (discounted, with a photo on disk, up to
 // 11 — the page repeats photos when there are fewer) and returns its
 // /uploads/... path.
-async function buildBrandReel(products, { prefix = 'reel-brand' } = {}) {
+async function buildBrandReel(products, { prefix = 'reel-brand', look } = {}) {
   const filename = `ig-${prefix}-${Date.now()}.mp4`;
-  await renderHtmlReel(TEMPLATE, reelData(products), path.join(UPLOADS_DIR, filename));
+  await renderHtmlReel(TEMPLATE, reelData(products, look), path.join(UPLOADS_DIR, filename));
   return `/uploads/${filename}`;
 }
 
-module.exports = { buildBrandReel, reelData };
+module.exports = { buildBrandReel, reelData, LOOKS };

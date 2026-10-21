@@ -413,6 +413,10 @@ async function generateAiReel(slot, group) {
   }
 }
 
+// Which of the brand/chat reel's three looks (cover + colours) a day gets:
+// in turn, so two days in a row never open the same way (user's choice, 2026-10-21).
+const reelLookFor = (dateStr) => Math.floor(Date.parse(`${dateStr}T12:00:00Z`) / 86400000) % 3;
+
 // The brand reel (reel-11:00): up to BRAND_REEL_PHOTOS products, one per
 // brand in turn so the flipping brand names match the photos.
 const BRAND_REEL_PHOTOS = 11;
@@ -442,7 +446,7 @@ async function generateBrandReel(slot, group) {
     return false;
   }
   const t0 = Date.now();
-  const videoUrl = await buildBrandReel(products, { prefix: `${slot.replace(':', '')}-brand` });
+  const videoUrl = await buildBrandReel(products, { prefix: `${slot.replace(':', '')}-brand`, look: reelLookFor(currentDateStr()) });
   console.log(`[scheduler] brand reel ${slot} (${byBrand.size} brands) built in ${Math.round((Date.now() - t0) / 1000)}s`);
   await prisma.instagram_content.create({
     data: {
@@ -498,7 +502,7 @@ async function generateReel(slot) {
   if (REEL_SLOTS[slot]?.style === 'chat') {
     // Falls back to the slide reel so a broken chat reel doesn't lose the slot.
     const t0 = Date.now();
-    videoUrl = await buildChatReel(products, { groupKey: group.key, prefix: `${prefix}-chat` })
+    videoUrl = await buildChatReel(products, { groupKey: group.key, prefix: `${prefix}-chat`, look: reelLookFor(currentDateStr()) })
       .then((url) => { console.log(`[scheduler] chat reel ${slot} (${group.key}) built in ${Math.round((Date.now() - t0) / 1000)}s`); return url; })
       .catch((err) => { console.error(`[scheduler] chat reel ${slot} failed, using the slide reel:`, err); return null; });
   }

@@ -28,9 +28,18 @@ const COPY = {
 const toFaDigits = (s) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 const cutOf = (p) => Math.round((Number(p.price) - Number(p.discounted_price)) / Number(p.price) * 100);
 
+// The three looks, taken in turn by day (user's choice, 2026-10-21, so the
+// grid doesn't repeat): the cover (reelCover/cover.js) and the colours.
+const LOOKS = [
+  { cover: 'notif',    theme: { bg: '#FDF2F8', accent: '#BE185D' } },
+  { cover: 'pricetag', theme: { bg: '#f5f5f2', accent: '#C2410C' } },
+  { cover: 'question', theme: { bg: '#ECFDF5', accent: '#047857' } },
+];
+
 // The card list for the page: the biggest discount is the pick, placed so
-// the strip slides across the others before landing on it.
-function reelData(products, groupKey) {
+// the strip slides across the others before landing on it. `look`: index
+// into LOOKS; without one the reel opens as before (with the hook).
+function reelData(products, groupKey, look) {
   const sorted = [...products].sort((a, b) => cutOf(b) - cutOf(a));
   const best = sorted[0];
   const rest = sorted.slice(1);
@@ -38,14 +47,16 @@ function reelData(products, groupKey) {
   const ordered = [...rest.slice(0, pick), best, ...rest.slice(pick)];
   const copy = COPY[groupKey] || COPY.women;
   const pct = toFaDigits(cutOf(best));
+  const cards = ordered.map((p) => ({
+    brand: String(p.brand || 'Shilista'),
+    name: displayName(p),
+    price: Number(p.price),
+    sale: Number(p.discounted_price),
+    img: 'file://' + path.join(UPLOADS_DIR, path.basename(p.product_media[0].url)),
+  }));
+  const L = look == null ? null : LOOKS[look % LOOKS.length];
   return {
-    products: ordered.map((p) => ({
-      brand: String(p.brand || 'Shilista'),
-      name: displayName(p),
-      price: Number(p.price),
-      sale: Number(p.discounted_price),
-      img: 'file://' + path.join(UPLOADS_DIR, path.basename(p.product_media[0].url)),
-    })),
+    products: cards,
     pick,
     lines: copy.lines,
     reply: `پیداش کردم! ${best.brand || 'Shilista'} با ${pct}٪ تخفیف.`,
@@ -53,15 +64,26 @@ function reelData(products, groupKey) {
     out2: `حالا با ${pct}٪ تخفیف مال توئه.`,
     // Under the composer, where the request is typed.
     hook: reelHook(products, { top: 1250 }),
+    ...(L && {
+      theme: L.theme,
+      cover: {
+        layout: L.cover,
+        pct,
+        best: cards[pick],
+        // the pick first, then the others
+        photos: [cards[pick], ...cards.filter((_, i) => i !== pick)].map((c) => c.img),
+        ask: copy.lines[0].replace(/[،,]\s*$/, ''),
+      },
+    }),
   };
 }
 
 // Builds the reel for `products` (3-5, discounted, with a photo on disk)
 // and returns its /uploads/... path.
-async function buildChatReel(products, { groupKey, prefix = 'reel-chat' }) {
+async function buildChatReel(products, { groupKey, prefix = 'reel-chat', look }) {
   const filename = `ig-${prefix}-${Date.now()}.mp4`;
-  await renderHtmlReel(TEMPLATE, reelData(products, groupKey), path.join(UPLOADS_DIR, filename));
+  await renderHtmlReel(TEMPLATE, reelData(products, groupKey, look), path.join(UPLOADS_DIR, filename));
   return `/uploads/${filename}`;
 }
 
-module.exports = { buildChatReel, reelData };
+module.exports = { buildChatReel, reelData, LOOKS };
