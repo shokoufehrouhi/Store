@@ -63,6 +63,7 @@ router.put('/customers/:id',   c.updateAdminCustomer);
 
 router.get('/products',       c.getProducts);
 router.get('/products/held',  c.getHeldProducts);
+router.post('/products/held/publish', c.publishHeldProducts);
 router.post('/products/:id/publish', c.publishProduct);
 router.post('/products',      c.createProduct);
 router.put('/products/:id',   c.updateProduct);

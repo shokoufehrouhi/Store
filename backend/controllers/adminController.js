@@ -730,6 +730,20 @@ async function publishProduct(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// POST /api/admin/products/held/publish -- the review tab's "Publish all":
+// publishes every product currently held, the same way publishProduct does
+// one. Returns how many it published.
+async function publishHeldProducts(req, res, next) {
+  try {
+    const heldCategoryIds = await getHeldCategoryIds();
+    if (!heldCategoryIds.length) return res.json({ success: true, data: { published: 0 } });
+    const held = await prisma.products.findMany({ where: heldProductsWhere(heldCategoryIds), select: { id: true } });
+    if (!held.length) return res.json({ success: true, data: { published: 0 } });
+    await publishAllChanges({ onlyProductIds: held.map(p => p.id) });
+    res.json({ success: true, data: { published: held.length } });
+  } catch (err) { next(err); }
+}
+
 // ─── Deploy (staging preview → production) ──────────────────────────────────────
 // staging (Store-staging) auto-pulls main every 2 min via cron (auto-pull.sh) and
 // serves it at staging.shilista.com. These two endpoints let the admin panel show
@@ -1998,7 +2012,7 @@ async function getCouponReport(req, res, next) {
 
 module.exports = {
   login, uploadMedia, deleteMedia,
-  getPublishStatus, publishChanges, publishAllChanges, getHeldProducts, publishProduct,
+  getPublishStatus, publishChanges, publishAllChanges, getHeldProducts, publishProduct, publishHeldProducts,
   getDeployStatus, deployToProduction,
   getCategories, createCategory, updateCategory, toggleCategory, deleteCategory,
   getSubcategories, createSubcategory, updateSubcategory, toggleSubcategory, deleteSubcategory,
