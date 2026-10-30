@@ -30,6 +30,7 @@ const { deployStoryById } = require('./controllers/instagramContentController');
 const { publishAllChanges } = require('./controllers/adminController');
 const { queueNewProductsForInstagram, wasAlreadyPostedToInstagram, rememberPostedToInstagram } = require('./utils/instagramProductQueue');
 const { backfillTranslations } = require('./utils/translationBackfill');
+const { translateHeldProducts } = require('./utils/heldTranslate');
 const {
   createFeedContainer, createCarouselChildContainer, createCarouselContainer,
   publishContainer, waitUntilContainerReady, isRateLimitError, isRateLimitMessage, isAccountBlockedError,
@@ -884,6 +885,11 @@ async function expireStaleQueuedProductPosts() {
 // another try after each import round instead of waiting for someone to run
 // the backfill script by hand.
 async function runTranslationBackfill() {
+  // Cosmetics waiting in Awaiting Review get the OpenAI translation first;
+  // the free-translator backfill below then only fills what is still missing.
+  await translateHeldProducts({ log: () => {} })
+    .then(r => { if (r.candidates) console.log(`[scheduler] held-product translation: ${JSON.stringify(r)}`); })
+    .catch(err => console.error('[scheduler] held-product translation failed:', err));
   await backfillTranslations({ log: () => {} })
     .then(r => { if (r.candidates) console.log(`[scheduler] translation backfill: ${JSON.stringify(r)}`); })
     .catch(err => console.error('[scheduler] translation backfill failed:', err));

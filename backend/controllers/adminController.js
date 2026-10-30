@@ -569,6 +569,7 @@ async function deleteMedia(req, res, next) {
 }
 
 // ─── Publish ───────────────────────────────────────────────────────────────────
+const { translateHeldProducts } = require('../utils/heldTranslate');
 const { PRODUCT_INCLUDE, buildProductSnapshot, buildCategorySnapshot, buildSubcategorySnapshot } = require('../utils/publishSnapshot');
 
 // A product is held back for manual review when it has never been published
@@ -701,6 +702,9 @@ async function getHeldProducts(req, res, next) {
   try {
     const heldCategoryIds = await getHeldCategoryIds();
     if (!heldCategoryIds.length) return res.json({ success: true, data: [] });
+    // Catches anything the post-import pass missed (e.g. a failed API call);
+    // translations show up on the next refresh of the tab.
+    translateHeldProducts({ log: () => {} }).catch(err => console.error('[held-translate]', err.message));
     const products = await prisma.products.findMany({
       where: heldProductsWhere(heldCategoryIds),
       include: {
