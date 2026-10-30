@@ -62,4 +62,4 @@ async function queueNewProductsForInstagram(site, importedResults) {
   return toQueue.length;
 }
 
-module.exports = { queueNewProductsForInstagram, wasAlreadyPostedToInstagram, rememberPostedToInstagram };
+module.exports = { igItemKey, queueNewProductsForInstagram, wasAlreadyPostedToInstagram, rememberPostedToInstagram };
