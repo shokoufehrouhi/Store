@@ -5704,6 +5704,7 @@ async function checkMangoStock(site, products) {
 }
 
 module.exports = {
+  productLinkKey, // exported for utils/instagramProductQueue.js#igItemKey
   Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Oysho, Bershka, PullAndBear, Stradivarius, Colins, PaulMark, BarrelsAndOil, Flormar, Mavi, MClub, ArmaLife, Mango,
   // exported for siteSync.js#checkSiteStock, which hands mClub's, ArmaLife's,
   // Mango's and Lefties' stock checks off to their own API-based readers.

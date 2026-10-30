@@ -28,7 +28,7 @@ const { buildSiteReel } = require('./utils/siteReelBuilder');
 const { REEL_SLOTS, reelGroupFor } = require('./utils/reelPlan');
 const { deployStoryById } = require('./controllers/instagramContentController');
 const { publishAllChanges } = require('./controllers/adminController');
-const { queueNewProductsForInstagram } = require('./utils/instagramProductQueue');
+const { queueNewProductsForInstagram, wasAlreadyPostedToInstagram, rememberPostedToInstagram } = require('./utils/instagramProductQueue');
 const { backfillTranslations } = require('./utils/translationBackfill');
 const {
   createFeedContainer, createCarouselChildContainer, createCarouselContainer,
@@ -697,6 +697,7 @@ async function postQueuedProductToInstagram(row) {
       where: { id: row.id },
       data: { status: 'posted', ig_media_id: mediaId, posted_at: new Date(), error_message: null },
     });
+    await rememberPostedToInstagram(row.products, mediaId);
   } catch (err) {
     // A rate-limit error says nothing about this post -- back into the queue
     // (not 'failed') and pause all product posting for a while. Before this,
@@ -824,6 +825,13 @@ async function maybePostQueuedProduct() {
   });
   if (claimed.count === 0) return; // another concurrent tick already claimed this row
 
+  if (await wasAlreadyPostedToInstagram(next.products)) {
+    await prisma.instagram_product_posts.update({
+      where: { id: next.id },
+      data: { status: 'skipped', error_message: 'this item was already posted (re-imported product)' },
+    });
+    return;
+  }
   const hasRealPhoto = (next.products.product_media || [])
     .some(m => fs.existsSync(path.join(UPLOADS_DIR, path.basename(m.url))));
   if (!hasRealPhoto) {
