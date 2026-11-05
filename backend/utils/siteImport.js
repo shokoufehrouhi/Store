@@ -548,7 +548,17 @@ async function Defacto(pm, site, opts = {}) {
       // size_label is VARCHAR(10) — adult sizes (S/M/38/...) fit fine, but
       // kids' items use labels like "5/6 Yaş (116cm)" (15-17 chars), which
       // failed every kids' import outright. Drop the "(116cm)" part first.
-      data.sizes = data.sizes.map(s => ({ ...s, size: s.size.split(' (')[0].trim().slice(0, 10) }));
+      // Trousers etc. can list the same size twice (e.g. one row per leg
+      // length, or "36 (US 29)" / "36 (US 30)" collapsing to "36" here), which
+      // broke product_sizes' unique (product_id, size_label) and failed the
+      // whole product. Merge duplicates, in stock if any of them is.
+      const sizeStock = new Map();
+      for (const s of data.sizes) {
+        const label = s.size.split(' (')[0].trim().slice(0, 10);
+        if (!label) continue;
+        sizeStock.set(label, Math.max(sizeStock.get(label) || 0, s.stock || 0));
+      }
+      data.sizes = [...sizeStock].map(([size, stock]) => ({ size, stock }));
 
       const priceOriginal = data.originalPrice;
       const priceSite = data.discountedPrice ?? data.originalPrice;
