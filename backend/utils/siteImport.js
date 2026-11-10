@@ -418,6 +418,9 @@ const DEFACTO_LISTINGS = [
   { path: 'erkek-indirimli-urunler-listesi',   gender: 'male',   categoryId: 1 },
   { path: 'cocuk-bebek-indirimli-urunler',     gender: 'kids',   categoryId: 1 },
   { path: 'app/fit-indirimli-urunler',         gender: 'unisex', categoryId: 7 },
+  // "Akşam İndirimi Artanlar" (women's): 723 items on 2026-11-10, 392 of
+  // them in none of the listings above.
+  { path: 'app/kadin-aksam-indirimi-artanlar', gender: 'female', categoryId: 1 },
   // Not a discount-only listing like the others (Defacto has no dedicated
   // Kozmetik discount page — confirmed 404 on kozmetik-indirim) — this is
   // the general Korean-skincare category, where full-price and discounted
@@ -425,7 +428,7 @@ const DEFACTO_LISTINGS = [
   // below (skip if no discountedPrice) filters it down correctly.
   { path: 'kore-cilt-bakim-urunleri',          gender: 'unisex', categoryId: 10 },
 ];
-const MAX_PAGES_PER_LISTING = 8; // Defacto's listings have run ~5 pages in practice; this is a safety cap
+const MAX_PAGES_PER_LISTING = 120; // women's/men's/kids' run 100+ pages of 24 (2026-11-10); this is only a safety cap
 
 async function collectListingLinks(pm, site, listingPath) {
   const links = [];
