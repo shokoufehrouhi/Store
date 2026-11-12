@@ -26,15 +26,19 @@ const REEL_SLOTS = {
   'reel-20:00': { time: '20:00', genTime: '18:00', style: 'chat' },
   // The brand ad reel (utils/brandReelBuilder.js), every day (user's choice,
   // 2026-10-17): photos from as many brands as possible, any group.
-  'reel-11:00': { time: '11:00', genTime: '09:00', style: 'brand' },
+  // Drafted at 10:00 (was 09:00, user's choice 2026-11-12).
+  'reel-11:00': { time: '11:00', genTime: '10:00', style: 'brand' },
   // The site fly-over reel (utils/siteReelBuilder.js), once a week, Thursday
   // night (user's choice, 2026-10-17). `weekdays` limits the scheduled run
   // (Date#getDay); the admin's rebuild works any day.
   'reel-21:30': { time: '21:30', genTime: '19:30', style: 'site', weekdays: [4] },
   // The AI reel (utils/aiReel.js): one product worn/used by a person,
-  // made at 08:00 and left in the admin like the others. Only Saturday,
+  // made at 09:00 and left in the admin like the others. Only Saturday,
   // Monday and Wednesday (user's choice, 2026-10-19; was every day).
-  'reel-08:00': { time: '08:00', genTime: '08:00', ai: true, weekdays: [6, 1, 3] },
+  // Moved from 08:00 to 09:00 (user's choice, 2026-11-12) so it doesn't run
+  // while the night's imports/stock checks are still finishing. The slot key
+  // stays 'reel-08:00': existing rows and admin.html refer to it by that name.
+  'reel-08:00': { time: '09:00', genTime: '09:00', ai: true, weekdays: [6, 1, 3] },
 };
 
 // `where` narrows the products table to the group (combined with the usual
