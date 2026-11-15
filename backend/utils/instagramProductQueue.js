@@ -1,5 +1,6 @@
 const prisma = require('../prisma/client');
 const { productLinkKey } = require('./siteImport');
+const { IG_EXCLUDED_WHERE } = require('./igExcluded');
 
 // Identity of the item itself, not of our product row: deleting a product
 // cascades its instagram_product_posts rows away, so a later re-import of the
@@ -53,7 +54,12 @@ async function queueNewProductsForInstagram(site, importedResults) {
       products: { supplier_shop_name: site.name },
     },
   });
-  const toQueue = ok.slice(0, Math.max(0, site.daily_ig_post_limit - alreadyToday));
+  // Underwear / socks never go on Instagram (user rule 2026-11-15).
+  const allowed = ok.length ? new Set((await prisma.products.findMany({
+    where: { id: { in: ok.map(r => r.id) }, ...IG_EXCLUDED_WHERE },
+    select: { id: true },
+  })).map(p => p.id)) : new Set();
+  const toQueue = ok.filter(r => allowed.has(r.id)).slice(0, Math.max(0, site.daily_ig_post_limit - alreadyToday));
   if (toQueue.length) {
     await prisma.instagram_product_posts.createMany({
       data: toQueue.map(r => ({ product_id: r.id })),

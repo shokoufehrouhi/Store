@@ -20,6 +20,7 @@
 const prisma = require('./prisma/client');
 const { checkSiteStock, importSite, cleanupStaleChromeProfiles, importStatusText, claimSiteRun, SITE_RUN_STALE_MS } = require('./utils/siteSync');
 const { syncSubcategoryActiveState } = require('./utils/subcategorySync');
+const { IG_EXCLUDED_WHERE } = require('./utils/igExcluded');
 const { buildSingleProductStory, buildCollageStory } = require('./utils/storyBuilder');
 const { buildReel, buildAiReel } = require('./utils/reelBuilder');
 const { buildChatReel } = require('./utils/chatReelBuilder');
@@ -231,6 +232,7 @@ async function eligibleStoryProducts(limit, excludeIds = [], { where = null, min
         { discounted_price: null, price: { gte: minPrice } },
       ] },
       ...(where ? [where] : []),
+      IG_EXCLUDED_WHERE,
     ],
   };
 
@@ -804,7 +806,7 @@ async function maybePostQueuedProduct() {
   }
 
   const next = await prisma.instagram_product_posts.findFirst({
-    where: { status: 'queued', products: { is_active: true, is_live: true } },
+    where: { status: 'queued', products: { is_active: true, is_live: true, ...IG_EXCLUDED_WHERE } },
     orderBy: { created_at: 'asc' },
     include: { products: { include: { product_media: true, categories: { select: { label_en: true } } } } },
   });
