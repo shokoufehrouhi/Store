@@ -15,6 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
 const hf = require('./hfSpaces');
+const prisma = require('../prisma/client');
 
 const KONTEXT = 'black-forest-labs/FLUX.1-Kontext-Dev';
 const WAN = 'zerogpu-aoti/wan2-2-fp8da-aoti-faster';
@@ -38,21 +39,25 @@ function pickAvatar(gender) {
 // back of the product (another product, in effect): the product stays in
 // view now and is said to stay the same (user's request, 2026-10-13).
 const SAFE = 'the same person wearing exactly the same product the whole time, modest, elegant and natural, static camera, bright clean studio, realistic smooth natural motion';
+// The avatars are close-ups / half-body photos, so asking for "full body"
+// made Kontext invent the rest with a too-big head and short legs (user,
+// 2026-11-16): say the real proportions out loud and ask for a far camera.
+const PROPORTIONS = 'natural realistic adult human proportions: the head is small, about one eighth of the full body height, with long legs and a normal torso, never a big head or short legs, shot from a distance with a long lens (full-length fashion photo, the whole person small in the frame with space above the head and below the feet)';
 const SCENES = {
   clothing: {
-    edit: (item) => `The person on the left is now wearing the ${item} shown on the right, reproduced exactly (same color, pattern, fabric, cut and details), styled with simple neutral matching clothes and shoes. Keep their face, hair, skin tone and body identical. Remove the separate product image on the right and replace the whole background with a bright clean minimal light grey studio. Full body from head to toe, realistic fashion lookbook photo.`,
+    edit: (item) => `The person on the left is now wearing the ${item} shown on the right, reproduced exactly (same color, pattern, fabric, cut and details), styled with simple neutral matching clothes and shoes. Keep their face, hair, skin tone and body identical. Remove the separate product image on the right and replace the whole background with a bright clean minimal light grey studio. Full body from head to toe, ${PROPORTIONS}, realistic fashion lookbook photo.`,
     clip: `The person walks a few confident steps toward the camera, then does a slow half turn so the outfit is seen from the side, natural arm movement, gentle smile, ${SAFE}`,
   },
   kids: {
-    edit: (item) => `A cheerful child model about seven years old is wearing the ${item} shown in this image, reproduced exactly (same color, print and details), with simple matching clothes and sneakers. Bright clean minimal light grey studio background. Full body from head to toe, realistic kids fashion catalogue photo.`,
-    clip: `The child walks happily toward the camera and does a little playful spin, smiling, ${SAFE}`,
+    edit: (item, who) => `${who.desc} is wearing the ${item} shown in this image, reproduced exactly (same color, print and details), with simple matching clothes and sneakers. Bright clean minimal light grey studio background. Full body from head to toe, ${who.build}, realistic kids fashion catalogue photo.`,
+    clip: (who) => `${who.noun} walks happily toward the camera and does a little playful spin, smiling, ${SAFE}`,
   },
   bag: {
-    edit: (item) => `The person on the left is now carrying the ${item} shown on the right, reproduced exactly (same color, shape, material and hardware), with a simple neutral outfit. Keep their face, hair, skin tone and body identical. Remove the separate product image on the right and replace the whole background with a bright clean minimal light grey studio. Full body, the bag clearly visible, realistic fashion lookbook photo.`,
+    edit: (item) => `The person on the left is now carrying the ${item} shown on the right, reproduced exactly (same color, shape, material and hardware), with a simple neutral outfit. Keep their face, hair, skin tone and body identical. Remove the separate product image on the right and replace the whole background with a bright clean minimal light grey studio. Full body, the bag clearly visible, ${PROPORTIONS}, realistic fashion lookbook photo.`,
     clip: `The person walks toward the camera carrying the bag, then stops and lifts it slightly to show it, smiling, ${SAFE}`,
   },
   shoes: {
-    edit: (item) => `The person on the left is now wearing the ${item} shown on the right on their feet, reproduced exactly (same color, shape and details), with a simple neutral outfit that leaves the shoes fully visible. Keep their face, hair, skin tone and body identical. Remove the separate product image on the right and replace the whole background with a bright clean minimal light grey studio. Full body from head to toe, shoes clearly visible, realistic fashion lookbook photo.`,
+    edit: (item) => `The person on the left is now wearing the ${item} shown on the right on their feet, reproduced exactly (same color, shape and details), with a simple neutral outfit that leaves the shoes fully visible. Keep their face, hair, skin tone and body identical. Remove the separate product image on the right and replace the whole background with a bright clean minimal light grey studio. Full body from head to toe, shoes clearly visible, ${PROPORTIONS}, realistic fashion lookbook photo.`,
     clip: `The person walks a few relaxed steps toward the camera so the shoes are clearly seen, then stops and turns one foot to show the side of the shoe, ${SAFE}`,
   },
   cosmetics: {
@@ -60,6 +65,33 @@ const SCENES = {
     clip: `The woman smiles, brings the product closer to the camera to show it, then gently turns her head, ${SAFE}`,
   },
 };
+
+// Who the kids' model is: boy or girl from the product's names, age from
+// its size labels ("5-6 yaş", "92 cm", "9-12 ay") — the earlier fixed
+// "child about seven" ignored both (user, 2026-11-16).
+function kidProfile(product, sizeLabels = []) {
+  const text = [product.name_en, product.name_tr, product.name_fa, product.name].filter(Boolean).join(' ').toLowerCase();
+  const girl = /\b(girl|girls|kız|kiz|dress|skirt)\b|دخترانه|دختر/.test(text);
+  const boy = /\b(boy|boys|erkek)\b|پسرانه|پسر/.test(text);
+  const sizes = sizeLabels.join(' ').toLowerCase();
+  let years = null;
+  const yas = sizes.match(/(\d{1,2})(?:\s*-\s*(\d{1,2}))?\s*(?:yaş|yas|y\b|years?)/);
+  const ay = sizes.match(/(\d{1,2})(?:\s*-\s*(\d{1,2}))?\s*(?:ay|months?|m\b)/);
+  const cm = sizes.match(/\b(\d{2,3})\s*cm/);
+  if (yas) years = (Number(yas[1]) + Number(yas[2] || yas[1])) / 2;
+  else if (ay) years = (Number(ay[1]) + Number(ay[2] || ay[1])) / 24;
+  else if (cm) years = Math.max(1, Math.round((Number(cm[1]) - 75) / 6.5));
+  years = Math.min(14, Math.max(1, Math.round(years ?? 6)));
+  const sex = girl && !boy ? 'girl' : boy && !girl ? 'boy' : (Math.random() < 0.5 ? 'girl' : 'boy');
+  const toddler = years <= 3;
+  return {
+    noun: `The ${sex}`,
+    desc: `A cheerful ${years}-year-old ${sex} model`,
+    build: toddler
+      ? `natural toddler proportions (a toddler's head is a bit larger than an older child's but the body, arms and legs are clearly shown, not a cartoon or doll)`
+      : `natural realistic proportions of a real ${years}-year-old child (head about one sixth of the body height, normal long legs and torso, not a cartoon, doll or chibi), shot from a distance with a long lens with space above the head and below the feet`,
+  };
+}
 
 function aiReelKind(product, groupKey) {
   if (groupKey === 'kids') return 'kids';
@@ -116,18 +148,23 @@ async function makeAiClip(product, groupKey, productPhotoPath, outFile) {
   const avatarPath = kind === 'kids' ? null : pickAvatar(product.gender === 'male' ? 'male' : 'female');
   const item = String(product.name_en || 'item').replace(/\s+/g, ' ').trim().slice(0, 80);
   const seed = Math.floor(Math.random() * 1e6);
+  let who = null;
+  if (kind === 'kids') {
+    const sizes = await prisma.product_sizes.findMany({ where: { product_id: product.id }, select: { size_label: true } });
+    who = kidProfile(product, sizes.map(s => s.size_label));
+  }
   const editInput = await buildEditInput(avatarPath, productPhotoPath);
   const edited = await withRetries('try-on', async () => {
     const input = await hf.uploadFile(KONTEXT, editInput, 'input.jpg');
-    const out = await hf.callSpace(KONTEXT, 'infer', [input, scene.edit(item), seed, false, 2.5, 28]);
+    const out = await hf.callSpace(KONTEXT, 'infer', [input, scene.edit(item, who), seed, false, 2.5, 28]);
     return hf.downloadOutput(out[0]);
   });
   const firstFrame = await portraitCrop(edited);
 
   // One clip: the reel's AI part is 5s since 2026-10-13 (it was two
   // chained clips, ~10s).
-  fs.writeFileSync(outFile, await withRetries('clip', () => animate(firstFrame, scene.clip, seed)));
-  return { kind, avatar: avatarPath ? path.basename(avatarPath) : null, look: firstFrame };
+  fs.writeFileSync(outFile, await withRetries('clip', () => animate(firstFrame, typeof scene.clip === 'function' ? scene.clip(who) : scene.clip, seed)));
+  return { kind, avatar: avatarPath ? path.basename(avatarPath) : (who ? who.desc : null), look: firstFrame };
 }
 
-module.exports = { makeAiClip, aiReelKind };
+module.exports = { makeAiClip, aiReelKind, kidProfile };
