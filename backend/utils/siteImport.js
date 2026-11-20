@@ -5716,12 +5716,293 @@ async function checkMangoStock(site, products) {
   return results;
 }
 
+// ── Superstep ──
+// superstep.com.tr (Akinon platform, like Flormar): any listing or product
+// page answers JSON with ?format=json, plain HTTP. User's choice
+// (2026-11-20): ONLY discounted products — its "Black Friday" list
+// (/indirim/, 18,396 products, 384 pages of 48; every entry of it carries a
+// cut). Each entry is ONE color of a model (own base_code, e.g. "ID1481"):
+// one Shilista product per entry, the color is in the name. The listing has
+// the prices, the product page the sizes with their stock, photos and text.
+// Two kinds of cut: the list price `retail_price` -> `price`, and the
+// "SEPETTE %X İNDİRİM" basket offer whose `discounted_total_price` is what
+// the customer really pays — the lower of the two is the cost price (same
+// as Defacto's "Sepette" price), the retail price is the original. The
+// resulting rate is compared to the markup (case (a) of resolveDiscountTag).
+const SUPERSTEP_BASE = 'https://www.superstep.com.tr';
+const SUPERSTEP_LIST = '/indirim/';
+const SUPERSTEP_MAX_PHOTOS = 8;
+
+async function superstepGet(pathOrUrl, query = '') {
+  const url = (pathOrUrl.startsWith('http') ? pathOrUrl : SUPERSTEP_BASE + pathOrUrl) + (query ? (pathOrUrl.includes('?') ? '&' : '?') + query : '');
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(url, { headers: { 'User-Agent': COLINS_UA, Accept: 'application/json', 'Accept-Language': 'tr-TR,tr;q=0.9' } });
+      if (res.status === 404) { const e = new Error(`Superstep 404 (${url})`); e.notFound = true; throw e; }
+      if (!res.ok) throw new Error(`Superstep ${res.status} (${url})`);
+      return await res.json();
+    } catch (err) {
+      if (err.notFound) throw err;
+      lastErr = err;
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+  throw lastErr;
+}
+
+// What the customer pays for one item: the product's own price, or the
+// basket offer's if that's lower (only offers open to everyone, for one item).
+function superstepCost(p) {
+  let cost = Number(p.price) || 0;
+  for (const o of p.basket_offers || []) {
+    if ((o.client_types || []).length) continue;
+    const lk = o.listing_kwargs || {};
+    if (lk.quantity != null && Number(lk.quantity) !== 1) continue;
+    const t = Number(lk.discounted_total_price);
+    if (t > 0 && (cost <= 0 || t < cost)) cost = t;
+  }
+  return cost;
+}
+
+// Null unless the real cut beats the markup.
+function superstepPricing(p, markupPercent) {
+  const retail = Number(p.retail_price) || 0;
+  const cost = Math.round(superstepCost(p) * 100) / 100;
+  if (!(retail > 0 && cost > 0 && cost < retail)) return null;
+  const pct = Math.round((retail - cost) / retail * 100);
+  const tag = resolveDiscountTag({
+    discountPercentText: String(pct), markupPercent,
+    finalDiscountedPrice: cost * (1 + markupPercent / 100), priceOriginal: retail,
+  });
+  if (tag !== 'discount') return null;
+  return { price: retail, discounted_price: Math.round(cost * (1 + markupPercent / 100) * 100) / 100, cost_price: cost, tag: 'discount' };
+}
+
+// "/urun/adidas-samba-og-.../id1481/" -> "id1481"
+const superstepLinkId = (link) => String(link || '').split('?')[0].replace(/\/+$/, '').split('/').pop().toLowerCase() || null;
+
+// Shoe sizes come with a decimal comma ("36,5"); a "(…)" part is dropped
+// from every size label (same as the other importers).
+const superstepSizeLabel = (label) => String(label || '').replace(/\s*\(.*?\)/g, '').replace(',', '.').trim();
+
+// "adidas" -> "Adidas", "UNITED4" -> "United4", "EA7" stays — one spelling per
+// brand, the brand filter matches by exact string.
+function superstepBrand(label) {
+  return String(label || '').trim().split(/\s+/).filter(Boolean)
+    .map((w) => ((w === w.toUpperCase() && w.length > 4) ? w.toLowerCase() : w).replace(/^./, (c) => c.toLocaleUpperCase('en')))
+    .join(' ');
+}
+
+// The name says it first ("... Unisex/Yeşil ..." is unisex even when the
+// ERP class says women), then the site's own gender attribute.
+function superstepGender(attrs, name) {
+  const fromText = (text) => {
+    const t = String(text || '').toLocaleLowerCase('tr');
+    if (/çocuk|bebek|\bkız\b|genç/.test(t)) return 'kids';
+    if (/unisex/.test(t)) return 'unisex';
+    if (/kadın|women/.test(t)) return 'female';
+    if (/erkek|\bmen\b/.test(t)) return 'male';
+    return null;
+  };
+  return fromText(name) || fromText(attrs.integration_cinsiyet) || fromText(attrs.integration_erp_cinsiyet) || 'unisex';
+}
+
+// Sports clothing goes to Sports (7, own subcategories); the fashion brands
+// Superstep also sells stay in regular Clothing (1).
+const SUPERSTEP_FASHION_BRANDS = /tommy hilfiger|calvin klein|hugo|les benjamins|nautica|lacoste|timberland|napapijri|jack wolfskin|helly hansen|dickies|alpha industries|story of angels|united4/i;
+
+function routeSuperstepCategory(text, brand = '') {
+  const t = text.toLocaleLowerCase('tr');
+  if (/ayakkabı|sneaker|\bbot\b|terlik|sandalet|çizme|krampon/.test(t)) return 2;
+  if (/çanta|cüzdan|kartlık|şapka|bere\b|çorap|kemer\b|atkı|eldiven|boyunluk|bandana|dizlik|kasket/.test(t)) return 3;
+  return SUPERSTEP_FASHION_BRANDS.test(brand) ? 1 : 7;
+}
+
+const superstepText = (html) => String(html || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+  .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim();
+
+// The size options of a product page: [{ name, inStock }].
+function superstepSizes(detail) {
+  const variant = (detail.variants || []).find((v) => v.attribute_key === 'integration_beden')
+    || (detail.variants || [])[(detail.variants || []).length - 1];
+  const sizes = [];
+  for (const o of variant?.options || []) {
+    const name = superstepSizeLabel(o.label);
+    if (name && !sizes.some((s) => s.name === name)) sizes.push({ name, inStock: !!o.in_stock && (o.product?.stock == null || Number(o.product.stock) > 0) });
+  }
+  return sizes;
+}
+
+const superstepImages = (p) => [...new Set((p.productimage_set || []).filter((im) => im.status === 'active')
+  .sort((a, b) => a.order - b.order).map((im) => im.image).filter(Boolean))].slice(0, SUPERSTEP_MAX_PHOTOS);
+
+// Walks the Black Friday list page by page until `want` fresh, importable
+// candidates are found (or the list ends) — the whole list is 384 pages.
+async function readSuperstepCandidates(site, existingIds, want) {
+  const candidates = [];
+  const seen = new Set();
+  let skipped = 0;
+  let pages = 1;
+  for (let page = 1; page <= pages && candidates.length < want; page++) {
+    const d = await superstepGet(SUPERSTEP_LIST, `format=json&page=${page}`);
+    pages = Number(d.pagination?.num_pages) || 1;
+    for (const p of d.products || []) {
+      const id = superstepLinkId(p.absolute_url);
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      if (existingIds.has(id) || !p.in_stock) { skipped++; continue; }
+      if (!superstepPricing(p, site.markup_percent)) { skipped++; continue; }
+      candidates.push({ id, url: SUPERSTEP_BASE + p.absolute_url });
+    }
+  }
+  return { candidates, skipped };
+}
+
+async function Superstep(_pm, site, opts = {}) {
+  const limit = opts.limit || 30;
+  const existing = await prisma.products.findMany({
+    where: { supplier_shop_name: site.name },
+    select: { product_link: true },
+  });
+  const existingIds = new Set(existing.map((e) => superstepLinkId(e.product_link)).filter(Boolean));
+  const { candidates, skipped } = await readSuperstepCandidates(site, existingIds, limit + 40);
+
+  const imported = [];
+  let stopped = false;
+  await runQueue(candidates, IMPORT_WORKER_SLOTS, async (_w, cand) => {
+    if (stopped) return;
+    if (imported.filter((p) => !p.error).length >= limit) return void (stopped = true);
+    try {
+      const detail = await superstepGet(cand.url, 'format=json');
+      const p = detail.product;
+      const pricing = superstepPricing(p, site.markup_percent);
+      const sizes = superstepSizes(detail);
+      if (!pricing || !sizes.some((s) => s.inStock)) return; // moved since the list was read
+
+      const attrs = p.attributes || {};
+      const kw = p.attributes_kwargs || {};
+      const name = String(p.name || '').replace(/\s+/g, ' ').trim();
+      const nameTr = name.slice(0, 120);
+      const gender = superstepGender(attrs, name);
+      const typeText = `${kw.integration_alt_grup?.label || ''} ${name}`;
+      const brand = superstepBrand(kw.integration_alt_marka?.label || attrs.integration_alt_marka) || site.name;
+      const category_id = routeSuperstepCategory(typeText, brand);
+      const subcategory_id = guessSubcategoryId(typeText, category_id);
+      const colorRaw = [kw.integration_renk_detay?.label, kw.integration_renk_tonu?.label, attrs.integration_renk]
+        .map((c) => String(c || '').trim()).find((c) => c && c !== '-');
+      const colorName = colorRaw ? colorRaw.charAt(0).toLocaleUpperCase('tr') + colorRaw.slice(1).toLocaleLowerCase('tr') : null;
+
+      // The text opens with the product name, twice ("<b>Name</b> Name, ...").
+      let blurb = superstepText(attrs.integration_kalem_icerik);
+      while (blurb.startsWith(name)) blurb = blurb.slice(name.length).replace(/^[\s,.:;-]+/, '');
+      const description = [blurb, superstepText(attrs.integration_erp_icerik)].filter(Boolean).join(' ').slice(0, 800);
+      const translateOrWarn = (text, target) => translateText(text, 'tr', target)
+        .catch((err) => { console.warn(`[siteImport] translate tr->${target} failed for "${text.slice(0, 40)}...": ${err.message}`); return ''; });
+      const [name_fa, name_en, desc_fa, desc_en] = await Promise.all([
+        translateOrWarn(name, 'fa'),
+        translateOrWarn(name, 'en'),
+        description ? translateOrWarn(description, 'fa') : '',
+        description ? translateOrWarn(description, 'en') : '',
+      ]);
+
+      const mediaUrls = [];
+      for (const imgUrl of superstepImages(p)) {
+        try { mediaUrls.push(await saveImageFromUrl(imgUrl)); } catch (e) { /* skip broken image */ }
+      }
+
+      const created = await prisma.products.create({
+        data: {
+          code: await generateProductCode(),
+          category_id, subcategory_id, gender,
+          name_fa: (name_fa || nameTr).slice(0, 120), name_en: (name_en || nameTr).slice(0, 120), name_tr: nameTr,
+          desc_fa, desc_en, desc_tr: description || null,
+          price: pricing.price,
+          discounted_price: pricing.discounted_price,
+          cost_price: pricing.cost_price,
+          tag: pricing.tag,
+          stock: 0,
+          brand,
+          supplier_shop_name: site.name,
+          supplier_code: p.base_code || null,
+          product_link: cand.url,
+          product_media: mediaUrls.length ? { create: mediaUrls.map((u, i) => ({ type: 'image', url: u, sort_order: i })) } : undefined,
+        },
+      });
+      try {
+        const { stock } = await writeLeftiesVariants(created.id, [{ id: cand.id, name: colorName, sizes, images: [] }]);
+        await prisma.products.update({ where: { id: created.id }, data: { stock } });
+      } catch (err) {
+        await prisma.products.delete({ where: { id: created.id } }).catch(() => {});
+        throw err;
+      }
+      imported.push({ id: created.id, name });
+    } catch (err) {
+      imported.push({ error: err.message, url: cand.url });
+    }
+  });
+
+  return { imported, skipped };
+}
+
+// Superstep's stock check: re-reads each product's page (price, basket offer,
+// sizes in stock). Gone from the site, no longer discounted enough, or sold
+// out in every size -> taken off the site (same rule as Colin's); otherwise
+// re-priced and its sizes rewritten.
+async function checkSuperstepStock(site, products) {
+  const { syncSubcategoryActiveState } = require('./subcategorySync');
+  const results = new Array(products.length);
+  await runQueue(products, IMPORT_WORKER_SLOTS, async (_w, p, idx) => {
+    try {
+      let detail = null;
+      try { detail = await superstepGet(p.product_link, 'format=json'); } catch (err) { if (!err.notFound) throw err; }
+      const pricing = detail?.product ? superstepPricing(detail.product, site.markup_percent) : null;
+      const sizes = detail ? superstepSizes(detail) : [];
+      if (!pricing || !sizes.some((s) => s.inStock)) {
+        await prisma.products.update({
+          where: { id: p.id },
+          data: { is_active: false, is_live: false, is_dirty: false, updated_at: new Date() },
+        });
+        if (p.subcategory_id) await syncSubcategoryActiveState(p.subcategory_id);
+        results[idx] = { id: p.id, name: p.name_tr, status: 'deactivated (discount ended, sold out or gone)' };
+        return;
+      }
+      const kw = detail.product.attributes_kwargs || {};
+      const colorRaw = [kw.integration_renk_detay?.label, kw.integration_renk_tonu?.label, detail.product.attributes?.integration_renk]
+        .map((c) => String(c || '').trim()).find((c) => c && c !== '-');
+      const colorName = colorRaw ? colorRaw.charAt(0).toLocaleUpperCase('tr') + colorRaw.slice(1).toLocaleLowerCase('tr') : null;
+      const { stock, changed } = await writeLeftiesVariants(p.id, [{ id: String(p.id), name: colorName, sizes, images: [] }]);
+      const keepAdminTag = ['bestseller', 'new'].includes(p.tag) ? p.tag : null;
+      const tag = stock === 0 ? 'sold_out' : (pricing.tag || keepAdminTag);
+      const update = {};
+      if (Number(p.price) !== pricing.price) update.price = pricing.price;
+      if ((p.discounted_price == null ? null : Number(p.discounted_price)) !== pricing.discounted_price) update.discounted_price = pricing.discounted_price;
+      if (Number(p.cost_price) !== pricing.cost_price) update.cost_price = pricing.cost_price;
+      if (p.stock !== stock) update.stock = stock;
+      if (p.tag !== tag) {
+        update.tag = tag;
+        update.sold_out_at = tag === 'sold_out' ? new Date() : null;
+      }
+      if (Object.keys(update).length || changed) {
+        await prisma.products.update({ where: { id: p.id }, data: { ...update, is_dirty: true, updated_at: new Date() } });
+      }
+      results[idx] = {
+        id: p.id, name: p.name_tr,
+        status: tag === 'sold_out' ? 'sold_out' : `ok (stock=${stock})${Object.keys(update).length || changed ? ', updated' : ''}`,
+      };
+    } catch (err) {
+      results[idx] = { id: p.id, name: p.name_tr, status: `error: ${err.message}` };
+    }
+  });
+  return results;
+}
+
 module.exports = {
   productLinkKey, // exported for utils/instagramProductQueue.js#igItemKey
-  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Oysho, Bershka, PullAndBear, Stradivarius, Colins, PaulMark, BarrelsAndOil, Flormar, Mavi, MClub, ArmaLife, Mango,
+  Defacto, MadameCoco, Zara, LCWaikiki, Koton, KikoMilano, Lefties, Oysho, Bershka, PullAndBear, Stradivarius, Colins, PaulMark, BarrelsAndOil, Flormar, Superstep, Mavi, MClub, ArmaLife, Mango,
   // exported for siteSync.js#checkSiteStock, which hands mClub's, ArmaLife's,
   // Mango's and Lefties' stock checks off to their own API-based readers.
-  checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock, checkOyshoStock, checkBershkaStock, checkPullAndBearStock, checkStradivariusStock, checkColinsStock, checkPaulMarkStock, checkBarrelsAndOilStock, checkFlormarStock,
+  checkMClubStock, checkArmaLifeStock, checkMangoStock, checkLeftiesStock, checkOyshoStock, checkBershkaStock, checkPullAndBearStock, checkStradivariusStock, checkColinsStock, checkPaulMarkStock, checkBarrelsAndOilStock, checkFlormarStock, checkSuperstepStock,
   // exported for backend/scripts/mergeArmaLifeColors.js.
   mergeArmaLifeColors,
   // exported for backend/scripts/reframeProductImages.js (re-reading a

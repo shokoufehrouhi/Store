@@ -147,6 +147,8 @@ async function checkSiteStockNow(site) {
   if (site.name === 'BarrelsAndOil') return importers.checkBarrelsAndOilStock(site, products);
   // And Flormar — its whole catalog comes as JSON.
   if (site.name === 'Flormar') return importers.checkFlormarStock(site, products);
+  // And Superstep — its product pages answer JSON over plain HTTP.
+  if (site.name === 'Superstep') return importers.checkSuperstepStock(site, products);
   // Lefties' API only answers from inside one of its pages, hence the browser.
   if (site.name === 'Lefties') return withBrowser((pm) => importers.checkLeftiesStock(site, products, pm));
   if (site.name === 'Oysho') return withBrowser((pm) => importers.checkOyshoStock(site, products, pm));
@@ -210,7 +212,7 @@ async function checkSiteStockNow(site) {
 // whole catalog (~500 models on 2026-10-05) and Lefties now scans every
 // category; at 30 a run, ArmaLife alone would take over two weeks.
 // Colin's had ~3,200 importable discounted models on 2026-10-06.
-const SITE_IMPORT_LIMITS = { ArmaLife: 100, Lefties: 50, Colins: 100 };
+const SITE_IMPORT_LIMITS = { ArmaLife: 100, Lefties: 50, Colins: 100, Superstep: 100 };
 
 async function importSiteNow(site, opts = {}) {
   const importer = importers[site.name];
