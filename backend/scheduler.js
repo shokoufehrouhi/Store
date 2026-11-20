@@ -656,7 +656,9 @@ function toHashtag(text) {
 // only category feeds the dynamic hashtag slot now.
 function buildProductHashtags(product) {
   const dynamicTags = [];
-  if (product.categories?.label_en) dynamicTags.push(toHashtag(product.categories.label_en));
+  const kind = productKindFa(product);
+  if (kind) dynamicTags.push('#' + kind.replace(/[^\p{L}\p{N}]+/gu, '_'));
+  else if (product.categories?.label_en) dynamicTags.push(toHashtag(product.categories.label_en));
 
   const fallbackTags = ['#فشن', '#استایل', '#خرید_آنلاین', '#پوشاک'];
   const otherTags = [...dynamicTags];
@@ -667,10 +669,21 @@ function buildProductHashtags(product) {
   return ['#Shilista', ...otherTags.slice(0, 4)];
 }
 
+// "کفش چرم زنانه" -- the product's own type (subcategory first, then
+// category) plus its gender; used in the caption body and as the one
+// product-specific hashtag.
+function productKindFa(product) {
+  const genderFa = { female: 'زنانه', male: 'مردانه', kids: 'بچگانه' }[product.gender];
+  const typeFa = product.subcategories?.label_fa || product.categories?.label_fa;
+  return [typeFa, genderFa].filter(Boolean).join(' ');
+}
+
 function buildProductCaption(product) {
   const tags = buildProductHashtags(product);
+  const kind = productKindFa(product);
+  const kindLine = kind ? `\n\n✨ ${kind}` : '';
   const brandLine = product.brand ? `\n\n🏷 ${product.brand}` : '';
-  return `${product.name_fa}\n\n${product.name_en}${brandLine}\n\n🛍 shilista.com\n\n${tags.join(' ')}`;
+  return `${product.name_fa}\n\n${product.name_en}${kindLine}${brandLine}\n\n🛍 shilista.com\n\n${tags.join(' ')}`;
 }
 
 // 2+ real photos -> a carousel (swipeable) post with all of them, up to
@@ -808,7 +821,7 @@ async function maybePostQueuedProduct() {
   const next = await prisma.instagram_product_posts.findFirst({
     where: { status: 'queued', products: { is_active: true, is_live: true, ...IG_EXCLUDED_WHERE } },
     orderBy: { created_at: 'asc' },
-    include: { products: { include: { product_media: true, categories: { select: { label_en: true } } } } },
+    include: { products: { include: { product_media: true, categories: { select: { label_fa: true, label_en: true } }, subcategories: { select: { label_fa: true } } } } },
   });
   if (!next) return;
 
